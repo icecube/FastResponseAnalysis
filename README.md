@@ -19,7 +19,7 @@ source fra_env/bin/activate
 pip install -r requirements.txt
 ```
 
-This will create a virtual environment names `fra_nev`, and the `source fra_env/bin/activate` line will activate the environment. If you are using Python3, replace `virtualenv` with `venv`.
+This will create a virtual environment names `fra_env`, and the `source fra_env/bin/activate` line will activate the environment. If you are using Python3, replace `virtualenv` with `venv`.
 
 ## Tutorial
 In order to perform a short timescale followup using the realtime GFU stream, you need only know:
@@ -60,19 +60,31 @@ Working on unscrambled (UNBLINDED) data
 ```
 This printout is meant as a double check for the user, to ensure that the proper source details were passed. This includes a warning that the analysis is being performed on UNBLINDED data. If you want to run an analysis on scrambled data for verification, include the string `test` anywhere in the `name` argument of the `run.py` script.
 
-It will then take about one minute to initialize all relevant objects for the likelihood analysis. If everything ran properly, after messages about time to initialize, you will see 
+It will then take about one minute to initialize all relevant objects for the likelihood analysis. If everything ran properly, after messages about time to initialize, you will see a printout with the best-fit `ns` value as well as the test statistic. If the best-fit `ns` is zero, then no background trials will be run (`p=1.0`), otherwise, 1000 background trials will be run to quantify the significance. 
 
+After this, an upper limit will be calculated. You should see a printout like:
 ```
-TS = 0.0
-ns = 0.0
+Beginning upper limit calculation
+Initializing Point Source Injector
+Found upper limit of 2.44 events
+``` 
+
+If the analysis was run on a short time window and the best-fit `ns` was 0, a nice sanity check is that this number should be within about 10% from 2.3 events. Once the analysis is complete, there will be some performance plots that are generated and saved to a folder. A pdf report is also generated in this folder, and if you have permissions, it will be copied to a central location and automatically update the [documentation page](https://icecube.wisc.edu/~apizzuto/FastResponse/webpage/). 
+
+### Options
+To specify where the output should go, you can set the environment variable with 
+```console
+export $FAST_RESPONSE_OUTPUT=/path/to/output/
 ```
 
-
-## Code
-
+Additionally, the following arguments can be passed at the command line:
+* `--extension` source extension in degrees for following up extended sources
+* `--skip-events=run_id:event_id` for removing events from the analysis (ie when following up high energy events)
+* `--ntrials` to change the number of background trials performed in the case of a non-zero TS
+* `--document` this is a flag, if present then the official documentation page will be updated upon completion of the analysis
 
 ## Contacts
+Please send any questions or feature requests to:
 * Alex Pizzuto (apizzuto@icecube.wisc.edu)
-* Raamis Hussain ()
-* Justin Vandenbroucke ()
-* Kevin Meagher ()
+* Raamis Hussain (raamis.hussain@icecube.wisc.edu)
+* Justin Vandenbroucke (justin.vandenbroucke@wisc.edu)
