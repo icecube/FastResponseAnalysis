@@ -6,6 +6,21 @@ The fast response analysis is a way of using established transient likelihood me
 ## Dependencies
 This code relies heavily on the `skylab` analysis software framework, as well as on many modules in the scientific python suite, including `numpy`, `scipy`, `healpy`, `astropy`, and many others. For convenience, a `requirements.txt` file is provided.
 
+In order to create a virtual environment to run this analysis, I recommend using `virtualenv`, which can be installed via `pip`:
+
+```console
+pip install --user virtualenv
+```
+
+Then, create a virtual environment with the relevant packages by running
+```console
+python -m virtualenv fra_env
+source fra_env/bin/activate
+pip install -r requirements.txt
+```
+
+This will create a virtual environment names `fra_nev`, and the `source fra_env/bin/activate` line will activate the environment. If you are using Python3, replace `virtualenv` with `venv`.
+
 ## Tutorial
 In order to perform a short timescale followup using the realtime GFU stream, you need only know:
 1. The time window of interest
@@ -50,7 +65,6 @@ It will then take about one minute to initialize all relevant objects for the li
 ```
 TS = 0.0
 ns = 0.0
-
 ```
 
 
