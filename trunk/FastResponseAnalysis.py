@@ -7,12 +7,7 @@ r''' General Fast Response Analysis Class.
     Date: April, 2019
     '''
 
-import os
-import sys
-import time
-import subprocess, pickle 
-import shutil
-import dateutil.parser
+import os, sys, time, subprocess, pickle, shutil, dateutil.parser, logging, utils
 import healpy as hp
 import matplotlib as mpl
 mpl.use('agg')
@@ -35,8 +30,6 @@ from skylab.ps_injector import PointSourceInjector
 from skylab.ps_llh import PointSourceLLH
 from skylab.spectral_models import PowerLaw
 from skylab.temporal_models import BoxProfile, TemporalModel
-import logging
-import utils
 # import meander
 ############################# Plotting Parameters #############################
 mpl.use('agg')
