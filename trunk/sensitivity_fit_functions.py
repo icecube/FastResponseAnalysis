@@ -3,6 +3,7 @@ import scipy as sp
 #from lmfit                import Model
 from scipy.optimize       import curve_fit
 from scipy.stats          import chi2
+import pickle
 
 palette = ['#7fc97f', '#beaed4', '#fdc086', '#ffff99', '#386cb0', '#f0027f']
 
@@ -27,21 +28,30 @@ def find_nearest_idx(array, value):
     idx = (np.abs(array - value)).argmin()
     return idx
 
-def pass_vs_inj(index, spectra='SPL', sigma='20', threshold = 0.5, in_ns = True, with_err = True, trim=-1):
-    bg_trials = np.load('/data/user/apizzuto/Nova/analysis_trials/bg/index_{}_spec_{}_sigma_{}.npy'.format(index, spectra, sigma), allow_pickle=True).item()
-    bg_trials = bg_trials['TS']
-    signal_trials = np.load('/data/user/apizzuto/Nova/analysis_trials/sensitivity/index_{}_spec_{}_sigma_{}.npy'.format(index, spectra, sigma))
-    #signal_trials = signal_trials[signal_trials['gamma'] == gamma]
+def n_to_flux(N, index, delta_t):
+    with open('/data/user/apizzuto/fast_response_skylab/alert_event_followup/sensitivity_ts_distributions/index_{}_time_{:.1f}.pkl'.format(index, delta_t), 'r') as f:
+        signal_trials = pickle.load(f)
+    fl_per_one = np.mean(np.array(signal_trials['flux']) / np.array(signal_trials['mean_ninj']))
+    return fl_per_one * N
+
+def pass_vs_inj(index, delta_t, threshold = 0.5, in_ns = True, with_err = True, trim=-1):
+    with open('/data/user/apizzuto/fast_response_skylab/alert_event_followup/background_ts_distributions/index_{}_time_{:.1f}.pkl'.format(index, delta_t), 'r') as f:
+        bg_trials = pickle.load(f)
+    bg_trials = bg_trials['ts_prior']
+    with open('/data/user/apizzuto/fast_response_skylab/alert_event_followup/sensitivity_ts_distributions/index_{}_time_{:.1f}.pkl'.format(index, delta_t), 'r') as f:
+        signal_trials = pickle.load(f)
     bg_thresh = np.percentile(bg_trials, threshold * 100.)
     signal_fluxes, signal_indices = np.unique(signal_trials['mean_ninj'], return_index=True)
-    signal_indices = np.append(signal_indices, len(signal_trials))
+    signal_indices = np.append(signal_indices, len(signal_trials['ts_prior']))
+    #print signal_indices, signal_fluxes
     if trim != -1 and trim < 0:
         signal_indices = signal_indices[:trim]
         signal_fluxes = signal_fluxes[:trim]
     elif trim > 0:
         signal_indices = signal_indices[:trim + 1]
         signal_fluxes = signal_fluxes[:trim]
-    passing = np.array([np.count_nonzero(signal_trials['TS'][li:ri] > bg_thresh) / float(ri - li) for li, ri in zip(signal_indices[:-1], signal_indices[1:])])
+    #print signal_trials['ts_prior'], signal_trials['mean_ninj']
+    passing = np.array([np.count_nonzero(signal_trials['ts_prior'][li:ri] > bg_thresh) / float(ri - li) for li, ri in zip(signal_indices[:-1], signal_indices[1:])])
     if not with_err:
         return signal_fluxes, passing
     else:
@@ -53,8 +63,8 @@ def pass_vs_inj(index, spectra='SPL', sigma='20', threshold = 0.5, in_ns = True,
         errs = np.maximum(errs, bound_case_sigma)
         return signal_fluxes, passing, errs
     
-def sensitivity_curve(index, spectra='SPL', sigma='20', threshold = 0.5, in_ns = True, with_err = True, trim=-1, ax = None, p0 = None, fontsize = 16):
-    signal_fluxes, passing, errs = pass_vs_inj(index, spectra=spectra, sigma=sigma, threshold=threshold, in_ns=in_ns, with_err=with_err, trim=trim)
+def sensitivity_curve(index, delta_t, threshold = 0.5, in_ns = True, with_err = True, trim=-1, ax = None, p0 = None, fontsize = 16):
+    signal_fluxes, passing, errs = pass_vs_inj(index, delta_t, threshold=threshold, in_ns=in_ns, with_err=with_err, trim=trim)
     fits, plist = [], []
     try:
         fits.append(sensitivity_fit(signal_fluxes, passing, errs, chi2cdf, p0=p0))
@@ -81,12 +91,12 @@ def sensitivity_curve(index, spectra='SPL', sigma='20', threshold = 0.5, in_ns =
         if fit_dict['ls'] == '-':
             ax.axhline(0.9, color = palette[-1], linewidth = 0.3, linestyle = '-.')
             ax.axvline(fit_dict['sens'], color = palette[-1], linewidth = 0.3, linestyle = '-.')
-            ax.text(10, 0.5, r'Sens. = {:.2f}'.format(fit_dict['sens']))
+            ax.text(6, 0.5, r'Sens. = {:.2f}'.format(fit_dict['sens']))
     ax.errorbar(signal_fluxes, passing, yerr=errs, capsize = 3, linestyle='', marker = 's', markersize = 2)
     ax.legend(loc=4, fontsize = fontsize)
     
-def calc_sensitivity(index, spectra='SPL', sigma='20', threshold = 0.5, in_ns = True, with_err = True, trim=-1, p0=None):
-    signal_fluxes, passing, errs = pass_vs_inj(index, spectra, sigma, threshold=threshold, in_ns=in_ns, with_err=with_err, trim=trim)
+def calc_sensitivity(index, delta_t, threshold = 0.5, in_ns = True, with_err = True, trim=-1, p0=None):
+    signal_fluxes, passing, errs = pass_vs_inj(index, delta_t, threshold=threshold, in_ns=in_ns, with_err=with_err, trim=trim)
     fits, plist = [], []
     try:
         fits.append(sensitivity_fit(signal_fluxes, passing, errs, chi2cdf, p0=p0))
@@ -121,13 +131,13 @@ def sensitivity_fit(signal_fluxes, passing, errs, fit_func, p0 = None, conf_lev 
             'dof': dof, 'xfit': xfit, 'yfit': yfit, 
             'name': name, 'pval':pval, 'ls':'--', 'sens': sens}
 
-def pvals_for_signal(index, spectra='SPL', sigma='20', ns = 1, sigma_units = False):
-    bg_trials = np.load('/data/user/apizzuto/Nova/analysis_trials/bg/index_{}_spec_{}_sigma_{}.npy'.format(index, spectra, sigma), allow_pickle=True).item()
-    bg_trials = bg_trials['TS']
-    signal_trials = np.load('/data/user/apizzuto/Nova/analysis_trials/sensitivity/index_{}_spec_{}_sigma_{}.npy'.format(index, spectra, sigma))
-    signal_trials = signal_trials[signal_trials['n_inj'] == ns]
-    #print(len(bg_trials['TS']))
-    pvals = [100. - sp.stats.percentileofscore(bg_trials, ts, kind='strict') for ts in signal_trials['TS']]
+def pvals_for_signal(index, delta_t, ns = 1, sigma_units = False):
+    with open('/data/user/apizzuto/fast_response_skylab/alert_event_followup/background_ts_distributions/index_{}_time_{:.1f}.pkl'.format(index, delta_t), 'r') as f:
+        bg_trials = pickle.load(f)
+    bg_trials = bg_trials['ts_prior']
+    with open('/data/user/apizzuto/fast_response_skylab/alert_event_followup/sensitivity_ts_distributions/index_{}_time_{:.1f}.pkl'.format(index, delta_t), 'r') as f:
+        signal_trials = pickle.load(f)
+    pvals = [100. - sp.stats.percentileofscore(bg_trials, ts, kind='strict') for ts in signal_trials['ts_prior']]
     pvals = np.array(pvals)*0.01
     pvals = np.where(pvals==0, 1e-6, pvals)
     if not sigma_units:
