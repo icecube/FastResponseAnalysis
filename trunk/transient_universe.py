@@ -26,7 +26,7 @@ def find_nearest_ind(array, value):
     idx = (np.abs(array - value)).argmin()
     return idx
 
-bg_rates = {'HESE_gold': 0.4, 'HESE_bronze': 0.9, 'GFU_gold': 6.6, 'GFU_bronze': 13.8}
+bg_rates = {'HESE_gold': 0.4, 'HESE_bronze': 0.9, 'GFU_gold': 5.7, 'GFU_bronze': 13.8}
 
 class TransientUniverse():
     r'''idk if bundling things like this will actually help out at all'''
@@ -43,7 +43,7 @@ class TransientUniverse():
         self.timescale = 2.*86400.
         self.sim_flux = None
         self.data_years = kwargs.pop('data_years', 1.)
-        self.N_per_dec_band()
+        self.N_per_dec_band() #initializes effective area
 
     def find_alerts(self):
         if self.uni_header is None:
@@ -125,16 +125,6 @@ class TransientUniverse():
         return sig_alerts
 
 
-# class Alert():
-
-#     def __init__():
-#         self.stream = 'HESE'
-#         self.level = 'gold'
-#         self.signal = False
-#         self.dec = 0.0
-#         self.skymap = None
-#         self.time = None
-#         self.additional_events = None
 
 def load_sig(cut = 'tight', stream = 'astro_numu'):
     with open('/data/user/apizzuto/fast_response_skylab/alert_event_followup/signalness_distributions/{}_{}.csv'.format(stream, cut), 'r') as f:
@@ -183,22 +173,6 @@ def sample_signalness(stream='astro_numu', cut='tight', size = 1):
     sigs = sample_from_hist(sh[0], sh[1], size = size)
     return sigs
 
-
-
-# class BackgroundAlert(Alert):
-#     def __init__(self):
-#         print 'hi'
-
-# class SignalAlert(Alert):
-#     r'''TransientUniverse gets a list of Alerts maybe?'''
-
-    # def __init__(self, dec, flux, timescale = 2.*86400.):
-    #     self.dec, self.flux, self.timescale = dec, flux, timescale
-    #     self.signalness = self.sample_signalness(stream='')
-
-
-
-
 def load_alert_effA(stream = 'HESE', level='bronze'):
     if stream == 'HESE':
         return load_HESE_effA(level = level)
@@ -226,16 +200,6 @@ def load_EHE_effA(level = 'bronze'):
             ens = np.power(10., centers(val[1]))
             effs = val[0]
             ehe_ret[key] = (ens, effs)
-    #COMMENTED OUT BLOCK FROM BEFORE I FOUND MC FILE
-    #decs = ['[-90.0, -5.0]','[-5.0, 30.0]','[30.0, 90.0]']
-    #for dec in decs:
-    #    dec_list = ast.literal_eval(dec)
-    #    with open(eff_area_path + 'EHE_GFU_{}_{}.csv'.format(int(dec_list[0]), int(dec_list[1])), 'r') as f:
-    #        reader = csv.reader(f, delimiter=',')
-    #        data = np.array(list(reader)).astype(float)
-    #        ens, effs = zip(*data)
-    #    ehe_ret[dec+'_'+level]=(np.array(ens)*1e3, np.array(effs))
-    #return ehe_ret
     return ehe_ret
 
 def aeff(en, dec, stream='HESE', level='bronze'):
