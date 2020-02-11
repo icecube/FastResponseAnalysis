@@ -34,6 +34,12 @@ def n_to_flux(N, index, delta_t):
     fl_per_one = np.mean(np.array(signal_trials['flux']) / np.array(signal_trials['mean_ninj']))
     return fl_per_one * N
 
+def dec_of_map(index):
+    with open('/data/user/apizzuto/fast_response_skylab/alert_event_followup/sensitivity_ts_distributions/index_{}_time_{:.1f}.pkl'.format(index, 1000.0), 'r') as f:
+        signal_trials = pickle.load(f)
+    ra, dec = np.median(signal_trials['ra']), np.median(signal_trials['dec'])
+    return ra, dec
+
 def pass_vs_inj(index, delta_t, threshold = 0.5, in_ns = True, with_err = True, trim=-1):
     with open('/data/user/apizzuto/fast_response_skylab/alert_event_followup/background_ts_distributions/index_{}_time_{:.1f}.pkl'.format(index, delta_t), 'r') as f:
         bg_trials = pickle.load(f)
