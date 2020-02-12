@@ -40,6 +40,16 @@ def dec_of_map(index):
     ra, dec = np.median(signal_trials['ra']), np.median(signal_trials['dec'])
     return ra, dec
 
+def background_distribution(index, delta_t):
+    with open('/data/user/apizzuto/fast_response_skylab/alert_event_followup/background_ts_distributions/index_{}_time_{:.1f}.pkl'.format(index, delta_t), 'r') as f:
+        bg_trials = pickle.load(f)
+    return bg_trials['ts_prior']
+
+def signal_distribution(index, delta_t, ns):
+    with open('/data/user/apizzuto/fast_response_skylab/alert_event_followup/sensitivity_ts_distributions/index_{}_time_{:.1f}.pkl'.format(index, delta_t), 'r') as f:
+        signal_trials = pickle.load(f)
+    return signal_trials[signal_trials['mean_ninj'] == ns]
+
 def pass_vs_inj(index, delta_t, threshold = 0.5, in_ns = True, with_err = True, trim=-1):
     with open('/data/user/apizzuto/fast_response_skylab/alert_event_followup/background_ts_distributions/index_{}_time_{:.1f}.pkl'.format(index, delta_t), 'r') as f:
         bg_trials = pickle.load(f)

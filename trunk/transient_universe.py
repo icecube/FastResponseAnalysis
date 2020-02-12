@@ -43,7 +43,9 @@ class TransientUniverse():
         self.timescale = 2.*86400.
         self.sim_flux = None
         self.data_years = kwargs.pop('data_years', 1.)
-        self.N_per_dec_band() #initializes effective area
+        if self.diffuse_flux_norm is not None:
+            self.N_per_dec_band() #initializes effective area
+        self.manual_lumi = kwargs.pop('manual_lumi', 0.0)
 
     def find_alerts(self):
         if self.uni_header is None:
@@ -64,14 +66,14 @@ class TransientUniverse():
         for i in range(int(self.data_years) / 1):
             uni = firesong_simulation('', density=self.density, Evolution=self.evolution,
                     Transient=True, timescale=self.timescale, fluxnorm = self.diffuse_flux_norm,
-                    index=self.diffuse_flux_ind, LF = self.lumi)
+                    index=self.diffuse_flux_ind, LF = self.lumi, luminosity=self.manual_lumi)
             tmp_dec.extend(uni['sources']['dec']), tmp_fls.extend(uni['sources']['flux'])
             tmp_tot += uni['total_flux']
         #Now do the fraction of a year
         if self.data_years % 1 != 0.0:
             uni = firesong_simulation('', density=self.density, Evolution=self.evolution,
                     Transient=True, timescale=self.timescale, fluxnorm = self.diffuse_flux_norm,
-                    index=self.diffuse_flux_ind, LF = self.lumi)
+                    index=self.diffuse_flux_ind, LF = self.lumi, luminosity=self.manual_lumi)
             add_src_num = int((self.data_years % 1) * len(uni['sources']['dec']))
             add_srcs_ind = np.random.choice(list(range(len(uni['sources']['dec']))), add_src_num)
             tmp_dec.extend([uni['sources']['dec'][ind] for ind in add_srcs_ind])
