@@ -258,7 +258,7 @@ class FastResponseAnalysis(object):
             if self.stop - self.start > 1.:
                 spatial_prior = SpatialPrior(self.skymap, containment = 0.95)
             else:
-                spatial_prior = SpatialPrior(self.skymap)
+                spatial_prior = SpatialPrior(self.skymap, containment = 0.95)
             self.spatial_prior = spatial_prior
             inj = PriorInjector(spatial_prior, gamma=gamma, e_range = (0,np.inf), 
                                     E0=1000., seed = seed) #1000 for 1 TeV
