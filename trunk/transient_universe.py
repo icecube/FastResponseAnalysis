@@ -126,6 +126,21 @@ class TransientUniverse():
         self.sig_alerts = sig_alerts
         return sig_alerts
 
+    def sample_real_alert_map(self):
+        decs_and_inds = np.load()#DO THIS
+        
+
+    def additional_signal_events(self):
+        if self.sig_alerts is None:
+            self.find_signal_alerts()
+        gfu_effective_area = np.load()
+        #Still need to save the effective area and put it here
+        gfu_n_per_dec_band = np.load()
+        #Probably more computationally efficient to do this once up front,
+        #Should I do this for the alert streams too? Probably. 
+        dec_bins = np.arcsin(np.linspace(-1., 1., 41))*180. / np.pi
+        dec_bands_gfu = np.digitize(self.sources['dec'], bins=dec_bins) - 1
+        
 
 
 def load_sig(cut = 'tight', stream = 'astro_numu'):
