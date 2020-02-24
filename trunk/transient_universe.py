@@ -1,35 +1,18 @@
 import numpy as np
 from glob import glob
 import pandas as pd
-import pickle
-import csv
-import ast
-#from skylab.ps_injector import PointSourceInjector
-#from skylab.datasets import Datasets
-import sys
+import pickle, csv, ast, sys
 sys.path.append('/data/user/apizzuto/fast_response_skylab/alert_event_followup/FIRESONG/')
 from Firesong import firesong_simulation
 
 data_path = '/data/user/apizzuto/fast_response_skylab/alert_event_followup/FIRESONG/Results/'
 eff_area_path = '/data/user/apizzuto/fast_response_skylab/alert_event_followup/effective_areas_alerts/'
 
-def centers(arr):
-    return arr[:-1] + np.diff(arr) / 2.
-
-def find_nearest(array, value):
-    array = np.asarray(array)
-    idx = (np.abs(array - value)).argmin()
-    return array[idx]
-
-def find_nearest_ind(array, value):
-    array = np.asarray(array)
-    idx = (np.abs(array - value)).argmin()
-    return idx
-
 bg_rates = {'HESE_gold': 0.4, 'HESE_bronze': 0.9, 'GFU_gold': 5.7, 'GFU_bronze': 13.8}
 
 class TransientUniverse():
-    r'''idk if bundling things like this will actually help out at all'''
+    r'''Given a set of cosmological parameters, calculate neutrino sources in 
+    the universe, and find which of those will initiate alerts in IceCube'''
 
     def __init__(self, lumi, evol, density, diffuse_flux_norm, diffuse_flux_ind,
                     **kwargs):
@@ -49,6 +32,7 @@ class TransientUniverse():
         self.seed = kwargs.pop('seed', None)
 
     def find_alerts(self):
+        r'''Compile background and signal alerts'''
         if self.uni_header is None:
             self.create_universe()
         signal_alerts = self.find_signal_alerts()
@@ -57,9 +41,6 @@ class TransientUniverse():
                     'background': background_alerts}
         self.alerts = alerts
 
-    ##############################################3
-    #### CHECK THE FLUXES, PROBABLY NEED TO DO SOME MULTIPLICATION
-    ################################################
     def create_universe(self):
         r'''
         Run FIRESONG for every year of data
@@ -90,6 +71,7 @@ class TransientUniverse():
         self.dec_band_from_decs()
 
     def find_background_alerts(self):
+        r'''Sample from expected number of background alerts'''
         bg_alerts = {}
         for sample in ['HESE', 'GFU']:
                 for cut, level in [('gold', 'tight'), ('bronze', 'loose')]:
@@ -100,10 +82,14 @@ class TransientUniverse():
         return bg_alerts
 
     def dec_band_from_decs(self):
+        r'''Alert stream effective areas given only in three declination
+        bands, conversion from dec to band done here'''
         bands = np.digitize(self.sources['dec'], bins = [-90., -5., 30., 90.]) - 1.
         self.sources['dec_bands'] = bands
 
     def N_per_dec_band(self):
+        r'''Assuming a flux normalization of 1, calculate mean number of 
+        expected events assuming a given spectrum'''
         ens = np.logspace(1., 8., 501)
         tmp = {}
         for sample in ['HESE', 'GFU']:
@@ -116,6 +102,8 @@ class TransientUniverse():
         self.n_per_dec = tmp
 
     def find_signal_alerts(self):
+        r'''With distribution of sources, calculate where the alert events
+        are coming from'''
         sig_alerts = {}
         for stream in ['GFU', 'HESE']:
             for cut, lev in [('gold', 'tight'), ('bronze', 'loose')]:
@@ -136,8 +124,9 @@ class TransientUniverse():
         decs_and_inds = np.load()#DO THIS
         return None
          
-
     def additional_signal_events(self):
+        r'''After finding signal events, calculate any events that could
+        accompany the alert in a higher effective area, less pure sample'''
         en_bins = np.logspace(2., 9., 501)
         ens = centers(en_bins)
         extra_events = {}
@@ -162,6 +151,7 @@ class TransientUniverse():
         return extra_events
 
 def load_sig(cut = 'tight', stream = 'astro_numu'):
+    r'''Load signalness distributions'''
     with open('/data/user/apizzuto/fast_response_skylab/alert_event_followup/signalness_distributions/{}_{}.csv'.format(stream, cut), 'r') as f:
         reader = csv.reader(f, delimiter=',')
         data = np.array(list(reader)).astype(float)
@@ -173,6 +163,8 @@ def load_sig(cut = 'tight', stream = 'astro_numu'):
     return sigs, heights
 
 def sample_from_hist(centers, heights, size = 1):
+    r'''Given a histogram, sample from it, assuming
+    uniform distributions within a bin'''
     cdf = np.cumsum(heights)
     cdf = cdf / cdf[-1]
     values = np.random.rand(size)
@@ -184,6 +176,8 @@ def sample_from_hist(centers, heights, size = 1):
 
 
 def sample_signalness(stream='astro_numu', cut='tight', size = 1):
+    r'''Load and sample from signalness distributions for various
+    event streams'''
     if stream in ['astro_numu', 'conv_numu', 'conv_mu']:
         sh = load_sig(stream=stream, cut=cut)
     elif stream in ['signal', 'background', 'total']:
@@ -209,6 +203,7 @@ def sample_signalness(stream='astro_numu', cut='tight', size = 1):
     return sigs
 
 def load_alert_effA(stream = 'HESE', level='bronze'):
+    r'''Load tabulated effective areas for different alert streams'''
     if stream == 'HESE':
         return load_HESE_effA(level = level)
     elif stream == 'EHE' or stream == 'GFU':
@@ -218,6 +213,7 @@ def load_alert_effA(stream = 'HESE', level='bronze'):
         return None
 
 def load_HESE_effA(level = 'bronze'):
+    r'''Load starting events effective areas'''
     hese_tmp = np.load(eff_area_path + 'realtimeHESEv2_effA.npy').item()
     hese_ret = {}
     for key, val in hese_tmp.items():
@@ -228,6 +224,8 @@ def load_HESE_effA(level = 'bronze'):
     return hese_ret
 
 def load_EHE_effA(level = 'bronze'):
+    r'''Load through-going events effective areas (this is actually
+    GFU and EHE)'''
     ehe_tmp = np.load(eff_area_path + 'through_going_v2_alerts.npy').item()
     ehe_ret = {}
     for key, val in ehe_tmp.items():
@@ -288,3 +286,15 @@ def sample_signal_events(ens, dec, stream='HESE', level='bronze', gamma=-2.,
     sigs = sample_signalness(stream='astro_numu', cut=cut, size=N)
     return N, sigs
 
+def centers(arr):
+    return arr[:-1] + np.diff(arr) / 2.
+
+def find_nearest(array, value):
+    array = np.asarray(array)
+    idx = (np.abs(array - value)).argmin()
+    return array[idx]
+
+def find_nearest_ind(array, value):
+    array = np.asarray(array)
+    idx = (np.abs(array - value)).argmin()
+    return idx
