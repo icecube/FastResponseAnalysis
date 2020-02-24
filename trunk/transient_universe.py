@@ -45,12 +45,13 @@ class TransientUniverse():
         r'''
         Run FIRESONG for every year of data
         '''
-        tmp_fls, tmp_dec, tmp_tot = [],[],0.
+        tmp_fls, tmp_dec, tmp_zs, tmp_tot = [],[],[],0.
         for i in range(int(self.data_years) / 1):
             uni = firesong_simulation('', density=self.density, Evolution=self.evolution,
                     Transient=True, timescale=self.timescale, fluxnorm = self.diffuse_flux_norm,
                     index=self.diffuse_flux_ind, LF = self.lumi, luminosity=self.manual_lumi)
             tmp_dec.extend(uni['sources']['dec']), tmp_fls.extend(uni['sources']['flux'])
+            tmp_zs.exten(uni['sources']['z'])
             tmp_tot += uni['total_flux']
         #Now do the fraction of a year
         if self.data_years % 1 != 0.0:
@@ -61,11 +62,12 @@ class TransientUniverse():
             add_srcs_ind = np.random.choice(list(range(len(uni['sources']['dec']))), add_src_num)
             tmp_dec.extend([uni['sources']['dec'][ind] for ind in add_srcs_ind])
             tmp_fls.extend([uni['sources']['flux'][ind] for ind in add_srcs_ind])
+            tmp_zs.extend(uni['sources']['z'][ind] for ind in add_srcs_ind)
             tmp_tot += uni['total_flux'] * self.data_years % 1
         #fluxes are E^2 dN/dE at 100 TeV, convert now to dN/dE * DeltaT at 1 GeV
         tmp_fls = np.array(tmp_fls)
         tmp_fls *= self.timescale * np.power(1, -1*self.diffuse_flux_ind)*np.power(1e5, self.diffuse_flux_ind - 2.)
-        self.sources = {'dec': np.array(tmp_dec), 'flux': tmp_fls} 
+        self.sources = {'dec': np.array(tmp_dec), 'flux': tmp_fls, 'z': np.array(tmp_zs)} 
         self.uni_header = uni['header']
         self.sim_flux = tmp_tot
         self.dec_band_from_decs()
