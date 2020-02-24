@@ -46,13 +46,15 @@ class TransientUniverse():
         if self.diffuse_flux_norm is not None:
             self.N_per_dec_band() #initializes effective area
         self.manual_lumi = kwargs.pop('manual_lumi', 0.0)
+        self.seed = kwargs.pop('seed', None)
 
     def find_alerts(self):
         if self.uni_header is None:
             self.create_universe()
         signal_alerts = self.find_signal_alerts()
         background_alerts = self.find_background_alerts()
-        alerts = signal_alerts + background_alerts
+        alerts = {'signal': signal_alerts,
+                    'background': background_alerts}
         self.alerts = alerts
 
     ##############################################3
@@ -73,7 +75,7 @@ class TransientUniverse():
         if self.data_years % 1 != 0.0:
             uni = firesong_simulation('', density=self.density, Evolution=self.evolution,
                     Transient=True, timescale=self.timescale, fluxnorm = self.diffuse_flux_norm,
-                    index=self.diffuse_flux_ind, LF = self.lumi, luminosity=self.manual_lumi)
+                    index=self.diffuse_flux_ind, LF = self.lumi, luminosity=self.manual_lumi, seed=self.seed)
             add_src_num = int((self.data_years % 1) * len(uni['sources']['dec']))
             add_srcs_ind = np.random.choice(list(range(len(uni['sources']['dec']))), add_src_num)
             tmp_dec.extend([uni['sources']['dec'][ind] for ind in add_srcs_ind])
@@ -88,12 +90,12 @@ class TransientUniverse():
         self.dec_band_from_decs()
 
     def find_background_alerts(self):
-        bg_alerts = []
+        bg_alerts = {}
         for sample in ['HESE', 'GFU']:
                 for cut, level in [('gold', 'tight'), ('bronze', 'loose')]:
                     N = np.random.poisson(lam = bg_rates[sample + '_' + cut])
                     sigs = sample_signalness(cut=level, stream='background', size=N)
-                    bg_alerts.append((N, sigs, sample + '_' + cut, 'bg'))
+                    bg_alerts[sample + '_' + cut] = (N, sigs)
         self.bg_alerts = bg_alerts
         return bg_alerts
 
@@ -114,34 +116,50 @@ class TransientUniverse():
         self.n_per_dec = tmp
 
     def find_signal_alerts(self):
-        sig_alerts = [(0,0.,'','')]*len(self.sources['dec'])
-        ens = np.logspace(1., 8., 501)
+        sig_alerts = {}
+        for stream in ['GFU', 'HESE']:
+            for cut, lev in [('gold', 'tight'), ('bronze', 'loose')]:
+                sig_alerts[stream + '_' + cut] = [(0,0.)]*len(self.sources['dec'])
+        #sig_alerts = [(0,0.,'','')]*len(self.sources['dec'])
         for jjj, (src_dec, src_flux, src_bnd) in enumerate(zip(self.sources['dec'], self.sources['flux'], self.sources['dec_bands'])):
             for stream in ['GFU', 'HESE']:
                 for cut, lev in [('gold', 'tight'), ('bronze', 'loose')]:
                     N = np.random.poisson(lam=self.n_per_dec[stream + '_' + cut][int(src_bnd)] * src_flux)
                     if N != 0.0:
                         sigs = sample_signalness(cut=lev, stream='signal', size = N)
-                        sig_alerts[jjj] = (N, sigs, stream + '_' + cut,'sig')
+                        sig_alerts[stream + '_' + cut][jjj] = (N, sigs)
         self.sig_alerts = sig_alerts
         return sig_alerts
 
+    # THIS IS WHERE I NEED TO PICK UP ON MONDAY
     def sample_real_alert_map(self):
         decs_and_inds = np.load()#DO THIS
-        
+        return None
+         
 
     def additional_signal_events(self):
+        en_bins = np.logspace(2., 9., 501)
+        ens = centers(en_bins)
+        extra_events = {}
+        for stream in ['GFU', 'HESE']:
+            for cut, lev in [('gold', 'tight'), ('bronze', 'loose')]:
+                extra_events[stream + '_' + cut] = np.zeros(len(self.sources['dec']))
         if self.sig_alerts is None:
             self.find_signal_alerts()
-        gfu_effective_area = np.load()
-        #Still need to save the effective area and put it here
-        gfu_n_per_dec_band = np.load()
-        #Probably more computationally efficient to do this once up front,
-        #Should I do this for the alert streams too? Probably. 
-        dec_bins = np.arcsin(np.linspace(-1., 1., 41))*180. / np.pi
-        dec_bands_gfu = np.digitize(self.sources['dec'], bins=dec_bins) - 1
-        
-
+        with open('/data/user/apizzuto/fast_response_skylab/alert_event_followup/' + \
+                'effective_areas_alerts/gfu_online_effective_area_spline.npy', 'r') as f:
+            gfu_eff_spline = pickle.load(f)
+        for stream in self.sig_alerts.keys():
+            for jjj, (src_dec, src_flux) in enumerate(zip(self.sources['dec'], self.sources['flux'])):
+                if self.sig_alerts[stream][jjj] == (0,0.):
+                    continue
+                else:
+                    mu_extra = np.sum(gfu_eff_spline(np.log10(ens), np.sin(src_dec*np.pi / 180)) * \
+                     spectrum(ens, gamma = -1.*self.diffuse_flux_ind, flux_norm=src_flux)*np.diff(en_bins)*1e4)
+                    N_extra = np.random.poisson(mu_extra)
+                    extra_events[stream][jjj] = N_extra
+        self.extra_events = extra_events
+        return extra_events
 
 def load_sig(cut = 'tight', stream = 'astro_numu'):
     with open('/data/user/apizzuto/fast_response_skylab/alert_event_followup/signalness_distributions/{}_{}.csv'.format(stream, cut), 'r') as f:
