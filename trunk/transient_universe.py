@@ -51,7 +51,7 @@ class TransientUniverse():
                     Transient=True, timescale=self.timescale, fluxnorm = self.diffuse_flux_norm,
                     index=self.diffuse_flux_ind, LF = self.lumi, luminosity=self.manual_lumi)
             tmp_dec.extend(uni['sources']['dec']), tmp_fls.extend(uni['sources']['flux'])
-            tmp_zs.exten(uni['sources']['z'])
+            tmp_zs.extend(uni['sources']['z'])
             tmp_tot += uni['total_flux']
         #Now do the fraction of a year
         if self.data_years % 1 != 0.0:
@@ -121,10 +121,22 @@ class TransientUniverse():
         self.sig_alerts = sig_alerts
         return sig_alerts
 
-    # THIS IS WHERE I NEED TO PICK UP ON MONDAY
-    def sample_real_alert_map(self):
-        decs_and_inds = np.load()#DO THIS
-        return None
+    def sample_skymap(self, dec):
+        r'''Only use real alert event skymap locations'''
+        decs = np.load('/data/user/apizzuto/fast_response_skylab/alert_event_followup/effective_areas_alerts/decs_by_ind.npy')[1]
+        diffs = np.abs(np.sin(decs)-np.sin(dec))
+        if np.min(diffs) > 0.1:
+            idx = find_nearest_idx(decs, dec)
+            sample_dec = decs[idx]
+        else:
+            nearby_inds = np.argwhere(diffs < 0.1).flatten()
+            idx = np.random.choice(nearby_inds)
+            sample_dec = decs[idx]
+        return sample_dec, idx
+
+    def find_alert_skymaps(self):
+        r'''Iterate over alert locations, find corresponding alert'''
+        return 
          
     def additional_signal_events(self):
         r'''After finding signal events, calculate any events that could
