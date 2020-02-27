@@ -126,7 +126,7 @@ class TransientUniverse():
         decs = np.load('/data/user/apizzuto/fast_response_skylab/alert_event_followup/effective_areas_alerts/decs_by_ind.npy')[1]
         diffs = np.abs(np.sin(decs)-np.sin(dec))
         if np.min(diffs) > 0.1:
-            idx = find_nearest_idx(decs, dec)
+            idx = find_nearest_ind(decs, dec)
             sample_dec = decs[idx]
         else:
             nearby_inds = np.argwhere(diffs < 0.1).flatten()
@@ -136,6 +136,15 @@ class TransientUniverse():
 
     def find_alert_skymaps(self):
         r'''Iterate over alert locations, find corresponding alert'''
+        skymaps = {}
+        for stream in self.sig_alerts.keys():
+            skymaps[stream] = [None] * len(self.sources['dec'])
+            for jjj, (src_dec, src_flux) in enumerate(zip(self.sources['dec'], self.sources['flux'])):
+                if self.sig_alerts[stream][jjj] == (0,0.):
+                    continue
+                else:
+                    skymaps[stream][jjj] = self.sample_skymap(src_dec)
+        self.skymaps = skymaps
         return 
          
     def additional_signal_events(self):
