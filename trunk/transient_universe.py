@@ -10,7 +10,11 @@ eff_area_path = '/data/user/apizzuto/fast_response_skylab/alert_event_followup/e
 
 bg_rates = {'HESE_gold': 0.4, 'HESE_bronze': 0.9, 'GFU_gold': 5.7, 'GFU_bronze': 13.8}
 
-class TransientUniverse():
+class Universe():
+    def __init__():
+        pass
+
+class TransientUniverse(Universe):
     r'''Given a set of cosmological parameters, calculate neutrino sources in 
     the universe, and find which of those will initiate alerts in IceCube'''
 
@@ -49,7 +53,7 @@ class TransientUniverse():
         for i in range(int(self.data_years) / 1):
             uni = firesong_simulation('', density=self.density, Evolution=self.evolution,
                     Transient=True, timescale=self.timescale, fluxnorm = self.diffuse_flux_norm,
-                    index=self.diffuse_flux_ind, LF = self.lumi, luminosity=self.manual_lumi)
+                    index=self.diffuse_flux_ind, LF = self.lumi, luminosity=self.manual_lumi, seed=self.seed)
             tmp_dec.extend(uni['sources']['dec']), tmp_fls.extend(uni['sources']['flux'])
             tmp_zs.extend(uni['sources']['z'])
             tmp_tot += uni['total_flux']
@@ -79,7 +83,8 @@ class TransientUniverse():
                 for cut, level in [('gold', 'tight'), ('bronze', 'loose')]:
                     N = np.random.poisson(lam = bg_rates[sample + '_' + cut])
                     sigs = sample_signalness(cut=level, stream='background', size=N)
-                    bg_alerts[sample + '_' + cut] = (N, sigs)
+                    decs = sample_declination(cut=cut, size=N)
+                    bg_alerts[sample + '_' + cut] = (N, sigs, decs)
         self.bg_alerts = bg_alerts
         return bg_alerts
 
@@ -146,7 +151,7 @@ class TransientUniverse():
                     skymaps[stream][jjj] = self.sample_skymap(src_dec)
         self.skymaps = skymaps
         return 
-         
+          
     def additional_signal_events(self):
         r'''After finding signal events, calculate any events that could
         accompany the alert in a higher effective area, less pure sample'''
@@ -173,6 +178,10 @@ class TransientUniverse():
         self.extra_events = extra_events
         return extra_events
 
+class SteadyUniverse(Universe):
+    def __init__():
+        pass
+
 def load_sig(cut = 'tight', stream = 'astro_numu'):
     r'''Load signalness distributions'''
     with open('/data/user/apizzuto/fast_response_skylab/alert_event_followup/signalness_distributions/{}_{}.csv'.format(stream, cut), 'r') as f:
@@ -193,10 +202,35 @@ def sample_from_hist(centers, heights, size = 1):
     values = np.random.rand(size)
     value_bins = np.searchsorted(cdf, values)
     random_from_cdf = centers[value_bins]
-    wiggle = np.random.uniform(low=-0.025, high=0.025, size=size)
+    width = np.average(np.diff(centers))
+    wiggle = np.random.uniform(low=- width / 2., high=width / 2., size=size)
     random_from_cdf += wiggle
     return random_from_cdf
 
+def load_dec_dist(cut = 'gold'):
+    if cut == 'gold':
+        with open('/data/user/apizzuto/fast_response_skylab/alert_event_followup/signalness_distributions/Gold_backgrounds.csv', 'r') as f:
+            reader = csv.reader(f, delimiter=',')
+            data = np.array(list(reader)).astype(float)
+            decs, heights = zip(*data)   
+    else:
+        with open('/data/user/apizzuto/fast_response_skylab/alert_event_followup/signalness_distributions/Gold_backgrounds.csv', 'r') as f:
+            reader = csv.reader(f, delimiter=',')
+            data = np.array(list(reader)).astype(float)
+            decs, heights_gold = zip(*data) 
+        with open('/data/user/apizzuto/fast_response_skylab/alert_event_followup/signalness_distributions/All_backgrounds.csv', 'r') as f:
+            reader = csv.reader(f, delimiter=',')
+            data = np.array(list(reader)).astype(float)
+            decs, heights_all = zip(*data) 
+        heights = np.array(heights_all) - np.array(heights_gold)
+    decs = np.linspace(-0.9, 0.9, 10)
+    heights = np.maximum(heights, [0.0]*len(heights))
+    return decs, heights
+
+def sample_declination(cut = 'gold', size = 1):
+    sh = load_dec_dist(cut = cut)
+    decs = sample_from_hist(sh[0], sh[1], size=size)
+    return decs
 
 def sample_signalness(stream='astro_numu', cut='tight', size = 1):
     r'''Load and sample from signalness distributions for various
