@@ -53,7 +53,32 @@ def UniverseAnalysis():
         self.universe.additional_signal_events()
 
     def make_alerts_dataframe(self):
-
+        alerts = {'signalness': [], 'declination': [], 'background': [], 
+          'skymap_ind': [], 'stream': [], 'skymap_dec': [],
+         'extra_evs': []}
+        for k in self.universe.bg_alerts.keys():
+            if self.universe.bg_alerts[k][0] > 0:
+                alerts['signalness'].extend(self.universe.bg_alerts[k][1])
+                alerts['declination'].extend(self.universe.bg_alerts[k][2])
+                alerts['background'].extend([True]*self.universe.bg_alerts[k][0])
+                alerts['skymap_ind'].extend([0]*self.universe.bg_alerts[k][0])
+                alerts['skymap_dec'].extend([0]*self.universe.bg_alerts[k][0])
+                alerts['stream'].extend([k]*self.universe.bg_alerts[k][0])
+                alerts['extra_evs'].extend([0]*self.universe.bg_alerts[k][0])
+        for k in self.universe.sig_alerts.keys():
+            for jj in range(len(self.universe.sig_alerts[k])):
+                if self.universe.sig_alerts[k][jj] == (0, 0.0):
+                    continue
+                else:
+                    alerts['signalness'].append(self.universe.sig_alerts[k][jj][1][0])
+                    alerts['declination'].append(np.radians(self.universe.sources['dec'][jj]))
+                    alerts['background'].append(False)
+                    alerts['skymap_ind'].append(self.universe.skymaps[k][jj][1])
+                    alerts['skymap_dec'].append(self.universe.skymaps[k][jj][0])
+                    alerts['stream'].append(k)
+                    alerts['extra_evs'].append(self.universe.extra_events[k][jj])
+        alerts = pd.DataFrame(alerts)
+        self.alert_df = alerts
 
     def reinitialize_universe(self):
         if self.verbose:

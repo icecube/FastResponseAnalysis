@@ -148,7 +148,7 @@ class TransientUniverse(Universe):
                 if self.sig_alerts[stream][jjj] == (0,0.):
                     continue
                 else:
-                    skymaps[stream][jjj] = self.sample_skymap(src_dec)
+                    skymaps[stream][jjj] = self.sample_skymap(np.radians(src_dec))
         self.skymaps = skymaps
         return 
           
