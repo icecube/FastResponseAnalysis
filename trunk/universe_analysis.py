@@ -7,6 +7,7 @@ import ast
 import sys
 sys.path.append('/data/user/apizzuto/fast_response_skylab/alert_event_followup/FIRESONG/')
 from Firesong import firesong_simulation
+from transient_universe import TransientUniverse
 
 data_path = '/data/user/apizzuto/fast_response_skylab/alert_event_followup/FIRESONG/Results/'
 eff_area_path = '/data/user/apizzuto/fast_response_skylab/alert_event_followup/effective_areas_alerts/'
@@ -27,20 +28,26 @@ def find_nearest_ind(array, value):
 bg_trials = '/data/user/apizzuto/fast_response_skylab/alert_event_followup/analysis_trials/bg/'
 signal_trials = '/data/user/apizzuto/fast_response_skylab/alert_event_followup/analysis_trials/fits/'
 
-def UniverseAnalysis():
+class UniverseAnalysis():
     r'''Given cosmological parameters, calculate the expected TS distribution
         from triggering short timescale analyses on alert events'''
 
-    def __init__(self, **kwargs):
+    def __init__(self, lumi, evol, density, diffuse_flux_norm, diffuse_flux_ind,
+                    **kwargs):
+        self.lumi = lumi
+        self.evol = evol
+        self.density = density
+        self.diffuse_flux_norm = diffuse_flux_norm
+        self.diffuse_flux_ind = diffuse_flux_ind
         self.deltaT = kwargs.pop('deltaT', None)
         self.transient = True if self.deltaT is not None else False
         self.seed = kwargs.pop('seed', None)
         if self.transient:
-            self.universe = TransientUniverse(lumi, evol, density,
-                diffuse_flux_norm, diffuse_flux_ind, seed=self.seed, **kwargs)
+            self.universe = TransientUniverse(self.lumi, self.evol, self.density,
+                self.diffuse_flux_norm, self.diffuse_flux_ind, seed=self.seed, **kwargs)
         else:
-            self.universe = SteadyUniverse(lumi, evol, density,
-                diffuse_flux_norm, diffuse_flux_ind, seed=self.seed, **kwargs)
+            self.universe = SteadyUniverse(self.lumi, self.evol, self.density,
+                self.diffuse_flux_norm, self.diffuse_flux_ind, seed=self.seed, **kwargs)
         self.verbose = kwargs.pop('verbose', False)
         self.initialize_universe()
 
@@ -83,17 +90,52 @@ def UniverseAnalysis():
     def reinitialize_universe(self):
         if self.verbose:
             print("Recreating universe for more trials, updating seed")
-        self.seed += 1
-        self.universe.seed += 1
+        self.seed = 1 if self.seed is None else self.seed + 1
+        self.universe.seed = self.seed
         self.universe.create_universe()
         self.universe.find_alerts()
         self.universe.find_alert_skymaps()
         self.universe.additional_signal_events()
 
-    def background_alert_trials(self, N_trials=1):
-        #Figure out way to sample background skymaps
-        #First, sample declinations from expected distribution
-        #Then, sample skymap accordingly?
+    def calculate_ts(self):
+        ts, sigs = [], []
+        for index, alert in self.alert_df.iterrows():
+            if alert['background']:
+                ts.append(self.background_alert_trials(alert['skymap_ind']))
+                sigs.append(alert['signalness'])
+            else:
+                ts.append(self.signal_alert_trials(alert['skymap_ind'], alert['extra_evs']))
+                sigs.append(alert['signalness'])
+        ts, sigs = np.array(ts), np.array(sigs)
+        TS = np.sum(sigs * ts)
+        self.TS = TS
+        return TS
+        
+    def background_alert_trials(self, ind):
+        if self.transient:
+            trials = np.load(bg_trials + 'index_{}_time_{:.1f}.pkl'.format(ind, self.deltaT))
+        else:
+            trials = np.load(bg_trials + 'index_{}_steady.pkl'.format(ind))
+        ts = np.random.choice(trials['ts_prior'])
+        del trials
+        return ts
 
-    def signal_alert_trials(self, N_trials=1):
-        return 0.
+    def signal_alert_trials(self, ind, N):
+        if N == 0:
+            ts = self.background_alert_trials(ind)
+        else:
+            if self.transient:
+                trials = np.load(signal_trials + 'index_{}_time_{:.1f}.pkl'.format(ind, self.deltaT))
+            else:
+                trials = np.load(signal_trials + 'index_{}_steady.pkl'.format(ind))
+            if N <= 10:
+                inds = np.argwhere(np.array(trials['true_ns']) == N).flatten()
+            else:
+                inds = np.argwhere(np.abs(np.array(trials['true_ns']) - N) < 10).flatten()
+                if len(inds) == 0:
+                    print("NO TRIALS WITH {} INJECTED EVENTS".format(N))
+                    inds = np.argwhere(np.array(trials['true_ns']) == np.max(trials['true_ns'])).flatten()
+            ts = np.array(trials['ts'])[inds]
+            ts = np.random.choice(ts)
+            del trials
+        return ts
