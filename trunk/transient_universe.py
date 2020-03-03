@@ -84,8 +84,10 @@ class TransientUniverse(Universe):
                     N = np.random.poisson(lam = bg_rates[sample + '_' + cut])
                     sigs = sample_signalness(cut=level, stream='background', size=N)
                     decs = sample_declination(cut=cut, size=N)
-                    bg_alerts[sample + '_' + cut] = (N, sigs, decs)
+                    skymap_inds, skymap_decs = self.sample_skymap(decs)
+                    bg_alerts[sample + '_' + cut] = (N, sigs, decs, skymap_inds, skymap_decs)
         self.bg_alerts = bg_alerts
+        #Find background alert skymaps
         return bg_alerts
 
     def dec_band_from_decs(self):
@@ -126,18 +128,24 @@ class TransientUniverse(Universe):
         self.sig_alerts = sig_alerts
         return sig_alerts
 
-    def sample_skymap(self, dec):
+    def sample_skymap(self, decs):
         r'''Only use real alert event skymap locations'''
-        decs = np.load('/data/user/apizzuto/fast_response_skylab/alert_event_followup/effective_areas_alerts/decs_by_ind.npy')[1]
-        diffs = np.abs(np.sin(decs)-np.sin(dec))
-        if np.min(diffs) > 0.1:
-            idx = find_nearest_ind(decs, dec)
-            sample_dec = decs[idx]
-        else:
-            nearby_inds = np.argwhere(diffs < 0.1).flatten()
-            idx = np.random.choice(nearby_inds)
-            sample_dec = decs[idx]
-        return sample_dec, idx
+        map_decs = np.load('/data/user/apizzuto/fast_response_skylab/alert_event_followup/effective_areas_alerts/decs_by_ind.npy')[1]
+        sample_decs, idxs = [], []
+        if isinstance(decs, float):
+            decs = [decs]
+        for dec in decs:
+            diffs = np.abs(np.sin(map_decs)-np.sin(dec))
+            if np.min(diffs) > 0.1:
+                idx = find_nearest_ind(map_decs, dec)
+                sample_dec = map_decs[idx]
+            else:
+                nearby_inds = np.argwhere(diffs < 0.1).flatten()
+                idx = np.random.choice(nearby_inds)
+                sample_dec = map_decs[idx]
+            sample_decs.append(sample_dec)
+            idxs.append(idx)
+        return sample_decs, idxs
 
     def find_alert_skymaps(self):
         r'''Iterate over alert locations, find corresponding alert'''
@@ -148,7 +156,8 @@ class TransientUniverse(Universe):
                 if self.sig_alerts[stream][jjj] == (0,0.):
                     continue
                 else:
-                    skymaps[stream][jjj] = self.sample_skymap(np.radians(src_dec))
+                    tmp = self.sample_skymap(np.radians(src_dec))
+                    skymaps[stream][jjj] = (tmp[0][0], tmp[1][0])
         self.skymaps = skymaps
         return 
           

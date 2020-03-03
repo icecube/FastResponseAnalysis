@@ -68,8 +68,8 @@ class UniverseAnalysis():
                 alerts['signalness'].extend(self.universe.bg_alerts[k][1])
                 alerts['declination'].extend(self.universe.bg_alerts[k][2])
                 alerts['background'].extend([True]*self.universe.bg_alerts[k][0])
-                alerts['skymap_ind'].extend([0]*self.universe.bg_alerts[k][0])
-                alerts['skymap_dec'].extend([0]*self.universe.bg_alerts[k][0])
+                alerts['skymap_ind'].extend(self.universe.bg_alerts[k][4]) 
+                alerts['skymap_dec'].extend(self.universe.bg_alerts[k][3]) 
                 alerts['stream'].extend([k]*self.universe.bg_alerts[k][0])
                 alerts['extra_evs'].extend([0]*self.universe.bg_alerts[k][0])
         for k in self.universe.sig_alerts.keys():
