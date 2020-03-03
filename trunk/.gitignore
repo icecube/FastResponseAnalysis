@@ -3,3 +3,6 @@
 *.xml
 output/*
 output/
+html/
+contours/
+pycondor*

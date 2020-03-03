@@ -115,8 +115,6 @@ class UniverseAnalysis():
         return TS
         
     def background_alert_trials(self, ind):
-        if ind == 88:
-            return np.nan
         if self.transient:
             trials = np.load(bg_trials + 'index_{}_time_{:.1f}.pkl'.format(ind, self.deltaT))
         else:
@@ -126,8 +124,6 @@ class UniverseAnalysis():
         return ts
 
     def signal_alert_trials(self, ind, N):
-        if ind == 88:
-            return np.nan
         if N == 0:
             ts = self.background_alert_trials(ind)
         else:
