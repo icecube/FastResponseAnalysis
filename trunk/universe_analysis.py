@@ -99,13 +99,16 @@ class UniverseAnalysis():
 
     def calculate_ts(self):
         ts, sigs = [], []
+        self.alert_df['TS'] = [None] * len(self.alert_df['background'])
         for index, alert in self.alert_df.iterrows():
             if alert['background']:
                 ts.append(self.background_alert_trials(alert['skymap_ind']))
                 sigs.append(alert['signalness'])
+                self.alert_df.loc[self.alert_df.index == index, 'TS'] = ts[-1]
             else:
                 ts.append(self.signal_alert_trials(alert['skymap_ind'], alert['extra_evs']))
                 sigs.append(alert['signalness'])
+                self.alert_df.loc[self.alert_df.index == index, 'TS'] = ts[-1]
         ts, sigs = np.array(ts), np.array(sigs)
         TS = np.sum(sigs * ts) / sigs.size
         self.TS = TS
