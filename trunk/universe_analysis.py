@@ -107,11 +107,13 @@ class UniverseAnalysis():
                 ts.append(self.signal_alert_trials(alert['skymap_ind'], alert['extra_evs']))
                 sigs.append(alert['signalness'])
         ts, sigs = np.array(ts), np.array(sigs)
-        TS = np.sum(sigs * ts)
+        TS = np.sum(sigs * ts) / sigs.size
         self.TS = TS
         return TS
         
     def background_alert_trials(self, ind):
+        if ind == 88:
+            return np.nan
         if self.transient:
             trials = np.load(bg_trials + 'index_{}_time_{:.1f}.pkl'.format(ind, self.deltaT))
         else:
@@ -121,6 +123,8 @@ class UniverseAnalysis():
         return ts
 
     def signal_alert_trials(self, ind, N):
+        if ind == 88:
+            return np.nan
         if N == 0:
             ts = self.background_alert_trials(ind)
         else:
@@ -130,10 +134,17 @@ class UniverseAnalysis():
                 trials = np.load(signal_trials + 'index_{}_steady.pkl'.format(ind))
             if N <= 10:
                 inds = np.argwhere(np.array(trials['true_ns']) == N).flatten()
+                if len(inds) == 0:
+                    inds = np.argwhere(np.abs(np.array(trials['true_ns']) - N) < 4).flatten()
+                    if len(inds) == 0:
+                        if self.verbose:
+                            print("No trials near {}".format(N))
+                        inds = np.argmin(np.abs(np.array(trials['true_ns']) - N)).flatten()    
             else:
                 inds = np.argwhere(np.abs(np.array(trials['true_ns']) - N) < 10).flatten()
                 if len(inds) == 0:
-                    print("NO TRIALS WITH {} INJECTED EVENTS".format(N))
+                    if self.verbose:
+                        print("NO TRIALS WITH {} INJECTED EVENTS".format(N))
                     inds = np.argwhere(np.array(trials['true_ns']) == np.max(trials['true_ns'])).flatten()
             ts = np.array(trials['ts'])[inds]
             ts = np.random.choice(ts)
