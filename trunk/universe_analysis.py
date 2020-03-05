@@ -97,7 +97,7 @@ class UniverseAnalysis():
         self.universe.find_alert_skymaps()
         self.universe.additional_signal_events()
 
-    def calculate_ts(self):
+    def calculate_ts(self, only_gold = False):
         ts, sigs = [], []
         self.alert_df['TS'] = [None] * len(self.alert_df['background'])
         for index, alert in self.alert_df.iterrows():
@@ -110,6 +110,15 @@ class UniverseAnalysis():
                 sigs.append(alert['signalness'])
                 self.alert_df.loc[self.alert_df.index == index, 'TS'] = ts[-1]
         ts, sigs = np.array(ts), np.array(sigs)
+        if only_gold:
+            gold = []
+            for index, alert in self.alert_df.iterrows():
+                if 'gold' in alert['stream']:
+                    gold.append(True)
+                else:
+                    gold.append(False)
+            gold = np.array(gold)
+            ts, sigs = ts[gold], sigs[gold]
         TS = np.sum(sigs * ts) / sigs.size
         self.TS = TS
         return TS
