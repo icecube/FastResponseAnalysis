@@ -74,7 +74,7 @@ class UniverseAnalysis():
                 alerts['extra_evs'].extend([0]*self.universe.bg_alerts[k][0])
         for k in self.universe.sig_alerts.keys():
             for jj in range(len(self.universe.sig_alerts[k])):
-                if self.universe.sig_alerts[k][jj] == (0, 0.0):
+                if self.universe.sig_alerts[k][jj][0] == 0:
                     continue
                 else:
                     alerts['signalness'].append(self.universe.sig_alerts[k][jj][1][0])

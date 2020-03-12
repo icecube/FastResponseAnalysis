@@ -125,7 +125,7 @@ class FastResponseAnalysis(object):
         self.duration = stop - start
         self.centertime = (start + stop) / 2.
         self.trigger = kwargs.pop("trigger", self.centertime)
-
+        self.alert_event = kwargs.pop('alert_event', False)
 
         dirname = os.environ.get('FAST_RESPONSE_OUTPUT')
         if dirname is None:
@@ -158,7 +158,8 @@ class FastResponseAnalysis(object):
 
         print(self.intro_message())
 
-        self.llh = self.initialize_llh(skipped = skip_events, extension = self.extension, scramble=self.scramble)
+        self.llh = self.initialize_llh(skipped = skip_events, extension = self.extension, 
+                        scramble=self.scramble, alert_event=self.alert_event)
         self.ts, self.ns, self.p, self.sigma = None, None, None, None
         self.tsd = None
         self.skymap_fit_ra = None
@@ -169,7 +170,7 @@ class FastResponseAnalysis(object):
         self.ns_profile = None
 
   
-    def initialize_llh(self, skipped = None, extension = None, scramble=False):
+    def initialize_llh(self, skipped = None, extension = None, scramble=False, alert_event=False):
         r''' Initializes a point source llh
 
         Parameters:
@@ -200,9 +201,10 @@ class FastResponseAnalysis(object):
         ###################### END DATASET   ######################
 
         ##################### BEGIN LIKELIHOOD MODELS #####################
+        gamma_llh = 2.5 if alert_event else 2.0
         llh_model = EnergyLLH(twodim_bins=[energy_bins, sinDec_bins],   # energy and sin(dec) binnings
                             allow_empty=True,                           # allow empty bins.
-                            spectrum = PowerLaw(A=1, gamma=2.0, E0=1000.))                               
+                            spectrum = PowerLaw(A=1, gamma=gamma_llh, E0=1000.))                               
 
         box = TemporalModel(grl=grl,
                             poisson_llh=True,   # set to True for GRBLLH style likelihood with poisson term
@@ -256,9 +258,9 @@ class FastResponseAnalysis(object):
             from skylab.ps_injector import PriorInjector
             print("Initializing Prior Injector")
             if self.stop - self.start > 1.:
-                spatial_prior = SpatialPrior(self.skymap, containment = 0.95)
+                spatial_prior = SpatialPrior(self.skymap, containment = 0.90)
             else:
-                spatial_prior = SpatialPrior(self.skymap, containment = 0.95)
+                spatial_prior = SpatialPrior(self.skymap, containment = 0.90)
             self.spatial_prior = spatial_prior
             inj = PriorInjector(spatial_prior, gamma=gamma, e_range = (0,np.inf), 
                                     E0=1000., seed = seed) #1000 for 1 TeV
@@ -287,7 +289,7 @@ class FastResponseAnalysis(object):
             if 'ice' in self.name.lower():
                 spatial_prior = SpatialPrior(self.skymap, containment = 0.90)
             else:
-                spatial_prior = SpatialPrior(self.skymap)
+                spatial_prior = SpatialPrior(self.skymap, containment = 0.90)
             pixels = np.arange(len(self.skymap))
             t1 = time.time()
             print("Starting scan")
@@ -403,7 +405,7 @@ class FastResponseAnalysis(object):
             TS distribution for the background only trials
         ''' 
         tsd = []
-        spatial_prior = SpatialPrior(self.skymap)
+        spatial_prior = SpatialPrior(self.skymap, containment=0.90)
         toolbar_width = 50
         sys.stdout.write("[%s]" % (" " * toolbar_width))
         sys.stdout.flush()
@@ -486,7 +488,8 @@ class FastResponseAnalysis(object):
         '''
         print("Beginning upper limit calculation")
         if self.inj is None:
-            self.initialize_injector()
+            gamma_inj = 2.5 if self.alert_event else 2.0
+            self.initialize_injector(gamma = gamma_inj)
         if self.skymap is None:
             #ninj = np.linspace(1., 6., 6)
             ninj = np.array([1., 1.5, 2., 2.5, 3., 4., 5., 6.])

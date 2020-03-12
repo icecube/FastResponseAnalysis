@@ -34,6 +34,7 @@ class TransientUniverse(Universe):
             self.N_per_dec_band() #initializes effective area
         self.manual_lumi = kwargs.pop('manual_lumi', 0.0)
         self.seed = kwargs.pop('seed', None)
+        self.rng = np.random.RandomState(self.seed)
 
     def find_alerts(self):
         r'''Compile background and signal alerts'''
@@ -63,7 +64,7 @@ class TransientUniverse(Universe):
                     Transient=True, timescale=self.timescale, fluxnorm = self.diffuse_flux_norm,
                     index=self.diffuse_flux_ind, LF = self.lumi, luminosity=self.manual_lumi, seed=self.seed)
             add_src_num = int((self.data_years % 1) * len(uni['sources']['dec']))
-            add_srcs_ind = np.random.choice(list(range(len(uni['sources']['dec']))), add_src_num)
+            add_srcs_ind = self.rng.choice(list(range(len(uni['sources']['dec']))), add_src_num)
             tmp_dec.extend([uni['sources']['dec'][ind] for ind in add_srcs_ind])
             tmp_fls.extend([uni['sources']['flux'][ind] for ind in add_srcs_ind])
             tmp_zs.extend(uni['sources']['z'][ind] for ind in add_srcs_ind)
@@ -81,7 +82,7 @@ class TransientUniverse(Universe):
         bg_alerts = {}
         for sample in ['HESE', 'GFU']:
                 for cut, level in [('gold', 'tight'), ('bronze', 'loose')]:
-                    N = np.random.poisson(lam = bg_rates[sample + '_' + cut])
+                    N = self.rng.poisson(lam = bg_rates[sample + '_' + cut])
                     sigs = sample_signalness(cut=level, stream='background', size=N)
                     decs = sample_declination(cut=cut, size=N)
                     skymap_inds, skymap_decs = self.sample_skymap(decs)
@@ -116,15 +117,16 @@ class TransientUniverse(Universe):
         sig_alerts = {}
         for stream in ['GFU', 'HESE']:
             for cut, lev in [('gold', 'tight'), ('bronze', 'loose')]:
-                sig_alerts[stream + '_' + cut] = [(0,0.)]*len(self.sources['dec'])
+                sig_alerts[stream + '_' + cut] = [(0,0.,0.)]*len(self.sources['dec'])
         #sig_alerts = [(0,0.,'','')]*len(self.sources['dec'])
         for jjj, (src_dec, src_flux, src_bnd) in enumerate(zip(self.sources['dec'], self.sources['flux'], self.sources['dec_bands'])):
             for stream in ['GFU', 'HESE']:
                 for cut, lev in [('gold', 'tight'), ('bronze', 'loose')]:
-                    N = np.random.poisson(lam=self.n_per_dec[stream + '_' + cut][int(src_bnd)] * src_flux)
-                    if N != 0.0:
-                        sigs = sample_signalness(cut=lev, stream='signal', size = N)
-                        sig_alerts[stream + '_' + cut][jjj] = (N, sigs)
+                    nexp = self.n_per_dec[stream + '_' + cut][int(src_bnd)] * src_flux
+                    N = self.rng.poisson(lam=nexp)
+                    #if N != 0.0:
+                    sigs = sample_signalness(cut=lev, stream='signal', size = N) if N != 0 else 0.
+                    sig_alerts[stream + '_' + cut][jjj] = (N, sigs, nexp)
         self.sig_alerts = sig_alerts
         return sig_alerts
 
@@ -141,7 +143,7 @@ class TransientUniverse(Universe):
                 sample_dec = map_decs[idx]
             else:
                 nearby_inds = np.argwhere(diffs < 0.1).flatten()
-                idx = np.random.choice(nearby_inds)
+                idx = self.rng.choice(nearby_inds)
                 sample_dec = map_decs[idx]
             sample_decs.append(sample_dec)
             idxs.append(idx)
@@ -153,7 +155,7 @@ class TransientUniverse(Universe):
         for stream in self.sig_alerts.keys():
             skymaps[stream] = [None] * len(self.sources['dec'])
             for jjj, (src_dec, src_flux) in enumerate(zip(self.sources['dec'], self.sources['flux'])):
-                if self.sig_alerts[stream][jjj] == (0,0.):
+                if self.sig_alerts[stream][jjj][0] == 0:
                     continue
                 else:
                     tmp = self.sample_skymap(np.radians(src_dec))
@@ -177,12 +179,12 @@ class TransientUniverse(Universe):
             gfu_eff_spline = pickle.load(f)
         for stream in self.sig_alerts.keys():
             for jjj, (src_dec, src_flux) in enumerate(zip(self.sources['dec'], self.sources['flux'])):
-                if self.sig_alerts[stream][jjj] == (0,0.):
+                if self.sig_alerts[stream][jjj][0] == 0:
                     continue
                 else:
                     mu_extra = np.sum(gfu_eff_spline(np.log10(ens), np.sin(src_dec*np.pi / 180)) * \
                      spectrum(ens, gamma = -1.*self.diffuse_flux_ind, flux_norm=src_flux)*np.diff(en_bins)*1e4)
-                    N_extra = np.random.poisson(mu_extra)
+                    N_extra = self.rng.poisson(mu_extra)
                     extra_events[stream][jjj] = N_extra
         self.extra_events = extra_events
         return extra_events
