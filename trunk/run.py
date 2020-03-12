@@ -35,6 +35,7 @@ parser.add_argument('--ntrials', default=1000, type=int,
                     help="Number of background trials to perform")
 parser.add_argument('--document', default=False, action='store_true')
 parser.add_argument('--nodiag', default=False, action='store_true')
+parser.add_argument('--alert_event', default=False, action='store_true')
 args = parser.parse_args()
 
 subprocess.call(['clear'])
@@ -78,6 +79,7 @@ from FastResponseAnalysis import FastResponseAnalysis
 
 log.basicConfig(level=log.ERROR)
 source = final_args
+source['alert_event'] = args.alert_event
 ####################### INITIALIZE FAST RESPONSE OBJECT #######################
 f = FastResponseAnalysis(source['Location'], source['Start Time'], source['Stop Time'], **source)
 # Point source, gw, etc. handling done in analysis object instantiation
