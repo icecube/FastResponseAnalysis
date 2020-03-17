@@ -28,7 +28,7 @@ files = glob(skymaps_path + '*.fits')
 output_paths = '/data/user/apizzuto/fast_response_skylab/alert_event_followup/sensitivity_ts_distributions/'
 
 gammas = [2.5] #np.linspace(2., 3., 3)
-nsigs = [1., 2., 3., 4., 6., 8., 10.]
+nsigs = [1., 2., 3., 4., 6., 8., 10., 15., 20., 25., 30., 50.]
 deltaT = args.deltaT / 86400.
 
 skymap_fits = fits.open(files[args.index])[0]

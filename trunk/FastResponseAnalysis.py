@@ -202,7 +202,7 @@ class FastResponseAnalysis(object):
                                                     append=["IC86, 2017", "IC86, 2018"], 
                                                     floor=np.radians(0.2))  #TEMPORARY
                                                     #THIS IS PS STANDARD, NOT FR STANDARD
-        
+
         sinDec_bins = dataset.sinDec_bins("livestream")
         energy_bins = dataset.energy_bins("livestream")
         ###################### END DATASET   ######################

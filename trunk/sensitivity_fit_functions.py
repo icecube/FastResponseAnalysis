@@ -4,6 +4,10 @@ import scipy as sp
 from scipy.optimize       import curve_fit
 from scipy.stats          import chi2
 import pickle
+import matplotlib as mpl
+#mpl.use('Agg')
+import matplotlib.pyplot as plt
+
 
 palette = ['#7fc97f', '#beaed4', '#fdc086', '#ffff99', '#386cb0', '#f0027f']
 
@@ -41,7 +45,7 @@ def dec_of_map(index):
     return ra, dec
 
 def background_distribution(index, delta_t):
-    with open('/data/user/apizzuto/fast_response_skylab/alert_event_followup/background_ts_distributions/index_{}_time_{:.1f}.pkl'.format(index, delta_t), 'r') as f:
+    with open('/data/user/apizzuto/fast_response_skylab/alert_event_followup/analysis_trials/bg/index_{}_time_{:.1f}.pkl'.format(index, delta_t), 'r') as f:
         bg_trials = pickle.load(f)
     return bg_trials['ts_prior']
 
@@ -51,12 +55,13 @@ def signal_distribution(index, delta_t, ns):
     return signal_trials[signal_trials['mean_ninj'] == ns]
 
 def pass_vs_inj(index, delta_t, threshold = 0.5, in_ns = True, with_err = True, trim=-1):
-    with open('/data/user/apizzuto/fast_response_skylab/alert_event_followup/background_ts_distributions/index_{}_time_{:.1f}.pkl'.format(index, delta_t), 'r') as f:
+    with open('/data/user/apizzuto/fast_response_skylab/alert_event_followup/analysis_trials/bg/index_{}_time_{:.1f}.pkl'.format(index, delta_t), 'r') as f:
         bg_trials = pickle.load(f)
     bg_trials = bg_trials['ts_prior']
     with open('/data/user/apizzuto/fast_response_skylab/alert_event_followup/sensitivity_ts_distributions/index_{}_time_{:.1f}.pkl'.format(index, delta_t), 'r') as f:
         signal_trials = pickle.load(f)
     bg_thresh = np.percentile(bg_trials, threshold * 100.)
+    print(bg_thresh)
     signal_fluxes, signal_indices = np.unique(signal_trials['mean_ninj'], return_index=True)
     signal_indices = np.append(signal_indices, len(signal_trials['ts_prior']))
     #print signal_indices, signal_fluxes
@@ -148,7 +153,7 @@ def sensitivity_fit(signal_fluxes, passing, errs, fit_func, p0 = None, conf_lev 
             'name': name, 'pval':pval, 'ls':'--', 'sens': sens}
 
 def pvals_for_signal(index, delta_t, ns = 1, sigma_units = False):
-    with open('/data/user/apizzuto/fast_response_skylab/alert_event_followup/background_ts_distributions/index_{}_time_{:.1f}.pkl'.format(index, delta_t), 'r') as f:
+    with open('/data/user/apizzuto/fast_response_skylab/alert_event_followup/analysis_trials/bg/index_{}_time_{:.1f}.pkl'.format(index, delta_t), 'r') as f:
         bg_trials = pickle.load(f)
     bg_trials = bg_trials['ts_prior']
     with open('/data/user/apizzuto/fast_response_skylab/alert_event_followup/sensitivity_ts_distributions/index_{}_time_{:.1f}.pkl'.format(index, delta_t), 'r') as f:
