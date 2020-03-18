@@ -71,7 +71,8 @@ class TransientUniverse(Universe):
             tmp_tot += uni['total_flux'] * self.data_years % 1
         #fluxes are E^2 dN/dE at 100 TeV, convert now to dN/dE * DeltaT at 1 GeV
         tmp_fls = np.array(tmp_fls)
-        tmp_fls *= self.timescale * np.power(1, -1*self.diffuse_flux_ind)*np.power(1e5, self.diffuse_flux_ind - 2.)
+        #Time-integrated flux is over a duration of (1.+z) of the intrinsic burst time
+        tmp_fls *= self.timescale * np.power(1e5, self.diffuse_flux_ind - 2.)*(1.+np.array(tmp_zs)) #*np.power(1, -1*self.diffuse_flux_ind)
         self.sources = {'dec': np.array(tmp_dec), 'flux': tmp_fls, 'z': np.array(tmp_zs)} 
         self.uni_header = uni['header']
         self.sim_flux = tmp_tot
