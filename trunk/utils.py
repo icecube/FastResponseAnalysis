@@ -161,6 +161,22 @@ def updateFastResponsePlots():
     plt.ylim(6e-3, 1e0)
     plt.savefig('/home/apizzuto/public_html/FastResponse/pvalue_distribution_liveupdate.png', dpi=200, bbox_inches='tight')
 
+def write_alert_circular(analysis):
+    r'''Read in template GCN circular file, fill in appropriate
+    details, write new text file'''
+    #keypairs = [('ANALYSISTS', 'ts'), ('ANALYSISNS', 'ns'), ('ANALYSISP', 'p')]
+    if analysis['p'] < 0.01:
+        fname = 'circular_templates/internal_high_significance.txt'
+    else:
+        fname = 'circular_templates/internal_low_significance.txt'
+    keypairs = [(), (), (), (), (), (), (), (), ()]
+    with open(fname, 'r') as f:
+        for line in f.readlines():
+            for k, r in keypairs:
+                if k in line:
+                    line = line.replace(k, '{:.3f}'.format(analysis[r]))
+            new_f.append(line)
+
 def erfunc(x, a, b):
     x = np.array(x)
     return 0.5 + 0.5*sp.special.erf(a*x + b)

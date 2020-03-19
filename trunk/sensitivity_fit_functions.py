@@ -61,7 +61,7 @@ def pass_vs_inj(index, delta_t, threshold = 0.5, in_ns = True, with_err = True, 
     with open('/data/user/apizzuto/fast_response_skylab/alert_event_followup/sensitivity_ts_distributions/index_{}_time_{:.1f}.pkl'.format(index, delta_t), 'r') as f:
         signal_trials = pickle.load(f)
     bg_thresh = np.percentile(bg_trials, threshold * 100.)
-    print(bg_thresh)
+    #print(bg_thresh)
     signal_fluxes, signal_indices = np.unique(signal_trials['mean_ninj'], return_index=True)
     signal_indices = np.append(signal_indices, len(signal_trials['ts_prior']))
     #print signal_indices, signal_fluxes
@@ -84,15 +84,16 @@ def pass_vs_inj(index, delta_t, threshold = 0.5, in_ns = True, with_err = True, 
         errs = np.maximum(errs, bound_case_sigma)
         return signal_fluxes, passing, errs
     
-def sensitivity_curve(index, delta_t, threshold = 0.5, in_ns = True, with_err = True, trim=-1, ax = None, p0 = None, fontsize = 16):
+def sensitivity_curve(index, delta_t, threshold = 0.5, in_ns = True, with_err = True, trim=-1, ax = None, 
+                    p0 = None, fontsize = 16, conf_lev = 0.9):
     signal_fluxes, passing, errs = pass_vs_inj(index, delta_t, threshold=threshold, in_ns=in_ns, with_err=with_err, trim=trim)
     fits, plist = [], []
     try:
-        fits.append(sensitivity_fit(signal_fluxes, passing, errs, chi2cdf, p0=p0))
+        fits.append(sensitivity_fit(signal_fluxes, passing, errs, chi2cdf, p0=p0, conf_lev=conf_lev))
         plist.append(fits[-1]['pval'])
-        fits.append(sensitivity_fit(signal_fluxes, passing, errs, erfunc, p0=p0))
+        fits.append(sensitivity_fit(signal_fluxes, passing, errs, erfunc, p0=p0, conf_lev=conf_lev))
         plist.append(fits[-1]['pval'])
-        fits.append(sensitivity_fit(signal_fluxes, passing, errs, incomplete_gamma, p0=p0))
+        fits.append(sensitivity_fit(signal_fluxes, passing, errs, incomplete_gamma, p0=p0, conf_lev=conf_lev))
         plist.append(fits[-1]['pval'])
     except:
         pass
@@ -116,15 +117,16 @@ def sensitivity_curve(index, delta_t, threshold = 0.5, in_ns = True, with_err = 
     ax.errorbar(signal_fluxes, passing, yerr=errs, capsize = 3, linestyle='', marker = 's', markersize = 2)
     ax.legend(loc=4, fontsize = fontsize)
     
-def calc_sensitivity(index, delta_t, threshold = 0.5, in_ns = True, with_err = True, trim=-1, p0=None):
+def calc_sensitivity(index, delta_t, threshold = 0.5, in_ns = True, with_err = True, trim=-1, 
+                    conf_lev = 0.9, p0=None):
     signal_fluxes, passing, errs = pass_vs_inj(index, delta_t, threshold=threshold, in_ns=in_ns, with_err=with_err, trim=trim)
     fits, plist = [], []
     try:
-        fits.append(sensitivity_fit(signal_fluxes, passing, errs, chi2cdf, p0=p0))
+        fits.append(sensitivity_fit(signal_fluxes, passing, errs, chi2cdf, p0=p0, conf_lev=conf_lev))
         plist.append(fits[-1]['pval'])
-        fits.append(sensitivity_fit(signal_fluxes, passing, errs, erfunc, p0=p0))
+        fits.append(sensitivity_fit(signal_fluxes, passing, errs, erfunc, p0=p0, conf_lev=conf_lev))
         plist.append(fits[-1]['pval'])
-        fits.append(sensitivity_fit(signal_fluxes, passing, errs, incomplete_gamma, p0=p0))
+        fits.append(sensitivity_fit(signal_fluxes, passing, errs, incomplete_gamma, p0=p0, conf_lev=conf_lev))
         plist.append(fits[-1]['pval'])
     except:
         pass

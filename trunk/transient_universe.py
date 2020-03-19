@@ -83,7 +83,7 @@ class TransientUniverse(Universe):
         bg_alerts = {}
         for sample in ['HESE', 'GFU']:
                 for cut, level in [('gold', 'tight'), ('bronze', 'loose')]:
-                    N = self.rng.poisson(lam = bg_rates[sample + '_' + cut])
+                    N = self.rng.poisson(lam = bg_rates[sample + '_' + cut]*self.data_years)
                     sigs = sample_signalness(cut=level, stream='background', size=N)
                     decs = sample_declination(cut=cut, size=N)
                     skymap_inds, skymap_decs = self.sample_skymap(decs)
@@ -107,6 +107,7 @@ class TransientUniverse(Universe):
             for level in ['gold', 'bronze']:
                 tmp[sample + '_' + level] = []
                 for dec in [-45., 0., 45]:
+                    #test_fl = 1.0 #Is it just the numu contribution for HESE?
                     test_fl = 3.0 if sample == 'HESE' else 1.0 #eff A for HESE is all flavor
                     tmp[sample + '_' + level].append(calc_mean_n(ens, dec, stream=sample, 
                         level=level, gamma=self.diffuse_flux_ind*-1., flux_norm=test_fl))
