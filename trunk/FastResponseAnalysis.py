@@ -168,6 +168,7 @@ class FastResponseAnalysis(object):
         self.coincident_events = None
         self.upperlimit, self.upperlimit_ninj = None, None
         self.ns_profile = None
+        self.low5, self.high5 = None, None
 
   
     def initialize_llh(self, skipped = None, extension = None, scramble=False, alert_event=False):
@@ -630,7 +631,7 @@ class FastResponseAnalysis(object):
                         ('skymap', self.skymap), ('ra', self.ra), ('dec', self.dec),
                         ('coincident_events', self.coincident_events), ('skipped', self.skipped_event), 
                         ('upper_limit', self.upperlimit), ('upper_limit_ninj', self.upperlimit_ninj),
-                        ('ns_profile', self.ns_profile)]:
+                        ('ns_profile', self.ns_profile), ('low_en', self.low5), ('high_en', self.high5)]:
             if val is not None:
                 results[key] = val
         print("Saving results to directory:\n\t{}".format(self.analysispath))

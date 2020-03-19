@@ -6,7 +6,7 @@ from astropy.time import Time
 from astropy.time import TimeDelta
 from numpy.lib.recfunctions import append_fields
 
-base_path = os.path.join('/data/user/apizzuto/fast_response_skylab/from_gw/','')
+base_path = os.path.join('/data/user/apizzuto/fast_response_skylab/fast-response/trunk/','')
 sys.path.append(base_path)
 
 from FastResponseAnalysis import FastResponseAnalysis
@@ -41,5 +41,5 @@ for gamma in gammas:
             results = np.append(results, result)
 
 print(results)
-np.save('/data/user/apizzuto/fast_response_skylab/from_gw/analysis_checks/fit/nsignal_sinDec_{}_deltaT_{}.npy'.format(args.sinDec, args.deltaT),
+np.save('/data/user/apizzuto/fast_response_skylab/fast-response/trunk/analysis_checks/fit/nsignal_sinDec_{}_deltaT_{}.npy'.format(args.sinDec, args.deltaT),
             results)

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import numpy as np
-import os, sys, argparse
+import os, sys, argparse, pickle
 from astropy.time import Time
 from astropy.time import TimeDelta
 from numpy.lib.recfunctions import append_fields
@@ -35,12 +35,9 @@ dec = np.arcsin(args.sinDec)
 
 f = FastResponseAnalysis("0., {}".format(dec*180. / np.pi), start, stop, Name="test", save=False)
 
-print(f.llh.exp.dtype.names)
-print(f.llh.mc.dtype.names)
-sys.exit()
 import time
 #t0 = time.time()
-results = f.llh.do_trials(1000000, src_ra = 0., src_dec = dec)
+results = f.llh.do_trials(100000, src_ra = 0., src_dec = dec)
 #names = results.dtype.names
 #names = list(names)
 #names.remove('spectrum')
