@@ -164,18 +164,31 @@ def updateFastResponsePlots():
 def write_alert_circular(analysis):
     r'''Read in template GCN circular file, fill in appropriate
     details, write new text file'''
-    #keypairs = [('ANALYSISTS', 'ts'), ('ANALYSISNS', 'ns'), ('ANALYSISP', 'p')]
+    new_f = []
     if analysis['p'] < 0.01:
         fname = 'circular_templates/internal_high_significance.txt'
     else:
         fname = 'circular_templates/internal_low_significance.txt'
-    keypairs = [(), (), (), (), (), (), (), (), ()]
+    tmp_piv = analysis['name'].find('-')
+    alert_id = analysis['name'][tmp_piv:tmp_piv+8]
+    keypairs = [('alert_name', alert_id), ('gcn_number', analysis['gcn_num']), 
+                ('start_utc', Time(analysis['start'], format='mjd').iso), 
+                ('stop_utc', Time(analysis['stop'], format='mjd').iso), 
+                ('month_start_utc', Time(analysis['month_start'], format='mjd').iso), 
+                ('n_events', len(analysis['coincident_events'])), 
+                ('short_p', analysis['p']), ('long_p', analysis['long_p']), 
+                ('upper_limit', analysis['upper_limit']), 
+                ('long_upper_limit', analysis['long_upper_limit'])
+                ('low_en', analysis['low_en']), ('high_en', analysis['high_en'])]
     with open(fname, 'r') as f:
         for line in f.readlines():
             for k, r in keypairs:
                 if k in line:
-                    line = line.replace(k, '{:.3f}'.format(analysis[r]))
+                    line = line.replace('<'+k+'>', '{:.3f}'.format(analysis[r]))
             new_f.append(line)
+    with open('/home/apizzuto/public_html/FastResponse/webpage/output/{}_circular.txt'.format(analysis['analysisid']), 'w') as f:
+        for line in new_f:
+            f.write(line)
 
 def erfunc(x, a, b):
     x = np.array(x)

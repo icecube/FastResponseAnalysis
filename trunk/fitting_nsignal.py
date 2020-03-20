@@ -22,7 +22,7 @@ gammas = np.linspace(2., 3., 3)
 nsigs = np.linspace(1., 15., 15)
 deltaT = args.deltaT / 86400.
 
-start = "2019-06-01 00:00:00"
+start = "2017-06-01 00:00:00"
 stop = (Time(start) + TimeDelta(deltaT)).iso
 dec = np.arcsin(args.sinDec)
 

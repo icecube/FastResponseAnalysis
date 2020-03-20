@@ -28,9 +28,9 @@ if args.month < 1 or args.month > 12:
     print "Please enter a valid month (1-12). Exiting"
     sys.exit()
 if args.month <= 6:
-    start = "2019-{:02d}-01 00:00:00".format(args.month)
+    start = "2017-{:02d}-01 00:00:00".format(args.month)
 else:
-    start = "2018-{:02d}-01 00:00:00".format(args.month)
+    start = "2016-{:02d}-01 00:00:00".format(args.month)
 
 stop = (Time(start) + TimeDelta(deltaT)).iso
 dec = np.arcsin(args.sinDec)

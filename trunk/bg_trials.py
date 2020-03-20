@@ -26,17 +26,15 @@ if args.month < 1 or args.month > 12:
     print "Please enter a valid month (1-12). Exiting"
     sys.exit()
 if args.month <= 6:
-    start = "2019-{:02d}-01 00:00:00".format(args.month)
+    start = "2017-{:02d}-01 00:00:00".format(args.month)
 else:
-    start = "2018-{:02d}-01 00:00:00".format(args.month)
+    start = "2016-{:02d}-01 00:00:00".format(args.month)
 
 stop = (Time(start) + TimeDelta(deltaT)).iso
 dec = np.arcsin(args.sinDec)
 
 f = FastResponseAnalysis("0., {}".format(dec*180. / np.pi), start, stop, Name="test", save=False)
 
-import time
-#t0 = time.time()
 results = f.llh.do_trials(100000, src_ra = 0., src_dec = dec)
 #names = results.dtype.names
 #names = list(names)
@@ -49,7 +47,3 @@ bg_trials = {'n_zero': np.count_nonzero(bg_trials == 0.),
 with open('/data/user/apizzuto/fast_response_skylab/fast-response/trunk/analysis_checks/bg/ps_sinDec_{}_deltaT_{}_month_{}.pkl'.format(args.sinDec, args.deltaT, args.month), 'w') as f:
     pickle.dump(bg_trials, f)
 
-#print('1000 trials took {} seconds'.format(time.time() - t0))
-#print(results)
-#np.save('/data/user/apizzuto/fast_response_skylab/fast-response/trunk/analysis_checks/bg/ps_sinDec_{}_deltaT_{}_month_{}.npy'.format(args.sinDec, args.deltaT, args.month),
-#            bg_trials)

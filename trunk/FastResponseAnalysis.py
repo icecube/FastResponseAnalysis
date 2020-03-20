@@ -194,11 +194,22 @@ class FastResponseAnalysis(object):
 
         # only ends up in the if part for archival analyses, where it takes
         #a while to query i3live
-        if stop < 58400:
-            exp, mc, livetime, grl = dataset.livestream(start - 6., start,
-                                                    append=["IC86, 2017", "IC86, 2018"],
-                                                    floor=np.radians(0.2))
+        # CHANGE THIS FROM LIVESTREAM TO JUST GRAB THE SEASONS FROM THE DATASET CLASS
+        if stop < 58850.:
+            print("Old times, just grabbing archival data")
+            exps, grls = [], []
+            for season in ["IC86, 2016", "IC86, 2017", "IC86, 2018"]:
+                exp, mc, livetime = dataset.season(season, floor=np.radians(0.2))
+                grl = dataset.grl(season)
+                exps.append(exp)
+                grls.append(grl)
+            exp = np.concatenate(exps)
+            exp.sort(order='time')
+            grl = np.concatenate(grls)
+            grl.sort(order='run')
+            livetime = grl['livetime'].sum()
         else:
+            #print("querying the i3live database")
             exp, mc, livetime, grl = dataset.livestream(start - 6., stop,
                                                     append=["IC86, 2017", "IC86, 2018"], 
                                                     floor=np.radians(0.2))  #TEMPORARY
@@ -210,19 +221,19 @@ class FastResponseAnalysis(object):
 
         ##################### BEGIN LIKELIHOOD MODELS #####################
         gamma_llh = 2.5 if alert_event else 2.0
-        print("working on energy term")
+        #print("working on energy term")
         ttt = time.time()
         llh_model = EnergyLLH(twodim_bins=[energy_bins, sinDec_bins],   # energy and sin(dec) binnings
                             allow_empty=True,                           # allow empty bins.
                             spectrum = PowerLaw(A=1, gamma=gamma_llh, E0=1000.))                               
-        print("energy term took {} seconds".format(time.time() - ttt))
-        print("working on temporal part")
+        #print("energy term took {} seconds".format(time.time() - ttt))
+        #print("working on temporal part")
         ttt = time.time()
         box = TemporalModel(grl=grl,
                             poisson_llh=True,   # set to True for GRBLLH style likelihood with poisson term
                             days=10,            # use 10 days on either side of ontime for background calc
                             signal=BoxProfile(start, stop))
-        print("temporal part took {} seconds".format(time.time() - ttt))
+        #print("temporal part took {} seconds".format(time.time() - ttt))
         if skipped is not None:
             try:
                 event = skipped[0]
@@ -238,7 +249,7 @@ class FastResponseAnalysis(object):
         else:
             src_extension = None
 
-        print("assembling it all")
+        #print("assembling it all")
         ttt = time.time()
         llh = PointSourceLLH(exp,                   # array with data events
                                 mc,                    # array with Monte Carlo events
@@ -252,7 +263,7 @@ class FastResponseAnalysis(object):
                                 src_extension = src_extension, # Model symmetrically extended source
                                 nsource=1.)            # seed for nsignal fit
 
-        print("assembling took {} seconds".format(time.time() - ttt))                                               
+        #print("assembling took {} seconds".format(time.time() - ttt))                                               
         print("Initializing Point Source COMPLETE")
         print("LLH Initialization took {} seconds\n\n".format(time.time() - t0))
         return llh
