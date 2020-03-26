@@ -11,30 +11,10 @@ eff_area_path = '/data/user/apizzuto/fast_response_skylab/alert_event_followup/e
 bg_rates = {'HESE_gold': 0.4, 'HESE_bronze': 0.9, 'GFU_gold': 5.7, 'GFU_bronze': 13.8}
 
 class Universe():
-    def __init__():
-        pass
-
-class TransientUniverse(Universe):
     r'''Given a set of cosmological parameters, calculate neutrino sources in 
     the universe, and find which of those will initiate alerts in IceCube'''
-
-    def __init__(self, lumi, evol, density, diffuse_flux_norm, diffuse_flux_ind,
-                    **kwargs):
-
-        self.evolution = evol
-        self.density = density
-        self.lumi = lumi
-        self.diffuse_flux_norm = diffuse_flux_norm
-        self.diffuse_flux_ind = diffuse_flux_ind
-        self.alerts, self.sources, self.uni_header = None, None, None
-        self.timescale = 2.*86400.
-        self.sim_flux = None
-        self.data_years = kwargs.pop('data_years', 1.)
-        if self.diffuse_flux_norm is not None:
-            self.N_per_dec_band() #initializes effective area
-        self.manual_lumi = kwargs.pop('manual_lumi', 0.0)
-        self.seed = kwargs.pop('seed', None)
-        self.rng = np.random.RandomState(self.seed)
+    def __init__():
+        pass
 
     def find_alerts(self):
         r'''Compile background and signal alerts'''
@@ -46,37 +26,14 @@ class TransientUniverse(Universe):
                     'background': background_alerts}
         self.alerts = alerts
 
+    def universe_firesong(self):
+        pass
+
     def create_universe(self):
         r'''
-        Run FIRESONG for every year of data
+        Simulate universe using FIRESONG
         '''
-        tmp_fls, tmp_dec, tmp_zs, tmp_tot = [],[],[],0.
-        for i in range(int(self.data_years) / 1):
-            uni = firesong_simulation('', density=self.density, Evolution=self.evolution,
-                    Transient=True, timescale=self.timescale, fluxnorm = self.diffuse_flux_norm,
-                    index=self.diffuse_flux_ind, LF = self.lumi, luminosity=self.manual_lumi, seed=self.seed)
-            tmp_dec.extend(uni['sources']['dec']), tmp_fls.extend(uni['sources']['flux'])
-            tmp_zs.extend(uni['sources']['z'])
-            tmp_tot += uni['total_flux']
-        #Now do the fraction of a year
-        if self.data_years % 1 != 0.0:
-            uni = firesong_simulation('', density=self.density, Evolution=self.evolution,
-                    Transient=True, timescale=self.timescale, fluxnorm = self.diffuse_flux_norm,
-                    index=self.diffuse_flux_ind, LF = self.lumi, luminosity=self.manual_lumi, seed=self.seed)
-            add_src_num = int((self.data_years % 1) * len(uni['sources']['dec']))
-            add_srcs_ind = self.rng.choice(list(range(len(uni['sources']['dec']))), add_src_num)
-            tmp_dec.extend([uni['sources']['dec'][ind] for ind in add_srcs_ind])
-            tmp_fls.extend([uni['sources']['flux'][ind] for ind in add_srcs_ind])
-            tmp_zs.extend(uni['sources']['z'][ind] for ind in add_srcs_ind)
-            tmp_tot += uni['total_flux'] * self.data_years % 1
-        #fluxes are E^2 dN/dE at 100 TeV, convert now to dN/dE * DeltaT at 1 GeV
-        tmp_fls = np.array(tmp_fls)
-        #Time-integrated flux is over a duration of (1.+z) of the intrinsic burst time
-        tmp_fls *= self.timescale * np.power(1e5, self.diffuse_flux_ind - 2.)*(1.+np.array(tmp_zs)) #*np.power(1, -1*self.diffuse_flux_ind)
-        self.sources = {'dec': np.array(tmp_dec), 'flux': tmp_fls, 'z': np.array(tmp_zs)} 
-        self.uni_header = uni['header']
-        self.sim_flux = tmp_tot
-        self.dec_band_from_decs()
+        pass
 
     def find_background_alerts(self):
         r'''Sample from expected number of background alerts'''
@@ -191,9 +148,108 @@ class TransientUniverse(Universe):
         self.extra_events = extra_events
         return extra_events
 
+    
+
 class SteadyUniverse(Universe):
-    def __init__():
-        pass
+    r'''Universe inherited class for steady neutrino sources'''
+
+    def __init__(self, lumi, evol, density, diffuse_flux_norm, diffuse_flux_ind,
+                    **kwargs):
+
+        self.evolution = evol
+        self.density = density
+        self.lumi = lumi
+        self.diffuse_flux_norm = diffuse_flux_norm
+        self.diffuse_flux_ind = diffuse_flux_ind
+        self.alerts, self.sources, self.uni_header = None, None, None
+        self.sim_flux = None
+        self.data_years = kwargs.pop('data_years', 1.)
+        if self.diffuse_flux_norm is not None:
+            self.N_per_dec_band() #initializes effective area
+        self.manual_lumi = kwargs.pop('manual_lumi', 0.0)
+        self.seed = kwargs.pop('seed', None)
+        self.rng = np.random.RandomState(self.seed)
+        self.timescale = self.data_years * 365. * 86400.
+
+    def universe_firesong(self):
+        return firesong_simulation('', density=self.density, Evolution=self.evolution,
+                    Transient=False, fluxnorm = self.diffuse_flux_norm,
+                    index=self.diffuse_flux_ind, LF = self.lumi, luminosity=self.manual_lumi, seed=self.seed)
+
+    def create_universe(self):
+        r'''
+        Run FIRESONG for every year of data
+        '''
+        tmp_fls, tmp_dec, tmp_zs, tmp_tot = [],[],[],0.
+        uni = self.universe_firesong()
+        tmp_dec.extend(uni['sources']['dec']), tmp_fls.extend(uni['sources']['flux'])
+        tmp_zs.extend(uni['sources']['z'])
+        tmp_tot += uni['total_flux']
+        #fluxes are E^2 dN/dE at 100 TeV, convert now to dN/dE * DeltaT at 1 GeV
+        tmp_fls = np.array(tmp_fls)
+        #Time-integrated flux is over a duration of (1.+z) of the intrinsic burst time
+        tmp_fls *= self.timescale * np.power(1e5, self.diffuse_flux_ind - 2.)*(1.+np.array(tmp_zs)) #*np.power(1, -1*self.diffuse_flux_ind)
+        self.sources = {'dec': np.array(tmp_dec), 'flux': tmp_fls, 'z': np.array(tmp_zs)} 
+        self.uni_header = uni['header']
+        self.sim_flux = tmp_tot
+        self.dec_band_from_decs()
+
+
+class TransientUniverse(Universe):
+    r'''Universe inherited class for short timescale sources'''
+
+    def __init__(self, lumi, evol, density, diffuse_flux_norm, diffuse_flux_ind,
+                    **kwargs):
+
+        self.evolution = evol
+        self.density = density
+        self.lumi = lumi
+        self.diffuse_flux_norm = diffuse_flux_norm
+        self.diffuse_flux_ind = diffuse_flux_ind
+        self.alerts, self.sources, self.uni_header = None, None, None
+        self.timescale = kwargs.pop('timescale', 2.*86400.)
+        self.sim_flux = None
+        self.data_years = kwargs.pop('data_years', 1.)
+        if self.diffuse_flux_norm is not None:
+            self.N_per_dec_band() #initializes effective area
+        self.manual_lumi = kwargs.pop('manual_lumi', 0.0)
+        self.seed = kwargs.pop('seed', None)
+        self.rng = np.random.RandomState(self.seed)
+
+    def universe_firesong(self):
+        return firesong_simulation('', density=self.density, Evolution=self.evolution,
+                    Transient=True, timescale=self.timescale, fluxnorm = self.diffuse_flux_norm,
+                    index=self.diffuse_flux_ind, LF = self.lumi, luminosity=self.manual_lumi, seed=self.seed)
+
+    def create_universe(self):
+        r'''
+        Run FIRESONG for every year of data
+        '''
+        tmp_fls, tmp_dec, tmp_zs, tmp_tot = [],[],[],0.
+        for i in range(int(self.data_years) / 1):
+            uni = self.universe_firesong()
+            tmp_dec.extend(uni['sources']['dec']), tmp_fls.extend(uni['sources']['flux'])
+            tmp_zs.extend(uni['sources']['z'])
+            tmp_tot += uni['total_flux']
+        #Now do the fraction of a year
+        if self.data_years % 1 != 0.0:
+            uni = self.universe_firesong()
+            add_src_num = int((self.data_years % 1) * len(uni['sources']['dec']))
+            add_srcs_ind = self.rng.choice(list(range(len(uni['sources']['dec']))), add_src_num)
+            tmp_dec.extend([uni['sources']['dec'][ind] for ind in add_srcs_ind])
+            tmp_fls.extend([uni['sources']['flux'][ind] for ind in add_srcs_ind])
+            tmp_zs.extend(uni['sources']['z'][ind] for ind in add_srcs_ind)
+            tmp_tot += uni['total_flux'] * self.data_years % 1
+        #fluxes are E^2 dN/dE at 100 TeV, convert now to dN/dE * DeltaT at 1 GeV
+        tmp_fls = np.array(tmp_fls)
+        #Time-integrated flux is over a duration of (1.+z) of the intrinsic burst time
+        tmp_fls *= self.timescale * np.power(1e5, self.diffuse_flux_ind - 2.)*(1.+np.array(tmp_zs)) #*np.power(1, -1*self.diffuse_flux_ind)
+        self.sources = {'dec': np.array(tmp_dec), 'flux': tmp_fls, 'z': np.array(tmp_zs)} 
+        self.uni_header = uni['header']
+        self.sim_flux = tmp_tot
+        self.dec_band_from_decs()
+
+
 
 def load_sig(cut = 'tight', stream = 'astro_numu'):
     r'''Load signalness distributions'''

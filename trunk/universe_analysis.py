@@ -7,7 +7,7 @@ import ast
 import sys
 sys.path.append('/data/user/apizzuto/fast_response_skylab/alert_event_followup/FIRESONG/')
 from Firesong import firesong_simulation
-from transient_universe import TransientUniverse
+from transient_universe import TransientUniverse, SteadyUniverse
 
 data_path = '/data/user/apizzuto/fast_response_skylab/alert_event_followup/FIRESONG/Results/'
 eff_area_path = '/data/user/apizzuto/fast_response_skylab/alert_event_followup/effective_areas_alerts/'
@@ -49,7 +49,7 @@ class UniverseAnalysis():
             self.universe = SteadyUniverse(self.lumi, self.evol, self.density,
                 self.diffuse_flux_norm, self.diffuse_flux_ind, seed=self.seed, **kwargs)
         self.verbose = kwargs.pop('verbose', False)
-        self.initialize_universe()
+        self.initialize_universe() 
 
     def initialize_universe(self):
         if self.verbose:

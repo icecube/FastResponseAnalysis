@@ -6,3 +6,5 @@ output/
 html/
 contours/
 pycondor*
+analysis_checks/
+../.svn/
