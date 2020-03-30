@@ -187,8 +187,8 @@ class SteadyUniverse(Universe):
         tmp_tot += uni['total_flux']
         #fluxes are E^2 dN/dE at 100 TeV, convert now to dN/dE * DeltaT at 1 GeV
         tmp_fls = np.array(tmp_fls)
-        #Time-integrated flux is over a duration of (1.+z) of the intrinsic burst time
-        tmp_fls *= self.timescale * np.power(1e5, self.diffuse_flux_ind - 2.)*(1.+np.array(tmp_zs)) #*np.power(1, -1*self.diffuse_flux_ind)
+        #Don't need the 1+z for time-integrated bursts
+        tmp_fls *= self.timescale * np.power(1e5, self.diffuse_flux_ind - 2.)
         self.sources = {'dec': np.array(tmp_dec), 'flux': tmp_fls, 'z': np.array(tmp_zs)} 
         self.uni_header = uni['header']
         self.sim_flux = tmp_tot
