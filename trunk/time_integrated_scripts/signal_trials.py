@@ -11,26 +11,15 @@ Signal injection for time integrated ANITA analysis
     --event: ANITA event
 '''
 
-import os
-import logging
-import inspect
+import os, logging, inspect, argparse, time, sys, pickle
 
-# scipy
 from scipy.stats import chi2
 import healpy as hp
 import numpy as np
 from scipy.special import erfc
-
-# local
-#import utils
-#import data
-
 from glob import glob
-from time import time
 
-from matplotlib import mlab
 
-import argparse
 from skylab.ps_llh              import PointSourceLLH, MultiPointSourceLLH
 from skylab.ps_injector         import PointSourceInjector, PriorInjector
 from skylab.llh_models          import EnergyLLH, ClassicLLH
@@ -39,108 +28,99 @@ from skylab.priors              import SpatialPrior
 from skylab.sensitivity_utils   import fit
 from skylab.test_statistics     import TestStatisticNotSeparated
 
-from config_steady_ANITA        import config, Askaryan, Tau, Tau_2
+sys.path.append('/data/user/apizzuto/fast_response_skylab/fast-response/trunk/time_integrated_scripts/')
+from config_steady              import config
 
 
 ###############################################################################
 parser = argparse.ArgumentParser(description = 'ANITA_Tau_Sens_seed_timing_tests')
-parser.add_argument('--nsignal', type=float, required=True, help='mean number of injected signal events')
-parser.add_argument('--i', type=int, required=True, help='rng_seed')
+#parser.add_argument('--nsignal', type=float, required=True, help='mean number of injected signal events')
+parser.add_argument('--i', type=int, required=True, help='Alert event index')
 parser.add_argument('--g', type=float, required=True, help='spectral index')
-parser.add_argument("--ntrials", default=1000, type=int,
-                help="Number of trials (default=1000")
-parser.add_argument("--event", default="Askaryan", type=str,
-                help="ANITA event location (Askaryan or Tau)")
+parser.add_argument("--ntrials", default=10, type=int,
+                help="Number of trials per signal strength (default=10)")
+parser.add_argument('--rng', type=int, default=1, help="Random number seed")
+parser.add_argument('--verbose', action='store_true', default=False,
+                    help="Assorted print statements flag")   
+parser.add_argument('--fit', action='store_true', default=False,
+                    help="Include poisson fluctuations by default or raise this flag")                
 args = parser.parse_args()
 ###############################################################################
 
-if args.event == "Askaryan":
-    source = Askaryan()
-elif args.event == "Tau":
-    source = Tau()
-elif args.event == "Tau_2":
-    source = Tau_2()
-else:
-    print("Invalid ANITA Event.\nExiting")
-    exit(0)
-
-rng_seed = args.i
 gamma = args.g
-ns = args.nsignal
+index = args.i
 ntrials = args.ntrials
+seed = args.rng
+verbose = args.verbose
+poisson = ~args.fit
 
-outfile = '/data/user/apizzuto/ANITA/SteadyTrials/signal_injection/{}/gamma_{}_ns_{}_sig_trial_{:03d}'.format(args.event, gamma, ns, rng_seed)
+outdir = 'fits' if args.fit else 'sensitivity'
+outfile = '/data/user/apizzuto/fast_response_skylab/alert_event_followup/analysis_trials/{}/index_{}_steady_seed_{}_gamma_{}.pkl'.format(outdir, index, seed, gamma)
 
+t0 = time.time()
 
-t0 = time()
-
-GeV = 1
-TeV = 1000 * GeV
-
-#################
-# SPATIAL PRIOR #
-#################
-
-nside = 2**6
-npix = hp.nside2npix(nside)
-pixels = range(npix)
-
-spatial_prior = SpatialPrior(source['prior_map'], scan_thresh = source['threshold'])
+nside = 2**7
+multillh, spatial_prior, inj = config(index, gamma = gamma, seed = seed, scramble = True, nside=nside,
+                        ncpu = 1, injector = True, verbose=verbose)
 
 
-##########
-# SKYLAB #
-##########
+t1 = time.time()
+if verbose:
+    print('{:.2f} seconds to Initialize Likelihoods'.format(t1 - t0))
+    print ("\nRunning signal injection trials ...")
 
-seasons = [ ["PointSourceTracks_v003p01", "IC86, 2011"],
-            ["PointSourceTracks_v003p01", "IC86, 2012-2017"] ]
+allspots = None
+ii = 1
+ninj = np.append(np.linspace(1, 10, 10), np.array([15, 20, 25, 30, 40, 50]))
 
-multillh, inj = config(seasons, gamma = gamma, seed = rng_seed, scramble = True,
-                        ncpu = 1, spatial_prior = spatial_prior, injector = True)
-
-print("\n injected spectrum:")
-print("   - %s" % str(inj.spectrum))
-
-t1 = time()
-print('\n{:.2f} seconds to Initialize Likelihoods'.format(t1 - t0))
-
-##########
-# SKYLAB #
-##########
-
-###############################################################################
-
-#################
-# SIGNAL TRIALS #
-#################
-
-print("\nSignal Trials:")
-
-
-# NOTE: mean_signal *is not* the number of injected events in the case
-#       of the prior injector because the injector adjusts the number
-#       of events depending on the declination of injection to account
-#       for the detector's effective area.
-#
-#       prior injector should be thought of as a constant flux injector.
-#       This is why we convert mean_signal to flux and save that instead
-#       of the number of injected events.
-
-allspots = []
-for results, hotspots in multillh.do_allsky_trials(n_iter=ntrials,  # run xx randomized trials
-                                              rng_seed=rng_seed,    # pass different seed for each set of trials
-                                              injector=inj,         # injector
-                                              mean_signal=ns,       # signal to inject
-                                              return_position=True, # track injected event info in hotspots dict
-                                              nside=nside,          # nside of map used for initial, coarse search
-                                              follow_up_factor=2,   # each successive map uses (2^1) * nside
-                                              spatial_prior=spatial_prior): # apply spatial prior when looking for hotspot
-    allspots.append(hotspots)
+for ni in ninj:
+    for results, hotspots in multillh.do_allsky_trials(n_iter= ntrials,
+                                injector=inj,
+                                mean_signal=ni,
+                                poisson=poisson, 
+                                nside=nside, rng_seed = 123*seed + ii,
+                                spatial_prior=spatial_prior,
+                                follow_up_factor = 1, return_position=True):
+        if verbose:
+            print('Trial Number: {}'.format(ii))
+        ii += 1
+        if allspots is None:
+            allspots = {}
+            for k, v in hotspots['spatial_prior_0']['best'].items():
+                allspots[k] = [v]
+            if 'pix' not in allspots.keys():
+                allspots['pix'] = [0]
+            if 'nside' not in allspots.keys():
+                allspots['nside'] = [0]
+            if 'inj' in hotspots['spatial_prior_0'].keys():
+                for k, v in hotspots['spatial_prior_0']['inj'].items():
+                    allspots['inj_' + k] = [v]
+            else:
+                allspots['inj_nsignal'] = [0]
+                allspots['inj_dec'], allspots['inj_ra'] = [0.], [0.]
+            allspots['flux'] = [inj.mu2flux(ni)]
+        else:
+            for k, v in hotspots['spatial_prior_0']['best'].items():
+                allspots[k].append(v)
+            if 'pix' not in hotspots['spatial_prior_0']['best'].keys():
+                allspots['pix'].append(0)
+            if 'nside' not in hotspots['spatial_prior_0']['best'].keys():
+                allspots['nside'].append(0)
+            if 'inj' in hotspots['spatial_prior_0'].keys():
+                for k, v in hotspots['spatial_prior_0']['inj'].items():
+                    allspots['inj_' + k].append(v)
+            else:
+                allspots['inj_nsignal'].append(0)
+                allspots['inj_dec'].append(0.0)
+                allspots['inj_ra'].append(0.0)
+            allspots['flux'].append(inj.mu2flux(ni))
+        #allspots.append(hotspots)
 
 dt1 = t1 - t0
-dt     = time() - t0
-print("Finished script in {} seconds".format(dt))
-print("Initialization: {} seconds\ntrials: {} seconds".format(dt1, (dt-dt1)))
+dt     = time.time() - t0
+if verbose:
+    print("Finished script in {} seconds".format(dt))
+    print("Initialization: {} seconds\ntrials: {} seconds".format(dt1, (dt-dt1)))
 
-np.save(outfile, allspots)
-
+with open(outfile, 'w') as f:
+    pickle.dump(allspots, f, protocol=pickle.HIGHEST_PROTOCOL)
