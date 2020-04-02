@@ -97,6 +97,20 @@ class FastResponseAnalysis(object):
                 self.skymap_url = location
                 if "steinrob" in location:
                     self.skymap = fits.open(location)[0].data
+                elif 'data/ana/' in location:
+                    skmap_files = glob('/data/ana/realtime/alert_catalog_v2/2yr_prelim/fits_files/Run13*.fits.gz')
+                    skymap_f = fits.open(skymap_fies[alert_ind])
+                    skymap_fits = skymap_f[1].data
+                    skymap_header = skymap_f[1].header
+                    run_id, ev_id = skymap_header['RUNID'], skymap_header['EVENTID']
+                    ev_mjd = skymap_header['EVENTMJD']
+                    ev_iso = skymap_header['START']
+                    signalness = skymap_header['SIGNAL']
+                    ev_en = skymap_header['ENERGY']
+                    ev_ra, ev_dec = np.radians(skymap_header['RA']), np.radians(skymap_header['DEC'])
+                    ev_stream = skymap_header['I3TYPE']
+                    self.skymap = np.exp(skymap_fits / 2.) 
+                    self.skymap /= self.skymap.sum()
                 else:
                     self.skymap = hp.read_map(location, verbose=False)
                 if hp.pixelfunc.get_nside(self.skymap)!=256:

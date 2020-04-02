@@ -52,9 +52,24 @@ def config(alert_ind, seed = 1, scramble = True, e_range=(0,np.inf), g_range=[1.
      Point source injector object
     """
     seasons = [("GFUOnline_v001p01", "IC86, 2011-2018")]
-    skymaps_path = '/data/user/steinrob/millipede_scan_archive/fits_v3_prob_map/'
-    files = glob(skymaps_path + '*.fits')
-    skymap_fits = fits.open(files[alert_ind])[0].data
+    #skymaps_path = '/data/user/steinrob/millipede_scan_archive/fits_v3_prob_map/'
+    #files = glob(skymaps_path + '*.fits')
+    #skymap_fits = fits.open(files[alert_ind])[0].data
+
+    #Turn this into a function read_alert_event()
+    skmap_files = glob('/data/ana/realtime/alert_catalog_v2/2yr_prelim/fits_files/Run13*.fits.gz')
+    skymap_f = fits.open(skymap_fies[alert_ind])
+    skymap_fits = skymap_f[1].data
+    skymap_header = skymap_f[1].header
+    run_id, ev_id = skymap_header['RUNID'], skymap_header['EVENTID']
+    ev_mjd = skymap_header['EVENTMJD']
+    ev_iso = skymap_header['START']
+    signalness = skymap_header['SIGNAL']
+    ev_en = skymap_header['ENERGY']
+    ev_ra, ev_dec = np.radians(skymap_header['RA']), np.radians(skymap_header['DEC'])
+    ev_stream = skymap_header['I3TYPE']
+    skymap_fits = np.exp(skymap_fits / 2.) #Convert from 2LLH to unnormalized probability
+
     if hp.pixelfunc.get_nside(skymap_fits)!=nside:
         skymap_fits = hp.pixelfunc.ud_grade(skymap_fits,nside)
     skymap_fits = skymap_fits/skymap_fits.sum()
