@@ -57,10 +57,12 @@ def config(alert_ind, seed = 1, scramble = True, e_range=(0,np.inf), g_range=[1.
     #skymap_fits = fits.open(files[alert_ind])[0].data
 
     #Turn this into a function read_alert_event()
-    skmap_files = glob('/data/ana/realtime/alert_catalog_v2/2yr_prelim/fits_files/Run13*.fits.gz')
-    skymap_f = fits.open(skymap_fies[alert_ind])
-    skymap_fits = skymap_f[1].data
-    skymap_header = skymap_f[1].header
+    skymap_files = glob('/data/ana/realtime/alert_catalog_v2/2yr_prelim/fits_files/Run13*.fits.gz')
+    #skymap_f = fits.open(skymap_files[alert_ind])
+    #skymap_fits = skymap_f[1].data
+    #skymap_header = skymap_f[1].header
+    skymap_fits, skymap_header = hp.read_map(skymap_files[alert_ind], h=True, verbose=False)
+    skymap_header = {name: val for name, val in skymap_header}
     run_id, ev_id = skymap_header['RUNID'], skymap_header['EVENTID']
     ev_mjd = skymap_header['EVENTMJD']
     ev_iso = skymap_header['START']
@@ -68,7 +70,9 @@ def config(alert_ind, seed = 1, scramble = True, e_range=(0,np.inf), g_range=[1.
     ev_en = skymap_header['ENERGY']
     ev_ra, ev_dec = np.radians(skymap_header['RA']), np.radians(skymap_header['DEC'])
     ev_stream = skymap_header['I3TYPE']
-    skymap_fits = np.exp(skymap_fits / 2.) #Convert from 2LLH to unnormalized probability
+    skymap_fits = np.exp(-1. * skymap_fits / 2.) #Convert from 2LLH to unnormalized probability
+    skymap_fits = np.where(skymap_fits > 1e-12, skymap_fits, 0.0)
+    skymap_fits = skymap_fits / np.sum(skymap_fits)
 
     if hp.pixelfunc.get_nside(skymap_fits)!=nside:
         skymap_fits = hp.pixelfunc.ud_grade(skymap_fits,nside)
