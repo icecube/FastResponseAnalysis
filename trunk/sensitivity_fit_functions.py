@@ -7,7 +7,7 @@ import pickle
 import matplotlib as mpl
 #mpl.use('Agg')
 import matplotlib.pyplot as plt
-
+ 
 
 palette = ['#7fc97f', '#beaed4', '#fdc086', '#ffff99', '#386cb0', '#f0027f']
 

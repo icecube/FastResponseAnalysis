@@ -71,12 +71,24 @@ if verbose:
 
 allspots = None
 ii = 1
-ninj = np.append(np.linspace(1, 10, 10), np.array([15, 20, 25, 30, 40, 50]))
+ninj = np.append(np.linspace(1, 10, 10), np.array([15, 20, 25, 30, 40, 50, 60, 70]))
+
+scale_arr = []
+for i in range(1,21):
+    scale_arr.append([])
+    for j in range(5):
+        scale_arr[-1].append(inj.sample(i, poisson=False)[0][0])
+scale_arr = np.median(scale_arr, axis=1)
+try:
+    scale_factor = np.min(np.argwhere(scale_arr > 0)) + 1.
+except:
+    print("Scale factor thing for prior injector didn't work")
+    scale_factor = 1.
 
 for ni in ninj:
     for results, hotspots in multillh.do_allsky_trials(n_iter= ntrials,
                                 injector=inj,
-                                mean_signal=ni,
+                                mean_signal=ni*scale_factor,
                                 poisson=poisson, 
                                 nside=nside, rng_seed = 123*seed + ii,
                                 spatial_prior=spatial_prior,
@@ -98,7 +110,7 @@ for ni in ninj:
             else:
                 allspots['inj_nsignal'] = [0]
                 allspots['inj_dec'], allspots['inj_ra'] = [0.], [0.]
-            allspots['flux'] = [inj.mu2flux(ni)]
+            allspots['flux'] = [inj.mu2flux(ni*scale_factor)]
         else:
             for k, v in hotspots['spatial_prior_0']['best'].items():
                 allspots[k].append(v)
@@ -113,7 +125,7 @@ for ni in ninj:
                 allspots['inj_nsignal'].append(0)
                 allspots['inj_dec'].append(0.0)
                 allspots['inj_ra'].append(0.0)
-            allspots['flux'].append(inj.mu2flux(ni))
+            allspots['flux'].append(inj.mu2flux(ni*scale_factor))
         #allspots.append(hotspots)
 
 dt1 = t1 - t0
