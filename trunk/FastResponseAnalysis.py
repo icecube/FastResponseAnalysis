@@ -497,8 +497,8 @@ class FastResponseAnalysis(object):
             that of this analysis
         Returns:
         ---------
-        xs, llhs: array-like
-            Values of ns scanned and corresponding llh values'''
+        xs, delta_llh: array-like
+            Values of ns scanned and corresponding -2*delta_llh values'''
         bounds = self.ns * 2.5
         if bounds == 0.0:
             bounds = 1.0
@@ -507,17 +507,19 @@ class FastResponseAnalysis(object):
         for n in xs:
             llhs.append(self.llh.llh(n, **params)[0])
         llhs = np.array(llhs)
+        best_llh = self.llh.llh(self.ns, **params)[0]
+        delta_llh = -2.*(llhs - best_llh)
 
         if self.save_output:
             fig, ax = plt.subplots()
-            plt.plot(xs, -llhs, lw = 3)
+            plt.plot(xs, delta_llh, lw = 3)
             plt.axvline(self.ns, ls = '--', color = 'gray', lw = 1)
             plt.xlabel(r'$n_s$', fontsize = 18)
-            plt.ylabel(r'$-\log \frac{\mathcal{L}}{\mathcal{L}_0}$', fontsize = 18)
+            plt.ylabel(r'$-2\times \Delta \mathrm{LLH}$', fontsize = 18)
             plt.savefig(self.analysispath + '/llh_ns_scan.png', bbox_inches='tight', dpi=200)
 
-        self.ns_profile = (xs, llhs)
-        return xs, llhs
+        self.ns_profile = (xs, delta_llh)
+        return xs, delta_llh
 
     def upper_limit(self, n_per_sig = 500, p0 = None):
         r'''After calculating TS, find upper limit
