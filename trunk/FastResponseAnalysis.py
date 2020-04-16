@@ -213,7 +213,7 @@ class FastResponseAnalysis(object):
             print("Old times, just grabbing archival data")
             exps, grls = [], []
             for season in ["IC86, 2016", "IC86, 2017", "IC86, 2018"]:
-                exp, mc, livetime = dataset.season(season, floor=np.radians(0.2))
+                exp, mc, livetime = dataset.season(season, floor=np.radians(0.5))
                 grl = dataset.grl(season)
                 exps.append(exp)
                 grls.append(grl)
@@ -226,7 +226,7 @@ class FastResponseAnalysis(object):
             #print("querying the i3live database")
             exp, mc, livetime, grl = dataset.livestream(start - 6., stop,
                                                     append=["IC86, 2017", "IC86, 2018"], 
-                                                    floor=np.radians(0.2))  #TEMPORARY
+                                                    floor=np.radians(0.5))  #TEMPORARY
                                                     #THIS IS PS STANDARD, NOT FR STANDARD
 
         sinDec_bins = dataset.sinDec_bins("livestream")
