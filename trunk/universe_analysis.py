@@ -126,9 +126,14 @@ class UniverseAnalysis():
     def background_alert_trials(self, ind):
         if self.transient:
             trials = np.load(bg_trials + 'index_{}_time_{:.1f}.pkl'.format(ind, self.deltaT))
+            ts = np.random.choice(trials['ts_prior'])
         else:
-            trials = np.load(bg_trials + 'index_{}_steady.pkl'.format(ind))
-        ts = np.random.choice(trials['ts_prior'])
+            fs = glob(bg_trials + 'index_{}_steady_seed_*.pkl'.format(ind))
+            t_file = np.random.choice(fs)
+            trials = np.load(t_file)
+            #trials = np.load(bg_trials + 'index_{}_steady.pkl'.format(ind))
+            ts = np.random.choice(trials['TS'])
+        #ts = np.random.choice(trials['ts_prior'])
         del trials
         return ts
 
@@ -139,22 +144,26 @@ class UniverseAnalysis():
             if self.transient:
                 trials = np.load(signal_trials + 'index_{}_time_{:.1f}.pkl'.format(ind, self.deltaT))
             else:
-                trials = np.load(signal_trials + 'index_{}_steady.pkl'.format(ind))
+                fs = glob(signal_trials + 'index_{}_steady_seed_*.pkl'.format(ind))
+                t_file = np.random.choice(fs)
+                trials = np.load(t_file)
+                #trials = np.load(signal_trials + 'index_{}_steady.pkl'.format(ind))
+            ns_key = 'true_ns' if self.transient else 'inj_nsignal'
             if N <= 10:
-                inds = np.argwhere(np.array(trials['true_ns']) == N).flatten()
+                inds = np.argwhere(np.array(trials[ns_key]) == N).flatten()
                 if len(inds) == 0:
-                    inds = np.argwhere(np.abs(np.array(trials['true_ns']) - N) < 4).flatten()
+                    inds = np.argwhere(np.abs(np.array(trials[ns_key]) - N) < 4).flatten()
                     if len(inds) == 0:
                         if self.verbose:
                             print("No trials near {}".format(N))
-                        inds = np.argmin(np.abs(np.array(trials['true_ns']) - N)).flatten()    
+                        inds = np.argmin(np.abs(np.array(trials[ns_key]) - N)).flatten()    
             else:
-                inds = np.argwhere(np.abs(np.array(trials['true_ns']) - N) < 10).flatten()
+                inds = np.argwhere(np.abs(np.array(trials[ns_key]) - N) < 10).flatten()
                 if len(inds) == 0:
                     if self.verbose:
                         print("NO TRIALS WITH {} INJECTED EVENTS".format(N))
-                    inds = np.argwhere(np.array(trials['true_ns']) == np.max(trials['true_ns'])).flatten()
-            ts = np.array(trials['ts'])[inds]
+                    inds = np.argwhere(np.array(trials[ns_key]) == np.max(trials[ns_key])).flatten()
+            ts = np.array(trials['ts'])[inds] if self.transient else np.array(trials['TS'])[inds]
             ts = np.random.choice(ts)
             del trials
         return ts

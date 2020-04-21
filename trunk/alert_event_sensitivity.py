@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import numpy as np
+import healpy as hp
 import os, sys, argparse
 from astropy.time import Time
 from astropy.time import TimeDelta
@@ -23,17 +24,22 @@ parser.add_argument('--ntrials', type=int, default = 100,
                         help='Trials per injection strength')
 args = parser.parse_args()
 
-skymaps_path = '/data/user/steinrob/millipede_scan_archive/fits_v3_prob_map/'
-files = glob(skymaps_path + '*.fits')
+#skymaps_path = '/data/user/steinrob/millipede_scan_archive/fits_v3_prob_map/'
+#files = glob(skymaps_path + '*.fits')
 output_paths = '/data/user/apizzuto/fast_response_skylab/alert_event_followup/sensitivity_ts_distributions/'
+
+skymap_files = glob('/data/ana/realtime/alert_catalog_v2/2yr_prelim/fits_files/Run13*.fits.gz')
+skymap_fits, skymap_header = hp.read_map(skymap_files[args.index], h=True, verbose=False)
+skymap_header = {name: val for name, val in skymap_header}
+ev_mjd = skymap_header['EVENTMJD']
 
 gammas = [2.5] #np.linspace(2., 3., 3)
 nsigs = [1., 2., 3., 4., 6., 8., 10., 15., 20., 25., 30., 50.]
 deltaT = args.deltaT / 86400.
 
-skymap_fits = fits.open(files[args.index])[0]
+#skymap_fits = fits.open(files[args.index])[0]
 #event_mjd = skymap_fits.header['TIME_MJD']
-event_mjd = 58000.000 #HARDCODE SO THAT THERE IS REAL DATA
+event_mjd = ev_mjd  #58000.000 #HARDCODE SO THAT THERE IS REAL DATA
 start_mjd = event_mjd - (deltaT / 2.)
 stop_mjd = event_mjd + (deltaT / 2.)
 
@@ -58,7 +64,7 @@ true_decs     = []
 seed_counter = 0
 
 for gamma in gammas:
-    f = FastResponseAnalysis(files[args.index], start, stop, save=False, alert_event=True)
+    f = FastResponseAnalysis(skymap_files[args.index], start, stop, save=False, alert_event=True)
     inj = f.initialize_injector(gamma=gamma)
     for nsig in nsigs:
         for jj in range(trials_per_sig):

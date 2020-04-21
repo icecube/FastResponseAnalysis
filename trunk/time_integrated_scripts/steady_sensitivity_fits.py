@@ -228,7 +228,7 @@ def load_map(ind, probs = False):
     header = {name: val for name, val in header}
     if probs:
         skymap = np.exp(-1. * skymap / 2.)
-        skymap = np.where(skymap > 1e-12, skymap, 0.0)
+        skymap = np.where(skymap > 1e-20, skymap, 0.0)
         skymap = skymap / np.sum(skymap)
     return skymap, header
 
@@ -264,7 +264,7 @@ def load_map(ind, probs = False):
     header = {name: val for name, val in header}
     if probs:
         skymap = np.exp(-1. * skymap / 2.)
-        skymap = np.where(skymap > 1e-12, skymap, 0.0)
+        skymap = np.where(skymap > 1e-20, skymap, 0.0)
         skymap = skymap / np.sum(skymap)
     return skymap, header
 
@@ -279,7 +279,7 @@ def plot_zoom(ind, LLH=False, reso=1., cmap=None, draw_contour=True, ax=None):
     if not LLH:
         original_LLH = np.copy(skymap)
         skymap = np.exp(-1. * skymap / 2.)
-        skymap = np.where(skymap > 1e-12, skymap, 0.0)
+        skymap = np.where(skymap > 1e-20, skymap, 0.0)
         skymap = skymap / np.sum(skymap) 
     ra = np.radians(header['RA'])
     dec = np.radians(header['DEC'])
@@ -400,7 +400,7 @@ def plot_skymap(ind, LLH=True):
     if not LLH:
         original_LLH = np.copy(skymap)
         skymap = np.exp(-1. * skymap / 2.)
-        skymap = np.where(skymap > 1e-12, skymap, 0.0)
+        skymap = np.where(skymap > 1e-20, skymap, 0.0)
         skymap = skymap / np.sum(skymap)
     pdf_palette = sns.color_palette("Blues", 500)
     cmap = mpl.colors.ListedColormap(pdf_palette)

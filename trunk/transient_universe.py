@@ -91,7 +91,11 @@ class Universe():
 
     def sample_skymap(self, decs):
         r'''Only use real alert event skymap locations'''
-        map_decs = np.load('/data/user/apizzuto/fast_response_skylab/alert_event_followup/effective_areas_alerts/decs_by_ind.npy')[1]
+        ###########################################################################
+        ################ FIX WHEN STEADY TRIALS FINISH #######################################
+        #################3 shouldn't stop at 10 index in next line
+        #####################################################
+        map_decs = np.load('/data/user/apizzuto/fast_response_skylab/alert_event_followup/effective_areas_alerts/decs_by_ind.npy')[1][:10]
         sample_decs, idxs = [], []
         if isinstance(decs, float):
             decs = [decs]

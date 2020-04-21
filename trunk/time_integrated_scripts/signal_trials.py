@@ -74,7 +74,7 @@ ii = 1
 ninj = np.append(np.linspace(1, 10, 10), np.array([15, 20, 25, 30, 40, 50, 60, 70]))
 
 scale_arr = []
-for i in range(1,21):
+for i in range(1,51):
     scale_arr.append([])
     for j in range(5):
         scale_arr[-1].append(inj.sample(i, poisson=False)[0][0])

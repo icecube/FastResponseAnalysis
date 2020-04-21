@@ -3,6 +3,7 @@ import scipy as sp
 from scipy.optimize       import curve_fit
 from scipy.stats          import chi2
 import pandas as pd
+import subprocess
 from astropy.time import Time
 import datetime
 import matplotlib as mpl
@@ -37,6 +38,7 @@ def updateFastResponseWeb(analysis):
     createFastResponsePage(analysis)
     updateFastResponseTable(analysis)
     updateFastResponsePlots()
+    #sync_to_roc()
 
 def updateDataFrame(analysis):
     r'''
@@ -159,7 +161,7 @@ def updateFastResponsePlots():
     plt.title("{} Fast Response Analyses as of {}".format(len(df), today), fontsize = 20)          
     #plt.text(7e-3, 5e-2, "IceCube\nPreliminary", fontsize = 20, color = 'r')
     plt.ylim(6e-3, 1e0)
-    plt.savefig('/home/apizzuto/public_html/FastResponse/pvalue_distribution_liveupdate.png', dpi=200, bbox_inches='tight')
+    plt.savefig('/home/apizzuto/public_html/FastResponse/webpage/output/pvalue_distribution_liveupdate.png', dpi=200, bbox_inches='tight')
 
 def write_alert_circular(analysis):
     r'''Read in template GCN circular file, fill in appropriate
@@ -213,6 +215,9 @@ def binomial_error(p, number):
     bound_case_sigma = np.sqrt(bound_case_pass*(1. - bound_case_pass) / (number + 2))
     errs = np.maximum(errs, bound_case_sigma)
     return errs
+
+def sync_to_roc():
+    subprocess.Popen('rsync -a /home/apizzuto/public_html/FastResponse/webpage/ apizzuto@roc.icecube.wisc.edu:/mnt/roc/www/internal/fast_response')
 
 def format_dec_str(dec):
     if dec < 0:
