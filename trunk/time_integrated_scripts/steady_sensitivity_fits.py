@@ -228,7 +228,7 @@ def load_map(ind, probs = False):
     header = {name: val for name, val in header}
     if probs:
         skymap = np.exp(-1. * skymap / 2.)
-        skymap = np.where(skymap > 1e-20, skymap, 0.0)
+        skymap = np.where(skymap > 1e-70, skymap, 0.0)
         skymap = skymap / np.sum(skymap)
     return skymap, header
 
@@ -258,15 +258,6 @@ def sensitivity_fit(signal_fluxes, passing, errs, fit_func, p0 = None, conf_lev 
     return {'popt': popt, 'pcov': pcov, 'chi2': chi2, 
             'dof': dof, 'xfit': xfit*signal_scale_fac, 'yfit': yfit, 
             'name': name, 'pval':pval, 'ls':'--', 'sens': sens}
-
-def load_map(ind, probs = False):
-    skymap, header = hp.read_map(skymap_files[ind], h=True, verbose=False)
-    header = {name: val for name, val in header}
-    if probs:
-        skymap = np.exp(-1. * skymap / 2.)
-        skymap = np.where(skymap > 1e-20, skymap, 0.0)
-        skymap = skymap / np.sum(skymap)
-    return skymap, header
 
 def plot_zoom(ind, LLH=False, reso=1., cmap=None, draw_contour=True, ax=None):
     skymap, header = hp.read_map(skymap_files[ind], h=True, verbose=False)
