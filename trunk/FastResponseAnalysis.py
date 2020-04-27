@@ -275,7 +275,7 @@ class FastResponseAnalysis(object):
         print("LLH Initialization took {} seconds\n\n".format(time.time() - t0))
         return llh
 
-    def initialize_injector(self, gamma=2.0, seed=123):
+    def initialize_injector(self, gamma=2.0, seed=123, e_range=(0., np.inf)):
         r'''Method to make relevant injector in Skylab, done for analysis
         checks as well as for calculating sensitivities
 
@@ -291,18 +291,18 @@ class FastResponseAnalysis(object):
             from skylab.ps_injector import PriorInjector
             print("Initializing Prior Injector")
             if self.stop - self.start > 1.:
-                spatial_prior = SpatialPrior(self.skymap, containment = 0.90)
+                spatial_prior = SpatialPrior(self.skymap, containment = 0.99)
             else:
-                spatial_prior = SpatialPrior(self.skymap, containment = 0.90)
+                spatial_prior = SpatialPrior(self.skymap, containment = 0.99)
             self.spatial_prior = spatial_prior
-            inj = PriorInjector(spatial_prior, gamma=gamma, e_range = (0,np.inf), 
+            inj = PriorInjector(spatial_prior, gamma=gamma, e_range = e_range, 
                                     E0=1000., seed = seed) #1000 for 1 TeV
             inj.fill(self.llh.exp, self.llh.mc, self.llh.livetime, temporal_model=self.llh.temporal_model)
             self.inj = inj
             return inj
         else:
             print("Initializing Point Source Injector")
-            inj = PointSourceInjector(gamma = gamma, E0 = 1000.) # injected spectrum dN/dE = A * (E / 1 TeV)^-2
+            inj = PointSourceInjector(gamma = gamma, E0 = 1000., e_range=e_range) # injected spectrum dN/dE = A * (E / 1 TeV)^-2
             inj.fill(self.dec, self.llh.exp, self.llh.mc, self.llh.livetime, temporal_model=self.llh.temporal_model)
             self.inj = inj
             return inj
@@ -320,9 +320,9 @@ class FastResponseAnalysis(object):
         if self.skymap is not None:
             t0 = time.time()
             if 'ice' in self.name.lower():
-                spatial_prior = SpatialPrior(self.skymap, containment = 0.90)
+                spatial_prior = SpatialPrior(self.skymap, containment = 0.99)
             else:
-                spatial_prior = SpatialPrior(self.skymap, containment = 0.90)
+                spatial_prior = SpatialPrior(self.skymap, containment = 0.99)
             pixels = np.arange(len(self.skymap))
             t1 = time.time()
             print("Starting scan")
@@ -438,7 +438,7 @@ class FastResponseAnalysis(object):
             TS distribution for the background only trials
         ''' 
         tsd = []
-        spatial_prior = SpatialPrior(self.skymap, containment=0.90)
+        spatial_prior = SpatialPrior(self.skymap, containment=0.99)
         toolbar_width = 50
         sys.stdout.write("[%s]" % (" " * toolbar_width))
         sys.stdout.flush()
@@ -631,7 +631,7 @@ class FastResponseAnalysis(object):
         '''
         return self.analysisid
 
-    def save_results(self):
+    def save_results(self, alt_path = None):
         r'''Once analysis has been performed, push
         all relevant info to a new directory
         Parameters:
@@ -654,11 +654,18 @@ class FastResponseAnalysis(object):
                         ('ns_profile', self.ns_profile), ('low_en', self.low5), ('high_en', self.high5)]:
             if val is not None:
                 results[key] = val
-        print("Saving results to directory:\n\t{}".format(self.analysispath))
-        with open(self.analysispath + '/' + self.analysisid + '_' + 'results.pickle', 'wb') as f:
-            pickle.dump(results, f, protocol=pickle.HIGHEST_PROTOCOL)
-        print("Results successfully saved")
-        return results       
+        if alt_path is None:
+            print("Saving results to directory:\n\t{}".format(self.analysispath))
+            with open(self.analysispath + '/' + self.analysisid + '_' + 'results.pickle', 'wb') as f:
+                pickle.dump(results, f, protocol=pickle.HIGHEST_PROTOCOL)
+            print("Results successfully saved")
+            return results       
+        else:
+            print("Saving to specified directory")
+            with open(alt_path + '/' + self.analysisid + '_' + 'results.pickle', 'wb') as f:
+                pickle.dump(results, f, protocol=pickle.HIGHEST_PROTOCOL)
+            print("Results successfully saved")
+            return results
  
     def generate_report(self):
         r'''Generates report using class attributes
