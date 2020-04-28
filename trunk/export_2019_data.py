@@ -3,6 +3,7 @@ import numpy as np
 import json
 import icecube.realtime_gfu.eventcache
 import icecube.realtime_tools.live
+from icecube.phys_services import goodrunlist
 
 def clean_json_events(evs):
     stream = icecube.realtime_gfu.eventcache.NeutrinoEventStream()
@@ -15,24 +16,24 @@ def clean_json_events(evs):
             if not n in event.dtype.names: reordered.append(-1)
             else: reordered.append(event[n])
         eventlist.append(tuple(reordered))
-
     events = np.array(eventlist, dtype=dtype)
     return events
 
-def format_db_runs(run_table, events):
-    #print(len(events))
+def format_db_runs(run_table, events, i3_grl):
     # loop through good runs to grab events & info
+    i3_runs = i3_grl.keys()
     run_info = []
     exp = []
     for run in run_table:
-
-        # skip currently unfinished runs
         if run['stop'] is None:
             continue
-        # skip bad runs
-        if run['OK'] != 'OK':
+        if run['run_number'] not in i3_runs:
             continue
-
+        if i3_grl[run['run_number']]['active_strings'] < 80:
+            continue
+        if not run['latest_snapshot']['good_i3']:
+            continue
+        
         # start & stop time of run in mjd days
         run_start = run['start']
         run_stop = run['stop']
@@ -40,7 +41,7 @@ def format_db_runs(run_table, events):
         mask = ((run_start <= events['time']) &
                 (events['time'] <= run_stop) &
                 (events['run'] == run['run_number']))
-        print(len(events[mask]))
+
         exp.append(events[mask].copy())
 
         # append GRL info
@@ -62,34 +63,40 @@ def format_db_runs(run_table, events):
     # stick all good events in a single array
     exp = np.concatenate(exp)
 
-    # trim to ensure events and runs are between start/stop
-    #exp = exp[(start <= exp['time']) & (exp['time'] <= stop)]
-    #grl = grl[(start <= grl['stop']) & (grl['start'] <= stop)]
-    #if grl['start'][0] < start:
-    #    grl['start'][0] = start
-    #    grl['livetime'][0] = grl['stop'][0] - grl['start'][0]
-    #if grl['stop'][-1] > stop:
-    #    grl['stop'][-1] = stop
-    #    grl['livetime'][-1] = grl['stop'][-1] - grl['start'][-1]
-
     return exp, grl, grl['livetime'].sum()
 
 
 if __name__=='__main__':
+    official_grl = goodrunlist.GRL()
+
     with open('/data/user/apizzuto/fast_response_skylab/fast-response/trunk/all_realtimeEvent.json', 'r') as f:
-        docs = json.loads(f.read())
-    exp = clean_json_events(docs[:1000])
-    print(len(exp))
-    print(np.unique(exp['run']))
+            docs = json.loads(f.read())
+            
+    exp_compare = np.load('/data/ana/analyses/gfu_online/current/IC86_2018_data.npy')
+    grl_compare = np.load('/data/ana/analyses/gfu_online/current/GRL/IC86_2018_data.npy')
+
+    min_compare_run = 131265 #not just np.min because I wanted to ignore test runs
+    max_compare_run = np.max(grl_compare['run'])
+    compare_docs = []
+    new_docs = []
+    for doc in docs:
+        #Only keep runs from IC2018 to compare, throw out the early test runs
+        if (doc['value']['data']['run_id'] >= min_compare_run) and (doc['value']['data']['run_id'] <= max_compare_run):
+            compare_docs.append(doc)
+        elif doc['value']['data']['run_id'] > max_compare_run:
+            new_docs.append(doc)
+        else:
+            continue #There are a few events Michael gave from even before the IC2018 files      
+
+    exp = clean_json_events(new_docs)
     start = np.min(exp['time']); stop = np.max(exp['time'])
 
-    run_table = GFUOnline_v001p00.query_db_runs(start, stop)    
-    exp, grl, livetime = format_db_runs(run_table, exp)
+    run_table = GFUOnline_v001p00.query_db_runs(start, stop)
+
+    exp, grl, livetime = format_db_runs(run_table, exp, official_grl)
 
     exp.sort(order='time')
     grl.sort(order='run')
 
-    np.save('/data/user/apizzuto/fast_response_skylab/fast-response/trunk/IC_2019_data.npy', exp)
-    np.save('/data/user/apizzuto/fast_response_skylab/fast-response/trunk/IC_2019_grl.npy', grl)
-
-    
+    np.save('/data/user/apizzuto/fast_response_skylab/fast-response/trunk/2019_data/IC86_2019_data.npy', exp)
+    np.save('/data/user/apizzuto/fast_response_skylab/fast-response/trunk/2019_data/GRL/IC86_2019_data.npy', grl)
