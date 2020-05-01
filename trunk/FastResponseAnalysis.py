@@ -95,14 +95,27 @@ class FastResponseAnalysis(object):
             try: 
                 location = location.strip('() ')
                 self.skymap_url = location
+                self.smear = kwargs.pop("smear", False)
                 if "steinrob" in location:
                     self.skymap = fits.open(location)[0].data
                 elif 'data/ana/' in location:
                     skymap_fits, skymap_header = hp.read_map(location, h=True, verbose=False)
+                    skymap_llh = skymap_fits.copy()
                     skymap_fits = np.exp(-1. * skymap_fits / 2.) #Convert from 2LLH to unnormalized probability
                     skymap_fits = np.where(skymap_fits > 1e-12, skymap_fits, 0.0)
                     skymap_fits = skymap_fits / np.sum(skymap_fits)
                     skymap_fits = skymap_fits/skymap_fits.sum()
+                    if self.smear:
+                        ninety_msk = skymap_llh < 64.2
+                        nside = hp.get_nside(skymap_llh)
+                        cdf = np.cumsum(np.sort(skymap_fits[ninety_msk][::-1]))
+                        pixs_above_ninety = np.count_nonzero(cdf> 0.1)
+                        original_ninety_area = hp.nside2pixarea(nside) * pixs_above_ninety
+                        new_ninety_area = hp.nside2pixarea(nside) * np.count_nonzero(probs[ninety_msk])
+                        original_ninety_radius = np.sqrt(original_ninety_area / np.pi)
+                        new_ninety_radius = np.sqrt(new_ninety_area / np.pi)
+                        scaled_probs = scale_2d_gauss(skymap_fits, original_ninety_radius, new_ninety_radius)
+                        skymap_fits = scaled_probs
                     self.skymap = skymap_fits
                 else:
                     self.skymap = hp.read_map(location, verbose=False)
@@ -133,6 +146,7 @@ class FastResponseAnalysis(object):
         self.centertime = (start + stop) / 2.
         self.trigger = kwargs.pop("trigger", self.centertime)
         self.alert_event = kwargs.pop('alert_event', False)
+        self.floor = np.radians(0.2)
 
         dirname = os.environ.get('FAST_RESPONSE_OUTPUT')
         if dirname is None:
@@ -202,12 +216,20 @@ class FastResponseAnalysis(object):
         # only ends up in the if part for archival analyses, where it takes
         #a while to query i3live
         # CHANGE THIS FROM LIVESTREAM TO JUST GRAB THE SEASONS FROM THE DATASET CLASS
-        if stop < 58850.:
+        if stop < 58933.0: #This is March 25, 2020
             print("Old times, just grabbing archival data")
             exps, grls = [], []
-            for season in ["IC86, 2016", "IC86, 2017", "IC86, 2018"]:
-                exp, mc, livetime = dataset.season(season, floor=np.radians(0.5))
+            for season in ["IC86, 2011", "IC86, 2012", "IC86, 2013", "IC86, 2014",
+                            "IC86, 2015", "IC86, 2016", "IC86, 2017", "IC86, 2018"]:
+                exp, mc, livetime = dataset.season(season, floor=self.floor)
                 grl = dataset.grl(season)
+                exps.append(exp)
+                grls.append(grl)
+            for season in ["IC86_2019"]:
+                exp = np.load('/data/user/apizzuto/fast_response_skylab/fast-response/trunk/2019_data/IC86_2019_data.npy')
+                grl = np.load('/data/user/apizzuto/fast_response_skylab/fast-response/trunk/2019_data/GRL/IC86_2019_data.npy')
+                mc_extra = np.load('/data/ana/analyses/gfu_online/current/IC86_2011_MC.npy')
+                exp, mc_extra, livetime = dataset.apply_modifications("IC86, 2019", exp, mc_extra, grl['livetime'].sum(), floor=self.floor)
                 exps.append(exp)
                 grls.append(grl)
             exp = np.concatenate(exps)
@@ -217,11 +239,26 @@ class FastResponseAnalysis(object):
             livetime = grl['livetime'].sum()
         else:
             #print("querying the i3live database")
+            exps, grls = [], []
             exp, mc, livetime, grl = dataset.livestream(start - 6., stop,
-                                                    append=["IC86, 2017", "IC86, 2018"], 
-                                                    floor=np.radians(0.5))  #TEMPORARY
+                                                    append=["IC86, 2011", "IC86, 2012", "IC86, 2013", "IC86, 2014",
+                            "IC86, 2015", "IC86, 2016", "IC86, 2017", "IC86, 2018"], 
+                                                    floor=self.floor)  #TEMPORARY
                                                     #THIS IS PS STANDARD, NOT FR STANDARD
-
+            exps.append(exp)
+            grls.append(grl)
+            exp = np.load('/data/user/apizzuto/fast_response_skylab/fast-response/trunk/2019_data/IC86_2019_data.npy')
+            mc_extra = np.load('/data/ana/analyses/gfu_online/current/IC86_2011_MC.npy')
+            grl = np.load('/data/user/apizzuto/fast_response_skylab/fast-response/trunk/2019_data/GRL/IC86_2019_data.npy')
+            exp, mc_extra, livetime = dataset.apply_modifications("IC86, 2019", exp, mc_extra, grl['livetime'].sum(), floor=self.floor)
+            #exp['angErr'] = np.maximum(exp['angErr'], self.floor)
+            exps.append(exp)
+            grls.append(grl)
+            exp = np.concatenate(exps)
+            exp.sort(order='time')
+            grl = np.concatenate(grls)
+            grl.sort(order='run')
+            livetime = grl['livetime'].sum()
         sinDec_bins = dataset.sinDec_bins("livestream")
         energy_bins = dataset.energy_bins("livestream")
         ###################### END DATASET   ######################
@@ -1193,3 +1230,8 @@ def pvals_for_signal(deltaT, sinDec, gamma, ns = 1, month=6, sigma = False):
         return pvals
     else:
         return sp.stats.norm.ppf(1. - (pvals / 2.))
+
+def scale_2d_gauss(arr, sigma_arr, new_sigma):
+    tmp = arr**(sigma_arr**2. / new_sigma**2.)/(np.sqrt(2.*np.pi)*new_sigma)* \
+                    np.power(np.sqrt(2.*np.pi)*sigma_arr, (sigma_arr**2. / new_sigma**2.)) 
+    return tmp / np.sum(tmp)

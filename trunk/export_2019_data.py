@@ -97,6 +97,8 @@ if __name__=='__main__':
 
     exp.sort(order='time')
     grl.sort(order='run')
+    
+    trimmed_grl = grl[1:] #There will be one overlapping run at the beginning that's acutally in 2018
 
     np.save('/data/user/apizzuto/fast_response_skylab/fast-response/trunk/2019_data/IC86_2019_data.npy', exp)
-    np.save('/data/user/apizzuto/fast_response_skylab/fast-response/trunk/2019_data/GRL/IC86_2019_data.npy', grl)
+    np.save('/data/user/apizzuto/fast_response_skylab/fast-response/trunk/2019_data/GRL/IC86_2019_data.npy', trimmed_grl)

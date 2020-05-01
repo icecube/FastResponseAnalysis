@@ -22,6 +22,8 @@ parser.add_argument('--deltaT', type=float, default=None,
                     help='Time Window in seconds')
 parser.add_argument('--ntrials', type=int, default = 10000,
                         help='Trials')
+parser.add_argument('--smear', default=False, actrion='store_true',
+                    help='Include systematics by smearing norm. prob.')
 args = parser.parse_args()
 
 
@@ -34,6 +36,9 @@ skymap_files = glob('/data/ana/realtime/alert_catalog_v2/2yr_prelim/fits_files/R
 skymap_fits, skymap_header = hp.read_map(skymap_files[args.index], h=True, verbose=False)
 skymap_header = {name: val for name, val in skymap_header}
 ev_mjd = skymap_header['EVENTMJD']
+
+run_id = skymap_header['RUNID']
+event_id = skymap_header['EVENTID']
 
 deltaT = args.deltaT / 86400.
 
@@ -58,7 +63,8 @@ dec           = []
 
 seed_counter = 0
 
-f = FastResponseAnalysis(skymap_files[args.index], start, stop, save=False, alert_event=True)
+f = FastResponseAnalysis(skymap_files[args.index], start, stop, save=False, 
+                            alert_event=True, smear=args.smear)
 inj = f.initialize_injector(gamma=2.5) #just put this here to initialize f.spatial_prior
 for jj in range(trials_per_sig):
     seed_counter += 1
@@ -85,5 +91,6 @@ for jj in range(trials_per_sig):
 results = {'ts_prior': tsList_prior, 'ts': tsList, 'ns_prior': nsList_prior,
             'ns': nsList, 'ra': ra, 'dec': dec}
 
-with open(output_paths + 'index_{}_time_{}.pkl'.format(args.index, args.deltaT), 'w') as fi:
+smear_str = 'smeared/' if args.smear else 'norm_prob/'
+with open(output_paths + smear_str + 'index_{}_run_{}_event_{}_time_{}.pkl'.format(args.index, run_id, event_id, args.deltaT), 'w') as fi:
     pickle.dump(results, fi, protocol=pickle.HIGHEST_PROTOCOL)
