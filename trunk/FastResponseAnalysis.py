@@ -111,7 +111,7 @@ class FastResponseAnalysis(object):
                         cdf = np.cumsum(np.sort(skymap_fits[ninety_msk][::-1]))
                         pixs_above_ninety = np.count_nonzero(cdf> 0.1)
                         original_ninety_area = hp.nside2pixarea(nside) * pixs_above_ninety
-                        new_ninety_area = hp.nside2pixarea(nside) * np.count_nonzero(probs[ninety_msk])
+                        new_ninety_area = hp.nside2pixarea(nside) * np.count_nonzero(skymap_fits[ninety_msk])
                         original_ninety_radius = np.sqrt(original_ninety_area / np.pi)
                         new_ninety_radius = np.sqrt(new_ninety_area / np.pi)
                         scaled_probs = scale_2d_gauss(skymap_fits, original_ninety_radius, new_ninety_radius)
@@ -126,12 +126,13 @@ class FastResponseAnalysis(object):
                 self.ipix_90 = self.ipixs_in_percentage(self.skymap,0.9)
                 self.ra, self.dec, self.extension = None, None, None
                 self.source_type = "Prior"
-            except:
+            except Exception, e:
                 message = 'Location must be one of the following)\n'
                 message += '\t(1) RA, DEC in degrees\n'
                 message += '\t(2) URL to Skymap .fits file\n'
                 message += '\t(3) Path to Skymap on cobalt'
                 print(message)
+                print(str(e))
                 sys.exit()
 
         start = Time(dateutil.parser.parse(tstart)).mjd

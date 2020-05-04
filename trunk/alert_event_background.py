@@ -22,7 +22,7 @@ parser.add_argument('--deltaT', type=float, default=None,
                     help='Time Window in seconds')
 parser.add_argument('--ntrials', type=int, default = 10000,
                         help='Trials')
-parser.add_argument('--smear', default=False, actrion='store_true',
+parser.add_argument('--smear', default=False, action='store_true',
                     help='Include systematics by smearing norm. prob.')
 args = parser.parse_args()
 
@@ -31,7 +31,6 @@ args = parser.parse_args()
 #files = glob(skymaps_path + '*.fits')
 output_paths = '/data/user/apizzuto/fast_response_skylab/alert_event_followup/analysis_trials/bg/'
 
-# FIX THIS PART
 skymap_files = glob('/data/ana/realtime/alert_catalog_v2/2yr_prelim/fits_files/Run13*.fits.gz')
 skymap_fits, skymap_header = hp.read_map(skymap_files[args.index], h=True, verbose=False)
 skymap_header = {name: val for name, val in skymap_header}

@@ -22,23 +22,23 @@ parser.add_argument('--deltaT', type=float, default=None,
                     help='Time Window in seconds')
 parser.add_argument('--ntrials', type=int, default = 100,
                         help='Trials per injection strength')
+parser.add_argument('--smear', default=False, action='store_true',
+                    help='Include systematics by smearing norm. prob.')
 args = parser.parse_args()
 
-#skymaps_path = '/data/user/steinrob/millipede_scan_archive/fits_v3_prob_map/'
-#files = glob(skymaps_path + '*.fits')
-output_paths = '/data/user/apizzuto/fast_response_skylab/alert_event_followup/sensitivity_ts_distributions/'
+output_paths = '/data/user/apizzuto/fast_response_skylab/alert_event_followup/analysis_trials/sensitivity/'
 
 skymap_files = glob('/data/ana/realtime/alert_catalog_v2/2yr_prelim/fits_files/Run13*.fits.gz')
 skymap_fits, skymap_header = hp.read_map(skymap_files[args.index], h=True, verbose=False)
 skymap_header = {name: val for name, val in skymap_header}
 ev_mjd = skymap_header['EVENTMJD']
+run_id = skymap_header['RUNID']
+event_id = skymap_header['EVENTID']
 
 gammas = [2.5] #np.linspace(2., 3., 3)
 nsigs = [1., 2., 3., 4., 6., 8., 10., 15., 20., 25., 30., 50.]
 deltaT = args.deltaT / 86400.
 
-#skymap_fits = fits.open(files[args.index])[0]
-#event_mjd = skymap_fits.header['TIME_MJD']
 event_mjd = ev_mjd  #58000.000 #HARDCODE SO THAT THERE IS REAL DATA
 start_mjd = event_mjd - (deltaT / 2.)
 stop_mjd = event_mjd + (deltaT / 2.)
@@ -64,7 +64,8 @@ true_decs     = []
 seed_counter = 0
 
 for gamma in gammas:
-    f = FastResponseAnalysis(skymap_files[args.index], start, stop, save=False, alert_event=True)
+    f = FastResponseAnalysis(skymap_files[args.index], start, stop, save=False, 
+                        alert_event=True, smear=args.smear)
     inj = f.initialize_injector(gamma=gamma)
     for nsig in nsigs:
         for jj in range(trials_per_sig):
@@ -109,5 +110,6 @@ results = {'ts_prior': tsList_prior, 'ts': tsList, 'ns_prior': nsList_prior,
             'gamma': gammaList, 'mean_ninj': mean_ninj, 'flux': flux_list,
             'true_ra': true_ras, 'true_dec': true_decs}
 
-with open(output_paths + 'index_{}_time_{}.pkl'.format(args.index, args.deltaT), 'w') as fi:
+smear_str = 'smeared/' if args.smear else 'norm_prob/'
+with open(output_paths + smear_str + 'index_{}_run_{}_event_{}_time_{}.pkl'.format(args.index, run_id, event_id, args.deltaT), 'w') as fi:
     pickle.dump(results, fi, protocol=pickle.HIGHEST_PROTOCOL)
