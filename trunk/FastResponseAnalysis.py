@@ -1145,56 +1145,6 @@ def find_nearest_idx(array, value):
     array = np.asarray(array)
     idx = (np.abs(array - value)).argmin()
     return idx
-
-def sensitivity_curve(ns, passing, in_ns = True, month=6, with_err = True, trim=-1, 
-                            ax = None, p0 = None, fontsize = 16):
-    signal_fluxes, passing, errs = pass_vs_inj(deltaT, sinDec, gamma, threshold=threshold, in_ns=in_ns, month=month, with_err=with_err, trim=trim)
-    fits, plist = [], []
-    try:
-        fits.append(sensitivity_fit(signal_fluxes, passing, errs, chi2cdf, p0=p0))
-        plist.append(fits[-1]['pval'])
-        fits.append(sensitivity_fit(signal_fluxes, passing, errs, erfunc, p0=p0))
-        plist.append(fits[-1]['pval'])
-        fits.append(sensitivity_fit(signal_fluxes, passing, errs, incomplete_gamma, p0=p0))
-        plist.append(fits[-1]['pval'])
-    except:
-        pass
-        #print("at least one fit failed")
-    #Find best fit of the three, make it look different in plot
-    plist = np.array(plist)
-    best_fit_ind= np.argmax(plist)
-    fits[best_fit_ind]['ls'] = '-'
-    
-    if ax==None:
-        fig, ax = plt.subplots()
-    
-    for fit_dict in fits:
-        ax.plot(fit_dict['xfit'], fit_dict['yfit'], 
-                 label = r'{}: $\chi^2$ = {:.2f}, d.o.f. = {}'.format(fit_dict['name'], fit_dict['chi2'], fit_dict['dof']),
-                ls = fit_dict['ls'])
-        if fit_dict['ls'] == '-':
-            ax.axhline(0.9, color = palette[-1], linewidth = 0.3, linestyle = '-.')
-            ax.axvline(fit_dict['sens'], color = palette[-1], linewidth = 0.3, linestyle = '-.')
-            ax.text(5, 0.8, r'Sens. = {:.2f}'.format(fit_dict['sens']))
-    ax.errorbar(signal_fluxes, passing, yerr=errs, capsize = 3, linestyle='', marker = 's', markersize = 2)
-    ax.legend(loc=4, fontsize = fontsize)
-    
-def calc_sensitivity(deltaT, sinDec, gamma, threshold = 0.5, in_ns = True, month=6, with_err = True, trim=-1, p0=None):
-    signal_fluxes, passing, errs = pass_vs_inj(deltaT, sinDec, gamma, threshold=threshold, in_ns=in_ns, month=month, with_err=with_err, trim=trim)
-    fits, plist = [], []
-    try:
-        fits.append(sensitivity_fit(signal_fluxes, passing, errs, chi2cdf, p0=p0))
-        plist.append(fits[-1]['pval'])
-        fits.append(sensitivity_fit(signal_fluxes, passing, errs, erfunc, p0=p0))
-        plist.append(fits[-1]['pval'])
-        fits.append(sensitivity_fit(signal_fluxes, passing, errs, incomplete_gamma, p0=p0))
-        plist.append(fits[-1]['pval'])
-    except:
-        pass
-    #Find best fit of the three, make it look different in plot
-    plist = np.array(plist)
-    best_fit_ind= np.argmax(plist)
-    return fits[best_fit_ind]
     
 def sensitivity_fit(signal_fluxes, passing, errs, fit_func, p0 = None, conf_lev = 0.9):
     r'''
@@ -1217,20 +1167,6 @@ def sensitivity_fit(signal_fluxes, passing, errs, fit_func, p0 = None, conf_lev 
     return {'popt': popt, 'pcov': pcov, 'chi2': chi2, 
             'dof': dof, 'xfit': xfit, 'yfit': yfit, 
             'name': name, 'pval':pval, 'ls':'--', 'sens': sens}
-
-def pvals_for_signal(deltaT, sinDec, gamma, ns = 1, month=6, sigma = False):
-    bg_trials = np.load('/data/user/apizzuto/fast_response_skylab/fast-response/trunk/analysis_checks/bg/ps_sinDec_{}_deltaT_{}_month_{}.npy'.format(sinDec, deltaT, month))
-    signal_trials = np.load('/data/user/apizzuto/fast_response_skylab/fast-response/trunk/analysis_checks/sensitivity/nsignal_sinDec_{}_deltaT_{}_month_{}.npy'.format(sinDec, deltaT, month))
-    signal_trials = signal_trials[signal_trials['gamma'] == gamma]
-    signal_trials = signal_trials[signal_trials['n_inj'] == ns]
-    #print(len(bg_trials['TS']))
-    pvals = [100. - sp.stats.percentileofscore(bg_trials, ts, kind='strict') for ts in signal_trials['TS']]
-    pvals = np.array(pvals)*0.01
-    pvals = np.where(pvals==0, 1e-6, pvals)
-    if not sigma:
-        return pvals
-    else:
-        return sp.stats.norm.ppf(1. - (pvals / 2.))
 
 def scale_2d_gauss(arr, sigma_arr, new_sigma):
     tmp = arr**(sigma_arr**2. / new_sigma**2.)/(np.sqrt(2.*np.pi)*new_sigma)* \
