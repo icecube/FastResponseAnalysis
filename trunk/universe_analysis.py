@@ -48,6 +48,8 @@ class UniverseAnalysis():
         else:
             self.universe = SteadyUniverse(self.lumi, self.evol, self.density,
                 self.diffuse_flux_norm, self.diffuse_flux_ind, seed=self.seed, **kwargs)
+        self.smear = kwargs.pop('smeared', True)
+        self.smear_str = 'smeared/' if self.smear else 'norm_prob/'
         self.verbose = kwargs.pop('verbose', False)
         self.initialize_universe() 
 
@@ -97,18 +99,31 @@ class UniverseAnalysis():
         self.universe.find_alert_skymaps()
         self.universe.additional_signal_events()
 
-    def calculate_ts(self, only_gold = False):
-        ts, sigs = [], []
+    def calculate_ts(self, only_gold = False, calc_p=True):
+        ts, sigs, ps = [], [], []
         self.alert_df['TS'] = [None] * len(self.alert_df['background'])
+        self.alert_df['pval'] = [None] * len(self.alert_df['background'])
         for index, alert in self.alert_df.iterrows():
             if alert['background']:
-                ts.append(self.background_alert_trials(alert['skymap_ind']))
+                if calc_p:
+                    t, p = self.background_alert_trials(alert['skymap_ind'], calc_p=calc_p)
+                    ts.append(t); ps.append(p)
+                else:
+                    ts.append(self.background_alert_trials(alert['skymap_ind'], calc_p=calc_p))
                 sigs.append(alert['signalness'])
                 self.alert_df.loc[self.alert_df.index == index, 'TS'] = ts[-1]
+                if calc_p:
+                    self.alert_df.loc[self.alert_df.index == index, 'pval'] = ps[-1]
             else:
-                ts.append(self.signal_alert_trials(alert['skymap_ind'], alert['extra_evs']))
+                if calc_p:
+                    t, p = self.signal_alert_trials(alert['skymap_ind'], alert['extra_evs'], calc_p=calc_p)
+                    ts.append(t); ps.append(p)
+                else:
+                    ts.append(self.signal_alert_trials(alert['skymap_ind'], alert['extra_evs'], calc_p=calc_p))
                 sigs.append(alert['signalness'])
                 self.alert_df.loc[self.alert_df.index == index, 'TS'] = ts[-1]
+                if calc_p:
+                    self.alert_df.loc[self.alert_df.index == index, 'pval'] = ps[-1]
         ts, sigs = np.array(ts), np.array(sigs)
         if only_gold:
             gold = []
@@ -123,28 +138,46 @@ class UniverseAnalysis():
         self.TS = TS
         return TS
         
-    def background_alert_trials(self, ind):
+    def background_alert_trials(self, ind, calc_p=True):
         if self.transient:
-            trials = np.load(bg_trials + 'index_{}_time_{:.1f}.pkl'.format(ind, self.deltaT))
+            trials_file = glob(bg_trials + self.smear_str + 'index_{}_*_time_{:.1f}.pkl'.format(ind, self.deltaT))[0]
+            trials = np.load(trials_file)
             ts = np.random.choice(trials['ts_prior'])
+            if calc_p:
+                if ts == 0:
+                    pval = 1.0
+                else:
+                    pval = float(np.count_nonzero(np.array(trials['ts_prior']) >= ts)) / np.array(trials['ts_prior']).size
         else:
-            fs = glob(bg_trials + 'index_{}_steady_seed_*.pkl'.format(ind))
-            t_file = np.random.choice(fs)
-            trials = np.load(t_file)
+            fs = glob(bg_trials + self.smear_str + 'index_{}_*_steady_seed_*.pkl'.format(ind))
+            trials = np.load(fs[0])
+            for f in fs[1:]:
+                trials = np.concatenate(trials, np.load(f)) 
+            #t_file = np.random.choice(fs)
+            #trials = np.load(t_file)
             #trials = np.load(bg_trials + 'index_{}_steady.pkl'.format(ind))
             ts = np.random.choice(trials['TS'])
+            if calc_p:
+                if ts == 0:
+                    pval = 1.0
+                else:
+                    pval = float(np.count_nonzero(trials['TS'] >= ts)) / trials['TS'].size
         #ts = np.random.choice(trials['ts_prior'])
         del trials
-        return ts
+        if calc_p:
+            return ts, pval
+        else:
+            return ts
 
-    def signal_alert_trials(self, ind, N):
+    def signal_alert_trials(self, ind, N, calc_p = True):
         if N == 0:
-            ts = self.background_alert_trials(ind)
+            ts = self.background_alert_trials(ind, calc_p = False)
         else:
             if self.transient:
-                trials = np.load(signal_trials + 'index_{}_time_{:.1f}.pkl'.format(ind, self.deltaT))
+                trials_file = glob(signal_trials + self.smear_str + 'index_{}_*_time_{:.1f}.pkl'.format(ind, self.deltaT))[0]
+                trials = np.load(trials_file)
             else:
-                fs = glob(signal_trials + 'index_{}_steady_seed_*.pkl'.format(ind))
+                fs = glob(signal_trials + self.smear_str + 'index_{}_*_steady_seed_*.pkl'.format(ind))
                 t_file = np.random.choice(fs)
                 trials = np.load(t_file)
                 #trials = np.load(signal_trials + 'index_{}_steady.pkl'.format(ind))
@@ -166,4 +199,39 @@ class UniverseAnalysis():
             ts = np.array(trials['ts'])[inds] if self.transient else np.array(trials['TS'])[inds]
             ts = np.random.choice(ts)
             del trials
-        return ts
+        if calc_p:
+            pval = self.calculate_trial_pvalue(ind, ts)
+            return ts, pval
+        else:
+            return ts
+
+    def calculate_trial_pvalue(self, ind, TS):
+        if TS == 0:
+            return 1.
+        if self.transient:
+            trials_file = glob(bg_trials + self.smear_str + 'index_{}_*_time_{:.1f}.pkl'.format(ind, self.deltaT))[0]
+            trials = np.load(trials_file)
+            pval = float(np.count_nonzero(np.array(trials['ts_prior']) >= TS)) / np.array(trials['ts_prior']).size
+        else:
+            fs = glob(bg_trials + self.smear_str + 'index_{}_*_steady_seed_*.pkl'.format(ind))
+            trials = np.load(fs[0])
+            for f in fs[1:]:
+                trials = np.concatenate(trials, np.load(f))
+            pval = float(np.count_nonzero(trials['TS'] >= TS)) / trials['TS'].size
+            del trials
+        return pval
+
+    def calculate_binomial_pvalue(self, only_gold=False):
+        if self.TS is None:
+            self.calculate_ts(only_gold = only_gold, calc_p=True) 
+        plist = self.alert_df['pval']
+        obs_p = 1.
+        plist = sorted(plist)
+        for i, p in enumerate(plist):
+            tmp = st.binom_test(i+1, len(plist), p, alternative='greater')
+            if tmp < obs_p and tmp != 0.0:
+                if tmp == 0.0:
+                    print("WHY DOES THE BINOMIAL VALUE EQUAL ZERO")
+                obs_p = tmp
+        self.binom_p = obs_p
+        return obs_p 
