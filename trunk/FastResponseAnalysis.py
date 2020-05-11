@@ -401,7 +401,8 @@ class FastResponseAnalysis(object):
             #print(energy_ratio)
             #print(np.max(spatial_weights * energy_ratio))
             ns = ns['nsignal']
-            msk = spatial_weights * energy_ratio > 10
+            temporal_weights = self.llh.temporal_model.signal(self.llh._events)
+            msk = spatial_weights * energy_ratio * temporal_weights > 10
             if len(spatial_weights[msk]) > 0:
                 self.coincident_events = []
                 #print self.llh._events.dtype.names

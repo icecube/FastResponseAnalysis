@@ -49,10 +49,13 @@ def updateDataFrame(analysis):
     dec = np.nan if 'dec' not in analysis.keys() else analysis['dec'] * 180. / np.pi
     ra = np.nan if 'ra' not in analysis.keys() else analysis['ra'] * 180. / np.pi
     ext = 0.0 if 'extension' not in analysis.keys() else results['extension'] * 180. / np.pi
+    upper_lim = np.nan if 'upper_limit' not in analysis.keys() else analysis['upper_limit']
+    low_en = np.nan if 'low_en' not in analysis.keys() else analysis['low_en']
+    high_en = np.nan if 'high_en' not in analysis.keys() else analysis['high_en']
     new_list = [ra, dec, analysis['p'],
             analysis['ns'], pd.Timestamp(Time(analysis['start'], format='mjd').iso), 
             pd.Timedelta(analysis['stop'] - analysis['start'], unit='day'),
-            ext, None, analysis['ts'], evid]
+            ext, None, analysis['ts'], evid, upper_lim, (low_en, high_en)]
     if analysis['name'] in df.index:
         num = np.count_nonzero(df.index == analysis['name'])
         analysis['name'] += '_{}'.format(num)
