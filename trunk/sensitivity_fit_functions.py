@@ -4,14 +4,13 @@ import scipy as sp
 from scipy.optimize       import curve_fit
 from scipy.stats          import chi2
 import pickle
+from glob import glob
 import matplotlib as mpl
 #mpl.use('Agg')
 import matplotlib.pyplot as plt
  
 
 palette = ['#7fc97f', '#beaed4', '#fdc086', '#ffff99', '#386cb0', '#f0027f']
-
-input_ts_base_path = '/data/user/apizzuto/fast_response_skylab/alert_event_followup/sensitivity_ts_distributions/'
 
 def erfunc(x, a, b):
     return 0.5 + 0.5*sp.special.erf(a*x + b)
@@ -34,36 +33,42 @@ def find_nearest_idx(array, value):
 
 def n_to_flux(N, index, delta_t, smear=True):
     smear_str = 'smeared/' if smear else 'norm_prob/'
-    with open('/data/user/apizzuto/fast_response_skylab/alert_event_followup/analysis_trials/sensitivity/{}index_{}_time_{:.1f}.pkl'.format(smear_str, index, delta_t), 'r') as f:
+    fs = glob('/data/user/apizzuto/fast_response_skylab/alert_event_followup/analysis_trials/sensitivity/{}index_{}_*_time_{:.1f}.pkl'.format(smear_str, index, delta_t))
+    with open(fs[0], 'r') as f:
         signal_trials = pickle.load(f)
     fl_per_one = np.mean(np.array(signal_trials['flux']) / np.array(signal_trials['mean_ninj']))
     return fl_per_one * N
 
 def dec_of_map(index, smear=True):
     smear_str = 'smeared/' if smear else 'norm_prob/'
-    with open('/data/user/apizzuto/fast_response_skylab/alert_event_followup/analysis_trials/sensitivity/{}index_{}_time_{:.1f}.pkl'.format(smear_str, index, 1000.0), 'r') as f:
+    fs = glob('/data/user/apizzuto/fast_response_skylab/alert_event_followup/analysis_trials/sensitivity/{}index_{}_*_time_{:.1f}.pkl'.format(smear_str, index, 1000.0))
+    with open(fs[0], 'r') as f:
         signal_trials = pickle.load(f)
     ra, dec = np.median(signal_trials['ra']), np.median(signal_trials['dec'])
     return ra, dec
 
 def background_distribution(index, delta_t, smear=True):
     smear_str = 'smeared/' if smear else 'norm_prob/'
-    with open('/data/user/apizzuto/fast_response_skylab/alert_event_followup/analysis_trials/bg/{}index_{}_time_{:.1f}.pkl'.format(smear_str, index, delta_t), 'r') as f:
+    fs = glob('/data/user/apizzuto/fast_response_skylab/alert_event_followup/analysis_trials/bg/{}index_{}_*_time_{:.1f}.pkl'.format(smear_str, index, delta_t))
+    with open(fs[0], 'r') as f:
         bg_trials = pickle.load(f)
     return bg_trials['ts_prior']
 
 def signal_distribution(index, delta_t, ns, smear=True):
     smear_str = 'smeared/' if smear else 'norm_prob/'
-    with open('/data/user/apizzuto/fast_response_skylab/alert_event_followup/analysis_trials/sensitivity/{}index_{}_time_{:.1f}.pkl'.format(smear_str, index, delta_t), 'r') as f:
+    fs = glob('/data/user/apizzuto/fast_response_skylab/alert_event_followup/analysis_trials/sensitivity/{}index_{}_*_time_{:.1f}.pkl'.format(smear_str, index, delta_t))
+    with open(fs[0], 'r') as f:
         signal_trials = pickle.load(f)
     return signal_trials[signal_trials['mean_ninj'] == ns]
 
 def pass_vs_inj(index, delta_t, threshold = 0.5, in_ns = True, with_err = True, trim=-1, smear=True):
     smear_str = 'smeared/' if smear else 'norm_prob/'
-    with open('/data/user/apizzuto/fast_response_skylab/alert_event_followup/analysis_trials/bg/{}index_{}_time_{:.1f}.pkl'.format(smear_str, index, delta_t), 'r') as f:
+    fs = glob('/data/user/apizzuto/fast_response_skylab/alert_event_followup/analysis_trials/bg/{}index_{}_*_time_{:.1f}.pkl'.format(smear_str, index, delta_t))
+    with open(fs[0], 'r') as f:
         bg_trials = pickle.load(f)
     bg_trials = bg_trials['ts_prior']
-    with open('/data/user/apizzuto/fast_response_skylab/alert_event_followup/analysis_trials/sensitivity/{}index_{}_time_{:.1f}.pkl'.format(smear_str, index, delta_t), 'r') as f:
+    fs = glob('/data/user/apizzuto/fast_response_skylab/alert_event_followup/analysis_trials/sensitivity/{}index_{}_*_time_{:.1f}.pkl'.format(smear_str, index, delta_t))
+    with open(fs[0], 'r') as f:
         signal_trials = pickle.load(f)
     bg_thresh = np.percentile(bg_trials, threshold * 100.)
     #print(bg_thresh)
@@ -161,10 +166,12 @@ def sensitivity_fit(signal_fluxes, passing, errs, fit_func, p0 = None, conf_lev 
 
 def pvals_for_signal(index, delta_t, ns = 1, sigma_units = False, smear=True):
     smear_str = 'smeared/' if smear else 'norm_prob/'
-    with open('/data/user/apizzuto/fast_response_skylab/alert_event_followup/analysis_trials/bg/{}index_{}_time_{:.1f}.pkl'.format(smear_str, index, delta_t), 'r') as f:
+    fs = glob('/data/user/apizzuto/fast_response_skylab/alert_event_followup/analysis_trials/bg/{}index_{}_*_time_{:.1f}.pkl'.format(smear_str, index, delta_t))
+    with open(fs[0], 'r') as f:
         bg_trials = pickle.load(f)
     bg_trials = bg_trials['ts_prior']
-    with open('/data/user/apizzuto/fast_response_skylab/alert_event_followup/analysis_trials/sensitivity/{}index_{}_time_{:.1f}.pkl'.format(smear_str, index, delta_t), 'r') as f:
+    fs = glob('/data/user/apizzuto/fast_response_skylab/alert_event_followup/analysis_trials/sensitivity/{}index_{}_*_time_{:.1f}.pkl'.format(smear_str, index, delta_t))
+    with open(fs[0], 'r') as f:
         signal_trials = pickle.load(f)
     pvals = [100. - sp.stats.percentileofscore(bg_trials, ts, kind='strict') for ts in signal_trials['ts_prior']]
     pvals = np.array(pvals)*0.01
