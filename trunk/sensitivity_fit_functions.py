@@ -187,7 +187,7 @@ def sensitivity_fit(signal_fluxes, passing, errs, fit_func, p0 = None, conf_lev 
     xfit = np.linspace(np.min(signal_fluxes) - 0.5, np.max(signal_fluxes), 100)
     yfit = fit_func(xfit, *popt)
     pval = sp.stats.chi2.sf(chi2, dof)
-    sens = xfit[find_nearest_idx(yfit, 0.9)]
+    sens = xfit[find_nearest_idx(yfit, conf_lev)]
     return {'popt': popt, 'pcov': pcov, 'chi2': chi2, 
             'dof': dof, 'xfit': xfit, 'yfit': yfit, 
             'name': name, 'pval':pval, 'ls':'--', 'sens': sens}
