@@ -67,10 +67,21 @@ for gamma in gammas:
     f = FastResponseAnalysis(skymap_files[args.index], start, stop, save=False, 
                         alert_event=True, smear=args.smear)
     inj = f.initialize_injector(gamma=gamma)
+    scale_arr = []
+    for i in range(1,101):
+        scale_arr.append([])
+        for j in range(5):
+            scale_arr[-1].append(inj.sample(i, poisson=False)[0][0])
+    scale_arr = np.median(scale_arr, axis=1)
+    try:
+        scale_factor = np.min(np.argwhere(scale_arr > 0)) + 1.
+    except:
+        print("Scale factor thing for prior injector didn't work")
+        scale_factor = 1.
     for nsig in nsigs:
         for jj in range(trials_per_sig):
             seed_counter += 1
-            ni, sample, true_ra, true_dec = inj.sample(nsig, poisson = True, return_position = True)
+            ni, sample, true_ra, true_dec = inj.sample(nsig*scale_factor, poisson = True, return_position = True)
             if sample is not None:
                 sample['time'] = event_mjd
             try:
@@ -87,8 +98,8 @@ for gamma in gammas:
                 ra.append(val['ra'][max_prior])
                 dec.append(val['dec'][max_prior])
                 gammaList.append(gamma)
-                mean_ninj.append(nsig)
-                flux_list.append(inj.mu2flux(nsig))
+                mean_ninj.append(nsig*scale_factor)
+                flux_list.append(inj.mu2flux(nsig*scale_factor))
                 true_ras.append(true_ra[0])
                 true_decs.append(true_dec[0])
             except ValueError:
@@ -100,8 +111,8 @@ for gamma in gammas:
                 ra.append(0.0)
                 dec.append(0.0)
                 gammaList.append(gamma)
-                mean_ninj.append(nsig)
-                flux_list.append(inj.mu2flux(nsig))
+                mean_ninj.append(nsig*scale_factor)
+                flux_list.append(inj.mu2flux(nsig*scale_factor))
                 true_ras.append(true_ra[0])
                 true_decs.append(true_dec[0])
 

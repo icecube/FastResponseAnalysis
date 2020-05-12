@@ -59,7 +59,11 @@ def signal_distribution(index, delta_t, ns, smear=True):
     fs = glob('/data/user/apizzuto/fast_response_skylab/alert_event_followup/analysis_trials/sensitivity/{}index_{}_*_time_{:.1f}.pkl'.format(smear_str, index, delta_t))
     with open(fs[0], 'r') as f:
         signal_trials = pickle.load(f)
-    return signal_trials[signal_trials['mean_ninj'] == ns]
+    ret = {}
+    msk = np.array(signal_trials['mean_ninj']) == ns
+    for k, v in signal_trials.iteritems():
+        ret[k] = np.array(v)[msk]
+    return ret
 
 def pass_vs_inj(index, delta_t, threshold = 0.5, in_ns = True, with_err = True, trim=-1, smear=True):
     smear_str = 'smeared/' if smear else 'norm_prob/'
@@ -95,14 +99,20 @@ def pass_vs_inj(index, delta_t, threshold = 0.5, in_ns = True, with_err = True, 
         return signal_fluxes, passing, errs
     
 def sensitivity_curve(index, delta_t, threshold = 0.5, in_ns = True, with_err = True, trim=-1, ax = None, 
-                    p0 = None, fontsize = 16, conf_lev = 0.9, smear=True):
+                    p0 = None, fontsize = 16, conf_lev = 0.9, smear=True, legend=True, text=True):
     signal_fluxes, passing, errs = pass_vs_inj(index, delta_t, threshold=threshold, in_ns=in_ns, with_err=with_err, trim=trim, smear=smear)
     fits, plist = [], []
     try:
         fits.append(sensitivity_fit(signal_fluxes, passing, errs, chi2cdf, p0=p0, conf_lev=conf_lev))
         plist.append(fits[-1]['pval'])
+    except:
+        pass
+    try:
         fits.append(sensitivity_fit(signal_fluxes, passing, errs, erfunc, p0=p0, conf_lev=conf_lev))
         plist.append(fits[-1]['pval'])
+    except:
+        pass
+    try:
         fits.append(sensitivity_fit(signal_fluxes, passing, errs, incomplete_gamma, p0=p0, conf_lev=conf_lev))
         plist.append(fits[-1]['pval'])
     except:
@@ -110,8 +120,10 @@ def sensitivity_curve(index, delta_t, threshold = 0.5, in_ns = True, with_err = 
         #print("at least one fit failed")
     #Find best fit of the three, make it look different in plot
     plist = np.array(plist)
-    best_fit_ind= np.argmax(plist)
-    fits[best_fit_ind]['ls'] = '-'
+    if len(plist) > 0:
+        best_fit_ind= np.argmax(plist)
+        if fits[best_fit_ind]['chi2'] / fits[best_fit_ind]['dof'] < 5:
+            fits[best_fit_ind]['ls'] = '-'
     
     if ax==None:
         fig, ax = plt.subplots()
@@ -121,11 +133,17 @@ def sensitivity_curve(index, delta_t, threshold = 0.5, in_ns = True, with_err = 
                  label = r'{}: $\chi^2$ = {:.2f}, d.o.f. = {}'.format(fit_dict['name'], fit_dict['chi2'], fit_dict['dof']),
                 ls = fit_dict['ls'])
         if fit_dict['ls'] == '-':
-            ax.axhline(0.9, color = palette[-1], linewidth = 0.3, linestyle = '-.')
+            ax.axhline(conf_lev, color = palette[-1], linewidth = 0.3, linestyle = '-.')
             ax.axvline(fit_dict['sens'], color = palette[-1], linewidth = 0.3, linestyle = '-.')
-            ax.text(6, 0.5, r'Sens. = {:.2f}'.format(fit_dict['sens']))
+            if text:
+                ax.text(6, 0.5, r'Sens. = {:.2f}'.format(fit_dict['sens']))
+    if fits[best_fit_ind]['chi2'] / fits[best_fit_ind]['dof'] > 5:
+        inter = np.interp(conf_lev, passing, signal_fluxes)
+        ax.axhline(conf_lev, color = palette[-1], linewidth = 0.3, linestyle = '-.')
+        ax.axvline(inter, color = palette[-1], linewidth = 0.3, linestyle = '-.')
     ax.errorbar(signal_fluxes, passing, yerr=errs, capsize = 3, linestyle='', marker = 's', markersize = 2)
-    ax.legend(loc=4, fontsize = fontsize)
+    if legend:
+        ax.legend(loc=4, fontsize = fontsize)
     
 def calc_sensitivity(index, delta_t, threshold = 0.5, in_ns = True, with_err = True, trim=-1, 
                     conf_lev = 0.9, p0=None, smear=True):
@@ -134,16 +152,26 @@ def calc_sensitivity(index, delta_t, threshold = 0.5, in_ns = True, with_err = T
     try:
         fits.append(sensitivity_fit(signal_fluxes, passing, errs, chi2cdf, p0=p0, conf_lev=conf_lev))
         plist.append(fits[-1]['pval'])
+    except:
+        pass
+    try:
         fits.append(sensitivity_fit(signal_fluxes, passing, errs, erfunc, p0=p0, conf_lev=conf_lev))
         plist.append(fits[-1]['pval'])
+    except:
+        pass
+    try:
         fits.append(sensitivity_fit(signal_fluxes, passing, errs, incomplete_gamma, p0=p0, conf_lev=conf_lev))
         plist.append(fits[-1]['pval'])
     except:
         pass
     #Find best fit of the three, make it look different in plot
     plist = np.array(plist)
-    best_fit_ind= np.argmax(plist)
-    return fits[best_fit_ind]
+    if len(plist) > 0:
+        best_fit_ind= np.argmax(plist)
+        if fits[best_fit_ind]['chi2'] / fits[best_fit_ind]['dof'] < 5:
+            return fits[best_fit_ind]
+    inter = np.interp(conf_lev, passing, signal_fluxes)
+    return {'sens': inter, 'name': 'linear_interpolation'}
     
 def sensitivity_fit(signal_fluxes, passing, errs, fit_func, p0 = None, conf_lev = 0.9):
     try:

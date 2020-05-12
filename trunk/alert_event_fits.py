@@ -116,7 +116,7 @@ for gamma in gammas:
                 dec.append(0.0)
                 gammaList.append(gamma)
                 mean_ninj.append(nsig)
-                flux_list.append(inj.mu2flux(nsig))
+                flux_list.append(inj.mu2flux(nsig*scale_factor))
                 true_ras.append(true_ra[0])
                 true_decs.append(true_dec[0])
 
