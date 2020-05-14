@@ -42,7 +42,7 @@ class UniverseAnalysis():
         self.diffuse_flux_ind = diffuse_flux_ind
         self.deltaT = kwargs.pop('deltaT', None)
         self.transient = True if self.deltaT is not None else False
-        self.seed = kwargs.pop('seed', None)
+        self.seed = kwargs.pop('seed', 1234)
         if self.transient:
             self.universe = TransientUniverse(self.lumi, self.evol, self.density,
                 self.diffuse_flux_norm, self.diffuse_flux_ind, seed=self.seed, **kwargs)
@@ -149,6 +149,8 @@ class UniverseAnalysis():
                     pval = 1.0
                 else:
                     pval = float(np.count_nonzero(np.array(trials['ts_prior']) >= ts)) / np.array(trials['ts_prior']).size
+                    if pval == 0.:
+                        pval = 1./np.array(trials['ts_prior']).size
         else:
             fs = glob(bg_trials + self.smear_str + 'index_{}_*_steady_seed_*.pkl'.format(ind))
             trials = np.load(fs[0])
@@ -163,6 +165,8 @@ class UniverseAnalysis():
                     pval = 1.0
                 else:
                     pval = float(np.count_nonzero(trials['TS'] >= ts)) / trials['TS'].size
+                    if pval == 0.:
+                        pval = 1./np.array(trials['ts_prior']).size
         #ts = np.random.choice(trials['ts_prior'])
         del trials
         if calc_p:
@@ -213,12 +217,16 @@ class UniverseAnalysis():
             trials_file = glob(bg_trials + self.smear_str + 'index_{}_*_time_{:.1f}.pkl'.format(ind, self.deltaT))[0]
             trials = np.load(trials_file)
             pval = float(np.count_nonzero(np.array(trials['ts_prior']) >= TS)) / np.array(trials['ts_prior']).size
+            if pval == 0.:
+                pval = 1./np.array(trials['ts_prior']).size
         else:
             fs = glob(bg_trials + self.smear_str + 'index_{}_*_steady_seed_*.pkl'.format(ind))
             trials = np.load(fs[0])
             for f in fs[1:]:
                 trials = np.concatenate(trials, np.load(f))
             pval = float(np.count_nonzero(trials['TS'] >= TS)) / trials['TS'].size
+            if pval == 0.:
+                pval = 1./trials['TS'].size
             del trials
         return pval
 

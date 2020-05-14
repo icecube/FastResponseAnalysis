@@ -95,7 +95,7 @@ class Universe():
         ################ FIX WHEN STEADY TRIALS FINISH #######################################
         ################ shouldn't stop at 19 index in next line
         #####################################################
-        map_decs = np.load('/data/user/apizzuto/fast_response_skylab/alert_event_followup/effective_areas_alerts/decs_by_ind.npy')[1][:19]
+        map_decs = np.load('/data/user/apizzuto/fast_response_skylab/alert_event_followup/effective_areas_alerts/decs_by_ind.npy')[1][:]
         sample_decs, idxs = [], []
         if isinstance(decs, float):
             decs = [decs]
@@ -103,10 +103,14 @@ class Universe():
             diffs = np.abs(np.sin(map_decs)-np.sin(dec))
             if np.min(diffs) > 0.1:
                 idx = find_nearest_ind(map_decs, dec)
+                while idx == 19:
+                    idx = find_nearest_ind(map_decs, dec)
                 sample_dec = map_decs[idx]
             else:
                 nearby_inds = np.argwhere(diffs < 0.1).flatten()
                 idx = self.rng.choice(nearby_inds)
+                while idx == 19:
+                    idx = find_nearest_ind(map_decs, dec)
                 sample_dec = map_decs[idx]
             sample_decs.append(sample_dec)
             idxs.append(idx)

@@ -764,7 +764,8 @@ class FastResponseAnalysis(object):
         #print(np.count_nonzero(events['sigma'] * 180. / np.pi < 0.2))
 
         col_num = 5000
-        seq_palette = sns.color_palette("Spectral", col_num)
+        #seq_palette = sns.color_palette("Spectral", col_num)
+        seq_palette = sns.diverging_palette(255, 133, l=60, n=col_num, center="dark")
         lscmap = mpl.colors.ListedColormap(seq_palette)
 
         rel_t = np.array((events['time'] - self.start) * col_num / (self.stop - self.start), dtype = int)
@@ -785,7 +786,7 @@ class FastResponseAnalysis(object):
             label_str = self.name
             cmap = mpl.colors.ListedColormap([(1.,1.,1.)] * 50)
 
-        plot_zoom(skymap, ra, dec, "Zoomed Scan Results", range = [0,10], reso=3., cmap = cmap)
+        plot_zoom(skymap, ra, dec, "", range = [0,10], reso=3., cmap = cmap)
 
         if self.skipped is not None:
             try:
@@ -812,10 +813,10 @@ class FastResponseAnalysis(object):
         #hp.projscatter(np.pi/2-dec, ra, marker='o', linewidth=2, edgecolor='k', linestyle=':', facecolor="None", s=5200*1, alpha=1.0)
         #hp.projscatter(np.pi/2-dec, ra, marker='o', linewidth=2, edgecolor='g', linestyle=':', facecolor="None", s=5200*4.0, alpha=1.0)
 
-        plt.text(1.2*np.pi / 180., 2.8*np.pi / 180., 'IceCube\nPreliminary', color = 'r', fontsize = 22)
-        plt.legend(loc = 2, ncol=2, mode = 'expand', fontsize = 15.5, framealpha = 0.95)
+        #plt.text(1.2*np.pi / 180., 2.8*np.pi / 180., 'IceCube\nPreliminary', color = 'r', fontsize = 22)
+        plt.legend(loc = 2, ncol=2, mode = 'expand', fontsize = 18.5, framealpha = 0.95)
         plot_color_bar(range=[0,6], cmap=lscmap, col_label=r"IceCube Event Time",
-                    offset=-55, labels = [r'-$\Delta t \Bigg/ 2$', r'+$\Delta t \Bigg/ 2$'])
+                    offset=-50, labels = [r'-$\Delta t \Bigg/ 2$', r'+$\Delta t \Bigg/ 2$'])
         plt.savefig(self.analysispath + '/' + self.analysisid + 'unblinded_skymap_zoom.png',bbox_inches='tight')
         plt.savefig(self.analysispath + '/' + self.analysisid + 'unblinded_skymap_zoom.pdf',bbox_inches='tight', dpi=300)
 
@@ -828,7 +829,8 @@ class FastResponseAnalysis(object):
         events = events[(events['time'] < self.stop) & (events['time'] > self.start)]
 
         col_num = 5000
-        seq_palette = sns.color_palette("Spectral", col_num)
+        #seq_palette = sns.color_palette("Spectral", col_num)
+        seq_palette = sns.diverging_palette(255, 133, l=60, n=col_num, center="dark")
         lscmap = mpl.colors.ListedColormap(seq_palette)
 
         rel_t = np.array((events['time'] - self.start) * col_num / (self.stop - self.start), dtype = int)
@@ -1091,7 +1093,7 @@ def plot_color_bar(labels=[0.,2.,4.,6.], col_label=r"IceCube Event Time", range=
                         orientation="vertical")
     #cb.ax.minorticks_on()
 
-    cb.set_label(col_label, labelpad=offset)
+    cb.set_label(col_label, labelpad=offset, fontsize=18)
     cb.set_ticks([0., 1.])
     cb.set_ticklabels(labels)
     cb.update_ticks()
@@ -1118,9 +1120,9 @@ def plot_labels(src_dec, src_ra, reso):
     plt.text(np.radians(-reso),np.radians(-1.75*reso), r"%.2f$^{\circ}$"%(reso+np.degrees(src_ra)),
              horizontalalignment='center',
              verticalalignment='top', fontsize=fontsize)
-    plt.text(-1*np.radians(2.3*reso), np.radians(0), r"declination", 
+    plt.text(-1*np.radians(2.35*reso), np.radians(0), r"declination", 
                 ha='center', va='center', rotation=90, fontsize=fontsize)
-    plt.text(np.radians(0), np.radians(-2*reso), r"right ascension", 
+    plt.text(np.radians(0), np.radians(-2.05*reso), r"right ascension", 
                 ha='center', va='center', fontsize=fontsize)
 
 def plot_events(dec, ra, sigmas, src_ra, src_dec, reso, sigma_scale=5., col = 'k', constant_sigma=False,

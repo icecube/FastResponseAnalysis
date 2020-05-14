@@ -18,6 +18,8 @@ parser.add_argument('--deltaT', type=float, default=None,
                     help='Time Window in seconds')
 parser.add_argument('--month', type=int, default=6,
                     help='Month for the analysis in 2018 - 2019, for seasonal variation stuff')
+parser.add_argument('--ntrials', type=int, default=100000,
+                    help='Number of trials to run')
 args = parser.parse_args()
 
 deltaT = args.deltaT / 86400.
@@ -35,7 +37,7 @@ dec = np.arcsin(args.sinDec)
 
 f = FastResponseAnalysis("0., {}".format(dec*180. / np.pi), start, stop, Name="test", save=False)
 
-results = f.llh.do_trials(100000, src_ra = 0., src_dec = dec)
+results = f.llh.do_trials(args.ntrials, src_ra = 0., src_dec = dec)
 #names = results.dtype.names
 #names = list(names)
 #names.remove('spectrum')
