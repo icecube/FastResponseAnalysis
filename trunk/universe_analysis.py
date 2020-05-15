@@ -234,9 +234,14 @@ class UniverseAnalysis():
         if self.TS is None:
             self.calculate_ts(only_gold = only_gold, calc_p=True) 
         plist = self.alert_df['pval']
+        if only_gold:
+            stream_msk = self.alert_df['stream']
+            stream_msk = ['gold' in al for al in stream_msk] 
+            plist = plist[stream_msk]
         obs_p = 1.
         plist = sorted(plist)
         for i, p in enumerate(plist):
+            
             tmp = st.binom_test(i+1, len(plist), p, alternative='greater')
             if tmp < obs_p and tmp != 0.0:
                 if tmp == 0.0:

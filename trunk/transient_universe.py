@@ -110,7 +110,7 @@ class Universe():
                 nearby_inds = np.argwhere(diffs < 0.1).flatten()
                 idx = self.rng.choice(nearby_inds)
                 while idx == 19:
-                    idx = find_nearest_ind(map_decs, dec)
+                    idx = self.rng.choice(nearby_inds)
                 sample_dec = map_decs[idx]
             sample_decs.append(sample_dec)
             idxs.append(idx)
@@ -239,6 +239,7 @@ class TransientUniverse(Universe):
             tmp_dec.extend(uni['sources']['dec']), tmp_fls.extend(uni['sources']['flux'])
             tmp_zs.extend(uni['sources']['z'])
             tmp_tot += uni['total_flux']
+            #self.calc_lumi = uni['luminosity']
         #Now do the fraction of a year
         if self.data_years % 1 != 0.0:
             uni = self.universe_firesong()
