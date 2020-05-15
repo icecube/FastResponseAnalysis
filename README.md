@@ -4,7 +4,7 @@
 The fast response analysis is a way of using established transient likelihood methods to quickly respond to astronomical events of interest in realtime. Specifically, the fast response analysis has been used to respond to blazar flares that are discussed on the Astronomer's Telegram, especially bright GRBs (such as GRB190114C), 
 
 ## Dependencies
-This code relies heavily on the `skylab` analysis software framework, as well as on many modules in the scientific python suite, including `numpy`, `scipy`, `healpy`, `astropy`, and many others. For convenience, a `requirements.txt` file is provided. Right now, only python2 is supported (we hope to add python3 compatibility in the future). You may need to specify this when initializing a virtual environment.
+This code relies heavily on the `skylab` analysis software framework, as well as on many modules in the scientific python suite, including `numpy`, `scipy`, `healpy`, `astropy`, and many others. For convenience, a `requirements.txt` file is provided for each stable release. Right now, only python2 is supported (we hope to add python3 compatibility in the future). You may need to specify this when initializing a virtual environment.
 
 In order to create a virtual environment to run this analysis, I recommend using `virtualenv`, which can be installed via `pip`:
 
