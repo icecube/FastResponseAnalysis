@@ -21,6 +21,8 @@ pip install -r requirements.txt
 
 This will create a virtual environment names `fra_env`, and the `source fra_env/bin/activate` line will activate the environment.
 
+In addition, some IceCube specific software is necessary. The analysis was developed with `icerec_v05_02`, and the only required tools from this meta-project that are needed for the analysis are `realtime_tools` (used [v19-02-00](http://code.icecube.wisc.edu/svn/projects/realtime_tools/releases/V19-02-00/)) and `realtime_gfu` (also [v19-02-00](http://code.icecube.wisc.edu/svn/projects/realtime_gfu/releases/V19-02-00/)).
+
 ## Tutorial
 In order to perform a short timescale followup using the realtime GFU stream, you need only know:
 1. The time window of interest
