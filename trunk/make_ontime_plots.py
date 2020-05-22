@@ -59,7 +59,7 @@ def time_series(ax, run_table, time_window, t1, t2, n,
     Ymax = max(max(r[m])*1.5,ymax)
     ax.set_ylim(-0.5,Ymax)
 
-def make_rate_plots(time_window, run_table, query_events, dirname):
+def make_rate_plots(time_window, run_table, query_events, dirname, season='neutrino'):
     badness = icecube.realtime_tools.live.get_badness(run_table[0]['start'], run_table[-1]['stop'])
     rates = icecube.realtime_tools.live.get_rates(run_table[0]['start'], run_table[-1]['stop'])
 
@@ -81,11 +81,12 @@ def make_rate_plots(time_window, run_table, query_events, dirname):
     recstart= Time(rates['rec_start'],format='mjd',scale='utc')
     recstop = Time(rates['rec_stop' ],format='mjd',scale='utc')
 
+    online_str = 'OnlineL2Filter_16' if season == 'neutrino16' else 'OnlineL2Filter_17'
+
     for rate, name, unit in [('IN_ICE_SIMPLE_MULTIPLICITY', 'In-Ice-Simple-Multiplicity', '(kHz)'), 
                 ('MuonFilter_13', 'Muon Filter', '(Hz)'), 
-                ('OnlineL2Filter_17', 'Online L2 Filter', '(Hz)')]:
+                (online_str, 'Online L2 Filter', '(Hz)')]:
         fig, ax = plt.subplots(figsize = (12,4))
-
         time_series(ax, run_table, time_window, 
                     recstart,  
                     recstop, 

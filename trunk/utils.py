@@ -60,7 +60,7 @@ def updateDataFrame(analysis):
         num = np.count_nonzero(df.index == analysis['name'])
         analysis['name'] += '_{}'.format(num)
     df.loc[analysis['name']] = new_list
-    #df.to_pickle('/data/user/apizzuto/fast_response_skylab/results_dataframe.pkl')    
+    df.to_pickle('/data/user/apizzuto/fast_response_skylab/results_dataframe.pkl')    
 
 def createFastResponsePage(analysis):
     r'''
@@ -71,7 +71,7 @@ def createFastResponsePage(analysis):
     '''
     new_f = []
     keypairs = [('ANALYSISTS', 'ts'), ('ANALYSISNS', 'ns'), ('ANALYSISP', 'p')]
-    with open('html/analysis_base.html', 'r') as f:
+    with open('/data/user/apizzuto/fast_response_skylab/fast-response/trunk/html/analysis_base.html', 'r') as f:
         for line in f.readlines():
             for k, r in keypairs:
                 if k in line:

@@ -147,9 +147,9 @@ class FastResponseAnalysis(object):
         self.centertime = (start + stop) / 2.
         self.trigger = kwargs.pop("trigger", self.centertime)
         self.alert_event = kwargs.pop('alert_event', False)
-        self.floor = np.radians(0.2)
+        self.floor = kwargs.pop('floor', np.radians(0.2))
 
-        dirname = os.environ.get('FAST_RESPONSE_OUTPUT')
+        dirname = kwargs.pop("output_dir", os.environ.get('FAST_RESPONSE_OUTPUT'))
         if dirname is None:
             self.dirname = os.getcwd()
         else:

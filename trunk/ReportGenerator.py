@@ -158,7 +158,12 @@ class ReportGenerator(object):
         self.source["time_start_mjd"] = self.source['start']
         self.source["time_stop_mjd"] = self.source['stop']
         self.source["realtime"]= (stop - start) * 86400. #Convert days to seconds
-        self.stream = 'neutrino'
+        if self.source["time_stop_mjd"] > 58309.74:
+            self.stream = 'neutrino'
+        elif self.source["time_stop_mjd"] > 57891.17:
+            self.stream = 'neutrino17'
+        else:
+            self.stream = 'neutrino16'
 
         self.time_window=(Time(self.source['start'], format='mjd'), Time(self.source['stop'], format='mjd'))
         self.trigger = Time(self.source['trigger'], format='mjd')
@@ -246,8 +251,8 @@ class ReportGenerator(object):
                 newevent['splinempe_'+key]=val
             if Time(newevent['eventtime'],scale='utc',format='iso') >= Time("2018-07-10 17:52:03.34", format='iso',scale='utc'):
                 newevent['muex'] = newevent['reco']['energy']['mpe_muex']
-                del newevent['reco']
-                newdict.append(newevent)
+            del newevent['reco']
+            newdict.append(newevent)
         events = pd.DataFrame(newdict)
 
         if len(events):
@@ -472,16 +477,20 @@ class ReportGenerator(object):
             self.ontime['stream'], self.ontime['time_start'],self.ontime['time_stop'])
 
         self.widewindow = self.ontime_table(self.query_events)
-        self.widewindow['t']=Time(list(self.widewindow['eventtime']),scale='utc',format='iso')
-
-        for run in self.run_table:
-            run['gfu_counts'] = (self.widewindow['run_id']==run['run_number']).sum()
+        try:
+            self.widewindow['t']=Time(list(self.widewindow['eventtime']),scale='utc',format='iso')
+            for run in self.run_table:
+                run['gfu_counts'] = (self.widewindow['run_id']==run['run_number']).sum()
+        except:
+            print("Old years of data have different database keys")
+            for run in self.run_table:
+                run['gfu_counts'] = 0. 
 
         s=self.source
 
         dataset = Datasets['GFUOnline']
         # Make rate plots and put them in analysis directory
-        make_rate_plots(self.time_window,self.run_table,self.query_events,self.dirname)
+        make_rate_plots(self.time_window,self.run_table,self.query_events,self.dirname, season=self.stream)
 
         with open(report_fname,'wt') as f:
 
