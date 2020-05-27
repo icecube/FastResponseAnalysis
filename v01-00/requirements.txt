@@ -1,32 +1,27 @@
-Package                       Version
------------------------------ ---------
-astropy                       2.0.16
-atomicwrites                  1.4.0
-attrs                         19.3.0
-backports.functools-lru-cache 1.6.1
-cycler                        0.10.0
-decotools                     0.0.1
-funcsigs                      1.0.2
-healpy                        1.13.0
-kiwisolver                    1.1.0
-matplotlib                    2.2.5
-more-itertools                5.0.0
-numpy                         1.16.6
-pandas                        0.24.2
-pip                           20.1
-pluggy                        0.7.1
-py                            1.8.1
-pyfiglet                      0.8.post1
-pyparsing                     2.4.7
-pytest                        3.6.4
-python-dateutil               2.8.1
-pytz                          2020.1
-pyzmq                         19.0.1
-scipy                         1.2.3
-seaborn                       0.9.1
-setuptools                    44.1.0
-six                           1.14.0
-skylab                        2.7.2
-subprocess32                  3.5.4
-wheel                         0.34.2
-zmq                           0.0.0
+astropy==2.0.16
+atomicwrites==1.4.0
+attrs==19.3.0
+backports.functools-lru-cache==1.6.1
+cycler==0.10.0
+decotools==0.0.1
+funcsigs==1.0.2
+healpy==1.13.0
+kiwisolver==1.1.0
+matplotlib==2.2.5
+more-itertools==5.0.0
+numpy==1.16.6
+pandas==0.24.2
+pluggy==0.7.1
+py==1.8.1
+pyfiglet==0.8.post1
+pyparsing==2.4.7
+pytest==3.6.4
+python-dateutil==2.8.1
+pytz==2020.1
+pyzmq==19.0.1
+scipy==1.2.3
+seaborn==0.9.1
+six==1.14.0
+skylab==2.7.2
+subprocess32==3.5.4
+zmq==0.0.0
