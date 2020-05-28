@@ -553,7 +553,7 @@ class FastResponseAnalysis(object):
         self.ns_profile = (xs, delta_llh)
         return xs, delta_llh
 
-    def upper_limit(self, n_per_sig = 500, p0 = None):
+    def upper_limit(self, n_per_sig = 100, p0 = None):
         r'''After calculating TS, find upper limit
         Assuming an E^-2 spectrum
         Returns:
