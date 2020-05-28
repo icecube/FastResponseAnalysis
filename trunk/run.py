@@ -70,7 +70,6 @@ for argument, name, note in [(args.name, 'Name', 'Enter name of source'),
     else:
         final_args[name] = argument
 print('')   
-
 import logging as log
 from astropy.time import Time
 from astropy.coordinates import Angle

@@ -421,7 +421,7 @@ class FastResponseAnalysis(object):
         self.ts, self.ns = ts, ns
         return ts, ns
    
-    def calc_pvalue(self, ntrials=1000):
+    def calc_pvalue(self, ntrials=1000, run_anyway=False):
         r''' Given an unblinded TS value, calculate the p value
 
         Parameters:
@@ -437,7 +437,7 @@ class FastResponseAnalysis(object):
             print("Need TS value to find p value")
             p = np.nan
             self.tsd = None
-        elif self.ts == 0.0:
+        elif self.ts == 0.0 and not run_anyway:
             print("TS=0, no need to run background trials")
             p = 1.0
             self.tsd = None
