@@ -15,6 +15,7 @@ parser.add_argument('--density', type=float, default=1e-9,
 parser.add_argument('--LF', type=str, default='SC', help ='luminosity function')
 parser.add_argument('--evol', type=str, default='HB2006SFR', help='Evolution')
 parser.add_argument('--manual_lumi', type=float, default=0.0, help='Manually enter luminosity')
+parser.add_argument('--delta_t', type=float, default=2.*86400., help='Analysis timescale')
 #parser.add_argument('--gold', default=False, action='store_true', help='Only analyze gold alerts')
 args = parser.parse_args()
 
@@ -30,7 +31,7 @@ lumi = args.LF
 
 #uni = UniverseAnalysis(lumi, evol, density, 1.01e-8, 2.19, deltaT=2*86400., 
 #        data_years=2, manual_lumi=args.manual_lumi)
-uni = UniverseAnalysis(lumi, evol, density, 1.5e-8, 2.50, deltaT=2*86400., 
+uni = UniverseAnalysis(lumi, evol, density, 1.5e-8, 2.50, deltaT=args.delta_t, 
         data_years=2, manual_lumi=args.manual_lumi)
 uni.initialize_universe()
 uni.make_alerts_dataframe()
@@ -52,4 +53,4 @@ for jj in range(args.n - 1):
 TS = np.array([TS, TS_gold, ps, ps_gold])
 
 lumi_str = '_manual_lumi_{:.1e}'.format(args.manual_lumi) if args.manual_lumi != 0.0 else ''
-np.save('/data/user/apizzuto/fast_response_skylab/alert_event_followup/ts_distributions/ts_dists_2year_density_{:.2e}_evol_{}_lumi_{}{}.npy'.format(density, evol, lumi, lumi_str), TS)
+np.save('/data/user/apizzuto/fast_response_skylab/alert_event_followup/ts_distributions/ts_dists_2year_density_{:.2e}_evol_{}_lumi_{}{}_delta_t_{:.2e}.npy'.format(density, evol, lumi, lumi_str, args.delta_t), TS)
