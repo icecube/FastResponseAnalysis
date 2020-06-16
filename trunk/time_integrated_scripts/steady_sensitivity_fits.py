@@ -42,7 +42,7 @@ def find_nearest_idx(array, value):
     return idx
 
 def load_bg(ind):
-    fs = glob(base_path + 'bg/index_{}_steady_seed_*.pkl'.format(ind))
+    fs = glob(base_path + 'bg/first_norm_prob/index_{}_steady_seed_*.pkl'.format(ind))
     if len(fs) == 0:
         return None
     with open(fs[0], 'r') as f:
@@ -57,7 +57,7 @@ def load_bg(ind):
     return bg_trials 
 
 def load_sig(ind, gamma=2.0, fits=True):
-    f_dir = 'fits/' if fits else 'sensitivity/'
+    f_dir = 'fits/first_norm_prob/' if fits else 'sensitivity/first_norm_prob/'
     fs = glob(base_path + f_dir + 'index_{}_steady_seed_*_gamma_{:.1f}.pkl'.format(ind, gamma))
     if len(fs) == 0:
         return None

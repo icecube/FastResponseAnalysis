@@ -33,7 +33,7 @@ TeV = 1000*GeV
 #@profile
 def config(alert_ind, seed = 1, scramble = True, e_range=(0,np.inf), g_range=[1., 5.],
            gamma = 2.0, E0 = 1*TeV, remove = False, ncpu=20, nside=256,
-           poisson=False, injector = True, verbose=True):
+           poisson=False, injector = True, verbose=True, smear=True):
     r""" Configure point source likelihood and injector. 
 
     Parameters
@@ -51,7 +51,8 @@ def config(alert_ind, seed = 1, scramble = True, e_range=(0,np.inf), g_range=[1.
     inj : PriorInjector
      Point source injector object
     """
-    seasons = [("GFUOnline_v001p01", "IC86, 2011-2018")]
+    seasons = [("GFUOnline_v001p02", "IC86, 2011-2018"),
+                ("GFUOnline_v001p02", "IC86, 2019")]
     #skymaps_path = '/data/user/steinrob/millipede_scan_archive/fits_v3_prob_map/'
     #files = glob(skymaps_path + '*.fits')
     #skymap_fits = fits.open(files[alert_ind])[0].data
@@ -70,14 +71,26 @@ def config(alert_ind, seed = 1, scramble = True, e_range=(0,np.inf), g_range=[1.
     ev_en = skymap_header['ENERGY']
     ev_ra, ev_dec = np.radians(skymap_header['RA']), np.radians(skymap_header['DEC'])
     ev_stream = skymap_header['I3TYPE']
+    skymap_llh = skymap_fits.copy()
     skymap_fits = np.exp(-1. * skymap_fits / 2.) #Convert from 2LLH to unnormalized probability
     skymap_fits = np.where(skymap_fits > 1e-12, skymap_fits, 0.0)
     skymap_fits = skymap_fits / np.sum(skymap_fits)
+    if smear:
+        ninety_msk = skymap_llh < 64.2
+        init_nside = hp.get_nside(skymap_llh)
+        cdf = np.cumsum(np.sort(skymap_fits[ninety_msk][::-1]))
+        pixs_above_ninety = np.count_nonzero(cdf> 0.1)
+        original_ninety_area = hp.nside2pixarea(init_nside) * pixs_above_ninety
+        new_ninety_area = hp.nside2pixarea(init_nside) * np.count_nonzero(skymap_fits[ninety_msk])
+        original_ninety_radius = np.sqrt(original_ninety_area / np.pi)
+        new_ninety_radius = np.sqrt(new_ninety_area / np.pi)
+        scaled_probs = scale_2d_gauss(skymap_fits, original_ninety_radius, new_ninety_radius)
+        skymap_fits = scaled_probs
 
     if hp.pixelfunc.get_nside(skymap_fits)!=nside:
         skymap_fits = hp.pixelfunc.ud_grade(skymap_fits,nside)
     skymap_fits = skymap_fits/skymap_fits.sum()
-
+    print(hp.pixelfunc.get_nside(skymap_fits))
     spatial_prior = SpatialPrior(skymap_fits, containment=0.99)
 
     llh = [] # store individual llh as lists to prevent pointer over-writing
@@ -129,3 +142,7 @@ def config(alert_ind, seed = 1, scramble = True, e_range=(0,np.inf), g_range=[1.
 
     return multillh, spatial_prior, inj
 
+def scale_2d_gauss(arr, sigma_arr, new_sigma):
+    tmp = arr**(sigma_arr**2. / new_sigma**2.)/(np.sqrt(2.*np.pi)*new_sigma)* \
+                    np.power(np.sqrt(2.*np.pi)*sigma_arr, (sigma_arr**2. / new_sigma**2.))
+    return tmp / np.sum(tmp)

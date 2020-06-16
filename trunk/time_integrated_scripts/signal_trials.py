@@ -1,16 +1,4 @@
 #!/usr/bin/env python
-
-'''
-Signal injection for time integrated ANITA analysis
-
-@options:
-    --i:    rng_seed
-    --g:    Spectral Index
-    --ntrials: number of trials
-    --nsignal: mean injected signal in number of events
-    --event: ANITA event
-'''
-
 import os, logging, inspect, argparse, time, sys, pickle
 
 from scipy.stats import chi2
@@ -33,7 +21,7 @@ from config_steady              import config
 
 
 ###############################################################################
-parser = argparse.ArgumentParser(description = 'ANITA_Tau_Sens_seed_timing_tests')
+parser = argparse.ArgumentParser(description = 'time integrated alert followup tests')
 #parser.add_argument('--nsignal', type=float, required=True, help='mean number of injected signal events')
 parser.add_argument('--i', type=int, required=True, help='Alert event index')
 parser.add_argument('--g', type=float, required=True, help='spectral index')
@@ -44,6 +32,8 @@ parser.add_argument('--verbose', action='store_true', default=False,
                     help="Assorted print statements flag")   
 parser.add_argument('--fit', action='store_true', default=False,
                     help="Include poisson fluctuations by default or raise this flag")                
+parser.add_argument('--smear', default=False, action='store_true',
+                    help='Include systematics by smearing norm. prob.')
 args = parser.parse_args()
 ###############################################################################
 
@@ -54,14 +44,15 @@ seed = args.rng
 verbose = args.verbose
 poisson = ~args.fit
 
+smear_str = 'smeared/' if args.smear else 'norm_prob/'
 outdir = 'fits' if args.fit else 'sensitivity'
-outfile = '/data/user/apizzuto/fast_response_skylab/alert_event_followup/analysis_trials/{}/index_{}_steady_seed_{}_gamma_{}.pkl'.format(outdir, index, seed, gamma)
+outfile = '/data/user/apizzuto/fast_response_skylab/alert_event_followup/analysis_trials/{}/{}index_{}_steady_seed_{}_gamma_{}.pkl'.format(outdir, smear_str, index, seed, gamma)
 
 t0 = time.time()
 
 nside = 2**7
 multillh, spatial_prior, inj = config(index, gamma = gamma, seed = seed, scramble = True, nside=nside,
-                        ncpu = 1, injector = True, verbose=verbose)
+                        ncpu = 1, injector = True, verbose=verbose, smear=args.smear)
 
 
 t1 = time.time()
