@@ -443,8 +443,8 @@ class FastResponseAnalysis(object):
             self.tsd = None
         else:
             print("Need to reinitialize LLH for background trials")
-            self.llh = self.initialize_llh(extension = self.extension, scramble=True)
             if self.source_type == "PS":
+                self.llh = self.initialize_llh(extension = self.extension, scramble=True)
                 print("Running {} Background trials".format(ntrials))
                 t0 = time.time()
                 trials = self.llh.do_trials(int(ntrials), src_ra=self.ra, src_dec=self.dec)
@@ -478,25 +478,77 @@ class FastResponseAnalysis(object):
         ''' 
         tsd = []
         spatial_prior = SpatialPrior(self.skymap, containment=0.99)
-        toolbar_width = 50
-        sys.stdout.write("[%s]" % (" " * toolbar_width))
-        sys.stdout.flush()
-        sys.stdout.write("\b" * (toolbar_width+1))
-        t = time.time()
-        for i in range(int(ntrials)):
-            if ntrials > 50 and i % (ntrials / 50) == 0:
-                sys.stdout.write("#")
-                sys.stdout.flush()
-            val = self.llh.scan(0.0, 0.0, scramble = True, seed=i, spatial_prior=spatial_prior,
-                            time_mask = [self.duration/2., self.centertime], pixel_scan=[self.nside,3.0])
-            try:
-                tsd.append(val['TS_spatial_prior_0'].max())
-            except ValueError:
-                tsd.append(0.)
-        tsd = np.asarray(tsd,dtype=float)
-        t1 = time.time()
-        print("{} trials took {}s".format(ntrials, t1-t))
+
+        if self.alert_event:
+            tsd = self.precomputed_alert_bg()
+        else:
+            self.llh = self.initialize_llh(extension = self.extension, scramble=True)
+            toolbar_width = 50
+            sys.stdout.write("[%s]" % (" " * toolbar_width))
+            sys.stdout.flush()
+            sys.stdout.write("\b" * (toolbar_width+1))
+            t = time.time()
+            for i in range(int(ntrials)):
+                if ntrials > 50 and i % (ntrials / 50) == 0:
+                    sys.stdout.write("#")
+                    sys.stdout.flush()
+                val = self.llh.scan(0.0, 0.0, scramble = True, seed=i, spatial_prior=spatial_prior,
+                                time_mask = [self.duration/2., self.centertime], pixel_scan=[self.nside,3.0])
+                try:
+                    tsd.append(val['TS_spatial_prior_0'].max())
+                except ValueError:
+                    tsd.append(0.)
+            tsd = np.asarray(tsd,dtype=float)
+            t1 = time.time()
+            print("{} trials took {}s".format(ntrials, t1-t))
         return tsd
+
+    def precomputed_alert_bg(self):
+        r'''For alert events with specific time windows,
+        just use precomputed background arrays
+        
+        Returns:
+        --------
+            tsd: array-like
+                test-statistic distribution with weighting 
+                from alert event spatial prior
+        '''
+        #Check the month and load the correct precomputed background trials
+        month = datetime.datetime.utcnow().month
+
+        current_rate = self.llh.nbackground / (self.duration * 86400.) * 1000.
+        closest_rate = find_nearest(np.linspace(6.2, 7.2, 11), current_rate)
+        if self.pre_ts_array is None:
+            pre_ts_array = np.load('/data/user/fast_response_skylab/fast-response/trunk/precomputed_background/glob_trials/{:.1f}_mHz_delta_t_{:.1e}.npy'.format(closest_rate, self.duration * 86400.), 
+                                        allow_pickle=True)
+        # Create spatial prior weighting
+        ts_norm = np.log(np.amax(self.skymap))
+        prior_weight = 2.*(np.log(self.skymap[pre_ts_array['pixel']]) - ts_norm)
+        pre_ts_array['ts'] += prior_weight
+        pre_ts_array[~np.isfinite(pre_ts_array)] = 0.
+        pre_ts_array[pre_ts_array < 0] = 0.
+        self.pre_ts_array = pre_ts_array
+        tsd = self.pre_ts_array.max(axis=1).A
+        tsd = np.array(tsd)
+        return tsd
+
+        # max_ts = []
+        # for i in range(self.pre_ts_array.size):
+        #     # If a particular scramble in the pre-computed ts_array is empty,
+        #     #that means that sky scan had no events in the sky, so max_ts=0
+        #     if self.pre_ts_array[i]['ts'].size==0:
+        #         max_ts.append(0.)
+        #     else:
+        #         theta, ra = hp.pix2ang(self.nside, self.pre_ts_array[i]['pixel'])
+        #         dec = np.pi/2. - theta
+        #         interp = hp.get_interp_val(self.skymap, theta, ra)
+        #         interp[interp<0] = 0.
+        #         ts_prior = self.pre_ts_array[i]['ts'] + 2*(np.log(interp) - ts_norm)
+        #         max_ts.append(ts_prior.max())
+
+        # tsd = np.array(max_ts)
+        # tsd = np.where(tsd > 0., tsd, 0.0)
+        # return tsd
 
     def significance(self):
         r'''Given p value, report significance
@@ -800,7 +852,7 @@ class FastResponseAnalysis(object):
             except:
                 print("Removed event not in GFU")
 
-        if (self.stop - self.start) <= 14.:
+        if (self.stop - self.start) <= 21.:
             plot_events(events['dec'], events['ra'], events['sigma']*2.145966, ra, dec, 2*6, sigma_scale=1.0,
                     constant_sigma=False, same_marker=True, energy_size=True, col = cols)
                     #2.145966 for 90% containment
@@ -1148,6 +1200,11 @@ def find_nearest_idx(array, value):
     array = np.asarray(array)
     idx = (np.abs(array - value)).argmin()
     return idx
+
+def find_nearest(array, value):
+    array = np.asarray(array)
+    val = (np.abs(array - value)).min()
+    return val
     
 def sensitivity_fit(signal_fluxes, passing, errs, fit_func, p0 = None, conf_lev = 0.9):
     r'''
