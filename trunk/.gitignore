@@ -8,3 +8,5 @@ contours/
 pycondor*
 analysis_checks/
 ../.svn/
+precomputed_background/trials/
+precomputed_background/glob_trials/

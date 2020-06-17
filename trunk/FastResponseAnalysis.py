@@ -518,17 +518,18 @@ class FastResponseAnalysis(object):
 
         current_rate = self.llh.nbackground / (self.duration * 86400.) * 1000.
         closest_rate = find_nearest(np.linspace(6.2, 7.2, 11), current_rate)
-        if self.pre_ts_array is None:
-            pre_ts_array = np.load('/data/user/fast_response_skylab/fast-response/trunk/precomputed_background/glob_trials/{:.1f}_mHz_delta_t_{:.1e}.npy'.format(closest_rate, self.duration * 86400.), 
+        pre_ts_array = np.load('/data/user/fast_response_skylab/fast-response/trunk/precomputed_background/glob_trials/{:.1f}_mHz_delta_t_{:.1e}.npy'.format(closest_rate, self.duration * 86400.), 
                                         allow_pickle=True)
         # Create spatial prior weighting
+
+        #VECTORIZED PART MAY NOT WORK BECAUSE PRE_TS_ARRAY IS NOT RECTANGULAR
+        #SEE HOW LIZ SAVE'S HERS, USE THAT TO SAVE THE SCANS I RAN
         ts_norm = np.log(np.amax(self.skymap))
-        prior_weight = 2.*(np.log(self.skymap[pre_ts_array['pixel']]) - ts_norm)
-        pre_ts_array['ts'] += prior_weight
-        pre_ts_array[~np.isfinite(pre_ts_array)] = 0.
-        pre_ts_array[pre_ts_array < 0] = 0.
-        self.pre_ts_array = pre_ts_array
-        tsd = self.pre_ts_array.max(axis=1).A
+        ts_prior = pre_ts_array.copy()
+        ts_prior.data += 2.*(np.log(self.skymap[pre_ts_array.indices]) - ts_norm)
+        ts_prior.data[~np.isfinite(ts_prior.data)] = 0.
+        ts_prior.data[ts_prior.data < 0] = 0.
+        tsd = ts_prior.max(axis=1).A
         tsd = np.array(tsd)
         return tsd
 
