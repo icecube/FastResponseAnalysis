@@ -1,0 +1,12 @@
+*.pyc
+*.fits
+*.xml
+trunk/output/*
+trunk/output/
+html/
+trunk/contours/
+trunk/pycondor*
+trunk/analysis_checks/
+.svn/
+trunk/precomputed_background/trials/
+trunk/precomputed_background/glob_trials/
