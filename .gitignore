@@ -5,8 +5,12 @@ trunk/output/*
 trunk/output/
 html/
 trunk/contours/
-trunk/pycondor*
+pycondor*
 trunk/analysis_checks/
 .svn/
 trunk/precomputed_background/trials/
 trunk/precomputed_background/glob_trials/
+trunk/2019_data/
+*.json
+trunk/combined_tracks_2.5/
+trunk/archival_unblinding_results/
