@@ -152,13 +152,16 @@ class UniverseAnalysis():
                     if pval == 0.:
                         pval = 1./np.array(trials['ts_prior']).size
         else:
-            fs = glob(bg_trials + self.smear_str + 'index_{}_*_steady_seed_*.pkl'.format(ind))
-            trials = np.load(fs[0])
-            for f in fs[1:]:
-                trials = np.concatenate(trials, np.load(f)) 
-            #t_file = np.random.choice(fs)
-            #trials = np.load(t_file)
-            #trials = np.load(bg_trials + 'index_{}_steady.pkl'.format(ind))
+            fs = glob(bg_trials + self.smear_str + 'index_{}_steady_seed_*.pkl'.format(ind))
+            #f = np.random.choice(fs)
+            #trials = np.load(f) 
+            tmp_ds = [np.load(f) for f in fs]
+            trials = {k:[] for k in tmp_ds[0].keys()}
+            for k in trials.keys():
+                for d in tmp_ds:
+                    trials[k] += d[k] 
+            for k in trials.keys():
+                trials[k] = np.array(trials[k])
             ts = np.random.choice(trials['TS'])
             if calc_p:
                 if ts == 0:
@@ -182,7 +185,7 @@ class UniverseAnalysis():
                 trials_file = glob(signal_trials + self.smear_str + 'index_{}_*_time_{:.1f}.pkl'.format(ind, self.deltaT))[0]
                 trials = np.load(trials_file)
             else:
-                fs = glob(signal_trials + self.smear_str + 'index_{}_*_steady_seed_*.pkl'.format(ind))
+                fs = glob(signal_trials + self.smear_str + 'index_{}_steady_seed_*.pkl'.format(ind))
                 t_file = np.random.choice(fs)
                 trials = np.load(t_file)
                 #trials = np.load(signal_trials + 'index_{}_steady.pkl'.format(ind))
@@ -220,10 +223,14 @@ class UniverseAnalysis():
             if pval == 0.:
                 pval = 1./np.array(trials['ts_prior']).size
         else:
-            fs = glob(bg_trials + self.smear_str + 'index_{}_*_steady_seed_*.pkl'.format(ind))
-            trials = np.load(fs[0])
-            for f in fs[1:]:
-                trials = np.concatenate(trials, np.load(f))
+            fs = glob(bg_trials + self.smear_str + 'index_{}_steady_seed_*.pkl'.format(ind))
+            tmp_ds = [np.load(f) for f in fs]
+            trials = {k:[] for k in tmp_ds[0].keys()}
+            for k in trials.keys():
+                for d in tmp_ds:
+                    trials[k] += d[k]
+            for k in trials.keys():
+                trials[k] = np.array(trials[k])
             pval = float(np.count_nonzero(trials['TS'] >= TS)) / trials['TS'].size
             if pval == 0.:
                 pval = 1./trials['TS'].size
