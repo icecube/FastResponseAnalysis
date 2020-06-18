@@ -221,18 +221,18 @@ class FastResponseAnalysis(object):
             print("Old times, just grabbing archival data")
             exps, grls = [], []
             for season in ["IC86, 2011", "IC86, 2012", "IC86, 2013", "IC86, 2014",
-                            "IC86, 2015", "IC86, 2016", "IC86, 2017", "IC86, 2018"]:
+                            "IC86, 2015", "IC86, 2016", "IC86, 2017", "IC86, 2018", "IC86, 2019"]:
                 exp, mc, livetime = dataset.season(season, floor=self.floor)
                 grl = dataset.grl(season)
                 exps.append(exp)
                 grls.append(grl)
-            for season in ["IC86_2019"]:
-                exp = np.load('/data/user/apizzuto/fast_response_skylab/fast-response/trunk/2019_data/IC86_2019_data.npy')
-                grl = np.load('/data/user/apizzuto/fast_response_skylab/fast-response/trunk/2019_data/GRL/IC86_2019_data.npy')
-                mc_extra = np.load('/data/ana/analyses/gfu_online/current/IC86_2011_MC.npy')
-                exp, mc_extra, livetime = dataset.apply_modifications("IC86, 2019", exp, mc_extra, grl['livetime'].sum(), floor=self.floor)
-                exps.append(exp)
-                grls.append(grl)
+            #for season in ["IC86_2019"]:
+            #    exp = np.load('/data/user/apizzuto/fast_response_skylab/fast-response/trunk/2019_data/IC86_2019_data.npy')
+            #    grl = np.load('/data/user/apizzuto/fast_response_skylab/fast-response/trunk/2019_data/GRL/IC86_2019_data.npy')
+            #    mc_extra = np.load('/data/ana/analyses/gfu_online/current/IC86_2011_MC.npy')
+            #    exp, mc_extra, livetime = dataset.apply_modifications("IC86, 2019", exp, mc_extra, grl['livetime'].sum(), floor=self.floor)
+            #    exps.append(exp)
+            #    grls.append(grl)
             exp = np.concatenate(exps)
             exp.sort(order='time')
             grl = np.concatenate(grls)
@@ -243,21 +243,21 @@ class FastResponseAnalysis(object):
             exps, grls = [], []
             exp, mc, livetime, grl = dataset.livestream(start - 6., stop,
                                                     append=["IC86, 2011", "IC86, 2012", "IC86, 2013", "IC86, 2014",
-                            "IC86, 2015", "IC86, 2016", "IC86, 2017", "IC86, 2018"], 
+                            "IC86, 2015", "IC86, 2016", "IC86, 2017", "IC86, 2018", "IC86, 2019"], 
                                                     floor=self.floor)  #TEMPORARY
                                                     #THIS IS PS STANDARD, NOT FR STANDARD
-            exps.append(exp)
-            grls.append(grl)
-            exp = np.load('/data/user/apizzuto/fast_response_skylab/fast-response/trunk/2019_data/IC86_2019_data.npy')
-            mc_extra = np.load('/data/ana/analyses/gfu_online/current/IC86_2011_MC.npy')
-            grl = np.load('/data/user/apizzuto/fast_response_skylab/fast-response/trunk/2019_data/GRL/IC86_2019_data.npy')
-            exp, mc_extra, livetime = dataset.apply_modifications("IC86, 2019", exp, mc_extra, grl['livetime'].sum(), floor=self.floor)
+            #exps.append(exp)
+            #grls.append(grl)
+            #exp = np.load('/data/user/apizzuto/fast_response_skylab/fast-response/trunk/2019_data/IC86_2019_data.npy')
+            #mc_extra = np.load('/data/ana/analyses/gfu_online/current/IC86_2011_MC.npy')
+            #grl = np.load('/data/user/apizzuto/fast_response_skylab/fast-response/trunk/2019_data/GRL/IC86_2019_data.npy')
+            #exp, mc_extra, livetime = dataset.apply_modifications("IC86, 2019", exp, mc_extra, grl['livetime'].sum(), floor=self.floor)
             #exp['angErr'] = np.maximum(exp['angErr'], self.floor)
-            exps.append(exp)
-            grls.append(grl)
-            exp = np.concatenate(exps)
+            #exps.append(exp)
+            #grls.append(grl)
+            #exp = np.concatenate(exps)
             exp.sort(order='time')
-            grl = np.concatenate(grls)
+            #grl = np.concatenate(grls)
             grl.sort(order='run')
             livetime = grl['livetime'].sum()
         sinDec_bins = dataset.sinDec_bins("livestream")
