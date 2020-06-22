@@ -51,6 +51,5 @@ for jj in range(args.n - 1):
 #TS = np.array(TS)
 #TS_gold = np.array(TS_gold)
 TS = np.array([TS, TS_gold, ps, ps_gold])
-
 lumi_str = '_manual_lumi_{:.1e}'.format(args.manual_lumi) if args.manual_lumi != 0.0 else ''
 np.save('/data/user/apizzuto/fast_response_skylab/alert_event_followup/ts_distributions/ts_dists_2year_density_{:.2e}_evol_{}_lumi_{}{}_delta_t_{:.2e}.npy'.format(density, evol, lumi, lumi_str, args.delta_t), TS)

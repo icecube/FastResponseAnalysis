@@ -42,6 +42,8 @@ class UniverseAnalysis():
         self.diffuse_flux_ind = diffuse_flux_ind
         self.deltaT = kwargs.pop('deltaT', None)
         self.transient = True if self.deltaT is not None else False
+        if self.deltaT is not None:
+            kwargs['timescale'] = self.deltaT
         self.seed = kwargs.pop('seed', 1234)
         if self.transient:
             self.universe = TransientUniverse(self.lumi, self.evol, self.density,
