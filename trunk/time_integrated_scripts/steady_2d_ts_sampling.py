@@ -38,7 +38,6 @@ TS.append(uni.calculate_ts())
 TS_gold.append(uni.calculate_ts(only_gold = True))
 ps.append(uni.calculate_binomial_pvalue(only_gold=False))
 ps_gold.append(uni.calculate_binomial_pvalue(only_gold=True))
-
 for jj in range(args.n - 1):
     uni.reinitialize_universe()
     uni.make_alerts_dataframe()

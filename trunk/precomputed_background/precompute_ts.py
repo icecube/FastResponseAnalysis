@@ -51,7 +51,8 @@ f.llh.nbackground=args.bkg*args.deltaT/1000.
 npix = hp.nside2npix(f.nside)
 shape = (args.ntrials, npix)
 maps = sparse.lil_matrix(shape, dtype=float)
-
+import time
+t0 = time.time()
 for jj in range(trials_per_sig):
     seed_counter += 1
     val = f.llh.scan(0.0, 0.0, scramble=True, seed = seed_counter,
@@ -62,8 +63,9 @@ for jj in range(trials_per_sig):
         dtype = [('ts',float),('pixel',float)]
         results = np.empty((val['TS'].size,), dtype=dtype)
         pixels = hp.ang2pix(f.nside, np.pi/2. - val['dec'], val['ra'])
-        maps[i, pixels] = val['TS']
-
+        maps[jj, pixels] = val['TS']
+t1 = time.time()
+print("took {:1f} seconds to do {} trials".format(t1-t0, trials_per_sig))
 print("DONE")
 hp_sparse = maps.tocsr()
 outfilename = '/data/user/apizzuto/fast_response_skylab/fast-response/trunk/precomputed_background/trials/{:.1f}_mHz_seed_{}_delta_t_{:.1e}.npz'.format(args.bkg, args.seed, args.deltaT)
