@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import os, sys, time, pickle
-sys.path.append('/data/user/apizzuto/fast_response_skylab/fast-response/trunk/')
+sys.path.append('/data/user/apizzuto/fast_response_skylab/fast-response/trunk/alert_event_followup/')
 import numpy as np
 from transient_universe import TransientUniverse
 from universe_analysis import UniverseAnalysis
@@ -27,12 +27,13 @@ ps_gold = []
 density = args.density
 evol = args.evol
 lumi = args.LF
+data_years = 2
 #only_gold = args.gold
 
 #uni = UniverseAnalysis(lumi, evol, density, 1.01e-8, 2.19, deltaT=2*86400., 
 #        data_years=2, manual_lumi=args.manual_lumi)
 uni = UniverseAnalysis(lumi, evol, density, 1.5e-8, 2.50, deltaT=args.delta_t, 
-        data_years=2, manual_lumi=args.manual_lumi)
+        data_years=data_years, manual_lumi=args.manual_lumi)
 uni.initialize_universe()
 uni.make_alerts_dataframe()
 TS.append(uni.calculate_ts())
@@ -52,4 +53,4 @@ for jj in range(args.n - 1):
 #TS_gold = np.array(TS_gold)
 TS = np.array([TS, TS_gold, ps, ps_gold])
 lumi_str = '_manual_lumi_{:.1e}'.format(args.manual_lumi) if args.manual_lumi != 0.0 else ''
-np.save('/data/user/apizzuto/fast_response_skylab/alert_event_followup/ts_distributions/ts_dists_2year_density_{:.2e}_evol_{}_lumi_{}{}_delta_t_{:.2e}.npy'.format(density, evol, lumi, lumi_str, args.delta_t), TS)
+np.save('/data/user/apizzuto/fast_response_skylab/alert_event_followup/ts_distributions/ts_dists_{}year_density_{:.2e}_evol_{}_lumi_{}{}_delta_t_{:.2e}.npy'.format(data_years, density, evol, lumi, lumi_str, args.delta_t), TS)

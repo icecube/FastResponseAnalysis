@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 r"""
 Run trials for background only, all-sky scans. Record TS and 
 number of true and fitted events around best fit location
