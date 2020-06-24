@@ -2,7 +2,7 @@ import numpy as np
 from glob import glob
 import pandas as pd
 import matplotlib as mpl
-mpl.use('Agg')
+#mpl.use('Agg')
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
 import seaborn as sns
@@ -41,19 +41,18 @@ class UniversePlotter():
         self.evol_str = {'HB2006SFR': 'Hopkins and Beacom 2006 SFR',
                             'MD2014SFR': 'Madau and Dickinson 2014 CSFH'}[self.evol]
         self.ts_path = '/data/user/apizzuto/fast_response_skylab/alert_event_followup/ts_distributions/'
-        self.steady_str = '' if self.transient else '_steady'
+        self.steady_str = '_delta_t_{:.2e}'.format(self.delta_t) if self.transient else '_steady'
         self.time_window_per_year = (365. * 86400.) / (self.delta_t)
         key = 'transient' if self.transient else 'steady'
         self.energy_density = energy_density[key][evol]
         self.no_evol_energy_density = energy_density[key]['NoEvolution']
-        self.evol_lumi_str = 'evol_{}_lumi_{}{}'.format(self.evol, self.lumi, self.steady_str)
+        self.evol_lumi_str = 'evol_{}_lumi_{}'.format(self.evol, self.lumi)
         self.densities = np.logspace(-11., -6., 21)
         self.luminosities = np.logspace(49, 60, 45) if self.transient else np.logspace(47., 56., 37) #NEED SOME LOGIC HERE
         if self.transient:
             low_energy_msk = self.luminosities * self.delta_t * self.densities[0] < self.energy_density * 10.
             high_energy_msk = self.luminosities * self.delta_t * self.densities[-1] > self.energy_density * 1e-3
             self.luminosities = self.luminosities[low_energy_msk * high_energy_msk]
-        print self.luminosities
 
     def two_dim_sensitivity_plot_ts(self, compare=False):
         r'''Two dimensional contour plot
@@ -64,8 +63,8 @@ class UniversePlotter():
         '''
         if self.background_median_ts is None:
             self.get_overall_background_ts()
-        fmt_path = 'tsdists_{}year_density_{:.2e}' + self.evol_lumi_str 
-                        + '_manual_lumi_{:.1e}' + self.steady_str + '.npy'
+        fmt_path = 'ts_dists_{}year_density_{:.2e}_' + self.evol_lumi_str + \
+                        '_manual_lumi_{:.1e}' + self.steady_str + '.npy'
         shape = (self.luminosities.size, self.densities.size)             
         med_TS = np.zeros(shape); lower_10 = np.zeros(shape)
         for ii, lumi in enumerate(self.luminosities):
@@ -78,22 +77,21 @@ class UniversePlotter():
                     med_TS[ii, jj] = self.background_median_ts
                 else:
                     try:
-                        trials = np.load(self.trial_dir + 
-                        fmt_path.format(self.data_years,
-                            dens, lumi))
+                        trials = np.load(self.ts_path \
+                            + fmt_path.format(self.data_years, dens, lumi))
                         lower_10[ii, jj] = np.percentile(trials[0], 10.)
                         med_TS[ii, jj] = np.median(trials[0])
                     except IOError, e:
                         lower_10[ii, jj] = np.nan
                         med_TS[ii, jj] = np.nan
-        med_TS = np.where(np.isnan(med_TS), background_median, med_TS)
-        lower_10 = np.where(np.isnan(lower_10), background_lower_10, lower_10)
+        med_TS = np.where(np.isnan(med_TS), self.background_median_ts, med_TS)
+        lower_10 = np.where(np.isnan(lower_10), self.background_lower_10_ts, lower_10)
         cmap = ListedColormap(sns.light_palette((210, 90, 60), input="husl"))
         fig, ax = plt.subplots(figsize=(8,5), dpi=200)
         fig.set_facecolor('w')
         plot_lumis = self.luminosities / self.time_window_per_year
         #CHECK THIS PART
-        X, Y = np.meshgrid(np.log10(densities), np.log10(plot_lumis))
+        X, Y = np.meshgrid(np.log10(self.densities), np.log10(plot_lumis))
         plot_vals = np.log10(med_TS)
 
         cs = ax.contour(X, Y, plot_vals, cmap=cmap, levels=np.linspace(-0.5, 1.3, 11), 
@@ -104,11 +102,11 @@ class UniversePlotter():
         cbar = plt.colorbar(csf) 
         cbar.set_label(r'Median Stacked TS', fontsize = 18)
         cbar.ax.tick_params(axis='y', direction='out')
-        cs_ts = ax.contour(X, Y, lower_10 - background_median, colors=['k'], 
+        cs_ts = ax.contour(X, Y, lower_10 - self.background_median_ts, colors=['k'], 
                         levels=[0.0], linewidths=2.)
         xs = np.logspace(-11., -6., 1000)
-        ys_max = self.no_evol_energy_density / xs  #* (365./2.)#Expectation line 
-        ys_min = self.energy_density / xs #* (365. / 2.)
+        ys_max = self.no_evol_energy_density / xs / self.delta_t #* (365./2.)#Expectation line 
+        ys_min = self.energy_density / xs / self.delta_t #* (365. / 2.)
         plt.fill_between(np.log10(xs), np.log10(ys_min), np.log10(ys_max), 
                 color = 'm', alpha = 0.3, lw=0.0, zorder=10)
         if compare:
@@ -133,9 +131,9 @@ class UniversePlotter():
         levels = []; dens = []
         for density in self.densities:
             try:
-                ts = np.load(self.ts_path 
-                    + 'tsdists_{}year_density_{:.2e}'.format(self.data_years, dens)
-                    + self.evol_lumi_str + self.steady_str + '.npy')
+                ts = np.load(self.ts_path + \
+                    'tsdists_{}year_density_{:.2e}'.format(self.data_years, dens) + \
+                    self.evol_lumi_str + self.steady_str + '.npy')
             except:
                 continue
             dens.append(density)
@@ -189,7 +187,7 @@ class UniversePlotter():
         axs[0].legend(loc=2)
         plt.show()
 
-    def get_overall_background_ts(self, n_trials=5000):
+    def get_overall_background_ts(self, n_trials=1000):
         if self.background_median_ts is not None:
             return self.background_median_ts
         sigs = []
@@ -216,7 +214,7 @@ class UniversePlotter():
                 ts = np.random.choice(trials['ts_prior'], size=n_trials)
                 TSs.append(ts)
         TSs = np.array(TSs)
-        stacked_ts = np.multiply(TSs, sigs[:, np.newaxis])
+        stacked_ts = np.multiply(TSs, self.sigs[:, np.newaxis])
         stacked_ts = np.sum(stacked_ts, axis=0) / (stacked_ts.shape[0] - 1.) #-1 because we skip one of the maps
         self.background_median_ts = np.median(stacked_ts)
         self.background_lower_10_ts = np.percentile(stacked_ts, 10.)
