@@ -707,7 +707,7 @@ class ReportGenerator(object):
         reportfname = self.analysisid+"_report.tex"
         reportpath = os.path.join(self.dirname,reportfname)
         #reportsrc = os.path.join(os.environ["I3_BUILD"],'fast_response','resources','latex','report_skylab.tex')
-        reportsrc = os.path.join(os.getcwd(), 'report_skylab.tex')
+        reportsrc = os.path.join(os.getcwd(), 'latex', 'report_skylab.tex')
         if os.path.exists(reportpath):
             os.unlink(reportpath)
 
@@ -716,7 +716,8 @@ class ReportGenerator(object):
         # symlink directory of needed sty files
         styledname = 'sty'
         styledpath = os.path.join(self.dirname, styledname)
-        styledsrc  = os.path.join(os.environ["I3_BUILD"],'fast_response','resources','latex','sty')
+        #styledsrc  = os.path.join(os.environ["I3_BUILD"],'fast_response','resources','latex','sty')
+        styledsrc = os.path.join(os.getcwd(), 'latex', 'sty')
         if os.path.exists(styledpath):
             os.unlink(styledpath)
         # but only if source exists (user decision, only needed on some systems)

@@ -708,7 +708,7 @@ class ReportGenerator(object):
         styledname = 'sty'
         styledpath = os.path.join(self.dirname, styledname)
         styledsrc = os.path.join(os.getcwd(), 'latex', 'sty')
-        styledsrc  = os.path.join(os.environ["I3_BUILD"],'fast_response','resources','latex','sty')
+        #styledsrc  = os.path.join(os.environ["I3_BUILD"],'fast_response','resources','latex','sty')
         if os.path.exists(styledpath):
             os.unlink(styledpath)
         # but only if source exists (user decision, only needed on some systems)
