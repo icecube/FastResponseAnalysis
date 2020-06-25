@@ -178,6 +178,8 @@ class SteadyUniverse(Universe):
         self.seed = kwargs.pop('seed', None)
         self.rng = np.random.RandomState(self.seed)
         self.timescale = self.data_years * 365. * 86400.
+        self.dataset_integration_time = 8.607 * 365. * 86400. #YEARS OF DATA MAY NOT BE YEARS OF ALERTS
+                                                                #8.607 from GFUOnline_v01p02 2011-2018 + 2019
 
     def universe_firesong(self):
         return firesong_simulation('', density=self.density, Evolution=self.evolution,
@@ -201,6 +203,35 @@ class SteadyUniverse(Universe):
         self.uni_header = uni['header']
         self.sim_flux = tmp_tot
         self.dec_band_from_decs()
+
+    def additional_signal_events(self):
+        r'''After finding signal events, calculate any events that could
+        accompany the alert in a higher effective area, less pure sample
+        
+        For steady source, take note of years of the dataset vs. years of alerts'''
+        en_bins = np.logspace(2., 9., 501)
+        ens = centers(en_bins)
+        extra_events = {}
+        for stream in ['GFU', 'HESE']:
+            for cut, lev in [('gold', 'tight'), ('bronze', 'loose')]:
+                extra_events[stream + '_' + cut] = np.zeros(len(self.sources['dec']))
+        if self.sig_alerts is None:
+            self.find_signal_alerts()
+        with open('/data/user/apizzuto/fast_response_skylab/alert_event_followup/' + \
+                'effective_areas_alerts/gfu_online_effective_area_spline.npy', 'r') as f:
+            gfu_eff_spline = pickle.load(f)
+        for stream in self.sig_alerts.keys():
+            for jjj, (src_dec, src_flux) in enumerate(zip(self.sources['dec'], self.sources['flux'])):
+                if self.sig_alerts[stream][jjj][0] == 0:
+                    continue
+                else:
+                    integration_time_scale = self.dataset_integration_time / self.timescale
+                    mu_extra = np.sum(gfu_eff_spline(np.log10(ens), np.sin(src_dec*np.pi / 180)) * \
+                     spectrum(ens, gamma = -1.*self.diffuse_flux_ind, flux_norm=src_flux*integration_time_scale)*np.diff(en_bins)*1e4)
+                    N_extra = self.rng.poisson(mu_extra)
+                    extra_events[stream][jjj] = N_extra
+        self.extra_events = extra_events
+        return extra_events
 
 
 class TransientUniverse(Universe):

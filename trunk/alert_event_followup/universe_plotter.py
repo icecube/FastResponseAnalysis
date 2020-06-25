@@ -144,7 +144,6 @@ class UniversePlotter():
             self.get_overall_background_ts()
         if self.med_TS is None:
             self.get_med_TS()
-        #HELP FIX OOP NOPE
         fig, ax = plt.subplots(figsize=(8,5), dpi=200)
         fig.set_facecolor('w')
         X, Y = np.meshgrid(self.densities, self.plot_lumis)
@@ -210,7 +209,7 @@ class UniversePlotter():
         plt.title("{}, {}".format(self.lumi_str, self.evol_str))
         plt.xlabel(self.dens_with_units)
         ylab = 'TS' if in_ts else 'Binomial p'
-        plt.ylabel('TS')
+        plt.ylabel(ylab)
         plt.xscale('log')
         loc = 1 if in_ts else 4
         plt.legend(loc=loc, frameon=False)
