@@ -48,7 +48,7 @@ for jj in range(args.n - 1):
     TS_gold.append(uni.calculate_ts(only_gold = True))
     ps.append(uni.calculate_binomial_pvalue(only_gold=False))
     ps_gold.append(uni.calculate_binomial_pvalue(only_gold=True))
-        
+
 #TS = np.array(TS)
 #TS_gold = np.array(TS_gold)
 TS = np.array([TS, TS_gold, ps, ps_gold])
