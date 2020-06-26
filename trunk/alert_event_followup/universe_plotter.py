@@ -26,6 +26,13 @@ energy_density = {'transient': {'HB2006SFR': 4.8038e51,
 class UniversePlotter():
     r'''
     Tool to make some helpful plots
+
+    Parameters:
+    -----------
+        - delta_t (float): Analysis timescale
+        - data_years (float): Years of alert events
+        - lumi (str): Luminosity function (standard candle of lognormal)
+        - evol (str): Evolution model (ie Hopkins and Beacom, Madau and Dickinson)
     '''
     def __init__(self, delta_t, data_years, lumi, evol, **kwargs):
         self.delta_t = delta_t
@@ -55,51 +62,162 @@ class UniversePlotter():
             self.luminosities = self.luminosities[low_energy_msk * high_energy_msk]
         self.seconds_per_year = 365.*86400.
         self.med_TS = None
+        self.med_p = None
         self.get_labels()
+        self.sigs = None
 
-    def two_dim_sensitivity_plot_ts(self, compare=False, log_ts=False):
-        r'''Two dimensional contour plot
-        TODO: Fix luminosity vs energy,
-            - Check the plot_lumis units
-            - Include comparison lines
-            - Fix bounds
+    def two_dim_sensitivity_plot_ts(self, compare=False, log_ts=False, in_ts=True,
+                        ts_vs_p=False):
+        r'''Two dimensional contour plot to show the sensitivity of the analysis
+        in the luminosity-density plane, highlighting the energy requirements
+        for the diffuse flux
+
+        Parameters
+        ----------
+            - compare (bool): include constraints from previous analyses
+            - log_ts (bool): contour colors from log or linear ts values
+            - in_ts (bool): TS value or binomial-p value
+            - ts_vs_p (bool): compare TS and binomial-p value construction
         '''
-        if self.background_median_ts is None:
-            self.get_overall_background_ts()
-        if self.med_TS is None:
-            self.get_med_TS()
+        if in_ts or ts_vs_p:
+            if self.background_median_ts is None:
+                self.get_overall_background_ts()
+            if self.med_TS is None:
+                self.get_med_TS()
+        if (not in_ts) or ts_vs_p:
+            if self.background_median_p is None:
+                self.get_overall_background_p()
+            if self.med_p is None:
+                self.get_med_p()
         fig, ax = plt.subplots(figsize=(8,5), dpi=200)
         fig.set_facecolor('w')
         X, Y = np.meshgrid(np.log10(self.densities), np.log10(self.plot_lumis))
-        plot_vals = self.med_TS if not log_ts else np.log10(self.med_TS) 
-
-        cs = ax.contour(X, Y, plot_vals, cmap=self.cmap, #levels=np.linspace(-0.5, 1.3, 11), 
+        if in_ts or ts_vs_p:
+            plot_vals = self.med_TS if not log_ts else np.log10(self.med_TS) 
+        else:
+            plot_vals = self.med_p if not log_ts else np.log10(self.med_p) 
+        cmap = self.cmap if in_ts else ListedColormap(self.cmap.colors[::-1])
+        extend = 'max' if in_ts else 'min'
+        cs = ax.contour(X, Y, plot_vals, cmap=cmap, #levels=np.linspace(-0.5, 1.3, 11), 
                         #vmin=-0.5, 
-                        extend='max')
-        csf = ax.contourf(X, Y, plot_vals, cmap=self.cmap, #vmin=-0.5, #levels=np.linspace(-0.5, 1.3, 11), 
-                        extend='max')
+                        extend=extend)
+        csf = ax.contourf(X, Y, plot_vals, cmap=cmap, #vmin=-0.5, #levels=np.linspace(-0.5, 1.3, 11), 
+                        extend=extend)
         cbar = plt.colorbar(csf) 
-        cbar_lab = r'Median Stacked TS' if not log_ts else r'$\log_{10}($Median Stacked TS$)$'
+        if in_ts or ts_vs_p:
+            cbar_lab = r'Median Stacked TS' if not log_ts else r'$\log_{10}($Median Stacked TS$)$'
+        else:
+            cbar_lab = r'Median binom. p' if not log_ts else r'$\log_{10}($Median binom. p$)$'
         cbar.set_label(cbar_lab, fontsize = 18)
         cbar.ax.tick_params(axis='y', direction='out')
-        cs_ts = ax.contour(X, Y, self.lower_10 - self.background_median_ts, colors=['k'], 
-                        levels=[0.0], linewidths=2.)
+        if in_ts or ts_vs_p:
+            cs_ts = ax.contour(X, Y, self.lower_10 - self.background_median_ts, colors=['k'], 
+                            levels=[0.0], linewidths=2.)
+        if (not in_ts) or ts_vs_p:
+            cs_ts = ax.contour(X, Y, self.background_median_p - self.lower_10_p, colors=['k'], 
+                            levels=[0.0], linewidths=2., linestyles='dashed')
         xs = np.logspace(-11., -6., 1000)
         ys_max = self.no_evol_energy_density / xs / self.seconds_per_year if self.transient else self.no_evol_energy_density / xs
         ys_min = self.energy_density / xs / self.seconds_per_year if self.transient else self.energy_density / xs
         plt.fill_between(np.log10(xs), np.log10(ys_min), np.log10(ys_max), 
                 color = 'm', alpha = 0.3, lw=0.0, zorder=10)
         if compare:
-            self.compare_other_analyses()
+            comp_rho, comp_en, comp_str = self.compare_other_analyses()
+            plt.plot(comp_rho, comp_en, color = 'gray', lw=2.)
         plt.text(-9, 54.1, 'Diffuse', color = 'm', rotation=-28, fontsize=18)
-        plt.text(-10, 51.7, 'Sensitivity', color = 'k', rotation=-28, fontsize=18)
+        #plt.text(-10, 51.7, 'Sensitivity', color = 'k', rotation=-28, fontsize=18)
         plt.grid(lw=0.0)
         #plt.ylim(50, 55.5)
+        plt.xlim(-11., -6.)
+        custom_labs = [Line2D([0], [0], color = 'k', lw=2., label='Sensitivity')]
+        if compare:
+            custom_labs.append(Line2D([0], [0], color='grey', lw=2., label=comp_str))
+        plt.legend(handles=custom_labs, loc=3)
         plt.ylabel(self.lumi_label, fontsize = 22)
         plt.xlabel(self.density_label, fontsize = 22)
+        time_window_str = r'$\Delta T =$ ' + '{:.2e} s, '.format(self.delta_t) if self.transient else 'Time integrated, '
+        title = time_window_str + '{:.0f} yrs of alerts, \n'.format(self.data_years) + self.lumi_str + ', ' + self.evol_str
+        plt.title(title)
         plt.show()
 
+    def rotated_sensitivity_plot_ts(self, log_ts=False, in_ts=True, ts_vs_p=False, compare=False):
+        r'''Two dimensional contour plot to show the sensitivity of the analysis
+        in the rotated luminosity-density plane, highlighting the energy requirements
+        for the diffuse flux
+
+        Parameters
+        ----------
+            - compare (bool): include constraints from previous analyses
+            - log_ts (bool): contour colors from log or linear ts values
+            - in_ts (bool): TS value or binomial-p value
+            - ts_vs_p (bool): compare TS and binomial-p value construction
+        '''
+        if in_ts or ts_vs_p:
+            if self.background_median_ts is None:
+                self.get_overall_background_ts()
+            if self.med_TS is None:
+                self.get_med_TS()
+        if (not in_ts) or ts_vs_p:
+            if self.background_median_p is None:
+                self.get_overall_background_p()
+            if self.med_p is None:
+                self.get_med_p()
+        fig, ax = plt.subplots(figsize=(8,5), dpi=200)
+        fig.set_facecolor('w')
+        X, Y = np.meshgrid(self.densities, self.plot_lumis)
+        Y *= X #Scale by the densities
+        X = np.log10(X); Y = np.log10(Y)
+        if in_ts or ts_vs_p:
+            plot_vals = self.med_TS if not log_ts else np.log10(self.med_TS) 
+        else:
+            plot_vals = self.med_p if not log_ts else np.log10(self.med_p) 
+        cmap = self.cmap if in_ts else ListedColormap(self.cmap.colors[::-1])
+        extend = 'max' if in_ts else 'min'
+        cs = ax.contour(X, Y, plot_vals, cmap=cmap, #levels=np.linspace(-0.5, 1.3, 11), 
+                        #vmin=-0.5, 
+                        extend=extend)
+        csf = ax.contourf(X, Y, plot_vals, cmap=cmap, #vmin=-0.5, #levels=np.linspace(-0.5, 1.3, 11), 
+                        extend=extend)
+        cbar = plt.colorbar(csf) 
+        if in_ts or ts_vs_p:
+            cbar_lab = r'Median Stacked TS' if not log_ts else r'$\log_{10}($Median Stacked TS$)$'
+        else:
+            cbar_lab = r'Median binom. p' if not log_ts else r'$\log_{10}($Median binom. p$)$'
+        cbar.set_label(cbar_lab, fontsize = 18)
+        cbar.ax.tick_params(axis='y', direction='out')
+        if in_ts or ts_vs_p:
+            cs_ts = ax.contour(X, Y, self.lower_10 - self.background_median_ts, colors=['k'], 
+                            levels=[0.0], linewidths=2.)
+        if (not in_ts) or ts_vs_p:
+            cs_ts = ax.contour(X, Y, self.background_median_p - self.lower_10_p, colors=['k'], 
+                            levels=[0.0], linewidths=2., linestyles='dashed')
+        xs = np.logspace(-11., -6., 1000)
+        ys_max = self.no_evol_energy_density / xs / self.seconds_per_year if self.transient else self.no_evol_energy_density / xs
+        ys_min = self.energy_density / xs / self.seconds_per_year if self.transient else self.energy_density / xs
+        plt.fill_between(np.log10(xs), np.log10(ys_min*xs), np.log10(ys_max*xs), 
+                color = 'm', alpha = 0.3, lw=0.0, zorder=10)
+        if compare:
+            comp_rho, comp_en, comp_str = self.compare_other_analyses()
+            plt.plot(comp_rho, comp_rho+comp_en, color = 'gray', lw=2.) #damn look at that log property
+        plt.text(-10, np.log10(np.max(ys_max*xs)*1.1), 'Diffuse', color = 'm', rotation=0, fontsize=18)
+        #plt.text(-10, np.log10(np.min(ys_min*xs)*0.2), 'Sensitivity', color = 'k', rotation=0, fontsize=18)
+        plt.grid(lw=0.0)
+        plt.xlim(-11., -6.)
+        plt.ylim(np.log10(np.min(ys_min*xs)*3e-2), np.log10(np.max(ys_max*xs)*2))
+        plt.ylabel(self.scaled_lumi_label, fontsize = 22)
+        plt.xlabel(self.density_label, fontsize = 22)
+        custom_labs = [Line2D([0], [0], color = 'k', lw=2., label='Sensitivity')]
+        if compare:
+            custom_labs.append(Line2D([0], [0], color='grey', lw=2., label=comp_str))
+        plt.legend(handles=custom_labs, loc=4)
+        time_window_str = r'$\Delta T =$ ' + '{:.2e} s, '.format(self.delta_t) if self.transient else 'Time integrated, '
+        title = time_window_str + '{:.0f} yrs of alerts, \n'.format(self.data_years) + self.lumi_str + ', ' + self.evol_str
+        plt.title(title)
+        plt.show()
+    
     def get_labels(self):
+        r'''Run during initialization to get the correct units 
+        for various plots'''
         self.lumi_label = r'$\log_{10}\Big( \frac{\mathcal{E}}{\mathrm{erg}} \Big)$' if self.transient \
                 else r'$\log_{10}\Big( \frac{\mathcal{L}}{\mathrm{erg}\;\mathrm{yr}^{-1}} \Big)$'
         self.density_label = r'$\log_{10}\Big( \frac{\dot{\rho}}{ \mathrm{Mpc}^{-3}\,\mathrm{yr}^{-1}} \Big)$' if self.transient \
@@ -112,6 +230,9 @@ class UniversePlotter():
         self.dens_units = r'Mpc$^{-3}$ yr$^{-1}$' if self.transient else r'Mpc$^{-3}$'
 
     def get_med_TS(self):
+        r'''Iterate over the parameter space,
+        and extract relevant TS values from distributions
+        after trials simulating the parameter space have been run'''
         fmt_path = 'ts_dists_{}year_density_{:.2e}_' + self.evol_lumi_str + \
                         '_manual_lumi_{:.1e}' + self.steady_str + '.npy'
         shape = (self.luminosities.size, self.densities.size)             
@@ -139,46 +260,36 @@ class UniversePlotter():
         self.med_TS = med_TS
         self.lower_10 = lower_10
 
-    def rotated_sensitivity_plot_ts(self, log_ts=False):
-        if self.background_median_ts is None:
-            self.get_overall_background_ts()
-        if self.med_TS is None:
-            self.get_med_TS()
-        fig, ax = plt.subplots(figsize=(8,5), dpi=200)
-        fig.set_facecolor('w')
-        X, Y = np.meshgrid(self.densities, self.plot_lumis)
-        Y *= X #Scale by the densities
-        X = np.log10(X); Y = np.log10(Y)
-        plot_vals = self.med_TS if not log_ts else np.log10(self.med_TS) 
-
-        cs = ax.contour(X, Y, plot_vals, cmap=self.cmap, #levels=np.linspace(-0.5, 1.3, 11), 
-                        #vmin=-0.5, 
-                        extend='max')
-        csf = ax.contourf(X, Y, plot_vals, cmap=self.cmap, #vmin=-0.5, #levels=np.linspace(-0.5, 1.3, 11), 
-                        extend='max')
-        cbar = plt.colorbar(csf) 
-        cbar_lab = r'Median Stacked TS' if not log_ts else r'$\log_{10}($Median Stacked TS$)$'
-        cbar.set_label(cbar_lab, fontsize = 18)
-        cbar.ax.tick_params(axis='y', direction='out')
-        cs_ts = ax.contour(X, Y, self.lower_10 - self.background_median_ts, colors=['k'], 
-                        levels=[0.0], linewidths=2.)
-        xs = np.logspace(-11., -6., 1000)
-        ys_max = self.no_evol_energy_density / xs / self.seconds_per_year if self.transient else self.no_evol_energy_density / xs
-        ys_min = self.energy_density / xs / self.seconds_per_year if self.transient else self.energy_density / xs
-        plt.fill_between(np.log10(xs), np.log10(ys_min*xs), np.log10(ys_max*xs), 
-                color = 'm', alpha = 0.3, lw=0.0, zorder=10)
-        #if compare:
-        #    self.compare_other_analyses()
-        plt.text(-10, np.log10(np.max(ys_max*xs)*1.1), 'Diffuse', color = 'm', rotation=0, fontsize=18)
-        plt.text(-10, np.log10(np.min(ys_min*xs)*0.2), 'Sensitivity', color = 'k', rotation=0, fontsize=18)
-        plt.grid(lw=0.0)
-        plt.ylim(np.log10(np.min(ys_min*xs)*3e-2), np.log10(np.max(ys_max*xs)*2))
-        plt.ylabel(self.scaled_lumi_label, fontsize = 22)
-        plt.xlabel(self.density_label, fontsize = 22)
-        plt.show()
-
-    def two_dim_sensitivity_plot_p(self):
-        pass
+    def get_med_p(self):
+        r'''Iterate over the parameter space,
+        and extract relevant Binomial-p values values from distributions
+        after trials simulating the parameter space have been run'''
+        fmt_path = 'ts_dists_{}year_density_{:.2e}_' + self.evol_lumi_str + \
+                        '_manual_lumi_{:.1e}' + self.steady_str + '.npy'
+        shape = (self.luminosities.size, self.densities.size)             
+        med_p = np.zeros(shape); lower_10_p = np.zeros(shape)
+        for ii, lumi in enumerate(self.luminosities):
+            for jj, dens in enumerate(self.densities):
+                test_en = lumi*dens*self.delta_t if self.transient else lumi*dens
+                if test_en > self.energy_density*5.:
+                    lower_10_p[ii, jj] = 1e-10
+                    med_p[ii, jj] = 1e-10
+                elif test_en < self.energy_density*1e-4:
+                    lower_10_p[ii, jj] = self.background_lower_10_p
+                    med_p[ii, jj] = self.background_median_p
+                else:
+                    try:
+                        trials = np.load(self.ts_path \
+                            + fmt_path.format(self.data_years, dens, lumi))
+                        lower_10_p[ii, jj] = np.percentile(trials[2], 90.)
+                        med_p[ii, jj] = np.median(trials[2])
+                    except IOError, e:
+                        lower_10_p[ii, jj] = np.nan
+                        med_p[ii, jj] = np.nan
+        med_p = np.where(np.isnan(med_p), self.background_median_p, med_p)
+        lower_10_p = np.where(np.isnan(lower_10_p), self.background_lower_10_p, lower_10_p)
+        self.med_p = med_p
+        self.lower_10_p = lower_10_p
 
     def one_dim_ts_distributions(self, only_gold=False, in_ts = True, log_ts=True):
         r'''Assuming that the diffuse flux is saturated,
@@ -249,6 +360,8 @@ class UniversePlotter():
         plt.show()
 
     def get_overall_background_ts(self, n_trials=1000):
+        r'''Sample alert event background distributions
+        to get the overall stacked background ts distribution'''
         if self.background_median_ts is not None:
             return self.background_median_ts
         sigs = []
@@ -290,28 +403,150 @@ class UniversePlotter():
         self.stacked_ts = stacked_ts
         return self.background_median_ts
 
-    def inject_and_fit(self, dens, lumi):
+    def get_overall_background_p(self, n_trials=1000):
+        r'''Sample alert event background distributions
+        to get the overall stacked background binomial-p value distribution'''
+        bg_trials = '/data/user/apizzuto/fast_response_skylab/alert_event_followup/analysis_trials/bg/'
+        if self.sigs is None:
+            sigs = []
+            for ind in range(len(skymap_files)):
+                if ind == 19:
+                    sig = 0.
+                else:
+                    skymap_fits, skymap_header = hp.read_map(skymap_files[ind], h=True, verbose=False)
+                    skymap_header = {name: val for name, val in skymap_header}
+                    sig = skymap_header['SIGNAL']
+                sigs.append(sig)
+            self.sigs = np.array(sigs)
+        pvals = []
+        for ind in range(len(skymap_files)):
+            if ind == 19:
+                ps = [1.]*n_trials
+            else:
+                smeared_str = 'smeared/' if self.smeared else 'norm_prob/'
+                if self.transient:
+                    trials_file = glob(bg_trials + smeared_str 
+                                + 'index_{}_*_time_{:.1f}.pkl'.format(ind, self.delta_t))[0]
+                    trials = np.load(trials_file)
+                    cdf = np.cumsum(np.sort(np.array(trials['ts_prior'])))
+                else:
+                    trials_files = glob(bg_trials + smeared_str 
+                                + 'index_{}_steady_seed_*.pkl'.format(ind))
+                    trials = []
+                    for f in trials_files:
+                        trials.extend(np.load(f)['TS'])
+                    cdf = np.cumsum(np.sort(np.array(trials)))
+                inds = np.linspace(0., 1., len(cdf))
+                inds = np.where(inds==0., np.min(inds[inds != 0.]), inds)[::-1]
+                ps = np.where(cdf != 0.0, inds, 1.0)
+                pvals.append(np.random.choice(ps, size = n_trials))
+        pvals = np.array(pvals)
+        background_binomial = []; counter = 0;
+        for realization in pvals.T:
+            counter += 1
+            realization = np.sort(realization)
+            obs_p = 1.
+            for i, p in enumerate(realization):
+                tmp = st.binom_test(i+1, len(realization), p, alternative='greater')
+                if tmp < obs_p and tmp != 0.0:
+                    if tmp == 0.0:
+                        print("WHY DOES THE BINOMIAL VALUE EQUAL ZERO")
+                    obs_p = tmp
+            background_binomial.append(obs_p)
+        background_binomial = np.array(background_binomial)
+        binomial_median = np.percentile(background_binomial, 50.)
+        binomial_lower_10 = np.percentile(background_binomial, 90.)
+        self.background_median_p = np.percentile(background_binomial, 50.)
+        self.background_lower_10_p = np.percentile(background_binomial, 90.)
+        self.stacked_p = background_binomial
+        return self.background_median_p
+
+    def inject_and_fit_dens_lumi_plot(self, dens, lumi, ax):
+        r'''Assume a certain density and luminosity, 
+        inject it, and see what confidence intervals we 
+        can construct
+        
+        Parameters:
+        -----------
+            - dens (float): Density of sources
+            - lumi (float): Luminosity of sources
+        '''
+        # if ax is None:
+        #     fig, ax = plt.subplots()
+        # trials = np.load(trial_dir + fmt_path.format(dens, lumi_func, lumi))
+        # ts = np.random.choice(np.array(trials[0]))
+        # plot_containment_ts(ts, lumi_func=lumi_func, ax = ax, labs=labs)
+        # ax.scatter(np.log10(dens), np.log10(lumi*2. / 365.), marker='*', color = 'k', s=100)
         pass
+
+    def inject_and_fit_TS_plot(self, unblinded_val, in_ts=True):
+        r'''Assume a certain unblinded TS value 
+        or binomial p-value and see what confidence intervals we 
+        can construct
+        
+        Parameters:
+        -----------
+            - unblinded_val (float): Unblinded TS or binomial p-value
+            - in_ts (float): Use stacked TS construction instead of binomial p-value
+        '''
+        pass
+
+    def TS_constraints(self, obs_val, in_ts = True, upper_limit=False):
+        r'''Based on the observed value, get the 
+        frequentist confidence intervals
+
+        Parameters:
+        -----------
+            - obs_val (float): Observed TS of binomial p-value
+            - in_ts (bool): Stacked TS or binomial p-value construction
+            - upper_limit (bool): If true, return as value compatible with upper limit
+        '''
+        ts_p_ind = 0 if in_ts else 2
+        containment = np.zeros((self.luminosities.size, self.densities.size)); 
+        for ii, lumi in enumerate(self.luminosities):
+            for jj, dens in enumerate(self.densities):
+                test_en = lumi*dens*self.delta_t if self.transient else lumi*dens
+                if test_en > self.energy_density*5.:
+                    containment[ii, jj] = 100.
+                elif test_en < self.energy_density*1e-4:
+                    containment[ii, jj] = 0.
+                else:
+                    try:
+                        trials = np.load(self.ts_path \
+                            + fmt_path.format(self.data_years, dens, lumi))
+                        containment[ii, jj] = sp.stats.percentileofscore(trials[ts_p_ind], obs_val)
+                    except IOError, e:
+                        containment[ii, jj] = 0.
+        if upper_limit and in_ts:
+            containment = (50. - containment)*2.
+        elif upper_limit and not in_ts:
+            containment = (50. + containment)*2.
+        else:
+            containment = np.abs(50. - containment)*2.
+        return containment
 
     def upper_limit(self, TS):
         pass
 
     def compare_other_analyses(self):
+        r'''Get the sensitivities / upper limits
+        from previous IceCube analyses'''
         if self.transient:
+            nora_comparison = {}
+            for key in ['GRB_lims', 'GRB_diffuse', 'CCSN_lims', 'CCSN_diffuse']:
+                nora_tmp = np.genfromtxt('/data/user/apizzuto/fast_response_skylab/alert_event_followup/effective_areas_alerts/Nora_{}.csv'.format(key),
+                                        delimiter=', ')
+                nora_comparison[key] = nora_tmp
             for key in ['GRB_lims']:
                 tmp = np.log10(zip(*nora_comparison[key]))
-                plt.plot(tmp[0], tmp[1], color = 'grey')
-            plt.text(-10., 52.55, 'Nora 100 s transients (5 yr.)', 
-                            color='grey', rotation=-32, fontsize=18)
+                #plt.plot(tmp[0], tmp[1], color = 'grey')
+            return tmp[0], tmp[1], 'Multiplets (100 s, 5 yr.)'
         else:
-            #COMPARE TO 7 YEAR PS PAPER
-            pass
+            ps_pap = np.genfromtxt('/data/user/apizzuto/fast_response_skylab/alert_event_followup/effective_areas_alerts/point_source_paper_lims.csv',
+                            delimiter=', ')
+            tmp = np.array(zip(*ps_pap))
+            lums = tmp[0] * self.no_evol_energy_density/self.energy_density #testing diff. spectrum, this is an approximation rn
+            return np.log10(tmp[1]), np.log10(lums), '8 yr. point source'
 
     def fit_coverage_plot(self, dens, lumi):
         pass
-
-nora_comparison = {}
-for key in ['GRB_lims', 'GRB_diffuse', 'CCSN_lims', 'CCSN_diffuse']:
-    nora_tmp = np.genfromtxt('/data/user/apizzuto/fast_response_skylab/alert_event_followup/effective_areas_alerts/Nora_{}.csv'.format(key),
-                            delimiter=', ')
-    nora_comparison[key] = nora_tmp
