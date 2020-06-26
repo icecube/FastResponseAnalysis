@@ -224,7 +224,7 @@ class UniversePlotter():
                 else r'$\log_{10}\Big( \frac{\rho}{ \mathrm{Mpc}^{-3}} \Big)$'
         self.cmap = ListedColormap(sns.light_palette((210, 90, 60), input="husl"))
         self.plot_lumis = self.luminosities / self.time_window_per_year
-        self.scaled_lumi_label = r'$\log_{10}\Big( \frac{\mathcal{E}\dot{\rho} }{\mathrm{erg}\mathrm{Mpc}^{-3}\,\mathrm{yr}^{-1}} \Big)$' if self.transient \
+        self.scaled_lumi_label = r'$\log_{10}\Big( \frac{\mathcal{E}\dot{\rho} }{\mathrm{erg}\;\mathrm{Mpc}^{-3}\,\mathrm{yr}^{-1}} \Big)$' if self.transient \
                 else r'$\log_{10}\Big( \frac{\mathcal{L} \rho}{\mathrm{Mpc}^{-3} \mathrm{erg}\;\mathrm{yr}^{-1}} \Big)$'
         self.dens_with_units = r'$\rho$ (Mpc$^{-3}$ yr$^{-1}$)' if self.transient else r'$\rho$ (Mpc$^{-3}$)'
         self.dens_units = r'Mpc$^{-3}$ yr$^{-1}$' if self.transient else r'Mpc$^{-3}$'
@@ -524,9 +524,6 @@ class UniversePlotter():
         else:
             containment = np.abs(50. - containment)*2.
         return containment
-
-    def upper_limit(self, TS):
-        pass
 
     def compare_other_analyses(self):
         r'''Get the sensitivities / upper limits
