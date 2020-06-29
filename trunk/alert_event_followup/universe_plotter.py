@@ -55,9 +55,9 @@ class UniversePlotter():
         self.no_evol_energy_density = energy_density[key]['NoEvolution']
         self.evol_lumi_str = 'evol_{}_lumi_{}'.format(self.evol, self.lumi)
         self.densities = np.logspace(-11., -6., 21)
-        self.luminosities = np.logspace(49, 60, 45) if self.transient else np.logspace(49., 56., 29)
+        self.luminosities = np.logspace(49, 62, 53) if self.transient else np.logspace(49., 56., 29)
         if self.transient:
-            low_energy_msk = self.luminosities * self.delta_t * self.densities[0] < self.energy_density * 10.
+            low_energy_msk = self.luminosities * self.delta_t * self.densities[0] < self.energy_density * 100.
             high_energy_msk = self.luminosities * self.delta_t * self.densities[-1] > self.energy_density * 1e-4
             self.luminosities = self.luminosities[low_energy_msk * high_energy_msk]
         self.seconds_per_year = 365.*86400.
