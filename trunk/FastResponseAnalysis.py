@@ -514,11 +514,11 @@ class FastResponseAnalysis(object):
                 from alert event spatial prior
         '''
         #Check the month and load the correct precomputed background trials
-        month = datetime.datetime.utcnow().month
+        #month = datetime.datetime.utcnow().month
 
         current_rate = self.llh.nbackground / (self.duration * 86400.) * 1000.
-        closest_rate = find_nearest(np.linspace(6.2, 7.2, 11), current_rate)
-        pre_ts_array = np.load('/data/user/fast_response_skylab/fast-response/trunk/precomputed_background/glob_trials/{:.1f}_mHz_delta_t_{:.1e}.npy'.format(closest_rate, self.duration * 86400.), 
+        closest_rate = find_nearest(np.linspace(6.2, 7.2, 6), current_rate)
+        pre_ts_array = np.load('/data/user/fast_response_skylab/fast-response/trunk/precomputed_background/glob_trials/precomputed_trials_delta_t_{:.2e}_trials_rate_{:.1f}_low_stats.npz'.format(self.duration / 86400., closest_rate, self.duration * 86400.), 
                                         allow_pickle=True)
         # Create spatial prior weighting
 
