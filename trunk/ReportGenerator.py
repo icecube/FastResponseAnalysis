@@ -581,7 +581,8 @@ class ReportGenerator(object):
                 r"\newcommand{"+"\\"+"nsscan"+"}{"+ "\\includegraphics[width=0.9\\textwidth]" +
                     "{" + self.dirname+"/"+
                     "llh_ns_scan.png"+ "}" +
-                    "}\n"
+                    "}\n" + 
+                "These plots are meant as validations of the minimizer, and cannot be interpreted directly using Wilk's assuming one degree of freedom because the low statistics invalidates the asymptotic condition for Wilk's theorem."
                 )
             else:
                 f.write(
@@ -707,7 +708,10 @@ class ReportGenerator(object):
         reportfname = self.analysisid+"_report.tex"
         reportpath = os.path.join(self.dirname,reportfname)
         #reportsrc = os.path.join(os.environ["I3_BUILD"],'fast_response','resources','latex','report_skylab.tex')
-        reportsrc = os.path.join(os.getcwd(), 'latex', 'report_skylab.tex')
+        try:
+            reportsrc = os.path.join(os.environ["FAST_RESPONSE_SCRIPTS"], 'latex', 'report_skylab.tex')
+        except KeyError:
+            reportsrc = os.path.join(os.getcwd(), 'latex', 'report_skylab.tex')
         if os.path.exists(reportpath):
             os.unlink(reportpath)
 
@@ -717,7 +721,10 @@ class ReportGenerator(object):
         styledname = 'sty'
         styledpath = os.path.join(self.dirname, styledname)
         #styledsrc  = os.path.join(os.environ["I3_BUILD"],'fast_response','resources','latex','sty')
-        styledsrc = os.path.join(os.getcwd(), 'latex', 'sty')
+        try:
+            styledsrc = os.path.join(os.environ["FAST_RESPONSE_SCRIPTS"], 'latex', 'sty')
+        except KeyError:
+            styledsrc = os.path.join(os.getcwd(), 'latex', 'sty')
         if os.path.exists(styledpath):
             os.unlink(styledpath)
         # but only if source exists (user decision, only needed on some systems)
