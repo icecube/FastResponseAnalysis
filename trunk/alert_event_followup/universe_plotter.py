@@ -461,7 +461,7 @@ class UniversePlotter():
         self.stacked_p = background_binomial
         return self.background_median_p
 
-    def inject_and_fit_dens_lumi_plot(self, dens, lumi, ax):
+    def inject_and_fit_dens_lumi_plot(self, dens, lumi, in_ts=True, upper_limit=False):
         r'''Assume a certain density and luminosity, 
         inject it, and see what confidence intervals we 
         can construct
@@ -471,15 +471,18 @@ class UniversePlotter():
             - dens (float): Density of sources
             - lumi (float): Luminosity of sources
         '''
-        # if ax is None:
-        #     fig, ax = plt.subplots()
-        # trials = np.load(trial_dir + fmt_path.format(dens, lumi_func, lumi))
-        # ts = np.random.choice(np.array(trials[0]))
-        # plot_containment_ts(ts, lumi_func=lumi_func, ax = ax, labs=labs)
-        # ax.scatter(np.log10(dens), np.log10(lumi*2. / 365.), marker='*', color = 'k', s=100)
-        pass
+        fmt_path = 'ts_dists_{}year_density_{:.2e}_' + self.evol_lumi_str + \
+                        '_manual_lumi_{:.1e}' + self.steady_str + '.npy'
+        trials = np.load(self.ts_path + fmt_path.format(self.data_years, dens, lumi))
+        trials = trials[0] if in_ts else trials[2]
+        unblinded_val = np.random.choice(trials)
+        self.inject_and_fit_TS_plot(unblinded_val, in_ts=in_ts, show=False, title=False, upper_limit=upper_limit)
+        plt.scatter(np.log10(dens), np.log10(lumi / self.time_window_per_year), 
+                        marker='*', color = 'k', s=100)
+   
 
-    def inject_and_fit_TS_plot(self, unblinded_val, in_ts=True):
+    def inject_and_fit_TS_plot(self, unblinded_val, in_ts=True, show=True, 
+                    title=True, upper_limit=False):
         r'''Assume a certain unblinded TS value 
         or binomial p-value and see what confidence intervals we 
         can construct
@@ -489,7 +492,32 @@ class UniversePlotter():
             - unblinded_val (float): Unblinded TS or binomial p-value
             - in_ts (float): Use stacked TS construction instead of binomial p-value
         '''
-        pass
+        fig, ax = plt.subplots(dpi=200)
+        X, Y = np.meshgrid(np.log10(self.densities), np.log10(self.plot_lumis))
+        cont = self.TS_constraints(unblinded_val, in_ts=in_ts, upper_limit=upper_limit)
+        levels = [90., 100.] if upper_limit else [0., 50., 90.]
+        csf = ax.contourf(X, Y, cont, cmap=self.cmap, levels = levels)
+        xs = np.logspace(-11., -6., 1000)
+        ys_max = self.no_evol_energy_density / xs / self.seconds_per_year if self.transient else self.no_evol_energy_density / xs
+        ys_min = self.energy_density / xs / self.seconds_per_year if self.transient else self.energy_density / xs
+        plt.fill_between(np.log10(xs), np.log10(ys_min), np.log10(ys_max), 
+                color = 'm', alpha = 0.3, lw=0.0, zorder=10)
+        if not upper_limit:
+            legend_elements = [Patch(facecolor=csf.cmap.colors[0], label='50\%'),
+                        Patch(facecolor=csf.cmap.colors[-2], label='90\%')]
+            ax.legend(handles=legend_elements, loc=3)
+        ax.set_ylim(np.log10(ys_min.min()*0.5), np.log10(ys_max.max()*2.))
+        ax.grid(lw=0.0)
+        ax.set_ylabel(self.lumi_label, fontsize = 22)
+        ax.set_xlabel(self.density_label, fontsize = 22)
+        if in_ts:
+            title_str = 'Observed TS={:.1e}'.format(unblinded_val)
+        else:
+            title_str = 'Observed binom. p={:.1e}'.format(unblinded_val)
+        if title:
+            plt.title(title_str)
+        if show:
+            plt.show()
 
     def TS_constraints(self, obs_val, in_ts = True, upper_limit=False):
         r'''Based on the observed value, get the 
@@ -501,6 +529,8 @@ class UniversePlotter():
             - in_ts (bool): Stacked TS or binomial p-value construction
             - upper_limit (bool): If true, return as value compatible with upper limit
         '''
+        fmt_path = 'ts_dists_{}year_density_{:.2e}_' + self.evol_lumi_str + \
+                        '_manual_lumi_{:.1e}' + self.steady_str + '.npy'
         ts_p_ind = 0 if in_ts else 2
         containment = np.zeros((self.luminosities.size, self.densities.size)); 
         for ii, lumi in enumerate(self.luminosities):
@@ -544,6 +574,9 @@ class UniversePlotter():
             tmp = np.array(zip(*ps_pap))
             lums = tmp[0] * self.no_evol_energy_density/self.energy_density #testing diff. spectrum, this is an approximation rn
             return np.log10(tmp[1]), np.log10(lums), '8 yr. point source'
+
+    def upper_limit_plot(self):
+        pass
 
     def fit_coverage_plot(self, dens, lumi):
         pass
