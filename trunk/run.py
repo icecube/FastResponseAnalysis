@@ -85,7 +85,8 @@ f = FastResponseAnalysis(source['Location'], source['Start Time'], source['Stop 
 
 f.unblind_TS()
 f.plot_ontime()
-f.ns_scan()
+if not args.alert_event:
+    f.ns_scan()
 f.calc_pvalue(ntrials = args.ntrials)
 if not args.nodiag:
     f.make_dNdE()

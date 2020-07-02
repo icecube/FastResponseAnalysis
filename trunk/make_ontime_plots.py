@@ -60,63 +60,65 @@ def time_series(ax, run_table, time_window, t1, t2, n,
     ax.set_ylim(-0.5,Ymax)
 
 def make_rate_plots(time_window, run_table, query_events, dirname, season='neutrino'):
-    badness = icecube.realtime_tools.live.get_badness(run_table[0]['start'], run_table[-1]['stop'])
-    rates = icecube.realtime_tools.live.get_rates(run_table[0]['start'], run_table[-1]['stop'])
+    try:
+        badness = icecube.realtime_tools.live.get_badness(run_table[0]['start'], run_table[-1]['stop'])
+        rates = icecube.realtime_tools.live.get_rates(run_table[0]['start'], run_table[-1]['stop'])
 
-    ########## MAKE BADNESS PLOT ##########   
-    fig, ax = plt.subplots(figsize = (12,4))
-    time_series(ax, run_table, time_window, 
-                Time(badness['start'],format='mjd',scale='utc'), 
-                Time(badness['stop' ],format='mjd',scale='utc'), 
-                badness['score'])
-
-    plt.title('Badness', fontsize = 18)
-    plt.ylabel('Badness (s)', fontsize = 16)
-    fig.autofmt_xdate()
-    plt.locator_params(axis='x', nbins = 8)
-    plt.grid(b = True, axis = 'y', alpha = 0.3)
-    plt.savefig('{}/badness_plot.png'.format(dirname))
-
-    ########## MAKE RATES PLOTS ##########
-    recstart= Time(rates['rec_start'],format='mjd',scale='utc')
-    recstop = Time(rates['rec_stop' ],format='mjd',scale='utc')
-
-    online_str = 'OnlineL2Filter_16' if season == 'neutrino16' else 'OnlineL2Filter_17'
-
-    for rate, name, unit in [('IN_ICE_SIMPLE_MULTIPLICITY', 'In-Ice-Simple-Multiplicity', '(kHz)'), 
-                ('MuonFilter_13', 'Muon Filter', '(Hz)'), 
-                (online_str, 'Online L2 Filter', '(Hz)')]:
+        ########## MAKE BADNESS PLOT ##########   
         fig, ax = plt.subplots(figsize = (12,4))
         time_series(ax, run_table, time_window, 
-                    recstart,  
-                    recstop, 
-                    rates[rate])
-        
-        
-        plt.title(name, fontsize = 18)
-        plt.ylabel('{} {}'.format(name, unit), fontsize = 16)
+                    Time(badness['start'],format='mjd',scale='utc'), 
+                    Time(badness['stop' ],format='mjd',scale='utc'), 
+                    badness['score'])
+
+        plt.title('Badness', fontsize = 18)
+        plt.ylabel('Badness (s)', fontsize = 16)
         fig.autofmt_xdate()
         plt.locator_params(axis='x', nbins = 8)
         plt.grid(b = True, axis = 'y', alpha = 0.3)
-        plt.savefig('{}/{}_plot.png'.format(dirname, rate))
-    
-    ########## MAKE GFU RATE PLOT ##########
-    fig, ax = plt.subplots(figsize = (12,4))
+        plt.savefig('{}/badness_plot.png'.format(dirname))
 
-    gfu_run_start = Time([ r['start'] for r in run_table], format='iso',scale='utc')
-    gfu_run_stop  = Time([r['stop' ] for r in run_table], format='iso',scale='utc')
-    gfu_count = [r['gfu_counts'] for r in run_table]
+        ########## MAKE RATES PLOTS ##########
+        recstart= Time(rates['rec_start'],format='mjd',scale='utc')
+        recstop = Time(rates['rec_stop' ],format='mjd',scale='utc')
 
-    time_series(ax, run_table, time_window, 
-                gfu_run_start, 
-                gfu_run_stop, 
-                gfu_count, scale = 1e3)
+        online_str = 'OnlineL2Filter_16' if season == 'neutrino16' else 'OnlineL2Filter_17'
 
-    plt.title('GFU Singlet Rate', fontsize = 18)
-    plt.ylabel('Rate (mHz)', fontsize = 16)
-    fig.autofmt_xdate()
-    plt.locator_params(axis='x', nbins = 8)
-    plt.grid(b = True, axis = 'y', alpha = 0.3)
-    plt.savefig('{}/GFU_rate_plot.png'.format(dirname))
+        for rate, name, unit in [('IN_ICE_SIMPLE_MULTIPLICITY', 'In-Ice-Simple-Multiplicity', '(kHz)'), 
+                    ('MuonFilter_13', 'Muon Filter', '(Hz)'), 
+                    (online_str, 'Online L2 Filter', '(Hz)')]:
+            fig, ax = plt.subplots(figsize = (12,4))
+            time_series(ax, run_table, time_window, 
+                        recstart,  
+                        recstop, 
+                        rates[rate])
+            
+            
+            plt.title(name, fontsize = 18)
+            plt.ylabel('{} {}'.format(name, unit), fontsize = 16)
+            fig.autofmt_xdate()
+            plt.locator_params(axis='x', nbins = 8)
+            plt.grid(b = True, axis = 'y', alpha = 0.3)
+            plt.savefig('{}/{}_plot.png'.format(dirname, rate))
+        
+        ########## MAKE GFU RATE PLOT ##########
+        fig, ax = plt.subplots(figsize = (12,4))
 
+        gfu_run_start = Time([ r['start'] for r in run_table], format='iso',scale='utc')
+        gfu_run_stop  = Time([r['stop' ] for r in run_table], format='iso',scale='utc')
+        gfu_count = [r['gfu_counts'] for r in run_table]
 
+        time_series(ax, run_table, time_window, 
+                    gfu_run_start, 
+                    gfu_run_stop, 
+                    gfu_count, scale = 1e3)
+
+        plt.title('GFU Singlet Rate', fontsize = 18)
+        plt.ylabel('Rate (mHz)', fontsize = 16)
+        fig.autofmt_xdate()
+        plt.locator_params(axis='x', nbins = 8)
+        plt.grid(b = True, axis = 'y', alpha = 0.3)
+        plt.savefig('{}/GFU_rate_plot.png'.format(dirname))
+
+    except:
+        print("Times too old to get rate information")

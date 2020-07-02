@@ -20,6 +20,7 @@ from matplotlib import cm
 import scipy as sp
 from scipy.optimize       import curve_fit
 from scipy.stats          import chi2
+from scipy import sparse
 from scipy.special import erfinv
 from make_ontime_plots import make_rate_plots
 from ReportGenerator import ReportGenerator
@@ -50,6 +51,7 @@ current_palette = sns.color_palette('colorblind', 10)
 
 logging.getLogger("skylab.ps_llh.PointSourceLLH").setLevel(logging.ERROR)
 logging.getLogger("skylab.ps_injector.PointSourceInjector").setLevel(logging.ERROR)
+logging.getLogger("skylab.ps_injector.PriorInjector").setLevel(logging.ERROR)
 
 class FastResponseAnalysis(object):
     r''' Object to do realtime followup analyses of 
@@ -459,6 +461,8 @@ class FastResponseAnalysis(object):
                 tsd = self.run_prior_bg(ntrials)
                 self.tsd = tsd
                 p = sum(tsd >= self.ts) / float(tsd.size)
+                if len(p) > 0:
+                    p = p[0]
                 t1 = time.time()
                 print("Background Trials complete, p = {}".format(p))
                 print("Background trials took {} seconds ({} s / trial)".format(t1 - t0, (t1-t0) / float(ntrials)))
@@ -518,8 +522,9 @@ class FastResponseAnalysis(object):
 
         current_rate = self.llh.nbackground / (self.duration * 86400.) * 1000.
         closest_rate = find_nearest(np.linspace(6.2, 7.2, 6), current_rate)
-        pre_ts_array = np.load('/data/user/fast_response_skylab/fast-response/trunk/precomputed_background/glob_trials/precomputed_trials_delta_t_{:.2e}_trials_rate_{:.1f}_low_stats.npz'.format(self.duration / 86400., closest_rate, self.duration * 86400.), 
-                                        allow_pickle=True)
+        pre_ts_array = sparse.load_npz('/data/user/apizzuto/fast_response_skylab/fast-response/trunk/precomputed_background/glob_trials/precomputed_trials_delta_t_{:.2e}_trials_rate_{:.1f}_low_stats.npz'.format(self.duration * 86400., closest_rate, self.duration * 86400.))
+        #pre_ts_array = np.load('/data/user/apizzuto/fast_response_skylab/fast-response/trunk/precomputed_background/glob_trials/precomputed_trials_delta_t_{:.2e}_trials_rate_{:.1f}_low_stats.npz'.format(self.duration * 86400., closest_rate, self.duration * 86400.), 
+        #                                allow_pickle=True)
         # Create spatial prior weighting
 
         #VECTORIZED PART MAY NOT WORK BECAUSE PRE_TS_ARRAY IS NOT RECTANGULAR
@@ -628,8 +633,14 @@ class FastResponseAnalysis(object):
                 npass = len(results['TS'][msk])
                 passing.append((n, npass, n_per_sig))
         else:
-            print('Upper limit with spatial prior not yet implemented')
-            return
+            if self.alert_event:
+                sens_range = self.ps_sens_range()
+                self.sens_range = sens_range
+                self.sens_range_plot()
+                return self.sens_range
+            else:
+                print('Upper limit with spatial prior not yet implemented')
+                return None
         signal_fluxes, passing, number = zip(*passing)
         signal_fluxe = np.array(signal_fluxes)
         passing = np.array(passing, dtype=float)
@@ -743,7 +754,8 @@ class FastResponseAnalysis(object):
                         ('skymap', self.skymap), ('ra', self.ra), ('dec', self.dec),
                         ('coincident_events', self.coincident_events), ('skipped', self.skipped_event), 
                         ('upper_limit', self.upperlimit), ('upper_limit_ninj', self.upperlimit_ninj),
-                        ('ns_profile', self.ns_profile), ('low_en', self.low5), ('high_en', self.high5)]:
+                        ('ns_profile', self.ns_profile), ('low_en', self.low5), ('high_en', self.high5),
+                        ('sens_range', self.sens_range)]:
             if val is not None:
                 results[key] = val
         if alt_path is None:
@@ -808,6 +820,33 @@ class FastResponseAnalysis(object):
         self.plot_skymap_zoom()
         self.plot_skymap()
 
+    def sens_range_plot(self):
+        r'''For alert events, make a sensitivity plot highlighting
+        the region where the contour lives'''
+        fig, ax = plt.subplots()
+        with open('/data/user/apizzuto/fast_response_skylab/dump/ideal_ps_sensitivity_deltaT_{:.2e}_50CL.pkl'.format(self.duration), 'r') as f:
+            ideal = pickle.load(f)
+        delta_t = self.duration * 86400.
+        plt.plot(ideal['sinDec'], np.array(ideal['sensitivity'])*delta_t*1e6, lw=3, ls='-', 
+                 color=sns.xkcd_rgb['dark navy blue'], label = 'P.S. sensitivity', alpha=0.7)
+        #FILL BETWEEN RANGE
+        src_theta, src_phi = hp.pix2ang(self.nside, self.ipix_90)
+        src_dec = np.pi/2. - src_theta
+        src_dec = np.unique(src_dec)
+        src_dec = np.sin(src_dec)
+        ax.axvspan(src_dec.min(), src_dec.max(), alpha=0.3, color=sns.xkcd_rgb['light navy blue'],
+                label='90\% contour region')
+        plt.text(0.05, 3e1, 'Min sens.: {:.1e}'.format(self.sens_range[0]) + r' GeV cm$^{-2}$')
+        plt.text(0.05, 1.5e1, 'Max sens.: {:.1e}'.format(self.sens_range[1]) + r' GeV cm$^{-2}$')
+        plt.grid(which='both', alpha=0.2, zorder=1)
+        plt.yscale('log')
+        plt.xlabel(r'$\sin \delta$', fontsize=20)
+        plt.legend(loc=3, frameon=False)
+        plt.ylabel(r'$E^2 \frac{dN_{\nu+\bar{\nu}}}{dEdA} \Big|_{\mathrm{1 TeV}}$ (GeV cm$^{-2}$)', fontsize=20)
+        plt.ylim(3e-2, 3e2)
+        if self.save_output:
+            plt.savefig(self.analysispath + '/upper_limit_distribution.png', bbox_inches='tight', dpi=200)        
+
     def plot_skymap_zoom(self):
         r'''Make a zoomed in portion of a skymap with
         all neutrino events within a certain range
@@ -828,7 +867,7 @@ class FastResponseAnalysis(object):
             skymap = self.skymap
             ra = self.skymap_fit_ra
             dec = self.skymap_fit_dec
-            if 'ice' in self.name.lower():
+            if 'ice' in self.name.lower() and not 'casc' in self.name.lower():
                 skymap = np.log10(skymap)
             label_str = "Scan Hot Spot"
             cmap = None
@@ -899,7 +938,7 @@ class FastResponseAnalysis(object):
             max_val = 1.
             cmap = mpl.colors.ListedColormap([(1.,1.,1.)] * 50)
         else:
-            if 'ice' in self.name.lower():
+            if 'ice' in self.name.lower() and not 'casc' in self.name.lower():
                 skymap = np.log10(self.skymap)
                 max_val = max(skymap)
             else:
@@ -978,7 +1017,7 @@ class FastResponseAnalysis(object):
         return Theta, Phi
 
     def make_dNdE(self):
-        r'''Make an E^-2 dNdE with the central 90% 
+        r'''Make an E^-2 or E^-2.5 dNdE with the central 90% 
         for the most relevant declination'''
         if self.skymap is None:
             dec_mask_1 = self.llh.mc['dec'] > self.dec - (5. * np.pi / 180.)
@@ -994,8 +1033,9 @@ class FastResponseAnalysis(object):
         fig, ax = plt.subplots(figsize = (8,5))
         fig.set_facecolor('white')
         lab = 'Min dec.' if self.skymap is not None else None
+        delta_gamma = -1.5 if self.alert_event else -1.
         a = plt.hist(self.llh.mc['trueE'][dec_mask], bins = np.logspace(1., 8., 50), 
-                weights = self.llh.mc['ow'][dec_mask] * np.power(self.llh.mc['trueE'][dec_mask], -1.) / self.llh.mc['trueE'][dec_mask], 
+                weights = self.llh.mc['ow'][dec_mask] * np.power(self.llh.mc['trueE'][dec_mask], delta_gamma) / self.llh.mc['trueE'][dec_mask], 
                 histtype = 'step', linewidth = 2., color = sns.xkcd_rgb['windows blue'], label = lab)
         plt.yscale('log')
         plt.xscale('log')
@@ -1081,6 +1121,24 @@ class FastResponseAnalysis(object):
         high = src_dec.max()
 
         return low, high
+
+    def ps_sens_range(self):
+        r'''Compute the minimum and maximum sensitivities
+        within the 90% contour of the skymap'''
+        #IMPLEMENT THIS, BORROWING FROM RAAMIS CODE
+        if self.alert_event:
+            with open('/data/user/apizzuto/fast_response_skylab/dump/ideal_ps_sensitivity_deltaT_{:.2e}_50CL.pkl'.format(self.duration), 'r') as f:
+                ideal = pickle.load(f)
+            delta_t = self.duration * 86400.
+            src_theta, src_phi = hp.pix2ang(self.nside, self.ipix_90)
+            src_dec = np.pi/2. - src_theta
+            src_dec = np.unique(src_dec)
+            src_dec = np.sin(src_dec)
+            sens = np.interp(src_dec, ideal['sinDec'], np.array(ideal['sensitivity'])*delta_t*1e6)
+            low = sens.min(); high=sens.max()
+            return low, high
+        else:
+            return None, None
 
 
 def deltaPsi(dec1, ra1, dec2, ra2):
@@ -1204,8 +1262,8 @@ def find_nearest_idx(array, value):
 
 def find_nearest(array, value):
     array = np.asarray(array)
-    val = (np.abs(array - value)).min()
-    return val
+    ind = (np.abs(array - value)).argmin()
+    return array[ind]
     
 def sensitivity_fit(signal_fluxes, passing, errs, fit_func, p0 = None, conf_lev = 0.9):
     r'''
