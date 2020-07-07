@@ -104,7 +104,7 @@ if sinDec < -0.1:
 else:
     e_bins = np.logspace(2., 8., 7)
 
-f = FastResponseAnalysis("0., {}".format(dec*180. / np.pi), start, stop, save=False, alert_event=True)
+f = FastResponseAnalysis("0., {}".format(dec*180. / np.pi), start, stop, save=False, alert_event=False)
 print("Running Background")
 bg = f.llh.do_trials(3000, src_ra = 0., src_dec = dec, injector = None) #, mean_signal=0.0)
 bg_med = np.percentile(bg['TS'], 50.)
@@ -135,5 +135,5 @@ results = {'sensitivity': sensitivity,
             'high_energies': e_bins*10., 
           'sens_evs': sensitivity_events}
 
-with open('/data/user/apizzuto/fast_response_skylab/dump/differential_sensitivity_deltaT_{:.2e}_sinDec_{:.2f}.pkl'.format(deltaT, sinDec), 'wb') as f:
+with open('/data/user/apizzuto/fast_response_skylab/dump/grb190114c_differential_sensitivity_deltaT_{:.2e}_sinDec_{:.2f}.pkl'.format(deltaT, sinDec), 'wb') as f:
     pickle.dump(results, f)

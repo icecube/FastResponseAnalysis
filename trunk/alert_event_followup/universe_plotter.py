@@ -44,7 +44,7 @@ class UniversePlotter():
         self.background_median_p = None
         self.smeared = kwargs.pop('smeared', True)
         self.ts_fills = [self.background_median_ts, 50.] if self.transient else [self.background_median_ts, 10.]
-        self.lumi_str = {'SC': 'Standard Candle', 'LG': 'LogNormal'}[self.lumi]
+        self.lumi_str = {'SC': 'Standard Candle', 'LG': 'Log Normal'}[self.lumi]
         self.evol_str = {'HB2006SFR': 'Hopkins and Beacom 2006 SFR',
                             'MD2014SFR': 'Madau and Dickinson 2014 CSFH'}[self.evol]
         self.ts_path = '/data/user/apizzuto/fast_response_skylab/alert_event_followup/ts_distributions/'
@@ -138,7 +138,7 @@ class UniversePlotter():
         time_window_str = r'$\Delta T =$ ' + '{:.2e} s, '.format(self.delta_t) if self.transient else 'Time integrated, '
         title = time_window_str + '{:.0f} yrs of alerts, \n'.format(self.data_years) + self.lumi_str + ', ' + self.evol_str
         plt.title(title)
-        plt.show()
+        #plt.show()
 
     def rotated_sensitivity_plot_ts(self, log_ts=False, in_ts=True, ts_vs_p=False, compare=False):
         r'''Two dimensional contour plot to show the sensitivity of the analysis
@@ -213,7 +213,7 @@ class UniversePlotter():
         time_window_str = r'$\Delta T =$ ' + '{:.2e} s, '.format(self.delta_t) if self.transient else 'Time integrated, '
         title = time_window_str + '{:.0f} yrs of alerts, \n'.format(self.data_years) + self.lumi_str + ', ' + self.evol_str
         plt.title(title)
-        plt.show()
+        #plt.show()
     
     def get_labels(self):
         r'''Run during initialization to get the correct units 
@@ -326,7 +326,7 @@ class UniversePlotter():
         plt.legend(loc=loc, frameon=False)
         if log_ts:
             plt.yscale('log')
-        plt.show()
+        #plt.show()
 
     def ts_and_ps_plot(self, only_gold=False, log_ts=True):
         r'''Make TS distributions for density, luminosity 
@@ -357,7 +357,7 @@ class UniversePlotter():
         axs[0].set_yscale('log'); axs[1].set_yscale('log')
         axs[0].set_ylim(8e-3, 7e-1); axs[1].set_ylim(8e-3, 7e-1)
         axs[1].legend(loc=(1.01, 0.1))
-        plt.show()
+        #plt.show()
 
     def get_overall_background_ts(self, n_trials=1000):
         r'''Sample alert event background distributions
