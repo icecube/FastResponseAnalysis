@@ -195,6 +195,21 @@ def write_alert_circular(analysis):
         for line in new_f:
             f.write(line)
 
+def write_cascade_gcn(casc_results):
+    r'''After running the alert followup for cascade events,
+    write a gcn circular that inputs the analysis results
+    Parameters:
+    -----------
+    - casc_results: dict
+       Contains results in 1000. and 172800. key with results from 
+        the respective analyses
+    Returns:
+    ------------
+    - gcn_text: str
+        Text for the circular'''
+    return None
+
+
 def erfunc(x, a, b):
     x = np.array(x)
     return 0.5 + 0.5*sp.special.erf(a*x + b)
