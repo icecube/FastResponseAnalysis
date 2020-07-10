@@ -166,49 +166,92 @@ def updateFastResponsePlots():
     plt.ylim(6e-3, 1e0)
     plt.savefig('/home/apizzuto/public_html/FastResponse/webpage/output/pvalue_distribution_liveupdate.png', dpi=200, bbox_inches='tight')
 
-def write_alert_circular(analysis):
+def write_alert_gcn(alert_results):
     r'''Read in template GCN circular file, fill in appropriate
     details, write new text file'''
     new_f = []
-    if analysis['p'] < 0.01:
-        fname = 'circular_templates/internal_high_significance.txt'
+    high_sig = False
+    for window in alert_results.keys():
+        if alert_results[window]['p'] < 0.01:
+            high_sig = True
+    fname = 'circular_templates/internal_followup.txt'
+    analysis_1000 = alert_results[1000.]; analysis_2day = alert_results[172800.]
+    alert_id = analysis_1000['name'][:-10]
+    if 'coincident_events' not in analysis_1000.keys():
+        analysis_1000['coincident_events'] = []
+    ev_is_are = 'event is' if len(analysis_1000['coincident_events']) == 1 else 'events are'
+    if not high_sig:
+        if len(analysis_1000['coincident_events']) == 0:
+            coinc_and_p = ''
+        elif len(analysis_1000['coincident_events']) == 1:
+            coinc_and_p = 'We find that this additional event is well described by atmospheric\n' \
+                + 'background expectations, with a p-value of {:.2f}. '.format(analysis_1000['p'])
+        else:
+            coinc_and_p = 'We find that these additional {} events are well described by atmospheric\n' \
+                + 'background expectations, with a p-value of {:.2f}. '.format(len(analysis_1000['coincident_events']), analysis_1000['p'])
+        #coinc_and_p = coinc_and_p + '\nWe accordingly derive an upper limit\n' \
+        #        + 'on the time-integrated muon-neutrino flux at 1 TeV of E^2 dN/dE = {:.1e} TeV cm^-2 at 90% CL,\n'.format(analysis_1000['upper_limit']) \
+        #        + 'under the assumption of an E^-2.5 power law. '
+        long_p_and_lim = 'In this case, we report a p-value of {:.2f},'.format(analysis_2day['p']) \
+                + 'consistent with no significant \nexcess of track events.' # , and a corresponding upper limit on the' \
+                # + 'time-integrated muon-neutrino flux at 1 TeV assuming an E^-2.5 spectrum (E^2 dN/dE) of' \
+                # + '{:.1e} TeV cm^-2 at the 90% CL.'.format(analysis_2day['upper_limit'])
     else:
-        fname = 'circular_templates/internal_low_significance.txt'
-    tmp_piv = analysis['name'].find('-')
-    alert_id = analysis['name'][tmp_piv:tmp_piv+8]
-    keypairs = [('alert_name', alert_id), ('gcn_number', analysis['gcn_num']), 
-                ('start_utc', Time(analysis['start'], format='mjd').iso), 
-                ('stop_utc', Time(analysis['stop'], format='mjd').iso), 
-                ('month_start_utc', Time(analysis['month_start'], format='mjd').iso), 
-                ('n_events', len(analysis['coincident_events'])), 
-                ('short_p', analysis['p']), ('long_p', analysis['long_p']), 
-                ('upper_limit', analysis['upper_limit']), 
-                ('long_upper_limit', analysis['long_upper_limit'])
-                ('low_en', analysis['low_en']), ('high_en', analysis['high_en'])]
+        coinc_and_p = 'We accordingly derive a p-value of {:.3f}.'.format(analysis_1000['p'])
+        if analysis_1000['p'] < 0.01:
+            coinc_and_p = coinc_and_p + ' Due to the coincidences identified in this search, ' \
+                + 'we strongly encourage followup observations.'
+        else:
+            pass
+            #coinc_and_p = coinc_and_p + '\nWe accordingly derive an upper limit\n' \
+            #    + 'on the time-integrated muon-neutrino flux at 1 TeV of E^2 dN/dE = {:.1e} TeV cm^-2 at 90% CL,\n'.format(analysis_1000['upper_limit']) \
+            #    + 'under the assumption of an E^-2.5 power law. '
+        if analysis_2day['p'] < 0.01:
+            long_p_and_lim = 'In this case, we report a p-value of {:.3f}.'.format(analysis_2day['p']) \
+                + ' Due to the coincidences identified in this search, we strongly encourage followup observations.'
+        else:
+            long_p_and_lim = 'In this case, we report a p-value of {:.2f},'.format(analysis_2day['p']) \
+                + 'consistent with no significant \nexcess of track events. ' #, and a corresponding upper limit on the' \
+                #+ 'time-integrated muon-neutrino flux at 1 TeV assuming an E^-2.5 spectrum (E^2 dN/dE) of' \
+                #+ '{:.1e} TeV cm^-2 at the 90% CL.'.format(analysis_2day['upper_limit'])
+
+    #if 'gcn_num' not in analysis_1000.keys():
+    #    analysis_1000['gcn_num'] = 0
+
+    keypairs = [('alert_name', alert_id), ('gcn_number', analysis_1000['gcn_num']), 
+                ('start_utc', Time(analysis_1000['start'], format='mjd').iso), 
+                ('stop_utc', Time(analysis_1000['stop'], format='mjd').iso), 
+                ('long_start_utc', Time(analysis_2day['start'], format='mjd').iso), 
+                ('long_stop_utc', Time(analysis_2day['stop'], format='mjd').iso),
+                ('n_events', len(analysis_1000['coincident_events'])), 
+                ('events_is_are', ev_is_are),
+                ('coincident_events_and_p_str', coinc_and_p),
+                ('long_p_and_lim', long_p_and_lim),
+                ('low_sens', analysis_1000['sens_range'][0]), ('high_sens', analysis_1000['sens_range'][1]), 
+                ('long_low_sens', analysis_2day['sens_range'][0]), ('long_high_sens', analysis_2day['sens_range'][1]),
+                ('low_en', np.min([analysis_1000['low_en'], analysis_2day['low_en']])), 
+                ('high_en', np.max([analysis_1000['high_en'], analysis_2day['high_en']]))]
+
     with open(fname, 'r') as f:
         for line in f.readlines():
             for k, r in keypairs:
                 if k in line:
-                    line = line.replace('<'+k+'>', '{:.3f}'.format(analysis[r]))
+                    if type(r) == str:
+                        form_r = r
+                    elif type(r) == int:
+                        form_r = '{}'.format(r)
+                    elif k in ['low_en', 'high_en']:
+                        form_r = '{:.0e}'.format(r)
+                    elif 'sens' in k:
+                        form_r = '{:.1e}'.format(r)
+                    else:
+                        form_r = '{}'.format(r)
+                    line = line.replace('<'+k+'>', form_r)
             new_f.append(line)
-    with open('/home/apizzuto/public_html/FastResponse/webpage/output/{}_circular.txt'.format(analysis['analysisid']), 'w') as f:
+    
+    with open('/home/apizzuto/public_html/FastResponse/alert_circulars/{}_circular.txt'.format(alert_id), 'w') as f:
         for line in new_f:
             f.write(line)
-
-def write_cascade_gcn(casc_results):
-    r'''After running the alert followup for cascade events,
-    write a gcn circular that inputs the analysis results
-    Parameters:
-    -----------
-    - casc_results: dict
-       Contains results in 1000. and 172800. key with results from 
-        the respective analyses
-    Returns:
-    ------------
-    - gcn_text: str
-        Text for the circular'''
-    return None
-
 
 def erfunc(x, a, b):
     x = np.array(x)
