@@ -23,9 +23,10 @@ import utils
 parser = argparse.ArgumentParser(description='Fast Response Analysis')
 parser.add_argument('--skymap', type=str, default=None,
                     help='path to skymap')
-parser.add_argument('--time', type=floar, defulat=None,
+parser.add_argument('--time', type=float, default=None,
                     help='Time of the alert event (mjd)')
 parser.add_argument('--document', default=False, action='store_true')
+parser.add_argument('--gcn_notice_num', default=0, type=int)
 args = parser.parse_args()
 
 cascade_time = Time(args.time, format='mjd')
@@ -61,5 +62,6 @@ for delta_t in [1000., 2.*86400.]:
         utils.updateFastResponseWeb(results)
     all_results[delta_t] = results
 
-utils.write_cascade_gcn(all_results)
+all_results[1000.]['gcn_num'] = args.gcn_notice_num
+utils.write_alert_gcn(all_results)
 
