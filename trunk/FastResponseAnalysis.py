@@ -18,6 +18,7 @@ from astropy.io import fits
 from astropy.time import Time
 from matplotlib import cm
 import scipy as sp
+from numpy.lib.recfunctions   import append_fields
 from scipy.optimize       import curve_fit
 from scipy.stats          import chi2
 from scipy import sparse
@@ -378,6 +379,10 @@ class FastResponseAnalysis(object):
                 if ts > 0:
                     self.skymap_fit_ra = val['ra'][max_prior]
                     self.skymap_fit_dec = val['dec'][max_prior]
+                    if 'casc' in self.name.lower() and self.duration > 0.5:
+                        self.coincident_events = None
+                    else:
+                        self.coincident_events = self.prior_coincident_events() 
                 else:
                     max_pix = np.argmax(self.skymap)
                     theta, phi = hp.pix2ang(self.nside, max_pix)
@@ -423,6 +428,29 @@ class FastResponseAnalysis(object):
         self.ts, self.ns = ts, ns
         return ts, ns
    
+    def prior_coincident_events(self):
+        r'''Find "coincident events" for a skymap
+        based analysis'''
+        t_mask=(self.llh.exp['time']<=self.stop)&(self.llh.exp['time']>=self.start)
+        events = self.llh.exp[t_mask]
+        exp_theta = 0.5*np.pi - events['dec']
+        exp_phi   = events['ra']
+        exp_pix   = hp.ang2pix(self.nside,exp_theta,exp_phi)
+        overlap   = np.isin(exp_pix,self.ipix_90)
+        events = events[overlap]
+        if len(events) == 0:
+            return None
+        else:
+            coincident_events = []
+            for ev in events:
+                coincident_events.append({})
+                for key in ['run', 'event', 'ra', 'dec', 'sigma', 'logE', 'time']:
+                    coincident_events[-1][key] = ev[key]
+                coincident_events[-1]['delta_psi'] = np.nan
+                coincident_events[-1]['spatial_w'] = np.nan
+                coincident_events[-1]['energy_w'] = np.nan
+            return coincident_events
+
     def calc_pvalue(self, ntrials=1000, run_anyway=False):
         r''' Given an unblinded TS value, calculate the p value
 
