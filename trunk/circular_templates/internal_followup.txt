@@ -1,0 +1,26 @@
+Subject:  <alert_name>: Upper limits from a search for additional neutrino events in IceCube
+
+The IceCube Collaboration (http://icecube.wisc.edu/) reports:
+
+IceCube has performed a search for additional track-like muon neutrino events 
+arriving from the direction of <alert_name> (https://gcn.gsfc.nasa.gov/gcn3/<gcn_number>.gcn3)
+in a time range of 1000 seconds centered on the alert event time (<start_utc> UTC to 
+<stop_utc> UTC) during which IceCube was collecting good quality data. Excluding the event 
+that prompted the alert, <n_events> additional track-like <events_is_are> found within the 
+90% containment region of <alert_name>.<coincident_events_and_p_str>
+IceCube's sensitivity assuming an E^-2.5 spectrum (E^2 dN/dE) to neutrino
+point sources within the locations spanned by the 90% spatial containment region
+of <alert_name> ranges from <low_sens> to <high_sens> GeV cm^-2 in a 1000 second
+time window. 90% of events IceCube would detect from a source at this declination 
+with an E^-2.5 spectrum are approximately between <low_en> GeV and <high_en> GeV. 
+
+A subsequent search was performed including 2 days of data centered on the alert 
+event time (<long_start_utc> UTC to <long_stop_utc> UTC). 
+<long_p_and_lim> IceCube's sensitivity assuming an E^-2.5 spectrum 
+(E^2 dN/dE) to neutrino point sources within the locations spanned by the 90% 
+spatial containment region of <alert_name> ranges from <long_low_sens> 
+to <long_high_sens> GeV cm^-2 in a 2 day time window. 
+
+The IceCube Neutrino Observatory is a cubic-kilometer neutrino detector operating at 
+the geographic South Pole, Antarctica. The IceCube realtime alert point of contact can 
+be reached at roc@icecube.wisc.edu.
