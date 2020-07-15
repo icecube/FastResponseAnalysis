@@ -194,6 +194,7 @@ class FastResponseAnalysis(object):
         self.upperlimit, self.upperlimit_ninj = None, None
         self.ns_profile = None
         self.low5, self.high5 = None, None
+        self.sens_range = None
 
   
     def initialize_llh(self, skipped = None, extension = None, scramble=False, alert_event=False):
