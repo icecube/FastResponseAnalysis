@@ -4,6 +4,7 @@ from scipy.optimize       import curve_fit
 from scipy.stats          import chi2
 import pandas as pd
 import subprocess
+import os
 from astropy.time import Time
 import datetime
 import matplotlib as mpl
@@ -38,7 +39,7 @@ def updateFastResponseWeb(analysis):
     createFastResponsePage(analysis)
     updateFastResponseTable(analysis)
     updateFastResponsePlots()
-    #sync_to_roc()
+    sync_to_roc()
 
 def updateDataFrame(analysis):
     r'''
@@ -193,7 +194,7 @@ def write_alert_gcn(alert_results):
         #        + 'on the time-integrated muon-neutrino flux at 1 TeV of E^2 dN/dE = {:.1e} TeV cm^-2 at 90% CL,\n'.format(analysis_1000['upper_limit']) \
         #        + 'under the assumption of an E^-2.5 power law. '
         long_p_and_lim = 'In this case, we report a p-value of {:.2f},'.format(analysis_2day['p']) \
-                + 'consistent with no significant \nexcess of track events.' # , and a corresponding upper limit on the' \
+                + ' consistent with no significant \nexcess of track events.' # , and a corresponding upper limit on the' \
                 # + 'time-integrated muon-neutrino flux at 1 TeV assuming an E^-2.5 spectrum (E^2 dN/dE) of' \
                 # + '{:.1e} TeV cm^-2 at the 90% CL.'.format(analysis_2day['upper_limit'])
     else:
@@ -211,7 +212,7 @@ def write_alert_gcn(alert_results):
                 + ' Due to the coincidences identified in this search, we strongly encourage followup observations.'
         else:
             long_p_and_lim = 'In this case, we report a p-value of {:.2f},'.format(analysis_2day['p']) \
-                + 'consistent with no significant \nexcess of track events. ' #, and a corresponding upper limit on the' \
+                + ' consistent with no significant \nexcess of track events. ' #, and a corresponding upper limit on the' \
                 #+ 'time-integrated muon-neutrino flux at 1 TeV assuming an E^-2.5 spectrum (E^2 dN/dE) of' \
                 #+ '{:.1e} TeV cm^-2 at the 90% CL.'.format(analysis_2day['upper_limit'])
 
@@ -278,7 +279,12 @@ def binomial_error(p, number):
     return errs
 
 def sync_to_roc():
-    subprocess.Popen('rsync -a /home/apizzuto/public_html/FastResponse/webpage/ apizzuto@roc.icecube.wisc.edu:/mnt/roc/www/internal/fast_response')
+    #subprocess.Popen('rsync -a /home/apizzuto/public_html/FastResponse/webpage/ apizzuto@roc.icecube.wisc.edu:/mnt/roc/www/internal/fast_response')
+    env = dict(os.environ)
+    subprocess.call(['rsync','-a','/home/apizzuto/public_html/FastResponse/webpage/',
+                        'apizzuto@roc.icecube.wisc.edu:/mnt/roc/www/internal/fast_response'],
+                        env = env
+                       )
 
 def format_dec_str(dec):
     if dec < 0:
