@@ -13,7 +13,8 @@ import lxml.etree
 
 @gcn.handlers.include_notice_types(
     gcn.notice_types.ICECUBE_ASTROTRACK_GOLD,
-    gcn.notice_types.ICECUBE_ASTROTRACK_BRONZE)
+    gcn.notice_types.ICECUBE_ASTROTRACK_BRONZE,
+    gcn.notice_types.ICECUBE_CASCADE)
 
 def process_gcn(payload, root):
     analysis_path = os.environ.get('FAST_RESPONSE_SCRIPTS')
