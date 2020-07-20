@@ -581,8 +581,7 @@ class ReportGenerator(object):
                 r"\newcommand{"+"\\"+"nsscan"+"}{"+ "\\includegraphics[width=0.9\\textwidth]" +
                     "{" + self.dirname+"/"+
                     "llh_ns_scan.png"+ "}" +
-                    "}\n" + 
-                "These plots are meant as validations of the minimizer, and cannot be interpreted directly using Wilk's assuming one degree of freedom because the low statistics invalidates the asymptotic condition for Wilk's theorem."
+                    "}\n" 
                 )
             else:
                 f.write(

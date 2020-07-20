@@ -49,7 +49,7 @@ def updateDataFrame(analysis):
     evid = None if 'skipped' not in analysis.keys() else str(analysis['skipped']['run']) + ':' + str(analysis['skipped']['event'])
     dec = np.nan if 'dec' not in analysis.keys() else analysis['dec'] * 180. / np.pi
     ra = np.nan if 'ra' not in analysis.keys() else analysis['ra'] * 180. / np.pi
-    ext = 0.0 if 'extension' not in analysis.keys() else results['extension'] * 180. / np.pi
+    ext = 0.0 if 'extension' not in analysis.keys() else analysis['extension'] * 180. / np.pi
     upper_lim = np.nan if 'upper_limit' not in analysis.keys() else analysis['upper_limit']
     low_en = np.nan if 'low_en' not in analysis.keys() else analysis['low_en']
     high_en = np.nan if 'high_en' not in analysis.keys() else analysis['high_en']
@@ -93,7 +93,7 @@ def createFastResponsePage(analysis):
                 ra = '-' if 'ra' not in analysis.keys() else '{:.2f}'.format(analysis['ra'] * 180. / np.pi)
                 new_f[i] = new_f[i].replace('ANALYSISRA', ra)
             if 'ANALYSISEXTENSION' in new_f[i]:
-                ext = '-' if 'extension' not in analysis.keys() else '{:.2f}'.format(results['extension'] * 180. / np.pi)
+                ext = '-' if 'extension' not in analysis.keys() else '{:.2f}'.format(analysis['extension'] * 180. / np.pi)
                 new_f[i] = new_f[i].replace('ANALYSISEXTENSION', ext)
             if 'ANALYSISNAME' in new_f[i]:
                 new_f[i] = new_f[i].replace('ANALYSISNAME', analysis['name'])
@@ -114,7 +114,7 @@ def updateFastResponseTable(analysis):
     '''
     dec = '-' if 'dec' not in analysis.keys() else '{:+.2f}'.format(analysis['dec'] * 180. / np.pi)
     ra = '-' if 'ra' not in analysis.keys() else '{:.2f}'.format(analysis['ra'] * 180. / np.pi)
-    ext = '-' if 'extension' not in analysis.keys() else '{:.2f}'.format(results['extension'] * 180. / np.pi)
+    ext = '-' if 'extension' not in analysis.keys() else '{:.2f}'.format(analysis['extension'] * 180. / np.pi)
     tag = '''
     <tr>
       <td><a href=./output/{}.html>{}</a></td>
