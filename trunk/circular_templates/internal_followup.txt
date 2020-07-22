@@ -6,7 +6,7 @@ IceCube has performed a search [1] for additional track-like muon neutrino event
 arriving from the direction of <alert_name> (https://gcn.gsfc.nasa.gov/gcn3/<gcn_number>.gcn3)
 in a time range of 1000 seconds centered on the alert event time (<start_utc> UTC to 
 <stop_utc> UTC) during which IceCube was collecting good quality data. Excluding the event 
-that prompted the alert, <n_events> additional track-like <events_is_are> found within the 
+that prompted the alert, <n_events> track-like <events_is_are> found within the 
 90% containment region of <alert_name>.<coincident_events_and_p_str>
 IceCube's sensitivity assuming an E^-2.5 spectrum (E^2 dN/dE at 1 TeV) to neutrino
 point sources within the locations spanned by the 90% spatial containment region

@@ -18,6 +18,7 @@ mpl.style.use('/home/apizzuto/Nova/scripts/novae_plots.mplstyle')
 
 base_path = '/data/user/apizzuto/fast_response_skylab/alert_event_followup/analysis_trials/'
 skymap_files = glob('/data/ana/realtime/alert_catalog_v2/2yr_prelim/fits_files/Run*.fits.gz')
+skymap_files.extend(glob('/data/ana/realtime/alert_catalog_v2/fits_files/new_scans/Run*.fits.gz'))
 palette = ['#7fc97f', '#beaed4', '#fdc086', '#ffff99', '#386cb0', '#f0027f']
 l_ind = skymap_files[0].find("Run")
 r_ind = skymap_files[0].find("_nside")

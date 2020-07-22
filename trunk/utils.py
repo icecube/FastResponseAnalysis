@@ -150,7 +150,7 @@ def updateFastResponsePlots():
     p_x_vals = np.logspace(-3,0.,15)
     plt.figure(figsize = (10,6), dpi=300)
     plt.hist(df['Pre-trial p_val'], weights = np.ones(len(df)) / len(df), bins = p_x_vals)
-    plt.step(p_x_vals[1:], np.diff(p_x_vals), label = 'Continuous p-value expectation', lw = 3.)
+    plt.step(p_x_vals[1:], np.diff(p_x_vals), label = 'Uniform p-value expectation', lw = 3.)
     plt.xscale('log')
     plt.yscale('log')
     plt.gca().invert_xaxis()
