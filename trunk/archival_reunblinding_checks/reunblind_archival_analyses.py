@@ -75,7 +75,7 @@ f.plot_tsd()
 f.upper_limit()
 results = f.save_results()
 f.generate_report()
-#subprocess.call(['cp','-r',results['analysispath'],
-#        '/home/apizzuto/public_html/FastResponse/webpage/output/{}'.format(results['analysisid'])])
-#if args.floor == 0.2:
-#    utils.updateFastResponseWeb(results)
+subprocess.call(['cp','-r',results['analysispath'],
+        '/home/apizzuto/public_html/FastResponse/webpage/output/{}'.format(results['analysisid'])])
+if args.floor == 0.2:
+    utils.updateFastResponseWeb(results)

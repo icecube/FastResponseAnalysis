@@ -10,6 +10,7 @@ import argparse
 
 results_df = pd.read_pickle('/data/user/apizzuto/fast_response_skylab/results_dataframe_grbllh.pkl')
 
-for ind in range(len(results_df.index.values)):
+for ind in range(27, len(results_df.index.values)):
+    ntrials = 10000 if ind == 27 else 1000
     for floor in [0.2]:
-        subprocess.call(['python', './reunblind_archival_analyses.py', '--index={}'.format(ind), '--floor={}'.format(floor)])    
+        subprocess.call(['python', './reunblind_archival_analyses.py', '--index={}'.format(ind), '--floor={}'.format(floor), '--ntrials={}'.format(ntrials)])    
