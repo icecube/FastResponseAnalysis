@@ -129,7 +129,7 @@ class FastResponseAnalysis(object):
                 self.ipix_90 = self.ipixs_in_percentage(self.skymap,0.9)
                 self.ra, self.dec, self.extension = None, None, None
                 self.source_type = "Prior"
-            except Exception, e:
+            except Exception as e:
                 message = 'Location must be one of the following)\n'
                 message += '\t(1) RA, DEC in degrees\n'
                 message += '\t(2) URL to Skymap .fits file\n'
@@ -670,7 +670,7 @@ class FastResponseAnalysis(object):
             else:
                 print('Upper limit with spatial prior not yet implemented')
                 return None
-        signal_fluxes, passing, number = zip(*passing)
+        signal_fluxes, passing, number = list(zip(*passing))
         signal_fluxe = np.array(signal_fluxes)
         passing = np.array(passing, dtype=float)
         number = np.array(number, dtype=float)
@@ -740,7 +740,7 @@ class FastResponseAnalysis(object):
         the analysis is running'''
         int_str = '*'*80
         int_str += '\n*' + ' '*78 + '*\n'
-        int_str += '*' + ' '*((78-len(self.name))/2) + self.name + ' '*((78-len(self.name))/2 + len(self.name)%2) + '*'
+        int_str += '*' + ' '*((78-len(self.name))//2) + self.name + ' '*((78-len(self.name))//2 + len(self.name)%2) + '*'
         int_str += '\n*' + ' '*78 + '*\n'
         int_str += '*'*80 + '\n'
         int_str += '  '*5 + str(Time(self.start, format = 'mjd', scale = 'utc').iso)
@@ -815,7 +815,7 @@ class FastResponseAnalysis(object):
         report.generate_report()
         report.make_pdf()
         print("Report saved to output directory")
-        username = subprocess.check_output(['whoami']).strip('\n')
+        username = subprocess.check_output(['whoami']).decode("utf-8").strip('\n')
         if os.path.isdir('/home/{}/public_html/FastResponse/'.format(username)):
             print("Copying report to {}'s public html in FastResponse Directory".format(username))
             shutil.copy2(self.analysispath + '/' + self.analysisid + "_report.pdf", 
@@ -1114,7 +1114,7 @@ class FastResponseAnalysis(object):
         cumsum = np.cumsum(sort)
         index, value = min(enumerate(cumsum),key=lambda x:abs(x[1]-percentage))
 
-        index_hpx = range(0,len(skymap))
+        index_hpx = list(range(0,len(skymap)))
         hpx_index = np.c_[skymap, index_hpx]
 
         sort_2array = sorted(hpx_index,key=lambda x: x[0],reverse=True)

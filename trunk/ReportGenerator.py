@@ -12,7 +12,7 @@ import pandas as pd
 import os,json,hashlib,warnings,datetime,types,marshal
 import re
 import logging as log
-import urllib,urllib2
+import urllib.request, urllib.parse, urllib.error,urllib.request,urllib.error,urllib.parse
 import icecube.realtime_tools.live
 import subprocess
 import sys
@@ -202,9 +202,13 @@ class ReportGenerator(object):
                      'stop': (Time(time_window[1],precision=0)
                               + TimeDelta(8*3600,format='sec')).iso}
         now = Time(datetime.datetime.now()+datetime.timedelta(hours=6),scale='utc',precision=0)
-        run_table= json.loads(
-            urllib2.urlopen(urllib2.Request(
-                run_url,urllib.urlencode(run_query)),timeout=500).read())
+        req_data = urllib.parse.urlencode(run_query).encode("utf-8")
+        req = urllib.request.Request(run_url)
+        with urllib.request.urlopen(req, data=req_data, timeout=500) as fi:
+            run_table = json.load(fi)
+        #run_table= json.loads(
+        #        urllib.request.urlopen(urllib.request.Request(
+        #            run_url,urllib.parse.urlencode(run_query)),timeout=500).read())
 
         #add duration to run table
         for run in run_table:
@@ -216,8 +220,8 @@ class ReportGenerator(object):
                 runstop  = Time(run['stop'],scale='utc',precision=0)
 
             dt=int((runstop-runstart).sec)
-            hours = int(dt)/3600
-            minutes = int(dt)/60-hours*60
+            hours = int(dt)//3600
+            minutes = int(dt)//60-hours*60
             seconds = dt%60
 
             livetime = (min(time_window[1],runstop)-
@@ -247,7 +251,7 @@ class ReportGenerator(object):
         newdict=[]
         for event in query_dict:
             newevent = event['value']['data']
-            for key,val in newevent['reco']['splinempe'].items(): #CHECK IF THIS IS RIGHT ENERGY TO USE
+            for key,val in list(newevent['reco']['splinempe'].items()): 
                 newevent['splinempe_'+key]=val
             if Time(newevent['eventtime'],scale='utc',format='iso') >= Time("2018-07-10 17:52:03.34", format='iso',scale='utc'):
                 newevent['muex'] = newevent['reco']['energy']['mpe_muex']
