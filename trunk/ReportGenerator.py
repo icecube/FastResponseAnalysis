@@ -12,7 +12,14 @@ import pandas as pd
 import os,json,hashlib,warnings,datetime,types,marshal
 import re
 import logging as log
-import urllib.request, urllib.parse, urllib.error,urllib.request,urllib.error,urllib.parse
+
+use_urllib2 = True
+try:
+    import urllib2, urllib
+except:
+    use_urllib2 = False
+    import urllib.request, urllib.parse, urllib.error,urllib.request,urllib.error,urllib.parse
+
 import icecube.realtime_tools.live
 import subprocess
 import sys
@@ -202,10 +209,15 @@ class ReportGenerator(object):
                      'stop': (Time(time_window[1],precision=0)
                               + TimeDelta(8*3600,format='sec')).iso}
         now = Time(datetime.datetime.now()+datetime.timedelta(hours=6),scale='utc',precision=0)
-        req_data = urllib.parse.urlencode(run_query).encode("utf-8")
-        req = urllib.request.Request(run_url)
-        with urllib.request.urlopen(req, data=req_data, timeout=500) as fi:
-            run_table = json.load(fi)
+        if use_urllib2:
+            run_table = json.loads(urllib2.urlopen(
+                urllib2.Request(run_url, urllib.urlencode(run_query)),
+                timeout=500).read())
+        else:
+            req_data = urllib.parse.urlencode(run_query).encode("utf-8")
+            req = urllib.request.Request(run_url)
+            with urllib.request.urlopen(req, data=req_data, timeout=500) as fi:
+                run_table = json.load(fi)
         #run_table= json.loads(
         #        urllib.request.urlopen(urllib.request.Request(
         #            run_url,urllib.parse.urlencode(run_query)),timeout=500).read())
