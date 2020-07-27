@@ -4,24 +4,51 @@
 The fast response analysis is a way of using established transient likelihood methods to quickly respond to astronomical events of interest in realtime. Specifically, the fast response analysis has been used to respond to blazar flares that are discussed on the Astronomer's Telegram, especially bright GRBs (such as GRB190114C), 
 
 ## Dependencies
-This code relies heavily on the `skylab` analysis software framework, as well as on many modules in the scientific python suite, including `numpy`, `scipy`, `healpy`, `astropy`, and many others. For convenience, a `requirements.txt` file is provided for each stable release. Right now, only python2 is supported (we hope to add python3 compatibility in the future). You may need to specify this when initializing a virtual environment.
+This code relies heavily on the `skylab` analysis software framework, as well as on many modules in the scientific python suite, including `numpy`, `scipy`, `healpy`, `astropy`, and many others. For convenience, a `requirements.txt` file is provided for each stable release. This release was written and tested with python3 (`py3-v4.1.0` on the cobalts). 
 
-In order to create a virtual environment to run this analysis, I recommend using `virtualenv`, which can be installed via `pip`:
+In order to grab events from the i3live database, you will also need a the `realtime` metaproject. The lines below walkthrough how to create a virtual environment with all of these dependencies, assuming the user is working on the IceCube filesystem. First, navigate to the location where you want to put icerec, and run
 
 ```console
-pip install --user virtualenv
+eval `/cvmfs/icecube.opensciencegrid.org/py3-v4.1.0/setup.sh`
+svn co http://code.icecube.wisc.edu/svn/meta-projects/combo/releases/V01-00-00/ src
+mkdir build 
+cd build
+cmake ../src
+make
 ```
 
-Then, create a virtual environment with the relevant packages by running
+After you have a version of icerec built, you will want to do a parasitic build of the realtime project, building off of this version of icerec. To do this, navigate to a new directory where you want your realtime project to live, and run
+
 ```console
-python -m virtualenv fra_env
+svn co http://code.icecube.wisc.edu/svn/meta-projects/realtime/trunk/ src
+mkdir build 
+cd build
+cmake ../src/ -DMETAPROJECT=/path/to/icerec/build/ -DCMAKE_INSTALL_PREFIX=combo-plus.${OS_ARCH}
+make
+```
+
+You can now load the realtime project with 
+```console
+/path/to/realtime/build/env-shell.sh
+```
+
+Once you are in your realtime project, you will need to install the relevant dependencies this project requires. We recommend making a virtual environment and installing the relevant dependencies by running the following lines
+
+```console
+python3 -m venv fra_env
 source fra_env/bin/activate
-pip install -r requirements.txt
+pip install -r /path/to/fast-response/requirements.txt
 ```
 
 This will create a virtual environment names `fra_env`, and the `source fra_env/bin/activate` line will activate the environment.
 
-In addition, some IceCube specific software is necessary. The analysis was developed with `icerec_v05_02`, and the only required tools from this meta-project that are needed for the analysis are `realtime_tools` (used [v19-02-00](http://code.icecube.wisc.edu/svn/projects/realtime_tools/releases/V19-02-00/)) and `realtime_gfu` (also [v19-02-00](http://code.icecube.wisc.edu/svn/projects/realtime_gfu/releases/V19-02-00/)).
+In the future, you will not need to jump through these hoops, and you can load the environment with these lines:
+
+```console
+eval `/cvmfs/icecube.opensciencegrid.org/py3-v4.1.0/setup.sh`
+/path/to/realtime/build/env-shell.sh
+source /path/to/fra_env/bin/activate
+```
 
 ## Tutorial
 In order to perform a short timescale followup using the realtime GFU stream, you need only know:
