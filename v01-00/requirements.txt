@@ -3,7 +3,6 @@ atomicwrites==1.4.0
 attrs==19.3.0
 backports.functools-lru-cache==1.6.1
 cycler==0.10.0
-decotools==0.0.1
 funcsigs==1.0.2
 healpy==1.13.0
 kiwisolver==1.1.0
@@ -22,6 +21,5 @@ pyzmq==19.0.1
 scipy==1.2.3
 seaborn==0.9.1
 six==1.14.0
-skylab==2.7.2
 subprocess32==3.5.4
 zmq==0.0.0
