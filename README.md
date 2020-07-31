@@ -8,6 +8,9 @@ This code relies heavily on the `skylab` analysis software framework, as well as
 
 In order to grab events from the i3live database, you will also need a the `realtime` metaproject. The lines below walkthrough how to create a virtual environment with all of these dependencies, assuming the user is working on the IceCube filesystem. First, navigate to the location where you want to put icerec, and run
 
+### Note on Python Versions
+The trunk (and any release including and after v02-00) use python3. v01-00 uses python2, and as such, if you would like to use that version, you may have to adjust the installation below to point to relevant python2 environments.
+
 ```console
 eval `/cvmfs/icecube.opensciencegrid.org/py3-v4.1.0/setup.sh`
 svn co http://code.icecube.wisc.edu/svn/meta-projects/combo/releases/V01-00-00/ src
