@@ -103,8 +103,8 @@ class Universe():
             diffs = np.abs(np.sin(map_decs)-np.sin(dec))
             if np.min(diffs) > 0.1:
                 idx = find_nearest_ind(map_decs, dec)
-                while idx == 19:
-                    idx = find_nearest_ind(map_decs, dec)
+                #while idx == 19:
+                #    idx = find_nearest_ind(map_decs, dec)
                 sample_dec = map_decs[idx]
             else:
                 nearby_inds = np.argwhere(diffs < 0.1).flatten()
