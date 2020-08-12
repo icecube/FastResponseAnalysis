@@ -27,7 +27,7 @@ ps_gold = []
 density = args.density
 evol = args.evol
 lumi = args.LF
-data_years = 2
+data_years = 8.7
 #only_gold = args.gold
 
 #uni = UniverseAnalysis(lumi, evol, density, 1.01e-8, 2.19, deltaT=2*86400., 
@@ -53,4 +53,6 @@ for jj in range(args.n - 1):
 #TS_gold = np.array(TS_gold)
 TS = np.array([TS, TS_gold, ps, ps_gold])
 lumi_str = '_manual_lumi_{:.1e}'.format(args.manual_lumi) if args.manual_lumi != 0.0 else ''
-np.save('/data/user/apizzuto/fast_response_skylab/alert_event_followup/ts_distributions/ts_dists_{}year_density_{:.2e}_evol_{}_lumi_{}{}_delta_t_{:.2e}.npy'.format(data_years, density, evol, lumi, lumi_str, args.delta_t), TS)
+
+print(TS)
+#np.save('/data/user/apizzuto/fast_response_skylab/alert_event_followup/ts_distributions/ts_dists_{}year_density_{:.2e}_evol_{}_lumi_{}{}_delta_t_{:.2e}.npy'.format(data_years, density, evol, lumi, lumi_str, args.delta_t), TS)
