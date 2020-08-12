@@ -103,13 +103,25 @@ class Universe():
             diffs = np.abs(np.sin(map_decs)-np.sin(dec))
             if np.min(diffs) > 0.1:
                 idx = find_nearest_ind(map_decs, dec)
-                #while idx == 19:
-                #    idx = find_nearest_ind(map_decs, dec)
+                # Some alerts happened during downtime (79, 228), some 
+                # are too large of maps (60)
+                if self.timescale == 1000.:
+                    problem_inds = [60, 79, 228]
+                else:
+                    problem_inds = [60]
+                while idx in problem_inds:
+                    idx = find_nearest_ind(map_decs, dec)
                 sample_dec = map_decs[idx]
             else:
                 nearby_inds = np.argwhere(diffs < 0.1).flatten()
                 idx = self.rng.choice(nearby_inds)
-                while idx == 19:
+                # Some alerts happened during downtime (79, 228), some 
+                # are too large of maps (60)
+                if self.timescale == 1000.:
+                    problem_inds = [60, 79, 228]
+                else:
+                    problem_inds = [60]
+                while idx in problem_inds:
                     idx = self.rng.choice(nearby_inds)
                 sample_dec = map_decs[idx]
             sample_decs.append(sample_dec)
