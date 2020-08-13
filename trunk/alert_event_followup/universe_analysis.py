@@ -56,6 +56,7 @@ class UniverseAnalysis():
         self.verbose = kwargs.pop('verbose', False)
         self.initialize_universe() 
 
+    #@profile
     def initialize_universe(self):
         if self.verbose:
             print("Simulating universe with specified cosmological parameters")
@@ -64,6 +65,7 @@ class UniverseAnalysis():
         self.universe.find_alert_skymaps()
         self.universe.additional_signal_events()
 
+    #@profile
     def make_alerts_dataframe(self):
         alerts = {'signalness': [], 'declination': [], 'background': [], 
           'skymap_ind': [], 'stream': [], 'skymap_dec': [],
@@ -92,6 +94,7 @@ class UniverseAnalysis():
         alerts = pd.DataFrame(alerts)
         self.alert_df = alerts
 
+    #@profile
     def reinitialize_universe(self):
         if self.verbose:
             print("Recreating universe for more trials, updating seed")
@@ -102,6 +105,7 @@ class UniverseAnalysis():
         self.universe.find_alert_skymaps()
         self.universe.additional_signal_events()
 
+    #@profile
     def calculate_ts(self, only_gold = False, calc_p=True):
         ts, sigs, ps = [], [], []
         self.alert_df['TS'] = [None] * len(self.alert_df['background'])
@@ -140,7 +144,8 @@ class UniverseAnalysis():
         TS = np.sum(sigs * ts) / sigs.size
         self.TS = TS
         return TS
-        
+
+    #@profile        
     def background_alert_trials(self, ind, calc_p=True):
         if self.transient:
             trials_file = glob(bg_trials + self.smear_str + 'index_{}_*_time_{:.1f}.pkl'.format(ind, self.deltaT))[0]
@@ -179,6 +184,7 @@ class UniverseAnalysis():
         else:
             return ts
 
+    #@profile
     def signal_alert_trials(self, ind, N, calc_p = True):
         if N == 0:
             ts = self.background_alert_trials(ind, calc_p = False)
@@ -215,6 +221,7 @@ class UniverseAnalysis():
         else:
             return ts
 
+    #@profile
     def calculate_trial_pvalue(self, ind, TS):
         if TS == 0:
             return 1.
@@ -239,6 +246,7 @@ class UniverseAnalysis():
             del trials
         return pval
 
+    #@profile
     def calculate_binomial_pvalue(self, only_gold=False):
         if self.TS is None:
             self.calculate_ts(only_gold = only_gold, calc_p=True) 

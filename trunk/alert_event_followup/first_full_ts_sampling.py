@@ -27,13 +27,15 @@ ps_gold = []
 density = args.density
 evol = args.evol
 lumi = args.LF
-data_years = 8.7
+data_years = 2.0 #8.7
 #only_gold = args.gold
 
 #uni = UniverseAnalysis(lumi, evol, density, 1.01e-8, 2.19, deltaT=2*86400., 
 #        data_years=2, manual_lumi=args.manual_lumi)
 uni = UniverseAnalysis(lumi, evol, density, 1.5e-8, 2.50, deltaT=args.delta_t, 
         data_years=data_years, manual_lumi=args.manual_lumi)
+#uni = UniverseAnalysis(lumi, evol, density, 0.9e-8, 2.13, deltaT=args.delta_t,
+#        data_years=data_years, manual_lumi=args.manual_lumi)
 uni.initialize_universe()
 uni.make_alerts_dataframe()
 TS.append(uni.calculate_ts())
@@ -42,6 +44,7 @@ ps.append(uni.calculate_binomial_pvalue(only_gold=False))
 ps_gold.append(uni.calculate_binomial_pvalue(only_gold=True))
 
 for jj in range(args.n - 1):
+    print(jj,)
     uni.reinitialize_universe()
     uni.make_alerts_dataframe()
     TS.append(uni.calculate_ts(only_gold = False))
