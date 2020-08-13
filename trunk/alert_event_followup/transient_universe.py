@@ -73,11 +73,24 @@ class Universe():
     def find_signal_alerts(self):
         r'''With distribution of sources, calculate where the alert events
         are coming from'''
+        #MAKE AN ARRAY OF LAM TO PASS TO RNG.POISSON
+        #SHOULD ELIMINATE NEED FOR A FOR LOOP HERE
         sig_alerts = {}
         for stream in ['GFU', 'HESE']:
             for cut, lev in [('gold', 'tight'), ('bronze', 'loose')]:
                 sig_alerts[stream + '_' + cut] = [(0,0.,0.)]*len(self.sources['dec'])
         #sig_alerts = [(0,0.,'','')]*len(self.sources['dec'])
+        #for stream in ['GFU', 'HESE']:
+        #    for cut, lev in [('gold', 'tight'), ('bronze', 'loose')]:
+        #        nexps = np.array(self.n_per_dec[stream + '_' + cut])[self.sources['dec_bands'].astype(int)] * self.sources['flux']
+        #        Ns = self.rng.poisson(lam=nexps)
+        #        sigs = [0 if n == 0 else sample_signalness(cut=lev, stream='signal', size=n) for n in Ns]
+        #        non_zero_inds = np.where(Ns != 0)[0]
+        #        print(len(non_zero_inds))
+        #        print(np.unique(Ns, return_counts=True))
+        #        for ind in non_zero_inds:
+        #            sig_alerts[stream + '_' + cut][ind] = (Ns[ind], sigs[ind], nexps[ind])
+        #CHECK TO MAKE SURE IT'S OKAY THAT I'M NOT INCLUDING THE EXPECTED NUMBER FROM THE ZERO ONES
         for jjj, (src_dec, src_flux, src_bnd) in enumerate(zip(self.sources['dec'], self.sources['flux'], self.sources['dec_bands'])):
             for stream in ['GFU', 'HESE']:
                 for cut, lev in [('gold', 'tight'), ('bronze', 'loose')]:
@@ -86,6 +99,9 @@ class Universe():
                     #if N != 0.0:
                     sigs = sample_signalness(cut=lev, stream='signal', size = N) if N != 0 else 0.
                     sig_alerts[stream + '_' + cut][jjj] = (N, sigs, nexp)
+        for stream in ['GFU', 'HESE']:
+            for cut, lev in [('gold', 'tight'), ('bronze', 'loose')]:
+                print np.sum(np.array(sig_alerts[stream + '_' + cut]), axis=0)
         self.sig_alerts = sig_alerts
         return sig_alerts
 
@@ -110,6 +126,7 @@ class Universe():
                 else:
                     problem_inds = [60]
                 while idx in problem_inds:
+                    print('hi')
                     idx = find_nearest_ind(map_decs, dec)
                 sample_dec = map_decs[idx]
             else:
