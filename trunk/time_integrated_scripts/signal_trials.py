@@ -65,13 +65,17 @@ ii = 1
 ninj = np.append(np.linspace(1, 10, 10), np.array([15, 20, 25, 30, 40, 50, 60, 70]))
 
 scale_arr = []
-for i in range(1,51):
+if gamma > 2.0:
+    step_size = 10
+else:
+    step_size = 3
+for i in range(1,int(20*step_size)+1, step_size):
     scale_arr.append([])
     for j in range(5):
         scale_arr[-1].append(inj.sample(i, poisson=False)[0][0])
 scale_arr = np.median(scale_arr, axis=1)
 try:
-    scale_factor = np.min(np.argwhere(scale_arr > 0)) + 1.
+    scale_factor = np.min(np.argwhere(scale_arr > 0))*step_size + 1.
 except:
     print("Scale factor thing for prior injector didn't work")
     scale_factor = 1.
