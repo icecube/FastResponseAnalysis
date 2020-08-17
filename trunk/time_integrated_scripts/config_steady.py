@@ -58,7 +58,8 @@ def config(alert_ind, seed = 1, scramble = True, e_range=(0,np.inf), g_range=[1.
     #skymap_fits = fits.open(files[alert_ind])[0].data
 
     #Turn this into a function read_alert_event()
-    skymap_files = glob('/data/ana/realtime/alert_catalog_v2/2yr_prelim/fits_files/Run13*.fits.gz')
+    #skymap_files = glob('/data/ana/realtime/alert_catalog_v2/2yr_prelim/fits_files/Run13*.fits.gz')
+    skymap_files = glob('/data/ana/realtime/alert_catalog_v2/fits_files/Run1*.fits.gz')
     #skymap_f = fits.open(skymap_files[alert_ind])
     #skymap_fits = skymap_f[1].data
     #skymap_header = skymap_f[1].header
