@@ -91,7 +91,7 @@ def config(alert_ind, seed = 1, scramble = True, e_range=(0,np.inf), g_range=[1.
     if hp.pixelfunc.get_nside(skymap_fits)!=nside:
         skymap_fits = hp.pixelfunc.ud_grade(skymap_fits,nside)
     skymap_fits = skymap_fits/skymap_fits.sum()
-    print(hp.pixelfunc.get_nside(skymap_fits))
+    #print(hp.pixelfunc.get_nside(skymap_fits))
     spatial_prior = SpatialPrior(skymap_fits, containment=0.99)
 
     llh = [] # store individual llh as lists to prevent pointer over-writing
