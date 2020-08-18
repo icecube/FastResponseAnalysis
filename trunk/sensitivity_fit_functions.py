@@ -208,3 +208,30 @@ def pvals_for_signal(index, delta_t, ns = 1, sigma_units = False, smear=True):
         return pvals
     else:
         return sp.stats.norm.ppf(1. - (pvals / 2.))
+
+def find_all_sens(delta_t, smear=True, with_disc=True, disc_conf=0.5, 
+                    disc_thresh=1.-0.0013, verbose=True):
+    num_alerts = 249
+    sensitivities = np.zeros(num_alerts)
+    if with_disc:
+        discoveries = np.zeros(num_alerts)
+    for ind in range(num_alerts):
+        if verbose:
+            print ind, 
+        try:
+            sens = n_to_flux(calc_sensitivity(ind, delta_t, smear=smear)['sens'], 
+                                ind, delta_t, smear=smear)
+            sensitivities[ind] = sens
+            if with_disc:
+                disc = n_to_flux(calc_sensitivity(ind, delta_t, threshold=disc_thresh, 
+                                    conf_lev=disc_conf, smear=smear)['sens'], ind, delta_t, smear=smear)
+                discoveries[ind] = disc
+            if sens*delta_t*1e6 < 1e-1:
+                if verbose:
+                    print("Problem calculating sensitivity for alert index {}".format(ind))
+        except (IOError, ValueError, IndexError) as err:
+            print(err)
+    if with_disc:
+        return sensitivities, discoveries
+    else:
+        return sensitivities
