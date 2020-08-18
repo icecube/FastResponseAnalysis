@@ -235,3 +235,46 @@ def find_all_sens(delta_t, smear=True, with_disc=True, disc_conf=0.5,
         return sensitivities, discoveries
     else:
         return sensitivities
+
+#HERE AND BELOW ARE STILL THE STEADY COPIES, NEED TO CHANGE TO TRANSIENT
+def fits_contours(ind, gamma=2.0, ns=True, levs = [5., 25., 50., 75., 95.]):
+    sig_trials = load_sig(ind, gamma=gamma)
+    key = 'nsignal' if ns else 'gamma'
+    msks = [sig_trials['inj_nsignal'] == ni for ni in np.linspace(1., 60., 60)]
+    ninjs = []; conf_levs = []
+    for ii, msk in enumerate(msks):
+        if np.count_nonzero(msk) < 15:
+            continue
+        else:
+            if not ns:
+                msk *= sig_trials['nsignal'] != 0.
+            ninjs.append(ii)
+            conf_levs.append(np.percentile(sig_trials[key][msk], levs))
+    return ninjs, np.array(conf_levs).T
+
+def fits_contours_plot(index, delta_t, gamma=2.0, ns=True, show=False, col='navy green',
+                      custom_label = 'Median', ax=None):
+    if ax is None:
+        fig, ax = plt.subplots()
+    ninj, fits = fits_contours(ind, ns = ns, gamma=gamma)
+    ax.plot(ninj, fits[2], label = custom_label, color = sns.xkcd_rgb[col])
+    if ns:
+        ax.fill_between(ninj, fits[0], fits[-1], alpha=0.3,
+                         label='Central 90\%', color = sns.xkcd_rgb[col], lw=0)
+    ax.fill_between(ninj, fits[1], fits[-2], alpha=0.5,
+                     label='Central 50\%' if ns else None,
+                     color = sns.xkcd_rgb[col], lw=0)
+    expectation = ninj if ns else [gamma]*len(ninj)
+    exp_col = 'dark grey' if ns else col
+    ax.plot(ninj, expectation, ls = '--', color = sns.xkcd_rgb[exp_col])
+    ax.legend(loc=4 if ns else 2)
+    ax.set_xlabel(r'$n_{\mathrm{inj}}$')
+    ax.set_xlim(0., 60)
+    if ns:
+        ax.set_ylim(0., 80)
+        ax.set_ylabel(r'$\hat{n}_{s}$')
+    else:
+        ax.set_ylim(1.5, 4.5)
+        ax.set_ylabel(r'$\hat{\gamma}$')
+    if show:
+        plt.show()
