@@ -8,8 +8,8 @@ from glob import glob
 import matplotlib as mpl
 #mpl.use('Agg')
 import matplotlib.pyplot as plt
+import seaborn as sns
  
-
 palette = ['#7fc97f', '#beaed4', '#fdc086', '#ffff99', '#386cb0', '#f0027f']
 
 def erfunc(x, a, b):
@@ -249,7 +249,8 @@ def ns_fits_contours(index, delta_t, smear=True, levs = [5., 25., 50., 75., 95.]
     return ninjs, contours.T
 
 def ns_fits_contours_plot(index, delta_t, smear=True, levs=[5., 25., 50., 75., 95.],
-                      show=False, col='navy green', custom_label = 'Median', ax=None):
+                      show=False, col='navy green', custom_label = 'Median', ax=None,
+                      xlabel=True, ylabel=True, legend=True):
     if ax is None:
         fig, ax = plt.subplots()
     ninj, fits = ns_fits_contours(index, delta_t, smear=smear, levs=levs)
@@ -257,15 +258,17 @@ def ns_fits_contours_plot(index, delta_t, smear=True, levs=[5., 25., 50., 75., 9
     ax.fill_between(ninj, fits[0], fits[-1], alpha=0.3,
                     label='Central 90\%', color = sns.xkcd_rgb[col], lw=0)
     ax.fill_between(ninj, fits[1], fits[-2], alpha=0.5,
-                    label='Central 50\%' if ns else None,
-                    color = sns.xkcd_rgb[col], lw=0)
+                    label='Central 50\%', color = sns.xkcd_rgb[col], lw=0)
     expectation = ninj
     exp_col = 'dark grey'
     ax.plot(ninj, expectation, ls = '--', color = sns.xkcd_rgb[exp_col])
-    ax.legend(loc=4 if ns else 2)
-    ax.set_xlabel(r'$n_{\mathrm{inj}}$')
+    if legend:
+        ax.legend(loc=4)
+    if xlabel:
+        ax.set_xlabel(r'$n_{\mathrm{inj}}$')
     ax.set_xlim(0., max(ninj))
     ax.set_ylim(0., 80)
-    ax.set_ylabel(r'$\hat{n}_{s}$')
+    if ylabel:
+        ax.set_ylabel(r'$\hat{n}_{s}$')
     if show:
         plt.show()
