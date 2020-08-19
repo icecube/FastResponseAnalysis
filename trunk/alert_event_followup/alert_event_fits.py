@@ -40,7 +40,7 @@ event_id = skymap_header['EVENTID']
 
 gammas = [2.5] #np.linspace(2., 3., 3)
 nsigs = [1., 2., 3., 4., 5, 6., 7., 8., 9., 10., 15., 20., 25., 30., 35., 40.]
-deltaT = args.deltaT / 86400.
+deltaT = args.deltaT / 86400. 
 
 #skymap_fits = fits.open(files[args.index])[0]
 #event_mjd = skymap_fits.header['TIME_MJD']
@@ -73,13 +73,14 @@ for gamma in gammas:
                 alert_event=True, smear=args.smear)
     inj = f.initialize_injector(gamma=gamma)
     scale_arr = []
-    for i in range(1,21):
+    step_size = 10
+    for i in range(1,20*step_size + 1, step_size):
         scale_arr.append([])
         for j in range(5):
             scale_arr[-1].append(inj.sample(i, poisson=False)[0][0])
     scale_arr = np.median(scale_arr, axis=1)
     try:
-        scale_factor = np.min(np.argwhere(scale_arr > 0)) + 1.
+        scale_factor = np.min(np.argwhere(scale_arr > 0))*step_size + 1.
     except:
         print("Scale factor thing for prior injector didn't work")
         scale_factor = 1.
