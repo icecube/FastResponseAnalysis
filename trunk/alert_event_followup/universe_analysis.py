@@ -22,7 +22,7 @@ def find_nearest(array, value):
     return array[idx]
 
 def find_nearest_ind(array, value):
-    array = np.asarray(array)
+    array = np.asarray(array) 
     idx = (np.abs(array - value)).argmin()
     return idx
 

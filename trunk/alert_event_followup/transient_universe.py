@@ -23,7 +23,7 @@ class Universe():
         signal_alerts = self.find_signal_alerts()
         background_alerts = self.find_background_alerts()
         alerts = {'signal': signal_alerts,
-                    'background': background_alerts}
+                    'background': background_alerts} 
         self.alerts = alerts
 
     def universe_firesong(self):
@@ -80,28 +80,33 @@ class Universe():
             for cut, lev in [('gold', 'tight'), ('bronze', 'loose')]:
                 sig_alerts[stream + '_' + cut] = [(0,0.,0.)]*len(self.sources['dec'])
         #sig_alerts = [(0,0.,'','')]*len(self.sources['dec'])
-        #for stream in ['GFU', 'HESE']:
-        #    for cut, lev in [('gold', 'tight'), ('bronze', 'loose')]:
-        #        nexps = np.array(self.n_per_dec[stream + '_' + cut])[self.sources['dec_bands'].astype(int)] * self.sources['flux']
-        #        Ns = self.rng.poisson(lam=nexps)
-        #        sigs = [0 if n == 0 else sample_signalness(cut=lev, stream='signal', size=n) for n in Ns]
-        #        non_zero_inds = np.where(Ns != 0)[0]
-        #        print(len(non_zero_inds))
-        #        print(np.unique(Ns, return_counts=True))
-        #        for ind in non_zero_inds:
-        #            sig_alerts[stream + '_' + cut][ind] = (Ns[ind], sigs[ind], nexps[ind])
-        #CHECK TO MAKE SURE IT'S OKAY THAT I'M NOT INCLUDING THE EXPECTED NUMBER FROM THE ZERO ONES
-        for jjj, (src_dec, src_flux, src_bnd) in enumerate(zip(self.sources['dec'], self.sources['flux'], self.sources['dec_bands'])):
-            for stream in ['GFU', 'HESE']:
-                for cut, lev in [('gold', 'tight'), ('bronze', 'loose')]:
-                    nexp = self.n_per_dec[stream + '_' + cut][int(src_bnd)] * src_flux
-                    N = self.rng.poisson(lam=nexp)
-                    #if N != 0.0:
-                    sigs = sample_signalness(cut=lev, stream='signal', size = N) if N != 0 else 0.
-                    sig_alerts[stream + '_' + cut][jjj] = (N, sigs, nexp)
         for stream in ['GFU', 'HESE']:
-            for cut, lev in [('gold', 'tight'), ('bronze', 'loose')]:
-                print np.sum(np.array(sig_alerts[stream + '_' + cut]), axis=0)
+           for cut, lev in [('gold', 'tight'), ('bronze', 'loose')]:
+               nexps = np.array(self.n_per_dec[stream + '_' + cut])[self.sources['dec_bands'].astype(int)] * self.sources['flux']
+               Ns = self.rng.poisson(lam=nexps)
+               sigs = [0 if n == 0 else sample_signalness(cut=lev, stream='signal', size=n) for n in Ns]
+               non_zero_inds = np.where(Ns != 0)[0]
+               for ind in non_zero_inds:
+                   sig_alerts[stream + '_' + cut][ind] = (Ns[ind], sigs[ind], nexps[ind])
+        # print(sig_alerts)
+        # sig_alerts = {}
+        # for stream in ['GFU', 'HESE']:
+        #     for cut, lev in [('gold', 'tight'), ('bronze', 'loose')]:
+        #         sig_alerts[stream + '_' + cut] = [(0,0.,0.)]*len(self.sources['dec'])
+        # # CHECK TO MAKE SURE IT'S OKAY THAT I'M NOT INCLUDING THE EXPECTED NUMBER FROM THE ZERO ONES
+        # for jjj, (src_dec, src_flux, src_bnd) in enumerate(zip(self.sources['dec'], self.sources['flux'], self.sources['dec_bands'])):
+        #     for stream in ['GFU', 'HESE']:
+        #         for cut, lev in [('gold', 'tight'), ('bronze', 'loose')]:
+        #             nexp = self.n_per_dec[stream + '_' + cut][int(src_bnd)] * src_flux
+        #             N = self.rng.poisson(lam=nexp)
+        #             #if N != 0.0:
+        #             sigs = sample_signalness(cut=lev, stream='signal', size = N) if N != 0 else 0.
+        #             sig_alerts[stream + '_' + cut][jjj] = (N, sigs, nexp)
+        # for stream in ['GFU', 'HESE']:
+        #   for cut, lev in [('gold', 'tight'), ('bronze', 'loose')]:
+        #       print np.sum(np.array(sig_alerts[stream + '_' + cut]).T[0]), np.sum(np.array(sig_alerts[stream + '_' + cut]).T[-1])
+        # print('')
+        # print(sig_alerts)
         self.sig_alerts = sig_alerts
         return sig_alerts
 
@@ -126,7 +131,6 @@ class Universe():
                 else:
                     problem_inds = [60]
                 while idx in problem_inds:
-                    print('hi')
                     idx = find_nearest_ind(map_decs, dec)
                 sample_dec = map_decs[idx]
             else:
@@ -232,6 +236,7 @@ class SteadyUniverse(Universe):
         self.uni_header = uni['header']
         self.sim_flux = tmp_tot
         self.dec_band_from_decs()
+        
 
     def additional_signal_events(self):
         r'''After finding signal events, calculate any events that could
@@ -317,7 +322,6 @@ class TransientUniverse(Universe):
         self.uni_header = uni['header']
         self.sim_flux = tmp_tot
         self.dec_band_from_decs()
-
 
 
 def load_sig(cut = 'tight', stream = 'astro_numu'):
