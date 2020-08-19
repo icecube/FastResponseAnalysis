@@ -19,8 +19,6 @@ parser.add_argument('--index', type=int,default=None,
                     help='skymap index')
 parser.add_argument('--deltaT', type=float, default=None,
                     help='Time Window in seconds')
-parser.add_argument('--ntrials', type=int, default = 10000,
-                        help='Trials')
 parser.add_argument('--smear', default=False, action='store_true',
                     help='Include systematics by smearing norm. prob.')
 args = parser.parse_args()
@@ -34,7 +32,7 @@ skymap_header = {name: val for name, val in skymap_header}
 ev_mjd = skymap_header['EVENTMJD']
 ev_run, ev_id = skymap_header['RUNID'], skymap_header['EVENTID']
 source = {"Skipped Events": [(ev_run, ev_id)]}
-source['Name'] = "RUN {} EVENT {}".format(str(skymap_header['RUNID']), str(skymap_header['EVENTID']))
+source['Name'] = "RUN {} EVENT {} time window {:.2e}".format(str(skymap_header['RUNID']), str(skymap_header['EVENTID']), args.deltaT)
 
 deltaT = args.deltaT / 86400.
 event_mjd = ev_mjd
