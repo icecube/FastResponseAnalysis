@@ -760,7 +760,8 @@ class FastResponseAnalysis(object):
             results[key] = val
         for key, val in [('ts', self.ts), ('p', self.p), ('sigma', self.sigma), ('ns', self.ns),
                         ('tsd', self.tsd), ('extension', self.extension), 
-                        ('skymap', self.skymap), ('ra', self.ra), ('dec', self.dec),
+                        #('skymap', self.skymap), 
+                        ('ra', self.ra), ('dec', self.dec),
                         ('coincident_events', self.coincident_events), ('skipped', self.skipped_event), 
                         ('upper_limit', self.upperlimit), ('upper_limit_ninj', self.upperlimit_ninj),
                         ('ns_profile', self.ns_profile), ('low_en', self.low5), ('high_en', self.high5),
