@@ -272,3 +272,26 @@ def ns_fits_contours_plot(index, delta_t, smear=True, levs=[5., 25., 50., 75., 9
         ax.set_ylabel(r'$\hat{n}_{s}$')
     if show:
         plt.show()
+
+def fitting_bias_summary(delta_t, sigs=[2., 5., 10.], smear=True, containment=50.):
+    bias = {sig: [] for sig in sigs}; spread = {sig: [] for sig in sigs};
+    levs = [50.-containment / 2., 50., 50.+containment / 2.]
+    for ind in range(249):
+        try:
+            ninjs, contours = ns_fits_contours(ind, delta_t, smear=smear, levs=levs)
+        except:
+            for sig in sigs:
+                bias[sig].append(0.0)
+                spread[sig].append(0.0)
+            continue
+        for sig in sigs:
+            try:
+                n_ind = np.argwhere(ninjs == sig)[0][0]
+                bias[sig].append(contours[1][n_ind])
+                spread[sig].append(contours[-1][n_ind] - contours[0][n_ind])
+            except:
+                bias[sig].append(0.0)
+                spread[sig].append(0.0)
+    return bias, spread
+
+
