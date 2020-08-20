@@ -6,22 +6,17 @@
 '''
 
 import gcn
-import healpy as hp
-import numpy as np
-import os, subprocess
-import lxml.etree
-
 @gcn.handlers.include_notice_types(
-    gcn.notice_types.ICECUBE_ASTROTRACK_GOLD,
-    gcn.notice_types.ICECUBE_ASTROTRACK_BRONZE,
-    gcn.notice_types.ICECUBE_CASCADE)
+        gcn.notice_types.ICECUBE_ASTROTRACK_GOLD,
+        gcn.notice_types.ICECUBE_ASTROTRACK_BRONZE,
+        gcn.notice_types.ICECUBE_CASCADE)
 
 def process_gcn(payload, root):
     analysis_path = os.environ.get('FAST_RESPONSE_SCRIPTS')
     if analysis_path is None:
         print('###########################################################################')
         print('CANNOT FIND ENVIRONMENT VARIABLE POINTING TO REALTIME FAST RESPONSE PACKAGE\n')
-        print('put \'export /path/to/realtime_gw/release\' in your bashrc')
+        print('put \'export FAST_RESPONSE_SCRIPTS=/path/to/fra\' in your bashrc')
         print('###########################################################################')
         exit()
 
@@ -30,31 +25,56 @@ def process_gcn(payload, root):
               elem.attrib['value']
               for elem in root.iterfind('.//Param')}
 
-
     stream = params['Stream']
+    if stream == '26':
+        print("Detected cascade type alert, running cascade followup. . . ")
+        alert_type='cascade'
+        skymap = params['skymap_fits']
+    else:
+        print("Found track type alert, running track followup. . . ")
+        alert_type='track'
+        print("CANNOT RUN AUTOMATED TRACK FOLLOWUP WITHOUT KNOWN SKYMAP LOCATION")
+
     event_id = params['event_id']
     run_id = params['run_id']
-    pos2d = root.find('.//{*}Position2D')
-    ra = float(pos2d.find('.//{*}C1').text)
-    dec = float(pos2d.find('.//{*}C2').text)
-    sigma = float(params['src_error_90']) / 2.14
     eventtime = root.find('.//ISOTime').text
-    event_mjd = Time(eventtime, format='iso').mjd
+    event_mjd = Time(eventtime, format='isot').mjd
 
-    if 'casc' in stream.lower():
-        skymap = params['skymap_fits']
-        #BLA subprocess run the cascade one
+    if alert_type == 'cascade':
+        command = analysis_path + 'run_cascade_followup.py'
     else:
-        pass
-    #command = analysis_path + '/run_gw_followup.py'
-    #args = ['--skymap', '--trigger','--name','--role']
-    #subprocess.call([command,args[0],skymap,args[1],trigger,args[2],name,args[3],root.attrib['role']])
+        command = analysis_path + 'run_track_followup.py'
 
+    print(['python', command, '--skymap={}'.format(skymap), '--time={}'.format(str(event_mjd)),
+                    '--alert_id={}'.format(run_id+':'+event_id)])    
+    subprocess.call([command, '--skymap={}'.format(skymap), '--time={}'.format(str(event_mjd)), 
+                    '--alert_id={}'.format(run_id+':'+event_id)])
 
-print('Listening for GCNs...')
-#gcn.listen(handler=process_gcn)
+if __name__ == '__main__':
+    import os, subprocess
+    import healpy as hp
+    import numpy as np
+    import lxml.etree
+    import argparse
+    from astropy.time import Time
 
-### FOR OFFLINE TESTING
-payload = open('/data/user/apizzuto/fast_response_skylab/fast-response/trunk/alert_event_followup/sample_astrotack_alert.xml', 'rb').read()
-root = lxml.etree.fromstring(payload)
-process_gcn(payload, root)
+    parser = argparse.ArgumentParser(description='Fast Response Analysis')
+    parser.add_argument('--run_live', action='store_true', default=False,
+                        help='Run on live GCNs')
+    parser.add_argument('--test_cascade', default=False, action='store_true',
+                        help='When testing, raise to run a cascade, else track')
+    args = parser.parse_args()
+
+    if args.run_live:
+        print("Listening for GCNs . . . ")
+        gcn.listen(handler=process_gcn)
+    elif not args.test_cascade:
+        print("Running on sample track . . . ")
+        payload = open('/data/user/apizzuto/fast_response_skylab/fast-response/trunk/alert_event_followup/sample_astrotrack_alert.xml', 'rb').read()
+        root = lxml.etree.fromstring(payload)
+        process_gcn(payload, root)
+    else:
+        print("Running on sample cascade . . . ")
+        payload = open('/data/user/apizzuto/fast_response_skylab/fast-response/trunk/sample_cascade.txt', 'rb').read()
+        root = lxml.etree.fromstring(payload)
+        process_gcn(payload, root)
