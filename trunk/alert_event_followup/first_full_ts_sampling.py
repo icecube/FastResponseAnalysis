@@ -27,7 +27,7 @@ ps_gold = []
 density = args.density
 evol = args.evol
 lumi = args.LF 
-data_years = 1.0 #8.7
+data_years = 8.6
 #only_gold = args.gold
 
 #uni = UniverseAnalysis(lumi, evol, density, 1.01e-8, 2.19, deltaT=2*86400., 
