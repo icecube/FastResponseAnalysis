@@ -25,6 +25,11 @@ parser.add_argument('--time', type=float, default=None,
                     help='Time of the alert event (mjd)')
 parser.add_argument('--document', default=False, action='store_true')
 parser.add_argument('--gcn_notice_num', default=0, type=int)
+parser.add_argument('--alert_id', default=None,
+                    type= lambda z:[ tuple(int(y) for y in x.split(':')) for x in z.split(',')],
+                    help="list of events to exclude from this analysis. "
+                    "such as HESE events that contributed to the trigger."
+                    "Example --alert_id  127853:67093193,128290:6888376")
 args = parser.parse_args()
 
 track_time = Time(args.time, format='mjd')
@@ -46,6 +51,8 @@ for delta_t in [1000., 2.*86400.]:
     source['alert_event'] = True
     source['smear'] = True
     source['alert_type'] = 'track'
+    source['Skipped Events'] = args.alert_id
+
     f = FastResponseAnalysis(args.skymap, start, stop, **source)
     f.unblind_TS()
     f.plot_ontime()
