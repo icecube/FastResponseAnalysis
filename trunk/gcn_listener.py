@@ -39,14 +39,22 @@ def process_gcn(payload, root):
     run_id = params['run_id']
     eventtime = root.find('.//ISOTime').text
     event_mjd = Time(eventtime, format='isot').mjd
+    event_mjd = Time('2020-08-19 19:50:00.0', format='iso').mjd
 
     if alert_type == 'cascade':
         command = analysis_path + 'run_cascade_followup.py'
     else:
         command = analysis_path + 'run_track_followup.py'
 
-    print(['python', command, '--skymap={}'.format(skymap), '--time={}'.format(str(event_mjd)),
-                    '--alert_id={}'.format(run_id+':'+event_id)])    
+    current_mjd = Time(datetime.utcnow(), scale='utc').mjd
+    needed_delay = 1.
+    current_delay = current_mjd - event_mjd
+    while current_delay < needed_delay:
+        print("Need to wait another {:.1f} seconds before running".format((needed_delay - current_delay)*86400.))
+        time.sleep((needed_delay - current_delay)*86400.)
+        current_mjd = Time(datetime.utcnow(), scale='utc').mjd
+        current_delay = current_mjd - event_mjd
+
     subprocess.call([command, '--skymap={}'.format(skymap), '--time={}'.format(str(event_mjd)), 
                     '--alert_id={}'.format(run_id+':'+event_id)])
 
@@ -57,6 +65,8 @@ if __name__ == '__main__':
     import lxml.etree
     import argparse
     from astropy.time import Time
+    from datetime import datetime
+    import time
 
     parser = argparse.ArgumentParser(description='Fast Response Analysis')
     parser.add_argument('--run_live', action='store_true', default=False,
