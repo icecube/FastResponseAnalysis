@@ -102,7 +102,7 @@ class FastResponseAnalysis(object):
                 location = location.strip('() ')
                 self.skymap_url = location
                 self.smear = kwargs.pop("smear", False)
-                elif self.alert_event and self.alert_type == 'track':
+                if (self.alert_event) and (self.alert_type == 'track'):
                     skymap_fits, skymap_header = hp.read_map(location, h=True, verbose=False)
                     skymap_llh = skymap_fits.copy()
                     skymap_fits = np.exp(-1. * skymap_fits / 2.) #Convert from 2LLH to unnormalized probability
@@ -806,10 +806,10 @@ class FastResponseAnalysis(object):
         r'''For alert events, make a sensitivity plot highlighting
         the region where the contour lives'''
         fig, ax = plt.subplots()
-        with open('/data/user/apizzuto/fast_response_skylab/dump/ideal_ps_sensitivity_deltaT_{:.2e}_50CL.pkl'.format(self.duration), 'r') as f:
-            ideal = pickle.load(f)
+        with open('/data/user/apizzuto/fast_response_skylab/dump/ideal_ps_sensitivity_deltaT_{:.2e}_50CL.pkl'.format(self.duration), 'rb') as f:
+            ideal = pickle.load(f, encoding='bytes')
         delta_t = self.duration * 86400.
-        plt.plot(ideal['sinDec'], np.array(ideal['sensitivity'])*delta_t*1e6, lw=3, ls='-', 
+        plt.plot(ideal[b'sinDec'], np.array(ideal[b'sensitivity'])*delta_t*1e6, lw=3, ls='-', 
                  color=sns.xkcd_rgb['dark navy blue'], label = 'P.S. sensitivity', alpha=0.7)
         #FILL BETWEEN RANGE
         src_theta, src_phi = hp.pix2ang(self.nside, self.ipix_90)
@@ -923,7 +923,8 @@ class FastResponseAnalysis(object):
             else:
                 skymap = self.skymap
                 max_val = max(skymap)
-        hp.mollview(skymap,coord='C',cmap=cmap)
+        moll_cbar = True if self.skymap is not None else None
+        hp.mollview(skymap,coord='C',cmap=cmap, cbar=moll_cbar)
         hp.graticule(verbose=False)
 
         theta=np.pi/2 - events['dec']
@@ -1105,14 +1106,14 @@ class FastResponseAnalysis(object):
         r'''Compute the minimum and maximum sensitivities
         within the 90% contour of the skymap'''
         if self.alert_event:
-            with open('/data/user/apizzuto/fast_response_skylab/dump/ideal_ps_sensitivity_deltaT_{:.2e}_50CL.pkl'.format(self.duration), 'r') as f:
-                ideal = pickle.load(f)
+            with open('/data/user/apizzuto/fast_response_skylab/dump/ideal_ps_sensitivity_deltaT_{:.2e}_50CL.pkl'.format(self.duration), 'rb') as f:
+                ideal = pickle.load(f, encoding='bytes')
             delta_t = self.duration * 86400.
             src_theta, src_phi = hp.pix2ang(self.nside, self.ipix_90)
             src_dec = np.pi/2. - src_theta
             src_dec = np.unique(src_dec)
             src_dec = np.sin(src_dec)
-            sens = np.interp(src_dec, ideal['sinDec'], np.array(ideal['sensitivity'])*delta_t*1e6)
+            sens = np.interp(src_dec, ideal[b'sinDec'], np.array(ideal[b'sensitivity'])*delta_t*1e6)
             low = sens.min(); high=sens.max()
             return low, high
         else:
