@@ -33,6 +33,7 @@ ev_mjd = skymap_header['EVENTMJD']
 ev_run, ev_id = skymap_header['RUNID'], skymap_header['EVENTID']
 source = {"Skipped Events": [(ev_run, ev_id)]}
 source['Name'] = "RUN {} EVENT {} time window {:.2e}".format(str(skymap_header['RUNID']), str(skymap_header['EVENTID']), args.deltaT)
+source['alert_type'] = 'track'
 
 deltaT = args.deltaT / 86400.
 event_mjd = ev_mjd

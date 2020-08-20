@@ -70,7 +70,7 @@ seed_counter = 0
 
 for gamma in gammas:
     f = FastResponseAnalysis(skymap_files[args.index], start, stop, save=False, 
-                alert_event=True, smear=args.smear)
+                alert_event=True, smear=args.smear, alert_type='track')
     inj = f.initialize_injector(gamma=gamma)
     scale_arr = []
     step_size = 10
