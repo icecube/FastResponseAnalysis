@@ -80,7 +80,10 @@ class FastResponseAnalysis(object):
 
         '''
         self.name = kwargs.pop("Name", "FastResponseAnalysis")
-        
+        self.alert_event = kwargs.pop('alert_event', False)        
+        if self.alert_event:
+            self.alert_type = kwargs.pop('alert_type', 'track')
+
         if location.strip('() ').find(' ') > -1:        
             #Point source passed with ra, dec
             location = location.strip('() ').split(' ')
@@ -99,9 +102,7 @@ class FastResponseAnalysis(object):
                 location = location.strip('() ')
                 self.skymap_url = location
                 self.smear = kwargs.pop("smear", False)
-                if "steinrob" in location:
-                    self.skymap = fits.open(location)[0].data
-                elif 'data/ana/' in location:
+                elif self.alert_event and self.alert_type == 'track':
                     skymap_fits, skymap_header = hp.read_map(location, h=True, verbose=False)
                     skymap_llh = skymap_fits.copy()
                     skymap_fits = np.exp(-1. * skymap_fits / 2.) #Convert from 2LLH to unnormalized probability
@@ -149,7 +150,6 @@ class FastResponseAnalysis(object):
         self.duration = stop - start
         self.centertime = (start + stop) / 2.
         self.trigger = kwargs.pop("trigger", self.centertime)
-        self.alert_event = kwargs.pop('alert_event', False)
         self.floor = kwargs.pop('floor', np.radians(0.2))
 
         dirname = kwargs.pop("output_dir", os.environ.get('FAST_RESPONSE_OUTPUT'))
@@ -526,18 +526,10 @@ class FastResponseAnalysis(object):
                 test-statistic distribution with weighting 
                 from alert event spatial prior
         '''
-        #Check the month and load the correct precomputed background trials
-        #month = datetime.datetime.utcnow().month
 
         current_rate = self.llh.nbackground / (self.duration * 86400.) * 1000.
         closest_rate = find_nearest(np.linspace(6.2, 7.2, 6), current_rate)
         pre_ts_array = sparse.load_npz('/data/user/apizzuto/fast_response_skylab/fast-response/trunk/precomputed_background/glob_trials/precomputed_trials_delta_t_{:.2e}_trials_rate_{:.1f}_low_stats.npz'.format(self.duration * 86400., closest_rate, self.duration * 86400.))
-        #pre_ts_array = np.load('/data/user/apizzuto/fast_response_skylab/fast-response/trunk/precomputed_background/glob_trials/precomputed_trials_delta_t_{:.2e}_trials_rate_{:.1f}_low_stats.npz'.format(self.duration * 86400., closest_rate, self.duration * 86400.), 
-        #                                allow_pickle=True)
-        # Create spatial prior weighting
-
-        #VECTORIZED PART MAY NOT WORK BECAUSE PRE_TS_ARRAY IS NOT RECTANGULAR
-        #SEE HOW LIZ SAVE'S HERS, USE THAT TO SAVE THE SCANS I RAN
         ts_norm = np.log(np.amax(self.skymap))
         ts_prior = pre_ts_array.copy()
         ts_prior.data += 2.*(np.log(self.skymap[pre_ts_array.indices]) - ts_norm)
@@ -546,24 +538,6 @@ class FastResponseAnalysis(object):
         tsd = ts_prior.max(axis=1).A
         tsd = np.array(tsd)
         return tsd
-
-        # max_ts = []
-        # for i in range(self.pre_ts_array.size):
-        #     # If a particular scramble in the pre-computed ts_array is empty,
-        #     #that means that sky scan had no events in the sky, so max_ts=0
-        #     if self.pre_ts_array[i]['ts'].size==0:
-        #         max_ts.append(0.)
-        #     else:
-        #         theta, ra = hp.pix2ang(self.nside, self.pre_ts_array[i]['pixel'])
-        #         dec = np.pi/2. - theta
-        #         interp = hp.get_interp_val(self.skymap, theta, ra)
-        #         interp[interp<0] = 0.
-        #         ts_prior = self.pre_ts_array[i]['ts'] + 2*(np.log(interp) - ts_norm)
-        #         max_ts.append(ts_prior.max())
-
-        # tsd = np.array(max_ts)
-        # tsd = np.where(tsd > 0., tsd, 0.0)
-        # return tsd
 
     def significance(self):
         r'''Given p value, report significance
@@ -784,8 +758,6 @@ class FastResponseAnalysis(object):
     def generate_report(self):
         r'''Generates report using class attributes
         and the ReportGenerator Class'''
-        #report = ReportGenerator(self.name, self.trigger, self.start, self.stop,
-        #                            self.ts, self.ns, self.source_type, self.analysisid, **vars(self))
 
         report_kwargs = vars(self).copy()
         print("\nGenerating PDF Report")
@@ -863,10 +835,8 @@ class FastResponseAnalysis(object):
         '''
         events = self.llh.exp
         events = events[(events['time'] < self.stop) & (events['time'] > self.start)]
-        #print(np.count_nonzero(events['sigma'] * 180. / np.pi < 0.2))
 
         col_num = 5000
-        #seq_palette = sns.color_palette("Spectral", col_num)
         seq_palette = sns.diverging_palette(255, 133, l=60, n=col_num, center="dark")
         lscmap = mpl.colors.ListedColormap(seq_palette)
 
@@ -931,7 +901,6 @@ class FastResponseAnalysis(object):
         events = events[(events['time'] < self.stop) & (events['time'] > self.start)]
 
         col_num = 5000
-        #seq_palette = sns.color_palette("Spectral", col_num)
         seq_palette = sns.diverging_palette(255, 133, l=60, n=col_num, center="dark")
         lscmap = mpl.colors.ListedColormap(seq_palette)
 
@@ -1135,7 +1104,6 @@ class FastResponseAnalysis(object):
     def ps_sens_range(self):
         r'''Compute the minimum and maximum sensitivities
         within the 90% contour of the skymap'''
-        #IMPLEMENT THIS, BORROWING FROM RAAMIS CODE
         if self.alert_event:
             with open('/data/user/apizzuto/fast_response_skylab/dump/ideal_ps_sensitivity_deltaT_{:.2e}_50CL.pkl'.format(self.duration), 'r') as f:
                 ideal = pickle.load(f)
