@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 r'''Script to run track followup in response to 
 high-energy neutrino alert events
 

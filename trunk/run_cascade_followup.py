@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 r'''Script to run followup to 
 a realtime cascade alert
 
