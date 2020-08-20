@@ -1,7 +1,5 @@
-r'''Script to rerun all archival analyses
-with the new Fast Response Analysis Framework.
-Relies on having a dataframe with the analysis 
-information
+r'''Script to run followup to 
+a realtime cascade alert
 
 Author: Alex Pizzuto
 May 2020'''
@@ -46,7 +44,9 @@ for delta_t in [1000., 2.*86400.]:
     source = {}
     source['Name'] = name.replace('_', ' ')
     source['alert_event'] = True
-    source['smear'] = False
+    source['smear'] = False #CASCADES ARE ALREADY SENT AS PDFS NOT LLH
+    source['alert_type'] = 'cascade'
+
     f = FastResponseAnalysis(args.skymap, start, stop, **source)
     f.unblind_TS()
     f.plot_ontime()
