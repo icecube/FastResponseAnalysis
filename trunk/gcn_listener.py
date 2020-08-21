@@ -39,7 +39,6 @@ def process_gcn(payload, root):
     run_id = params['run_id']
     eventtime = root.find('.//ISOTime').text
     event_mjd = Time(eventtime, format='isot').mjd
-    event_mjd = Time('2020-08-19 19:50:00.0', format='iso').mjd
 
     if alert_type == 'cascade':
         command = analysis_path + 'run_cascade_followup.py'
