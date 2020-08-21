@@ -136,7 +136,7 @@ def steady_sensitivity(ind, gamma=2.0, thresh = 0.5, with_err = True, conf_lev =
     best_fit_ind= np.argmax(plist)
     return fits[best_fit_ind]
 
-def sensitivity_curve(ind, gamma=2.0, thresh = 0.5, with_err = True, ax = None, 
+def steady_sensitivity_curve(ind, gamma=2.0, thresh = 0.5, with_err = True, ax = None, 
                     p0 = None, fontsize = 16, conf_lev = 0.9):
     
     signal_fluxes, passing, errs = pass_vs_inj(ind, gamma=gamma, thresh=thresh, with_err=with_err)
