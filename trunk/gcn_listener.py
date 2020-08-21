@@ -54,6 +54,18 @@ def process_gcn(payload, root):
         current_mjd = Time(datetime.utcnow(), scale='utc').mjd
         current_delay = current_mjd - event_mjd
 
+    if alert_type == 'track':
+        base_skymap_path = '/data/ana/realtime/SOMETHING/???'
+        skymap_f = glob(base_skymap_path + './runid_{}_eventid_{}_*.fits')
+        if len(skymap_f) == 0:
+            print("COULD NOT FIND THE SKYMAP FILE FOR V2 TRACK ALERT EVENT")
+            return
+        elif len(skymap_f) == 1:
+            skymap = skymap_f[0]
+        else:
+            print("TOO MANY OPTIONS FOR THE SKYMAP FILE FOR V2 TRACK ALERT EVENT")
+            return
+
     subprocess.call([command, '--skymap={}'.format(skymap), '--time={}'.format(str(event_mjd)), 
                     '--alert_id={}'.format(run_id+':'+event_id)])
 
