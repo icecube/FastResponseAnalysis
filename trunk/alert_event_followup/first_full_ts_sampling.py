@@ -36,15 +36,18 @@ uni = UniverseAnalysis(lumi, evol, density, 1.5e-8, 2.50, deltaT=args.delta_t,
         data_years=data_years, manual_lumi=args.manual_lumi)
 #uni = UniverseAnalysis(lumi, evol, density, 0.9e-8, 2.13, deltaT=args.delta_t,
 #        data_years=data_years, manual_lumi=args.manual_lumi)
+uni.print_analysis_info()
 uni.initialize_universe()
 uni.make_alerts_dataframe()
+print('Running trials . . . ')
 TS.append(uni.calculate_ts())
 TS_gold.append(uni.calculate_ts(only_gold = True))
 ps.append(uni.calculate_binomial_pvalue(only_gold=False))
 ps_gold.append(uni.calculate_binomial_pvalue(only_gold=True))
+print("  Trials completed: ")
 
 for jj in range(args.n - 1):
-    print(jj,)
+    print('    {}'.format(jj+1))
     uni.reinitialize_universe()
     uni.make_alerts_dataframe()
     TS.append(uni.calculate_ts(only_gold = False))
