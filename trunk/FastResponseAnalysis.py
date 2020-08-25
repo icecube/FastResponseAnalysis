@@ -7,7 +7,8 @@ r''' General Fast Response Analysis Class.
     Date: April, 2019
     '''
 
-import os, sys, time, subprocess, pickle, shutil, dateutil.parser, logging, utils
+import os, sys, time, subprocess, pickle, shutil, dateutil.parser, logging
+
 import healpy as hp
 import matplotlib as mpl
 mpl.use('agg')
@@ -23,6 +24,8 @@ from scipy.optimize       import curve_fit
 from scipy.stats          import chi2
 from scipy import sparse
 from scipy.special import erfinv
+
+import utils
 from make_ontime_plots import make_rate_plots
 from ReportGenerator import ReportGenerator
 from skylab.datasets import Datasets
@@ -30,7 +33,7 @@ from skylab.llh_models import EnergyLLH
 from skylab.priors import SpatialPrior
 from skylab.ps_injector import PointSourceInjector
 from skylab.ps_llh import PointSourceLLH
-from skylab.spectral_models import PowerLaw
+from skylab.spectral_models import PowerLaw 
 from skylab.temporal_models import BoxProfile, TemporalModel
 # import meander
 ############################# Plotting Parameters #############################
