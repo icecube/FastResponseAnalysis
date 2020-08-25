@@ -56,6 +56,25 @@ class UniverseAnalysis():
         self.verbose = kwargs.pop('verbose', False)
         self.initialize_universe() 
 
+    def print_analysis_info(self):
+        r'''Print a message with info about the source once
+        the analysis is running'''
+        analysis_name = 'Alert event interpretation'
+        int_str = '*'*80
+        int_str += '\n*' + ' '*78 + '*\n'
+        int_str += '*' + ' '*((78-len(analysis_name))//2) + analysis_name + ' '*((78-len(analysis_name))//2 + len(analysis_name)%2) + '*'
+        int_str += '\n*' + ' '*78 + '*\n'
+        int_str += '*'*80 + '\n'
+        int_str += '  '*5 + 'Density: {:.1e}'.format(self.density)
+        int_str += '  '*7 + 'Luminosity: {}'.format(self.lumi) + '\n'
+        int_str += '  '*5 + 'Evolution: {}'.format(self.evol) 
+        time_str = 'Steady' if not self.transient else '{:.1e} s'.format(self.deltaT)
+        int_str += '  '*5 + 'Timescale: {}'.format(time_str) + '\n'
+        int_str += '  '*5 + 'Diffuse gamma: {:.1f}'.format(self.diffuse_flux_ind)
+        int_str += '  '*6 + 'Smearing: {}'.format(self.smear)
+        int_str += '\n\n'
+        print(int_str)
+
     #@profile
     def initialize_universe(self):
         if self.verbose:
