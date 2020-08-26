@@ -366,8 +366,12 @@ class UniversePlotter():
             return self.background_median_ts
         sigs = []
         for ind in range(len(skymap_files)):
-            if ind == 19:
-                sig = 0.
+            if self.transient and self.delta_t == 1000.:
+                problem_inds = [60, 79, 228]
+            else:
+                problem_inds = [60, 79, 228]
+            if ind in problem_inds:
+                continue
             else:
                 skymap_fits, skymap_header = hp.read_map(skymap_files[ind], h=True, verbose=False)
                 skymap_header = {name: val for name, val in skymap_header}
@@ -377,9 +381,12 @@ class UniversePlotter():
         bg_trials = '/data/user/apizzuto/fast_response_skylab/alert_event_followup/analysis_trials/bg/'
         TSs = []
         for ind in range(len(skymap_files)):
-            if ind == 19:
-                ts = [0.]*n_trials
-                TSs.append(ts)
+            if self.transient and self.delta_t == 1000.:
+                problem_inds = [60, 79, 228]
+            else:
+                problem_inds = [60]
+            if ind in problem_inds:
+                continue
             else:
                 smeared_str = 'smeared/' if self.smeared else 'norm_prob/'
                 if self.transient:
@@ -410,8 +417,12 @@ class UniversePlotter():
         if self.sigs is None:
             sigs = []
             for ind in range(len(skymap_files)):
-                if ind == 19:
-                    sig = 0.
+                if self.transient and self.delta_t == 1000.:
+                    problem_inds = [60, 79, 228]
+                else:
+                    problem_inds = [60, 79, 228] 
+                if ind in problem_inds:
+                    continue
                 else:
                     skymap_fits, skymap_header = hp.read_map(skymap_files[ind], h=True, verbose=False)
                     skymap_header = {name: val for name, val in skymap_header}
@@ -420,8 +431,12 @@ class UniversePlotter():
             self.sigs = np.array(sigs)
         pvals = []
         for ind in range(len(skymap_files)):
-            if ind == 19:
-                ps = [1.]*n_trials
+            if self.transient and self.delta_t == 1000.:
+                problem_inds = [60, 79, 228]
+            else:
+                problem_inds = [60]
+            if ind in problem_inds:
+                continue
             else:
                 smeared_str = 'smeared/' if self.smeared else 'norm_prob/'
                 if self.transient:
