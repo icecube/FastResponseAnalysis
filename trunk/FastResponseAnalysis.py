@@ -353,7 +353,7 @@ class FastResponseAnalysis(object):
             print("Starting scan")
             val = self.llh.scan(0.0,0.0, scramble = False,spatial_prior=spatial_prior,
                                 time_mask = [self.duration/2., self.centertime],
-                                pixel_scan=[self.nside, 3.0])
+                                pixel_scan=[self.nside, 4.0])
             t2 = time.time()
             print("finished scan, took {} s".format(t2-t1))
             try:
