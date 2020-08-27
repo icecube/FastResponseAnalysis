@@ -12,6 +12,7 @@ import gcn
         gcn.notice_types.ICECUBE_CASCADE)
 
 def process_gcn(payload, root):
+    print("INCOMING ALERT")
     analysis_path = os.environ.get('FAST_RESPONSE_SCRIPTS')
     if analysis_path is None:
         print('###########################################################################')
