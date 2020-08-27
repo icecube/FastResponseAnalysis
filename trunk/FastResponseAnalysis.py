@@ -509,7 +509,7 @@ class FastResponseAnalysis(object):
                     sys.stdout.write("#")
                     sys.stdout.flush()
                 val = self.llh.scan(0.0, 0.0, scramble = True, seed=i, spatial_prior=spatial_prior,
-                                time_mask = [self.duration/2., self.centertime], pixel_scan=[self.nside,3.0])
+                                time_mask = [self.duration/2., self.centertime], pixel_scan=[self.nside,4.0])
                 try:
                     tsd.append(val['TS_spatial_prior_0'].max())
                 except ValueError:
