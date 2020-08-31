@@ -9,6 +9,9 @@ import matplotlib as mpl
 #mpl.use('Agg')
 import matplotlib.pyplot as plt
 import seaborn as sns
+import sys
+sys.path.append('/data/user/apizzuto/fast_response_skylab/fast-response/trunk/time_integrated_scripts/')
+import steady_sensitivity_fits
  
 palette = ['#7fc97f', '#beaed4', '#fdc086', '#ffff99', '#386cb0', '#f0027f']
 
@@ -302,6 +305,50 @@ def background(index, delta_t, smear=True):
     with open(fs[0], 'r') as f:
         bg_trials = pickle.load(f)
     return bg_trials
+
+def plot_zoom_from_map(skymap, ind, reso=1., cmap=None, draw_contour=True, ax=None, 
+                      col_label= r'$\log_{10}$(prob.)'):
+    s, header = hp.read_map(skymap_files[ind], h=True, verbose=False)
+    header = {name: val for name, val in header}
+    nside = hp.get_nside(s)
+    area = np.count_nonzero(s < 64.2) * hp.nside2pixarea(nside) * 180.**2. / (np.pi**2.)
+    reso *= int(np.sqrt(area))
+    reso = np.max([reso, 1.])
+    original_LLH = s
+    ra = np.radians(header['RA'])
+    dec = np.radians(header['DEC'])
+    title = skymap_files[ind][l_ind:r_ind].replace('Run', 'Run ').replace('_', ', Event ')
+    if cmap is None:
+        pdf_palette = sns.color_palette("Blues", 500)
+        cmap = mpl.colors.ListedColormap(pdf_palette)
+    if np.count_nonzero(skymap > 0.0) > 1:
+        max_color = np.max(skymap)
+        min_color = 0.
+    else:
+        max_color =  -1.8 #5 #max(skymap)
+        min_color = -5.  #0.
+    #min_color = np.min([0., 2.*max_color])
+    hp.gnomview(skymap, rot=(np.degrees(ra), np.degrees(dec), 0),
+                    cmap=cmap,
+                    max=max_color,
+                    min=min_color,
+                    reso=reso,
+                    title=title,
+                    notext=True,
+                    cbar=False
+                    #unit=r""
+                    )
+
+    plt.plot(4.95/3.*reso*np.radians([-1, 1, 1, -1, -1]), 4.95/3.*reso*np.radians([1, 1, -1, -1, 1]), color="k", ls="-", lw=3)
+    hp.graticule(verbose=False)
+    steady_sensitivity_fits.plot_labels(dec, ra, reso)
+    con_nside = 256 if area < 5. else 128
+    if draw_contour:
+        contours = steady_sensitivity_fits.plot_contours(None, original_LLH, levels=[22.2, 64.2], nside = con_nside)
+        for contour in np.array(contours).T:
+            hp.projplot(contour[0],contour[1],linewidth=1.5,c='k')
+    steady_sensitivity_fits.plot_color_bar(cmap = cmap, labels = [min_color, max_color], col_label = col_label)
+
 
 def background_hotspot_map(ind, delta_t, smear=True):
     bg = background(ind, delta_t, smear=smear)
