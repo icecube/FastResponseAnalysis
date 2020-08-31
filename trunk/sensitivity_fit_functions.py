@@ -245,6 +245,8 @@ def ns_fits_contours(index, delta_t, smear=True, levs = [5., 25., 50., 75., 95.]
     true_inj = np.array(signal_trials['true_ns'])
     ns_fit = np.array(signal_trials['ns_prior'])
     ninjs = np.unique(true_inj)
+    if max(ninjs) < 10:
+        print('Index {} has max {}'.format(index, max(ninjs)))
     contours = np.stack([np.percentile(ns_fit[true_inj==ninj], levs) for ninj in ninjs])
     return ninjs, contours.T
 
@@ -294,4 +296,20 @@ def fitting_bias_summary(delta_t, sigs=[2., 5., 10.], smear=True, containment=50
                 spread[sig].append(0.0)
     return bias, spread
 
+def background(index, delta_t, smear=True):
+    smear_str = 'smeared/' if smear else 'norm_prob/'
+    fs = glob('/data/user/apizzuto/fast_response_skylab/alert_event_followup/analysis_trials/bg/{}index_{}_*_time_{:.1f}.pkl'.format(smear_str, index, delta_t))
+    with open(fs[0], 'r') as f:
+        bg_trials = pickle.load(f)
+    return bg_trials
 
+def background_hotspot_map(ind, delta_t, smear=True):
+    bg = background(ind, delta_t, smear=smear)
+    msk = np.array(bg['ts_prior']) != 0.
+    ra, dec = np.array(bg['ra'])[msk], np.array(bg['dec'])[msk]
+    theta = np.pi/2. - dec
+    inds = hp.ang2pix(256, theta, ra)
+    ind_counts = np.unique(inds, return_counts=True)
+    reco_hist = np.zeros(hp.nside2npix(256))
+    reco_hist[ind_counts[0]] = ind_counts[1]
+    plot_zoom_from_map(reco_hist, ind, draw_contour=False, col_label='Counts')
