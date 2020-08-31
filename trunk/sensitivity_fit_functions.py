@@ -12,8 +12,12 @@ import seaborn as sns
 import sys
 sys.path.append('/data/user/apizzuto/fast_response_skylab/fast-response/trunk/time_integrated_scripts/')
 import steady_sensitivity_fits
+import healpy as hp
  
 palette = ['#7fc97f', '#beaed4', '#fdc086', '#ffff99', '#386cb0', '#f0027f']
+skymap_files = glob('/data/ana/realtime/alert_catalog_v2/fits_files/Run*.fits.gz')
+l_ind = skymap_files[0].find("Run")
+r_ind = skymap_files[0].find("_nside")
 
 def erfunc(x, a, b):
     return 0.5 + 0.5*sp.special.erf(a*x + b)
