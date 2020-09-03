@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib as mpl
-#mpl.use('Agg')
+mpl.use('Agg')
 import matplotlib.pyplot as plt
 import pandas as pd
 from matplotlib.colors import LogNorm
@@ -396,6 +396,10 @@ def plot_skymap(ind, LLH=True):
         skymap = np.exp(-1. * skymap / 2.)
         skymap = np.where(skymap > 1e-20, skymap, 0.0)
         skymap = skymap / np.sum(skymap)
+    if LLH:
+        inf_msk = np.isinf(skymap)
+        other_max = np.max(skymap[~inf_msk])
+        skymap[inf_msk] = other_max
     pdf_palette = sns.color_palette("Blues", 500)
     cmap = mpl.colors.ListedColormap(pdf_palette)
     hp.mollview(skymap, title="", cbar=True, 
@@ -427,7 +431,7 @@ def load_skymap(ind, zoom=True, ax = None):
         fig, ax = plt.subplots()
     title = skymap_files[ind][l_ind:r_ind].replace('_', '_Event_').replace('Run', 'Run_')
     zoom_str = 'zoom_LLH' if zoom else 'allsky'
-    image = plt.imread('/home/apizzuto/public_html/FastResponse/update/alert_events/{}_{}.png'.format(title, zoom_str))
+    image = plt.imread('/data/user/apizzuto/fast_response_skylab/alert_event_followup/alert_skymaps/{}_{}.png'.format(title, zoom_str))
     ax.imshow(image); ax.axis('off')
 
 
