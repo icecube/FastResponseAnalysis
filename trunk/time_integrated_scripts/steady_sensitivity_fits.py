@@ -44,8 +44,9 @@ def find_nearest_idx(array, value):
     idx = (np.abs(array - value)).argmin()
     return idx
 
-def load_bg(ind):
-    fs = glob(base_path + 'bg/first_norm_prob/index_{}_steady_seed_*.pkl'.format(ind))
+def load_bg(ind, smear=True):
+    smear_str = 'smeared/' if smear else 'norm_prob/'
+    fs = glob(base_path + 'bg/{}index_{}_steady_seed_*.pkl'.format(smear_str, ind))
     if len(fs) == 0:
         return None
     with open(fs[0], 'r') as f:
@@ -59,8 +60,9 @@ def load_bg(ind):
         bg_trials[k] = np.array(bg_trials[k])
     return bg_trials 
 
-def load_sig(ind, gamma=2.0, fits=True):
-    f_dir = 'fits/first_norm_prob/' if fits else 'sensitivity/first_norm_prob/'
+def load_sig(ind, gamma=2.0, fits=True, smear=True):
+    smear_str = 'smeared/' if smear else 'norm_prob/'
+    f_dir = 'fits/{}'.format(smear_str) if fits else 'sensitivity/{}'.format(smear_str)
     fs = glob(base_path + f_dir + 'index_{}_steady_seed_*_gamma_{:.1f}.pkl'.format(ind, gamma))
     if len(fs) == 0:
         return None
@@ -75,20 +77,20 @@ def load_sig(ind, gamma=2.0, fits=True):
         sig_trials[k] = np.array(sig_trials[k])
     return sig_trials 
 
-def bg_ts_plot(ind, ax=None):
+def bg_ts_plot(ind, ax=None, smear=True):
     if ax is None:
         fig, ax = plt.subplots()
-    bg = load_bg(ind)
+    bg = load_bg(ind, smear=smear)
     ax.hist(bg['TS'], bins=np.linspace(0., 15., 21), histtype='stepfilled')
     ax.set_yscale('log')
     ax.set_ylim(8e-1, 1e3)
     ax.set_xlabel('TS')
     ax.set_ylabel('Counts')
 
-def bg_ns_gamma_plot(ind, ax=None):
+def bg_ns_gamma_plot(ind, ax=None, smear=True):
     if ax is None:
         fig, ax = plt.subplots()
-    bg = load_bg(ind)
+    bg = load_bg(ind, smear=smear)
     img = ax.hist2d(bg['nsignal'], bg['gamma'], bins=[np.linspace(0., 40., 16), 
                         np.linspace(1., 5., 16)], norm=LogNorm(), vmin=1, vmax=100, cmin=1)
     #cbar = plt.colorbar(img, ax=ax, label = 'Counts')
@@ -96,9 +98,9 @@ def bg_ns_gamma_plot(ind, ax=None):
     ax.set_xlabel(r'$\hat{n}_s$')
     ax.set_ylabel(r'$\hat{\gamma}$')
 
-def pass_vs_inj(ind, gamma = 2.0, thresh = 0.5, with_err = True):
-    bg_trials = load_bg(ind)
-    signal_trials = load_sig(ind, gamma=gamma, fits=False)
+def pass_vs_inj(ind, gamma = 2.0, thresh = 0.5, smear=True, with_err = True):
+    bg_trials = load_bg(ind, smear=smear)
+    signal_trials = load_sig(ind, gamma=gamma, fits=False, smear=smear)
     bg_thresh = np.percentile(bg_trials['TS'], thresh * 100.)
     fluxes = np.unique(signal_trials['flux'])
     flux_inds = [signal_trials['flux'] == flux for flux in fluxes]
@@ -121,8 +123,10 @@ def pass_vs_inj(ind, gamma = 2.0, thresh = 0.5, with_err = True):
         errs = np.maximum(errs, bound_case_sigma)
         return fls, passing, errs
 
-def steady_sensitivity(ind, gamma=2.0, thresh = 0.5, with_err = True, conf_lev = 0.9, p0=None):
-    signal_fluxes, passing, errs = pass_vs_inj(ind, gamma=gamma, thresh=thresh, with_err=with_err)
+def steady_sensitivity(ind, gamma=2.0, thresh = 0.5, with_err = True, 
+                        smear=True, conf_lev = 0.9, p0=None):
+    signal_fluxes, passing, errs = pass_vs_inj(ind, gamma=gamma, thresh=thresh, 
+                                                with_err=with_err, smear=smear)
     fits, plist = [], []
     try:
         fits.append(sensitivity_fit(signal_fluxes, passing, errs, chi2cdf, p0=p0, conf_lev=conf_lev))
@@ -138,10 +142,11 @@ def steady_sensitivity(ind, gamma=2.0, thresh = 0.5, with_err = True, conf_lev =
     best_fit_ind= np.argmax(plist)
     return fits[best_fit_ind]
 
-def steady_sensitivity_curve(ind, gamma=2.0, thresh = 0.5, with_err = True, ax = None, 
+def steady_sensitivity_curve(ind, gamma=2.0, thresh = 0.5, with_err = True, smear=True, ax = None, 
                     p0 = None, fontsize = 16, conf_lev = 0.9):
     
-    signal_fluxes, passing, errs = pass_vs_inj(ind, gamma=gamma, thresh=thresh, with_err=with_err)
+    signal_fluxes, passing, errs = pass_vs_inj(ind, gamma=gamma, thresh=thresh, 
+                                                smear=smear, with_err=with_err)
     fits, plist = [], []
     try:
         fits.append(sensitivity_fit(signal_fluxes, passing, errs, chi2cdf, p0=p0, conf_lev=conf_lev))
@@ -175,8 +180,8 @@ def steady_sensitivity_curve(ind, gamma=2.0, thresh = 0.5, with_err = True, ax =
     ax.errorbar(signal_fluxes, passing, yerr=errs, capsize = 3, linestyle='', marker = 's', markersize = 2)
     ax.legend(loc=4, fontsize = fontsize)
 
-def fits_contours(ind, gamma=2.0, ns=True, levs = [5., 25., 50., 75., 95.]):
-    sig_trials = load_sig(ind, gamma=gamma)
+def fits_contours(ind, gamma=2.0, smear=True, ns=True, levs = [5., 25., 50., 75., 95.]):
+    sig_trials = load_sig(ind, gamma=gamma, smear=smear)
     key = 'nsignal' if ns else 'gamma'
     msks = [sig_trials['inj_nsignal'] == ni for ni in np.linspace(1., 60., 60)]
     ninjs = []; conf_levs = []
@@ -190,20 +195,20 @@ def fits_contours(ind, gamma=2.0, ns=True, levs = [5., 25., 50., 75., 95.]):
             conf_levs.append(np.percentile(sig_trials[key][msk], levs))
     return ninjs, np.array(conf_levs).T
 
-def gamma_fits_plots(ind, cols=['navy green', 'navy blue', 'orangey red'], ax=None):
+def gamma_fits_plots(ind, smear=True, cols=['navy green', 'navy blue', 'orangey red'], ax=None):
     if ax is None:
         fig, ax = plt.subplots()
-    for gamma, col in zip([2.0, 2.5, 3.0], cols):
+    for gamma, col in zip([2.5], ['navy blue']): #zip([2.0, 2.5, 3.0], cols):
         #show = True if gamma == 3.0 else False
         show=False
-        fits_contours_plot(ind, gamma=gamma, ns=False, show=show, col=col,
+        fits_contours_plot(ind, gamma=gamma, ns=False, show=show, col=col, smear=smear,
                           custom_label=r'$\gamma_{\mathrm{inj}} = $' + '{:.1f}'.format(gamma), ax=ax)
 
-def fits_contours_plot(ind, gamma=2.0, ns=True, show=False, col='navy green',
+def fits_contours_plot(ind, gamma=2.0, ns=True, show=False, col='navy green', smear=True,
                       custom_label = 'Median', ax=None):
     if ax is None:
         fig, ax = plt.subplots()
-    ninj, fits = fits_contours(ind, ns = ns, gamma=gamma)
+    ninj, fits = fits_contours(ind, ns = ns, gamma=gamma, smear=smear)
     ax.plot(ninj, fits[2], label = custom_label, color = sns.xkcd_rgb[col])
     if ns:
         ax.fill_between(ninj, fits[0], fits[-1], alpha=0.3, 
@@ -421,9 +426,12 @@ def plot_skymap(ind, LLH=True):
     plt.text(-1.333, -0.15, r"$20\,\mathrm{h}$", ha="center", va="center")
     plt.text(-2.0, -0.15, r"$0\,\mathrm{h}$", ha="center", va="center")
     original_LLH = skymap if original_LLH is None else original_LLH
-    contours = plot_contours(None, original_LLH, levels=[22.2, 64.2])
-    for contour in np.array(contours).T:
-        hp.projplot(contour[0],contour[1],linewidth=1.5,c='k')
+    try:
+        contours = plot_contours(None, original_LLH, levels=[22.2, 64.2])
+        for contour in np.array(contours).T:
+            hp.projplot(contour[0],contour[1],linewidth=1.5,c='k')
+    except:
+        pass
     #plt.draw()
 
 def load_skymap(ind, zoom=True, ax = None):
@@ -435,23 +443,23 @@ def load_skymap(ind, zoom=True, ax = None):
     ax.imshow(image); ax.axis('off')
 
 
-def info_panel_plot(ind):
+def info_panel_plot(ind, smear=True):
     fig, axs = plt.subplots(nrows=2, ncols=5, figsize=(28, 8), dpi=250)
     plt.subplots_adjust(wspace=0.2, hspace=0.25)
     load_skymap(ind, ax=axs[0,0])
-    bg_ts_plot(ind, ax = axs[0,1])
-    bg_ns_gamma_plot(ind, ax = axs[0,2])
-    gamma_fits_plots(ind, ax = axs[0,3])
-    fits_contours_plot(ind, gamma=2.0, ax = axs[0,4])
-    fits_contours_plot(ind, gamma=2.5, col='navy blue', ax = axs[1,0])
-    fits_contours_plot(ind, gamma=3.0, col='orangey red', ax = axs[1,1])
-    sensitivity_curve(ind, gamma=2.0, ax = axs[1,2])
-    sensitivity_curve(ind, gamma=2.5, ax = axs[1,3])
-    sensitivity_curve(ind, gamma=3.0, ax = axs[1,4])
+    bg_ts_plot(ind, smear=smear, ax = axs[0,1])
+    bg_ns_gamma_plot(ind, smear=smear, ax = axs[0,2])
+    gamma_fits_plots(ind, smear=smear, ax = axs[0,3])
+    fits_contours_plot(ind, gamma=2.0, smear=smear, ax = axs[0,4])
+    fits_contours_plot(ind, gamma=2.5, smear=smear, col='navy blue', ax = axs[1,0])
+    fits_contours_plot(ind, gamma=3.0, smear=smear, col='orangey red', ax = axs[1,1])
+    sensitivity_curve(ind, gamma=2.0, smear=smear, ax = axs[1,2])
+    sensitivity_curve(ind, gamma=2.5, smear=smear, ax = axs[1,3])
+    sensitivity_curve(ind, gamma=3.0, smear=smear, ax = axs[1,4])
     plt.show()
 
 
-def panel_plot_with_text(ind):
+def panel_plot_with_text(ind, smear=True):
     fig = plt.figure(constrained_layout=True, figsize=(25,16))
     heights = [1.5, 1, 1, 1]
     gs = gridspec.GridSpec(ncols=4, nrows=4, figure=fig, height_ratios=heights)
@@ -468,15 +476,15 @@ def panel_plot_with_text(ind):
                 + r'$^{\circ}\; -$' + str(header['RA_ERR_MINUS']) + r'$^{\circ}$', fontsize=txt_size)
     ax1 = fig.add_subplot(gs[0, 0]); load_skymap(ind, ax=ax1)
     ax2 = fig.add_subplot(gs[0, 1:3]); load_skymap(ind, ax=ax2, zoom=False)
-    ax3 = fig.add_subplot(gs[1, 0]); bg_ts_plot(ind, ax=ax3)
-    ax4 = fig.add_subplot(gs[1, 1]); bg_ns_gamma_plot(ind, ax=ax4)
-    ax5 = fig.add_subplot(gs[1, 2]); gamma_fits_plots(ind, ax = ax5)
-    ax6 = fig.add_subplot(gs[1, 3]); fits_contours_plot(ind, gamma=2.0, ax = ax6)
-    ax7 = fig.add_subplot(gs[2, 0]); fits_contours_plot(ind, gamma=2.5, col='navy blue', ax = ax7)
-    ax8 = fig.add_subplot(gs[2, 1]); fits_contours_plot(ind, gamma=3.0, col='orangey red', ax = ax8)
-    ax9 = fig.add_subplot(gs[2, 2]); sensitivity_curve(ind, gamma=2.0, ax = ax9)
-    ax10 = fig.add_subplot(gs[2, 3]); sensitivity_curve(ind, gamma=2.5, ax = ax10)
-    ax11 = fig.add_subplot(gs[3, 0]); sensitivity_curve(ind, gamma=3.0, ax = ax11)
-    ax12 = fig.add_subplot(gs[3, 1]); sensitivity_curve(ind, gamma=2.0, ax = ax12, conf_lev=0.5, thresh=0.99865)
-    ax13 = fig.add_subplot(gs[3, 2]); sensitivity_curve(ind, gamma=2.5, ax = ax13, conf_lev=0.5, thresh=0.99865)
-    ax14 = fig.add_subplot(gs[3, 3]); sensitivity_curve(ind, gamma=3.0, ax = ax14, conf_lev=0.5, thresh=0.99865)
+    ax3 = fig.add_subplot(gs[1, 0]); bg_ts_plot(ind, smear=smear, ax=ax3)
+    ax4 = fig.add_subplot(gs[1, 1]); bg_ns_gamma_plot(ind, smear=smear, ax=ax4)
+    ax5 = fig.add_subplot(gs[1, 2]); gamma_fits_plots(ind, smear=smear, ax = ax5)
+    ax6 = fig.add_subplot(gs[1, 3]); fits_contours_plot(ind, smear=smear, gamma=2.0, ax = ax6)
+    ax7 = fig.add_subplot(gs[2, 0]); fits_contours_plot(ind, smear=smear, gamma=2.5, col='navy blue', ax = ax7)
+    ax8 = fig.add_subplot(gs[2, 1]); fits_contours_plot(ind, smear=smear, gamma=3.0, col='orangey red', ax = ax8)
+    ax9 = fig.add_subplot(gs[2, 2]); sensitivity_curve(ind, smear=smear, gamma=2.0, ax = ax9)
+    ax10 = fig.add_subplot(gs[2, 3]); sensitivity_curve(ind, smear=smear, gamma=2.5, ax = ax10)
+    ax11 = fig.add_subplot(gs[3, 0]); sensitivity_curve(ind, smear=smear, gamma=3.0, ax = ax11)
+    ax12 = fig.add_subplot(gs[3, 1]); sensitivity_curve(ind, smear=smear, gamma=2.0, ax = ax12, conf_lev=0.5, thresh=0.99865)
+    ax13 = fig.add_subplot(gs[3, 2]); sensitivity_curve(ind, smear=smear, gamma=2.5, ax = ax13, conf_lev=0.5, thresh=0.99865)
+    ax14 = fig.add_subplot(gs[3, 3]); sensitivity_curve(ind, smear=smear, gamma=3.0, ax = ax14, conf_lev=0.5, thresh=0.99865)
