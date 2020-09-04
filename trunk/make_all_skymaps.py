@@ -11,17 +11,19 @@ skymap_files = glob('/data/ana/realtime/alert_catalog_v2/fits_files/Run*.fits.gz
 l_ind = skymap_files[0].find("Run")
 r_ind = skymap_files[0].find("_nside")
 
-for ind in range(len(skymap_files)):
+for ind in range(31, len(skymap_files)):
     title = skymap_files[ind][l_ind:r_ind].replace('_', '_Event_').replace('Run', 'Run_')
     plot_zoom(ind, LLH=True)
     zoom_str = 'zoom_LLH'
     plt.savefig(output_path + '{}_{}.png'.format(title, zoom_str), bbox_inches='tight')
+    plt.close()
 
-    plot_zoom(ind, LLH=False)
-    zoom_str = 'probs'
-    plt.savefig(output_path + '{}_{}.png'.format(title, zoom_str), bbox_inches='tight')
+    #plot_zoom(ind, LLH=False)
+    #zoom_str = 'probs'
+    #plt.savefig(output_path + '{}_{}.png'.format(title, zoom_str), bbox_inches='tight')
+    #plt.close()
 
     plot_skymap(ind)
     zoom_str = 'allsky'
     plt.savefig(output_path + '{}_{}.png'.format(title, zoom_str), bbox_inches='tight')
-    
+    plt.close()    
