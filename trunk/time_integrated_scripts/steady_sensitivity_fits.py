@@ -28,9 +28,8 @@ r_ind = skymap_files[0].find("_nside")
 def erfunc(x, a, b):
     return 0.5 + 0.5*sp.special.erf(a*x + b)
 
-def chi2cdf(x,df1,loc,scale):
-    func = chi2.cdf(x,df1,loc,scale)
-    return func
+def fsigmoid(x, a, b):
+    return 1.0 / (1.0 + np.exp(-a*(x-b)))
 
 def incomplete_gamma(x, a, scale):
     return sp.special.gammaincc( scale*x, a)
@@ -129,10 +128,10 @@ def steady_sensitivity(ind, gamma=2.0, thresh = 0.5, with_err = True,
                                                 with_err=with_err, smear=smear)
     fits, plist = [], []
     try:
-        fits.append(sensitivity_fit(signal_fluxes, passing, errs, chi2cdf, p0=p0, conf_lev=conf_lev))
+        fits.append(sensitivity_fit(signal_fluxes, passing, errs, fsigmoid, p0=p0, conf_lev=conf_lev))
         plist.append(fits[-1]['pval'])
     except:
-        print("Chi squared fit failed")
+        print("Sigmoid fit failed")
     try:
         fits.append(sensitivity_fit(signal_fluxes, passing, errs, erfunc, p0=p0, conf_lev=conf_lev))
         plist.append(fits[-1]['pval'])
@@ -150,10 +149,10 @@ def steady_sensitivity_curve(ind, gamma=2.0, thresh = 0.5, with_err = True, smea
                                                 smear=smear, with_err=with_err)
     fits, plist = [], []
     try:
-        fits.append(sensitivity_fit(signal_fluxes, passing, errs, chi2cdf, p0=p0, conf_lev=conf_lev))
+        fits.append(sensitivity_fit(signal_fluxes, passing, errs, fsigmoid, p0=p0, conf_lev=conf_lev))
         plist.append(fits[-1]['pval'])
     except:
-        print("Chi squared fit failed")
+        print("Sigmoid fit failed")
     try:
         fits.append(sensitivity_fit(signal_fluxes, passing, errs, erfunc, p0=p0, conf_lev=conf_lev))
         plist.append(fits[-1]['pval'])
@@ -254,9 +253,9 @@ def sensitivity_fit(signal_fluxes, passing, errs, fit_func, p0 = None, conf_lev 
         name = name.replace("incomplete", "inc.")
     except:
         name = 'fit'
-    signal_scale_fac = np.min(signal_fluxes)
+    signal_scale_fac = np.max(signal_fluxes)
     signal_fls = signal_fluxes / signal_scale_fac
-    popt, pcov = curve_fit(fit_func, signal_fls, passing, sigma = errs, p0 = p0, maxfev=10000)
+    popt, pcov = curve_fit(fit_func, signal_fls, passing, sigma = errs, p0 = p0, maxfev=1000)
     fit_points = fit_func(signal_fls, *popt)
     chi2 = np.sum((fit_points - passing)**2. / errs**2.)
     dof = len(fit_points) - len(popt)
