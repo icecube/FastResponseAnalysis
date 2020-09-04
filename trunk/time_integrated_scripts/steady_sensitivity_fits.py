@@ -131,12 +131,13 @@ def steady_sensitivity(ind, gamma=2.0, thresh = 0.5, with_err = True,
     try:
         fits.append(sensitivity_fit(signal_fluxes, passing, errs, chi2cdf, p0=p0, conf_lev=conf_lev))
         plist.append(fits[-1]['pval'])
+    except:
+        print("Chi squared fit failed")
+    try:
         fits.append(sensitivity_fit(signal_fluxes, passing, errs, erfunc, p0=p0, conf_lev=conf_lev))
         plist.append(fits[-1]['pval'])
-        #fits.append(sensitivity_fit(signal_fluxes, passing, errs, incomplete_gamma, p0=p0, conf_lev=conf_lev))
-        #plist.append(fits[-1]['pval'])
     except:
-        pass
+        print("Error function fit failed")
     #Find best fit of the three, make it look different in plot
     plist = np.array(plist)
     best_fit_ind= np.argmax(plist)
@@ -186,7 +187,7 @@ def fits_contours(ind, gamma=2.0, smear=True, ns=True, levs = [5., 25., 50., 75.
     msks = [sig_trials['inj_nsignal'] == ni for ni in np.linspace(1., 60., 60)]
     ninjs = []; conf_levs = []
     for ii, msk in enumerate(msks):
-        if np.count_nonzero(msk) < 15:
+        if np.count_nonzero(msk) < 3:
             continue
         else:
             if not ns:
@@ -460,31 +461,31 @@ def info_panel_plot(ind, smear=True):
 
 
 def panel_plot_with_text(ind, smear=True):
-    fig = plt.figure(constrained_layout=True, figsize=(25,16))
-    heights = [1.5, 1, 1, 1]
-    gs = gridspec.GridSpec(ncols=4, nrows=4, figure=fig, height_ratios=heights)
-    ax_text = fig.add_subplot(gs[0, 3]); ax_text.axis('off')
+    fig = plt.figure(constrained_layout=True, figsize=(20,12))
+    heights = [1.5, 1, 1]
+    gs = gridspec.GridSpec(ncols=3, nrows=3, figure=fig, height_ratios=heights)
+    ax_text = fig.add_subplot(gs[0, 2]); ax_text.axis('off')
     skymap, header = load_map(ind)
-    txt_size = 36
-    ax_text.text(-0.4, 1,"Run, Event: {}, {}".format(header['RUNID'], header['EVENTID']), fontsize=txt_size)
-    ax_text.text(-0.4, 0.8, "Time (UTC): {}".format(header['START'][:header['START'].index('.') + 2]), fontsize=txt_size)
-    ax_text.text(-0.4, 0.6, "Stream: {}".format(header['I3TYPE']), fontsize=txt_size)
-    ax_text.text(-0.4, 0.4, 'Energy, signalness: {} TeV, {}'.format(header['ENERGY'], header['SIGNAL']), fontsize=txt_size)
-    ax_text.text(-0.4, 0.2, r'$\delta$: ' + str(header['DEC']) + r'$^{\circ}\; +$' + str(header['DEC_ERR_PLUS']) 
+    txt_size = 30
+    ax_text.text(-0.1, 1,"Run, Event: {}, {}".format(header['RUNID'], header['EVENTID']), fontsize=txt_size)
+    ax_text.text(-0.1, 0.8, "Time (UTC): {}".format(header['START'][:header['START'].index('.') + 2]), fontsize=txt_size)
+    ax_text.text(-0.1, 0.6, "Stream: {}".format(header['I3TYPE']), fontsize=txt_size)
+    ax_text.text(-0.1, 0.4, 'Energy, signalness: {} TeV, {}'.format(header['ENERGY'], header['SIGNAL']), fontsize=txt_size)
+    ax_text.text(-0.1, 0.2, r'$\delta$: ' + str(header['DEC']) + r'$^{\circ}\; +$' + str(header['DEC_ERR_PLUS']) 
                 + r'$^{\circ}\; -$' + str(header['DEC_ERR_MINUS']) + r'$^{\circ}$', fontsize=txt_size)
-    ax_text.text(-0.4, 0.0, r'$\alpha$: ' + str(header['RA']) + r'$^{\circ}\; +$' + str(header['RA_ERR_PLUS']) 
+    ax_text.text(-0.1, 0.0, r'$\alpha$: ' + str(header['RA']) + r'$^{\circ}\; +$' + str(header['RA_ERR_PLUS']) 
                 + r'$^{\circ}\; -$' + str(header['RA_ERR_MINUS']) + r'$^{\circ}$', fontsize=txt_size)
     ax1 = fig.add_subplot(gs[0, 0]); load_skymap(ind, ax=ax1)
-    ax2 = fig.add_subplot(gs[0, 1:3]); load_skymap(ind, ax=ax2, zoom=False)
+    ax2 = fig.add_subplot(gs[0, 1]); load_skymap(ind, ax=ax2, zoom=False)
     ax3 = fig.add_subplot(gs[1, 0]); bg_ts_plot(ind, smear=smear, ax=ax3)
     ax4 = fig.add_subplot(gs[1, 1]); bg_ns_gamma_plot(ind, smear=smear, ax=ax4)
     ax5 = fig.add_subplot(gs[1, 2]); gamma_fits_plots(ind, smear=smear, ax = ax5)
-    ax6 = fig.add_subplot(gs[1, 3]); fits_contours_plot(ind, smear=smear, gamma=2.0, ax = ax6)
+    #ax6 = fig.add_subplot(gs[1, 3]); fits_contours_plot(ind, smear=smear, gamma=2.0, ax = ax6)
     ax7 = fig.add_subplot(gs[2, 0]); fits_contours_plot(ind, smear=smear, gamma=2.5, col='navy blue', ax = ax7)
-    ax8 = fig.add_subplot(gs[2, 1]); fits_contours_plot(ind, smear=smear, gamma=3.0, col='orangey red', ax = ax8)
-    ax9 = fig.add_subplot(gs[2, 2]); sensitivity_curve(ind, smear=smear, gamma=2.0, ax = ax9)
-    ax10 = fig.add_subplot(gs[2, 3]); sensitivity_curve(ind, smear=smear, gamma=2.5, ax = ax10)
-    ax11 = fig.add_subplot(gs[3, 0]); sensitivity_curve(ind, smear=smear, gamma=3.0, ax = ax11)
-    ax12 = fig.add_subplot(gs[3, 1]); sensitivity_curve(ind, smear=smear, gamma=2.0, ax = ax12, conf_lev=0.5, thresh=0.99865)
-    ax13 = fig.add_subplot(gs[3, 2]); sensitivity_curve(ind, smear=smear, gamma=2.5, ax = ax13, conf_lev=0.5, thresh=0.99865)
-    ax14 = fig.add_subplot(gs[3, 3]); sensitivity_curve(ind, smear=smear, gamma=3.0, ax = ax14, conf_lev=0.5, thresh=0.99865)
+    #ax8 = fig.add_subplot(gs[2, 1]); fits_contours_plot(ind, smear=smear, gamma=3.0, col='orangey red', ax = ax8)
+    #ax9 = fig.add_subplot(gs[2, 2]); sensitivity_curve(ind, smear=smear, gamma=2.0, ax = ax9)
+    ax10 = fig.add_subplot(gs[2, 1]); steady_sensitivity_curve(ind, smear=smear, gamma=2.5, ax = ax10)
+    #ax11 = fig.add_subplot(gs[3, 0]); sensitivity_curve(ind, smear=smear, gamma=3.0, ax = ax11)
+    #ax12 = fig.add_subplot(gs[3, 1]); sensitivity_curve(ind, smear=smear, gamma=2.0, ax = ax12, conf_lev=0.5, thresh=0.99865)
+    ax13 = fig.add_subplot(gs[2, 2]); steady_sensitivity_curve(ind, smear=smear, gamma=2.5, ax = ax13, conf_lev=0.5, thresh=0.99865)
+    #ax14 = fig.add_subplot(gs[3, 3]); sensitivity_curve(ind, smear=smear, gamma=3.0, ax = ax14, conf_lev=0.5, thresh=0.99865)
