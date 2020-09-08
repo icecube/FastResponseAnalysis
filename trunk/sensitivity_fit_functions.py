@@ -26,6 +26,9 @@ def chi2cdf(x,df1,loc,scale):
     func = chi2.cdf(x,df1,loc,scale)
     return func
 
+def fsigmoid(x, a, b):
+    return 1.0 / (1.0 + np.exp(-a*(x-b)))
+
 def incomplete_gamma(x, a, scale):
     return sp.special.gammaincc( scale*x, a)
 
@@ -124,6 +127,11 @@ def sensitivity_curve(index, delta_t, threshold = 0.5, in_ns = True, with_err = 
         plist.append(fits[-1]['pval'])
     except:
         pass
+    try:
+        fits.append(sensitivity_fit(signal_fluxes, passing, errs, fsigmoid, p0=p0, conf_lev=conf_lev))
+        plist.append(fits[-1]['pval'])
+    except:
+        pass
         #print("at least one fit failed")
     #Find best fit of the three, make it look different in plot
     plist = np.array(plist)
@@ -168,6 +176,11 @@ def calc_sensitivity(index, delta_t, threshold = 0.5, in_ns = True, with_err = T
         pass
     try:
         fits.append(sensitivity_fit(signal_fluxes, passing, errs, incomplete_gamma, p0=p0, conf_lev=conf_lev))
+        plist.append(fits[-1]['pval'])
+    except:
+        pass
+    try:
+        fits.append(sensitivity_fit(signal_fluxes, passing, errs, fsigmoid, p0=p0, conf_lev=conf_lev))
         plist.append(fits[-1]['pval'])
     except:
         pass
