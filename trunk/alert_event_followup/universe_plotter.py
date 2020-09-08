@@ -15,7 +15,8 @@ from matplotlib.patches import Patch
 from matplotlib.lines import Line2D
 mpl.style.use('/home/apizzuto/Nova/scripts/novae_plots.mplstyle')
 
-skymap_files = glob('/data/ana/realtime/alert_catalog_v2/2yr_prelim/fits_files/Run*.fits.gz')
+#skymap_files = glob('/data/ana/realtime/alert_catalog_v2/2yr_prelim/fits_files/Run*.fits.gz')
+skymap_files = glob('/data/ana/realtime/alert_catalog_v2/fits_files/Run1*.fits.gz')
 energy_density = {'transient': {'HB2006SFR': 4.8038e51, 
                         'MD2014SFR': 6.196e51,
                         'NoEvolution': 1.8364e52},
@@ -364,27 +365,29 @@ class UniversePlotter():
         to get the overall stacked background ts distribution'''
         if self.background_median_ts is not None:
             return self.background_median_ts
-        sigs = []
-        for ind in range(len(skymap_files)):
-            if self.transient and self.delta_t == 1000.:
-                problem_inds = [60, 79, 228]
-            else:
-                problem_inds = [60, 79, 228]
-            if ind in problem_inds:
-                continue
-            else:
-                skymap_fits, skymap_header = hp.read_map(skymap_files[ind], h=True, verbose=False)
-                skymap_header = {name: val for name, val in skymap_header}
-                sig = skymap_header['SIGNAL']
-            sigs.append(sig)
-        self.sigs = np.array(sigs)
+        if self.sigs is None:
+            # SEE IF I CAN FRONTLOAD THE SIGNALNESS DISTRIBUTION, TOO LONG FOR 8.6 YEAR CATALOG
+            sigs = []
+            for ind in range(len(skymap_files)):
+                if self.transient and self.delta_t == 1000.:
+                    problem_inds = [60, 79, 228]
+                else:
+                    problem_inds = [60, 79, 228]
+                if ind in problem_inds:
+                    continue
+                else:
+                    skymap_fits, skymap_header = hp.read_map(skymap_files[ind], h=True, verbose=False)
+                    skymap_header = {name: val for name, val in skymap_header}
+                    sig = skymap_header['SIGNAL']
+                sigs.append(sig)
+            self.sigs = np.array(sigs)
         bg_trials = '/data/user/apizzuto/fast_response_skylab/alert_event_followup/analysis_trials/bg/'
         TSs = []
         for ind in range(len(skymap_files)):
             if self.transient and self.delta_t == 1000.:
                 problem_inds = [60, 79, 228]
             else:
-                problem_inds = [60]
+                problem_inds = [9999]
             if ind in problem_inds:
                 continue
             else:
@@ -395,12 +398,15 @@ class UniversePlotter():
                     trials = np.load(trials_file)
                     ts = np.random.choice(trials['ts_prior'], size=n_trials)
                 else:
-                    trials_files = glob(bg_trials + smeared_str 
-                                + 'index_{}_steady_seed_*.pkl'.format(ind))
-                    trials = []
-                    for f in trials_files:
-                        trials.extend(np.load(f)['TS'])
-                    ts = np.random.choice(np.array(trials), size=n_trials)
+                    try:
+                        trials_files = glob(bg_trials + smeared_str 
+                                    + 'index_{}_steady_seed_*.pkl'.format(ind))
+                        trials = []
+                        for f in trials_files:
+                            trials.extend(np.load(f)['TS'])
+                        ts = np.random.choice(np.array(trials), size=n_trials)
+                    except:
+                        print("NO STEADY TRIALS FOR INDEX {}".format(ind))
                 TSs.append(ts)
         TSs = np.array(TSs)
         stacked_ts = np.multiply(TSs, self.sigs[:, np.newaxis])
