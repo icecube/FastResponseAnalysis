@@ -459,7 +459,7 @@ def info_panel_plot(ind, smear=True):
     plt.show()
 
 
-def panel_plot_with_text(ind, smear=True):
+def panel_plot_with_text(ind, smear=True, return_info=False):
     fig = plt.figure(constrained_layout=True, figsize=(20,12))
     heights = [1.5, 1, 1]
     gs = gridspec.GridSpec(ncols=3, nrows=3, figure=fig, height_ratios=heights)
@@ -488,3 +488,5 @@ def panel_plot_with_text(ind, smear=True):
     #ax12 = fig.add_subplot(gs[3, 1]); sensitivity_curve(ind, smear=smear, gamma=2.0, ax = ax12, conf_lev=0.5, thresh=0.99865)
     ax13 = fig.add_subplot(gs[2, 2]); steady_sensitivity_curve(ind, smear=smear, gamma=2.5, ax = ax13, conf_lev=0.5, thresh=0.99865)
     #ax14 = fig.add_subplot(gs[3, 3]); sensitivity_curve(ind, smear=smear, gamma=3.0, ax = ax14, conf_lev=0.5, thresh=0.99865)
+    if return_info:
+        return header
