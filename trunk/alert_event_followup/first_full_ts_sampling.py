@@ -37,7 +37,7 @@ uni = UniverseAnalysis(lumi, evol, density, 1.5e-8, 2.50, deltaT=args.delta_t,
 #uni = UniverseAnalysis(lumi, evol, density, 0.9e-8, 2.13, deltaT=args.delta_t,
 #        data_years=data_years, manual_lumi=args.manual_lumi)
 uni.print_analysis_info()
-uni.initialize_universe()
+#uni.initialize_universe()
 uni.make_alerts_dataframe()
 print('Running trials . . . ')
 TS.append(uni.calculate_ts())
@@ -47,7 +47,7 @@ ps_gold.append(uni.calculate_binomial_pvalue(only_gold=True))
 print("  Trials completed: ")
 
 for jj in range(args.n - 1):
-    print('    {}'.format(jj+1))
+    #print('    {}'.format(jj+1))
     uni.reinitialize_universe()
     uni.make_alerts_dataframe()
     TS.append(uni.calculate_ts(only_gold = False))
@@ -60,5 +60,5 @@ for jj in range(args.n - 1):
 TS = np.array([TS, TS_gold, ps, ps_gold])
 lumi_str = '_manual_lumi_{:.1e}'.format(args.manual_lumi) if args.manual_lumi != 0.0 else ''
 
-print(TS)
-#np.save('/data/user/apizzuto/fast_response_skylab/alert_event_followup/ts_distributions/ts_dists_{}year_density_{:.2e}_evol_{}_lumi_{}{}_delta_t_{:.2e}.npy'.format(data_years, density, evol, lumi, lumi_str, args.delta_t), TS)
+#print(TS)
+np.save('/data/user/apizzuto/fast_response_skylab/alert_event_followup/ts_distributions/ts_dists_{}year_density_{:.2e}_evol_{}_lumi_{}{}_delta_t_{:.2e}.npy'.format(data_years, density, evol, lumi, lumi_str, args.delta_t), TS)
