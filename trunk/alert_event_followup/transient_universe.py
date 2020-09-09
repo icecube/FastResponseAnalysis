@@ -73,49 +73,36 @@ class Universe():
     def find_signal_alerts(self):
         r'''With distribution of sources, calculate where the alert events
         are coming from'''
-        #MAKE AN ARRAY OF LAM TO PASS TO RNG.POISSON
-        #SHOULD ELIMINATE NEED FOR A FOR LOOP HERE
         sig_alerts = {}
         for stream in ['GFU', 'HESE']:
             for cut, lev in [('gold', 'tight'), ('bronze', 'loose')]:
                 sig_alerts[stream + '_' + cut] = [(0,0.,0.)]*len(self.sources['dec'])
         #sig_alerts = [(0,0.,'','')]*len(self.sources['dec'])
+        kept_inds = set([])
         for stream in ['GFU', 'HESE']:
-           for cut, lev in [('gold', 'tight'), ('bronze', 'loose')]:
-               nexps = np.array(self.n_per_dec[stream + '_' + cut])[self.sources['dec_bands'].astype(int)] * self.sources['flux']
-               Ns = self.rng.poisson(lam=nexps)
-               sigs = [0 if n == 0 else sample_signalness(cut=lev, stream='signal', size=n) for n in Ns]
-               non_zero_inds = np.where(Ns != 0)[0]
-               for ind in non_zero_inds:
-                   sig_alerts[stream + '_' + cut][ind] = (Ns[ind], sigs[ind], nexps[ind])
-        # print(sig_alerts)
-        # sig_alerts = {}
-        # for stream in ['GFU', 'HESE']:
-        #     for cut, lev in [('gold', 'tight'), ('bronze', 'loose')]:
-        #         sig_alerts[stream + '_' + cut] = [(0,0.,0.)]*len(self.sources['dec'])
-        # # CHECK TO MAKE SURE IT'S OKAY THAT I'M NOT INCLUDING THE EXPECTED NUMBER FROM THE ZERO ONES
-        # for jjj, (src_dec, src_flux, src_bnd) in enumerate(zip(self.sources['dec'], self.sources['flux'], self.sources['dec_bands'])):
-        #     for stream in ['GFU', 'HESE']:
-        #         for cut, lev in [('gold', 'tight'), ('bronze', 'loose')]:
-        #             nexp = self.n_per_dec[stream + '_' + cut][int(src_bnd)] * src_flux
-        #             N = self.rng.poisson(lam=nexp)
-        #             #if N != 0.0:
-        #             sigs = sample_signalness(cut=lev, stream='signal', size = N) if N != 0 else 0.
-        #             sig_alerts[stream + '_' + cut][jjj] = (N, sigs, nexp)
-        # for stream in ['GFU', 'HESE']:
-        #   for cut, lev in [('gold', 'tight'), ('bronze', 'loose')]:
-        #       print np.sum(np.array(sig_alerts[stream + '_' + cut]).T[0]), np.sum(np.array(sig_alerts[stream + '_' + cut]).T[-1])
-        # print('')
-        # print(sig_alerts)
+            for cut, lev in [('gold', 'tight'), ('bronze', 'loose')]:
+                nexps = np.array(self.n_per_dec[stream + '_' + cut])[self.sources['dec_bands'].astype(int)] * self.sources['flux']
+                Ns = self.rng.poisson(lam=nexps)
+                sigs = [0 if n == 0 else sample_signalness(cut=lev, stream='signal', size=n) for n in Ns]
+                non_zero_inds = np.where(Ns != 0)[0]
+                for ind in non_zero_inds:
+                    sig_alerts[stream + '_' + cut][ind] = (Ns[ind], sigs[ind], nexps[ind])
+                kept_inds = kept_inds | set(non_zero_inds)
+        kept_inds = np.array(list(kept_inds))
+        #print(kept_inds)
+        #print("BEFORE TRIM")
+        #print(len(self.sources['dec']))
+        for key in self.sources.keys():
+            self.sources[key] = self.sources[key][kept_inds]
+        for key in sig_alerts.keys():
+            sig_alerts[key] = list(np.array(sig_alerts[key])[kept_inds])
+        #print("AFTER TRIM")
+        #print(len(self.sources['dec']))
         self.sig_alerts = sig_alerts
         return sig_alerts
 
     def sample_skymap(self, decs):
         r'''Only use real alert event skymap locations'''
-        ###########################################################################
-        ################ FIX WHEN STEADY TRIALS FINISH #######################################
-        ################ shouldn't stop at 19 index in next line
-        #####################################################
         map_decs = np.load('/data/user/apizzuto/fast_response_skylab/alert_event_followup/effective_areas_alerts/decs_by_ind.npy')[1][:]
         sample_decs, idxs = [], []
         if isinstance(decs, float):
@@ -128,8 +115,10 @@ class Universe():
                 # are too large of maps (60)
                 if self.timescale == 1000.:
                     problem_inds = [60, 79, 228]
-                else:
+                elif self.timescale == 172800.:
                     problem_inds = [60]
+                else:
+                    print("STILL NEED TO MAKE A LIST OF PROBLEM STEADY INDICES")
                 while idx in problem_inds:
                     idx = find_nearest_ind(map_decs, dec)
                 sample_dec = map_decs[idx]
@@ -140,8 +129,10 @@ class Universe():
                 # are too large of maps (60)
                 if self.timescale == 1000.:
                     problem_inds = [60, 79, 228]
-                else:
+                elif self.timescale == 172800:
                     problem_inds = [60]
+                else:
+                    print("STILL NEED TO MAKE A LIST OF PROBLEM STEADY INDICES")
                 while idx in problem_inds:
                     idx = self.rng.choice(nearby_inds)
                 sample_dec = map_decs[idx]
@@ -189,7 +180,6 @@ class Universe():
         self.extra_events = extra_events
         return extra_events
 
-    
 
 class SteadyUniverse(Universe):
     r'''Universe inherited class for steady neutrino sources'''
