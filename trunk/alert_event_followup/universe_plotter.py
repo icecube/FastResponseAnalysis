@@ -256,8 +256,8 @@ class UniversePlotter():
                     except IOError, e:
                         lower_10[ii, jj] = np.nan
                         med_TS[ii, jj] = np.nan
-        med_TS = np.where(np.isnan(med_TS), self.background_median_ts, med_TS)
-        lower_10 = np.where(np.isnan(lower_10), self.background_lower_10_ts, lower_10)
+        med_TS = np.where(np.isnan(med_TS), self.background_median_ts*10000000., med_TS)
+        lower_10 = np.where(np.isnan(lower_10), self.background_lower_10_ts*10000000., lower_10)
         self.med_TS = med_TS
         self.lower_10 = lower_10
 
@@ -360,7 +360,7 @@ class UniversePlotter():
         axs[1].legend(loc=(1.01, 0.1))
         #plt.show()
 
-    def get_overall_background_ts(self, n_trials=1000):
+    def get_overall_background_ts(self, n_trials=5000):
         r'''Sample alert event background distributions
         to get the overall stacked background ts distribution'''
         if self.background_median_ts is not None:
@@ -371,8 +371,11 @@ class UniversePlotter():
             for ind in range(len(skymap_files)):
                 if self.transient and self.delta_t == 1000.:
                     problem_inds = [60, 79, 228]
+                elif self.transient:
+                    problem_inds = [60]
                 else:
-                    problem_inds = [60, 79, 228]
+                    problem_inds = [9999]
+                    print("NEED TO FIGURE OUT STEADY PROBLEM INDS")
                 if ind in problem_inds:
                     continue
                 else:
@@ -386,8 +389,11 @@ class UniversePlotter():
         for ind in range(len(skymap_files)):
             if self.transient and self.delta_t == 1000.:
                 problem_inds = [60, 79, 228]
+            elif self.transient:
+                problem_inds = [60]
             else:
                 problem_inds = [9999]
+                print("NEED TO FIGURE OUT STEADY PROBLEM INDS")
             if ind in problem_inds:
                 continue
             else:
@@ -416,7 +422,7 @@ class UniversePlotter():
         self.stacked_ts = stacked_ts
         return self.background_median_ts
 
-    def get_overall_background_p(self, n_trials=1000):
+    def get_overall_background_p(self, n_trials=5000):
         r'''Sample alert event background distributions
         to get the overall stacked background binomial-p value distribution'''
         bg_trials = '/data/user/apizzuto/fast_response_skylab/alert_event_followup/analysis_trials/bg/'
@@ -425,8 +431,11 @@ class UniversePlotter():
             for ind in range(len(skymap_files)):
                 if self.transient and self.delta_t == 1000.:
                     problem_inds = [60, 79, 228]
+                elif self.transient:
+                    problem_inds = [60]
                 else:
-                    problem_inds = [60, 79, 228] 
+                    problem_inds = [9999]
+                    print("NEED TO FIGURE OUT STEADY PROBLEM INDS") 
                 if ind in problem_inds:
                     continue
                 else:
@@ -439,8 +448,11 @@ class UniversePlotter():
         for ind in range(len(skymap_files)):
             if self.transient and self.delta_t == 1000.:
                 problem_inds = [60, 79, 228]
-            else:
+            elif self.transient:
                 problem_inds = [60]
+            else:
+                problem_inds = [9999]
+                print("NEED TO FIGURE OUT STEADY PROBLEM INDS")
             if ind in problem_inds:
                 continue
             else:
