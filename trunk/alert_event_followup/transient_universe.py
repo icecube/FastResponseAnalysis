@@ -93,9 +93,15 @@ class Universe():
         #print("BEFORE TRIM")
         #print(len(self.sources['dec']))
         for key in self.sources.keys():
-            self.sources[key] = self.sources[key][kept_inds]
+            if len(kept_inds) > 0:
+                self.sources[key] = self.sources[key][kept_inds]
+            else:
+                self.sources[key] = self.sources[key][np.array([0])]
         for key in sig_alerts.keys():
-            sig_alerts[key] = list(np.array(sig_alerts[key])[kept_inds])
+            if len(kept_inds) > 0:
+                sig_alerts[key] = list(np.array(sig_alerts[key])[kept_inds])
+            else:
+                sig_alerts[key] = list(np.array(sig_alerts[key])[np.array([0])])
         #print("AFTER TRIM")
         #print(len(self.sources['dec']))
         self.sig_alerts = sig_alerts
