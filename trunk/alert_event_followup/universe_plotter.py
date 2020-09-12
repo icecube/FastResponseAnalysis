@@ -113,7 +113,7 @@ class UniversePlotter():
         cbar.ax.tick_params(axis='y', direction='out')
         if in_ts or ts_vs_p:
             cs_ts = ax.contour(X, Y, self.lower_10 - self.background_median_ts, colors=['k'], 
-                            levels=[0.0], linewidths=2.)
+                            levels=[0.0], linewidths=2., zorder=10)
         if (not in_ts) or ts_vs_p:
             cs_ts = ax.contour(X, Y, self.background_median_p - self.lower_10_p, colors=['k'], 
                             levels=[0.0], linewidths=2., linestyles='dashed')
@@ -124,7 +124,7 @@ class UniversePlotter():
                 color = 'm', alpha = 0.3, lw=0.0, zorder=10)
         if compare:
             comp_rho, comp_en, comp_str = self.compare_other_analyses()
-            plt.plot(comp_rho, comp_en, color = 'gray', lw=2.)
+            plt.plot(comp_rho, comp_en, color = 'gray', lw=2., zorder=5)
         plt.text(-9, 54.1, 'Diffuse', color = 'm', rotation=-28, fontsize=18)
         #plt.text(-10, 51.7, 'Sensitivity', color = 'k', rotation=-28, fontsize=18)
         plt.grid(lw=0.0)
@@ -256,8 +256,8 @@ class UniversePlotter():
                     except IOError, e:
                         lower_10[ii, jj] = np.nan
                         med_TS[ii, jj] = np.nan
-        med_TS = np.where(np.isnan(med_TS), self.background_median_ts*10000000., med_TS)
-        lower_10 = np.where(np.isnan(lower_10), self.background_lower_10_ts*10000000., lower_10)
+        med_TS = np.where(np.isnan(med_TS), self.background_median_ts, med_TS)
+        lower_10 = np.where(np.isnan(lower_10), self.background_lower_10_ts, lower_10)
         self.med_TS = med_TS
         self.lower_10 = lower_10
 
