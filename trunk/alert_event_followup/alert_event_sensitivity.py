@@ -68,13 +68,14 @@ for gamma in gammas:
                         alert_event=True, smear=args.smear, alert_type='track')
     inj = f.initialize_injector(gamma=gamma)
     scale_arr = []
-    for i in range(1,101):
+    step_size = 10
+    for i in range(1,20*step_size + 1, step_size):
         scale_arr.append([])
         for j in range(5):
             scale_arr[-1].append(inj.sample(i, poisson=False)[0][0])
     scale_arr = np.median(scale_arr, axis=1)
     try:
-        scale_factor = np.min(np.argwhere(scale_arr > 0)) + 1.
+        scale_factor = np.min(np.argwhere(scale_arr > 0))*step_size + 1.
     except:
         print("Scale factor thing for prior injector didn't work")
         scale_factor = 1.
