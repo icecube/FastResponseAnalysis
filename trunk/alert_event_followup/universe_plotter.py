@@ -97,6 +97,16 @@ class UniversePlotter():
             plot_vals = self.med_TS if not log_ts else np.log10(self.med_TS) 
         else:
             plot_vals = self.med_p if not log_ts else np.log10(self.med_p) 
+        # if in_ts:
+        #     if log_ts:
+        #         SOMETHING
+        #     else:
+        #         SOMETHING
+        # else:
+        #     if log_ts:
+        #         SOMETHING
+        #     else:
+        #         SOMETHING
         cmap = self.cmap if in_ts else ListedColormap(self.cmap.colors[::-1])
         extend = 'max' if in_ts else 'min'
         cs = ax.contour(X, Y, plot_vals, cmap=cmap, #levels=np.linspace(-0.5, 1.3, 11), 
@@ -130,14 +140,14 @@ class UniversePlotter():
         plt.grid(lw=0.0)
         #plt.ylim(50, 55.5)
         plt.xlim(-11., -6.)
-        custom_labs = [Line2D([0], [0], color = 'k', lw=2., label='Sensitivity')]
+        time_window_str = '{:.2e} s, '.format(self.delta_t) if self.transient else 'Time integrated, '
+        custom_labs = [Line2D([0], [0], color = 'k', lw=2., label='This analysis (' + time_window_str + '{:.1f} yr.)'.format(self.data_years))]
         if compare:
             custom_labs.append(Line2D([0], [0], color='grey', lw=2., label=comp_str))
         plt.legend(handles=custom_labs, loc=3)
         plt.ylabel(self.lumi_label, fontsize = 22)
         plt.xlabel(self.density_label, fontsize = 22)
-        time_window_str = r'$\Delta T =$ ' + '{:.2e} s, '.format(self.delta_t) if self.transient else 'Time integrated, '
-        title = time_window_str + '{:.0f} yrs of alerts, \n'.format(self.data_years) + self.lumi_str + ', ' + self.evol_str
+        title = self.lumi_str + ', ' + self.evol_str
         plt.title(title)
         #plt.show()
 
@@ -207,12 +217,12 @@ class UniversePlotter():
         plt.ylim(np.log10(np.min(ys_min*xs)*3e-2), np.log10(np.max(ys_max*xs)*2))
         plt.ylabel(self.scaled_lumi_label, fontsize = 22)
         plt.xlabel(self.density_label, fontsize = 22)
-        custom_labs = [Line2D([0], [0], color = 'k', lw=2., label='Sensitivity')]
+        time_window_str = '{:.2e} s, '.format(self.delta_t) if self.transient else 'Time integrated, '
+        custom_labs = [Line2D([0], [0], color = 'k', lw=2., label='This analysis (' + time_window_str + '{:.1f} yr.)'.format(self.data_years))]
         if compare:
             custom_labs.append(Line2D([0], [0], color='grey', lw=2., label=comp_str))
         plt.legend(handles=custom_labs, loc=4)
-        time_window_str = r'$\Delta T =$ ' + '{:.2e} s, '.format(self.delta_t) if self.transient else 'Time integrated, '
-        title = time_window_str + '{:.0f} yrs of alerts, \n'.format(self.data_years) + self.lumi_str + ', ' + self.evol_str
+        title = self.lumi_str + ', ' + self.evol_str
         plt.title(title)
         #plt.show()
     
@@ -366,24 +376,7 @@ class UniversePlotter():
         if self.background_median_ts is not None:
             return self.background_median_ts
         if self.sigs is None:
-            # SEE IF I CAN FRONTLOAD THE SIGNALNESS DISTRIBUTION, TOO LONG FOR 8.6 YEAR CATALOG
-            sigs = []
-            for ind in range(len(skymap_files)):
-                if self.transient and self.delta_t == 1000.:
-                    problem_inds = [60, 79, 228]
-                elif self.transient:
-                    problem_inds = [60]
-                else:
-                    problem_inds = [9999]
-                    print("NEED TO FIGURE OUT STEADY PROBLEM INDS")
-                if ind in problem_inds:
-                    continue
-                else:
-                    skymap_fits, skymap_header = hp.read_map(skymap_files[ind], h=True, verbose=False)
-                    skymap_header = {name: val for name, val in skymap_header}
-                    sig = skymap_header['SIGNAL']
-                sigs.append(sig)
-            self.sigs = np.array(sigs)
+            self.sigs = self.load_signalness_array()
         bg_trials = '/data/user/apizzuto/fast_response_skylab/alert_event_followup/analysis_trials/bg/'
         TSs = []
         for ind in range(len(skymap_files)):
@@ -427,23 +420,7 @@ class UniversePlotter():
         to get the overall stacked background binomial-p value distribution'''
         bg_trials = '/data/user/apizzuto/fast_response_skylab/alert_event_followup/analysis_trials/bg/'
         if self.sigs is None:
-            sigs = []
-            for ind in range(len(skymap_files)):
-                if self.transient and self.delta_t == 1000.:
-                    problem_inds = [60, 79, 228]
-                elif self.transient:
-                    problem_inds = [60]
-                else:
-                    problem_inds = [9999]
-                    print("NEED TO FIGURE OUT STEADY PROBLEM INDS") 
-                if ind in problem_inds:
-                    continue
-                else:
-                    skymap_fits, skymap_header = hp.read_map(skymap_files[ind], h=True, verbose=False)
-                    skymap_header = {name: val for name, val in skymap_header}
-                    sig = skymap_header['SIGNAL']
-                sigs.append(sig)
-            self.sigs = np.array(sigs)
+            self.sigs = self.load_signalness_array()
         pvals = []
         for ind in range(len(skymap_files)):
             if self.transient and self.delta_t == 1000.:
@@ -607,6 +584,20 @@ class UniversePlotter():
             tmp = np.array(zip(*ps_pap))
             lums = tmp[0] * self.no_evol_energy_density/self.energy_density #testing diff. spectrum, this is an approximation rn
             return np.log10(tmp[1]), np.log10(lums), '8 yr. point source'
+
+    def load_signalness_array(self):
+        r''' Load the signalness by index list, apply
+        appropriate masks depending on which analysis is being run'''
+        sigs_all = np.load('/data/user/apizzuto/fast_response_skylab/alert_event_followup/effective_areas_alerts/sigs_by_ind.npy')
+        if self.transient and self.delta_t == 1000.:
+            msk_inds = np.array([60, 79, 228])
+        elif self.transient:
+            msk_inds = np.array([60])
+        else:
+            print("NEED TO FIGURE OUT STEADY PROBLEM INDS")
+            msk_inds = np.array([9999])
+        sigs = np.delete(sigs_all, msk_inds)
+        return sigs
 
     def upper_limit_plot(self):
         pass
