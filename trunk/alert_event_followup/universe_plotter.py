@@ -399,8 +399,7 @@ class UniversePlotter():
             elif self.transient:
                 problem_inds = [60]
             else:
-                problem_inds = [9999]
-                print("NEED TO FIGURE OUT STEADY PROBLEM INDS")
+                problem_inds = [13, 32, 60, 83, 143, 147]
             if ind in problem_inds:
                 continue
             else:
@@ -442,8 +441,7 @@ class UniversePlotter():
             elif self.transient:
                 problem_inds = [60]
             else:
-                problem_inds = [9999]
-                print("NEED TO FIGURE OUT STEADY PROBLEM INDS")
+                problem_inds = [13, 32, 60, 83, 143, 147]
             if ind in problem_inds:
                 continue
             else:
@@ -608,8 +606,7 @@ class UniversePlotter():
         elif self.transient:
             msk_inds = np.array([60])
         else:
-            print("NEED TO FIGURE OUT STEADY PROBLEM INDS")
-            msk_inds = np.array([9999])
+            msk_inds = np.array([13, 32, 60, 83, 143, 147])
         sigs = np.delete(sigs_all, msk_inds)
         return sigs
 
