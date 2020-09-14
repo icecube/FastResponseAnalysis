@@ -47,7 +47,7 @@ ps_gold.append(uni.calculate_binomial_pvalue(only_gold=True))
 print("  Trials completed: ")
 
 for jj in range(args.n - 1):
-    #print('    {}'.format(jj+1))
+    print('    {}'.format(jj+1))
     uni.reinitialize_universe()
     uni.make_alerts_dataframe()
     TS.append(uni.calculate_ts(only_gold = False))

@@ -191,7 +191,7 @@ class UniversePlotter():
                 levels = np.linspace(self.background_median_ts, self.background_median_ts * 10., 11)
         else:
             if log_ts:
-                levels = np.linspace(-8., np.log10(self.background_median_p), 11)
+                levels = np.linspace(-10., np.log10(self.background_median_p), 11)
             else:
                 levels = np.linspace(0.0, self.background_median_p, 11)
         cmap = self.cmap if in_ts else ListedColormap(self.cmap.colors[::-1])
@@ -247,7 +247,7 @@ class UniversePlotter():
                 else r'$\log_{10}\Big( \frac{\mathcal{L}}{\mathrm{erg}\;\mathrm{yr}^{-1}} \Big)$'
         self.density_label = r'$\log_{10}\Big( \frac{\dot{\rho}}{ \mathrm{Mpc}^{-3}\,\mathrm{yr}^{-1}} \Big)$' if self.transient \
                 else r'$\log_{10}\Big( \frac{\rho}{ \mathrm{Mpc}^{-3}} \Big)$'
-        self.cmap = ListedColormap(sns.light_palette((210, 90, 60), input="husl"))
+        self.cmap = ListedColormap(sns.light_palette((210, 90, 60), input="husl", n_colors=12))
         self.plot_lumis = self.luminosities / self.time_window_per_year
         self.scaled_lumi_label = r'$\log_{10}\Big( \frac{\mathcal{E}\dot{\rho} }{\mathrm{erg}\;\mathrm{Mpc}^{-3}\,\mathrm{yr}^{-1}} \Big)$' if self.transient \
                 else r'$\log_{10}\Big( \frac{\mathcal{L} \rho}{\mathrm{Mpc}^{-3} \mathrm{erg}\;\mathrm{yr}^{-1}} \Big)$'
