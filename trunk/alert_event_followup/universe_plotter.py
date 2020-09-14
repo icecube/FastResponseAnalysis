@@ -97,22 +97,23 @@ class UniversePlotter():
             plot_vals = self.med_TS if not log_ts else np.log10(self.med_TS) 
         else:
             plot_vals = self.med_p if not log_ts else np.log10(self.med_p) 
-        # if in_ts:
-        #     if log_ts:
-        #         SOMETHING
-        #     else:
-        #         SOMETHING
-        # else:
-        #     if log_ts:
-        #         SOMETHING
-        #     else:
-        #         SOMETHING
+        if in_ts:
+            if log_ts:
+                levels = np.linspace(np.log10(self.background_median_ts), np.log10(self.background_median_ts) + 2., 11)
+            else:
+                levels = np.linspace(self.background_median_ts, self.background_median_ts * 10., 11)
+        else:
+            if log_ts:
+                levels = np.linspace(-8., np.log10(self.background_median_p), 11)
+            else:
+                levels = np.linspace(0.0, self.background_median_p, 11)
         cmap = self.cmap if in_ts else ListedColormap(self.cmap.colors[::-1])
         extend = 'max' if in_ts else 'min'
-        cs = ax.contour(X, Y, plot_vals, cmap=cmap, #levels=np.linspace(-0.5, 1.3, 11), 
+        cs = ax.contour(X, Y, plot_vals, cmap=cmap, levels=levels, 
                         #vmin=-0.5, 
                         extend=extend)
-        csf = ax.contourf(X, Y, plot_vals, cmap=cmap, #vmin=-0.5, #levels=np.linspace(-0.5, 1.3, 11), 
+        csf = ax.contourf(X, Y, plot_vals, cmap=cmap, levels=levels, 
+                        #vmin=-0.5, 
                         extend=extend)
         cbar = plt.colorbar(csf) 
         if in_ts or ts_vs_p:
@@ -125,8 +126,9 @@ class UniversePlotter():
             cs_ts = ax.contour(X, Y, self.lower_10 - self.background_median_ts, colors=['k'], 
                             levels=[0.0], linewidths=2., zorder=10)
         if (not in_ts) or ts_vs_p:
+            linestyle = 'solid' if ts_vs_p else 'dashed'
             cs_ts = ax.contour(X, Y, self.background_median_p - self.lower_10_p, colors=['k'], 
-                            levels=[0.0], linewidths=2., linestyles='dashed')
+                            levels=[0.0], linewidths=2., linestyles=linestyle)
         xs = np.logspace(-11., -6., 1000)
         ys_max = self.no_evol_energy_density / xs / self.seconds_per_year if self.transient else self.no_evol_energy_density / xs
         ys_min = self.energy_density / xs / self.seconds_per_year if self.transient else self.energy_density / xs
@@ -144,7 +146,7 @@ class UniversePlotter():
         custom_labs = [Line2D([0], [0], color = 'k', lw=2., label='This analysis (' + time_window_str + '{:.1f} yr.)'.format(self.data_years))]
         if compare:
             custom_labs.append(Line2D([0], [0], color='grey', lw=2., label=comp_str))
-        plt.legend(handles=custom_labs, loc=3)
+        plt.legend(handles=custom_labs, loc=1)
         plt.ylabel(self.lumi_label, fontsize = 22)
         plt.xlabel(self.density_label, fontsize = 22)
         title = self.lumi_str + ', ' + self.evol_str
@@ -182,12 +184,23 @@ class UniversePlotter():
             plot_vals = self.med_TS if not log_ts else np.log10(self.med_TS) 
         else:
             plot_vals = self.med_p if not log_ts else np.log10(self.med_p) 
+        if in_ts:
+            if log_ts:
+                levels = np.linspace(np.log10(self.background_median_ts), np.log10(self.background_median_ts) + 2., 11)
+            else:
+                levels = np.linspace(self.background_median_ts, self.background_median_ts * 10., 11)
+        else:
+            if log_ts:
+                levels = np.linspace(-8., np.log10(self.background_median_p), 11)
+            else:
+                levels = np.linspace(0.0, self.background_median_p, 11)
         cmap = self.cmap if in_ts else ListedColormap(self.cmap.colors[::-1])
         extend = 'max' if in_ts else 'min'
-        cs = ax.contour(X, Y, plot_vals, cmap=cmap, #levels=np.linspace(-0.5, 1.3, 11), 
+        cs = ax.contour(X, Y, plot_vals, cmap=cmap, levels=levels, 
                         #vmin=-0.5, 
                         extend=extend)
-        csf = ax.contourf(X, Y, plot_vals, cmap=cmap, #vmin=-0.5, #levels=np.linspace(-0.5, 1.3, 11), 
+        csf = ax.contourf(X, Y, plot_vals, cmap=cmap, levels=levels, 
+                        #vmin=-0.5, 
                         extend=extend)
         cbar = plt.colorbar(csf) 
         if in_ts or ts_vs_p:
@@ -200,8 +213,9 @@ class UniversePlotter():
             cs_ts = ax.contour(X, Y, self.lower_10 - self.background_median_ts, colors=['k'], 
                             levels=[0.0], linewidths=2.)
         if (not in_ts) or ts_vs_p:
+            linestyle = 'solid' if ts_vs_p else 'dashed'
             cs_ts = ax.contour(X, Y, self.background_median_p - self.lower_10_p, colors=['k'], 
-                            levels=[0.0], linewidths=2., linestyles='dashed')
+                            levels=[0.0], linewidths=2., linestyles=linestyle)
         xs = np.logspace(-11., -6., 1000)
         ys_max = self.no_evol_energy_density / xs / self.seconds_per_year if self.transient else self.no_evol_energy_density / xs
         ys_min = self.energy_density / xs / self.seconds_per_year if self.transient else self.energy_density / xs
