@@ -79,6 +79,7 @@ if __name__ == '__main__':
     from astropy.time import Time
     from datetime import datetime
     import time
+    from glob import glob
 
     parser = argparse.ArgumentParser(description='Fast Response Analysis')
     parser.add_argument('--run_live', action='store_true', default=False,
