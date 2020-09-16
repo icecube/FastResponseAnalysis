@@ -68,7 +68,7 @@ class UniversePlotter():
         self.sigs = None
 
     def two_dim_sensitivity_plot_ts(self, compare=False, log_ts=False, in_ts=True,
-                        ts_vs_p=False):
+                        ts_vs_p=False, discovery=False):
         r'''Two dimensional contour plot to show the sensitivity of the analysis
         in the luminosity-density plane, highlighting the energy requirements
         for the diffuse flux
@@ -123,11 +123,19 @@ class UniversePlotter():
         cbar.set_label(cbar_lab, fontsize = 18)
         cbar.ax.tick_params(axis='y', direction='out')
         if in_ts or ts_vs_p:
-            cs_ts = ax.contour(X, Y, self.lower_10 - self.background_median_ts, colors=['k'], 
+            if discovery:
+                sens_disc = self.med_TS - self.background_three_sigma_ts
+            else:
+                sens_disc = self.lower_10 - self.background_median_ts
+            cs_ts = ax.contour(X, Y, sens_disc, colors=['k'], 
                             levels=[0.0], linewidths=2., zorder=10)
         if (not in_ts) or ts_vs_p:
-            linestyle = 'solid' if ts_vs_p else 'dashed'
-            cs_ts = ax.contour(X, Y, self.background_median_p - self.lower_10_p, colors=['k'], 
+            linestyle = 'dashed' if ts_vs_p else 'solid'
+            if discovery:
+                sens_disc = self.background_three_sigma_p - self.med_p
+            else:
+                sens_disc = self.background_median_p - self.lower_10_p
+            cs_ts = ax.contour(X, Y, sens_disc, colors=['k'], 
                             levels=[0.0], linewidths=2., linestyles=linestyle)
         xs = np.logspace(-11., -6., 1000)
         ys_max = self.no_evol_energy_density / xs / self.seconds_per_year if self.transient else self.no_evol_energy_density / xs
@@ -210,11 +218,19 @@ class UniversePlotter():
         cbar.set_label(cbar_lab, fontsize = 18)
         cbar.ax.tick_params(axis='y', direction='out')
         if in_ts or ts_vs_p:
-            cs_ts = ax.contour(X, Y, self.lower_10 - self.background_median_ts, colors=['k'], 
+            if discovery:
+                sens_disc = self.med_TS - self.background_three_sigma_ts
+            else:
+                sens_disc = self.lower_10 - self.background_median_ts
+            cs_ts = ax.contour(X, Y, sens_disc, colors=['k'], 
                             levels=[0.0], linewidths=2.)
         if (not in_ts) or ts_vs_p:
-            linestyle = 'solid' if ts_vs_p else 'dashed'
-            cs_ts = ax.contour(X, Y, self.background_median_p - self.lower_10_p, colors=['k'], 
+            if discovery:
+                sens_disc = self.background_three_sigma_p - self.med_p
+            else:
+                sens_disc = self.background_median_p - self.lower_10_p
+            linestyle = 'dashed' if ts_vs_p else 'solid'
+            cs_ts = ax.contour(X, Y, sens_disc, colors=['k'], 
                             levels=[0.0], linewidths=2., linestyles=linestyle)
         xs = np.logspace(-11., -6., 1000)
         ys_max = self.no_evol_energy_density / xs / self.seconds_per_year if self.transient else self.no_evol_energy_density / xs
@@ -425,6 +441,7 @@ class UniversePlotter():
         stacked_ts = np.sum(stacked_ts, axis=0) / (stacked_ts.shape[0] - 1.) #-1 because we skip one of the maps
         self.background_median_ts = np.median(stacked_ts)
         self.background_lower_10_ts = np.percentile(stacked_ts, 10.)
+        self.background_three_sigma_ts = np.percentile(stacked_ts, 99.87)
         self.stacked_ts = stacked_ts
         return self.background_median_ts
 
@@ -480,6 +497,7 @@ class UniversePlotter():
         binomial_lower_10 = np.percentile(background_binomial, 90.)
         self.background_median_p = np.percentile(background_binomial, 50.)
         self.background_lower_10_p = np.percentile(background_binomial, 90.)
+        self.background_three_sigma_p = np.percentile(background_binomial, 0.13)
         self.stacked_p = background_binomial
         return self.background_median_p
 
