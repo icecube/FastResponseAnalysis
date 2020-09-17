@@ -161,7 +161,8 @@ class UniversePlotter():
         plt.title(title)
         #plt.show()
 
-    def rotated_sensitivity_plot_ts(self, log_ts=False, in_ts=True, ts_vs_p=False, compare=False):
+    def rotated_sensitivity_plot_ts(self, log_ts=False, in_ts=True, ts_vs_p=False, compare=False,
+                                    discovery=False):
         r'''Two dimensional contour plot to show the sensitivity of the analysis
         in the rotated luminosity-density plane, highlighting the energy requirements
         for the diffuse flux
