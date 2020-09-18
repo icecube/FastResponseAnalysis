@@ -388,6 +388,9 @@ def get_true_fit(ind, delta_t, smear=True):
     res = np.load(res_f[0])
     return res
 
+##############################################################################
+############# REPEAT THIS IN THE STEADY FITS FILE
+##############################################################################
 def get_true_pval(ind, delta_t, smear=True):
     result = get_true_fit(ind, delta_t, smear=smear)
     bg_trials = background(ind, delta_t, smear=smear)
