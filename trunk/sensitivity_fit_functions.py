@@ -387,4 +387,8 @@ def get_true_fit(ind, delta_t, smear=True):
     res = np.load(res_f[0])
     return res
 
-
+def get_true_pval(ind, delta_t, smear=True):
+    result = get_true_fit(ind, delta_t, smear=smear)
+    bg_trials = background(ind, delta_t, smear=smear)
+    bg_ts = bg['ts_prior']
+    p_val = float(np.count_nonzero(bg_ts >= result['ts'])) / float(len(bg_ts))
