@@ -7,12 +7,13 @@ import pickle
 from glob import glob
 import matplotlib as mpl
 #mpl.use('Agg')
-##import matplotlib.pyplot as plt
-##import seaborn as sns
+import matplotlib.pyplot as plt
+import seaborn as sns
 import sys
 sys.path.append('/data/user/apizzuto/fast_response_skylab/fast-response/trunk/time_integrated_scripts/')
 import steady_sensitivity_fits
 import healpy as hp
+import scipy.stats as st
  
 palette = ['#7fc97f', '#beaed4', '#fdc086', '#ffff99', '#386cb0', '#f0027f']
 skymap_files = glob('/data/ana/realtime/alert_catalog_v2/fits_files/Run*.fits.gz')
@@ -404,3 +405,16 @@ def get_true_pval_list(delta_t, smear=True):
             pval = get_true_pval(ind, delta_t, smear=smear)
             pval_list.append(pval)
     return np.array(pval_list)
+
+def get_binomial_p_value_truth(delta_t, smear=True):
+    print("CAUTION: ONLY RUN THIS IF YOU HAVE PERMISSION TO LOOK AT REAL DATA")
+    obs_p = 1.
+    plist = get_true_pval_list(delta_t, smear=smear)
+    plist = sorted(plist)
+    for i, p in enumerate(plist):
+        tmp = st.binom_test(i+1, len(plist), p, alternative='greater')
+        if tmp < obs_p and tmp != 0.0:
+            if tmp == 0.0:
+                print("WHY DOES THE BINOMIAL VALUE EQUAL ZERO")
+            obs_p = tmp
+    return obs_p
