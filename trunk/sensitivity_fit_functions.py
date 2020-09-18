@@ -377,3 +377,14 @@ def background_hotspot_map(ind, delta_t, smear=True):
     reco_hist = np.zeros(hp.nside2npix(256))
     reco_hist[ind_counts[0]] = ind_counts[1]
     plot_zoom_from_map(reco_hist, ind, draw_contour=False, col_label='Counts')
+
+def get_true_fit(ind, delta_t, smear=True):
+    name = skymap_files[ind][skymap_files[ind].find('Run')+3:skymap_files[ind].find('_nside')]
+    run = name[:name.find('_')]
+    event = name[name.find('_') + 1:]
+    smear_str = 'smeared/' if smear else 'norm_prob/'
+    res_f = glob('/data/user/apizzuto/fast_response_skylab/alert_event_followup/analysis_trials/results/{}*{}*{}_time_window_{:.2e}_results.pickle'.format(smear_str, run, event, delta_t))
+    res = np.load(res_f[0])
+    return res
+
+
