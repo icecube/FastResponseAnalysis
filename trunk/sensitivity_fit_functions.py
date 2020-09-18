@@ -7,8 +7,8 @@ import pickle
 from glob import glob
 import matplotlib as mpl
 #mpl.use('Agg')
-import matplotlib.pyplot as plt
-import seaborn as sns
+##import matplotlib.pyplot as plt
+##import seaborn as sns
 import sys
 sys.path.append('/data/user/apizzuto/fast_response_skylab/fast-response/trunk/time_integrated_scripts/')
 import steady_sensitivity_fits
@@ -390,5 +390,17 @@ def get_true_fit(ind, delta_t, smear=True):
 def get_true_pval(ind, delta_t, smear=True):
     result = get_true_fit(ind, delta_t, smear=smear)
     bg_trials = background(ind, delta_t, smear=smear)
-    bg_ts = bg['ts_prior']
+    bg_ts = bg_trials['ts_prior']
     p_val = float(np.count_nonzero(bg_ts >= result['ts'])) / float(len(bg_ts))
+    return p_val
+
+def get_true_pval_list(delta_t, smear=True):
+    problem_inds = [60, 79, 228] if delta_t == 1000. else [60]
+    pval_list = []
+    for ind in range(len(skymap_files)):
+        if ind in problem_inds:
+            pval_list.append(1.0)
+        else:
+            pval = get_true_pval(ind, delta_t, smear=smear)
+            pval_list.append(pval)
+    return np.array(pval_list)
