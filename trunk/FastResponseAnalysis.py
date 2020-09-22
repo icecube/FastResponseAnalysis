@@ -198,7 +198,7 @@ class FastResponseAnalysis(object):
         self.ns_profile = None
         self.low5, self.high5 = None, None
         self.sens_range = None
-
+        #self.archival = kwargs.pop("archival", False) #Put this here to use GFU (not online) for archival analyses
   
     def initialize_llh(self, skipped = None, extension = None, scramble=False, alert_event=False):
         r''' Initializes a point source llh
