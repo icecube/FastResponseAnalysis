@@ -1,8 +1,5 @@
 r"""
 Config File which sets up likelihood object and PriorInjector object.
-Option to choose between the two Anomalous Anita Events, namely the
-event detected in the Askaryan channel ('Askaryan') or the 
-event that is consistent with a tau candiate ('tau')
 Modified version of Josh Wood's multi-year config file which can be found 
 here: skylab/doc/analyses/icecube-170922A_wGFU/config.py 
 """
@@ -53,16 +50,13 @@ def config(alert_ind, seed = 1, scramble = True, e_range=(0,np.inf), g_range=[1.
     """
     seasons = [("GFUOnline_v001p02", "IC86, 2011-2018"),
                 ("GFUOnline_v001p02", "IC86, 2019")]
-    #skymaps_path = '/data/user/steinrob/millipede_scan_archive/fits_v3_prob_map/'
-    #files = glob(skymaps_path + '*.fits')
-    #skymap_fits = fits.open(files[alert_ind])[0].data
 
-    #Turn this into a function read_alert_event()
+    #seasons = [("GFU_v002_p05", "IC86, 2011-2018"),
+    #            (GFU_v002_p05", "IC86, 2019")]
+
+
     #skymap_files = glob('/data/ana/realtime/alert_catalog_v2/2yr_prelim/fits_files/Run13*.fits.gz')
     skymap_files = glob('/data/ana/realtime/alert_catalog_v2/fits_files/Run1*.fits.gz')
-    #skymap_f = fits.open(skymap_files[alert_ind])
-    #skymap_fits = skymap_f[1].data
-    #skymap_header = skymap_f[1].header
     skymap_fits, skymap_header = hp.read_map(skymap_files[alert_ind], h=True, verbose=False)
     skymap_header = {name: val for name, val in skymap_header}
     run_id, ev_id = skymap_header['RUNID'], skymap_header['EVENTID']
