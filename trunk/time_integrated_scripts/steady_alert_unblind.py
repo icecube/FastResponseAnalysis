@@ -27,12 +27,14 @@ parser = argparse.ArgumentParser(description = 'Alert event followup steady back
 parser.add_argument('--i', type=int, required=True, help='Alert event index')
 parser.add_argument('--verbose', action='store_true', default=False,
                     help="Assorted print statements flag")
+parser.add_argument('--rng', type=int, default=1, help="Random number seed")
 parser.add_argument('--smear', default=False, action='store_true',
                     help='Include systematics by smearing norm. prob.')
 args = parser.parse_args()
 #######################################################################################
 
 index = args.i
+seed = args.rng
 verbose = args.verbose
 
 smear_str = 'smeared/' if args.smear else 'norm_prob/'
