@@ -733,26 +733,40 @@ class ReportGenerator(object):
         os.symlink(reportsrc,reportpath)
 
         # symlink directory of needed sty files
-        styledname = 'sty'
-        styledpath = os.path.join(self.dirname, styledname)
+        ##styledname = 'sty'
+        ##styledpath = os.path.join(self.dirname, styledname)
         #styledsrc  = os.path.join(os.environ["I3_BUILD"],'fast_response','resources','latex','sty')
-        try:
-            styledsrc = os.path.join(os.environ["FAST_RESPONSE_SCRIPTS"], 'latex', 'sty')
-        except KeyError:
-            styledsrc = os.path.join(os.getcwd(), 'latex', 'sty')
-        if os.path.exists(styledpath):
-            os.unlink(styledpath)
+        ##try:
+        ##    styledsrc = os.path.join(os.environ["FAST_RESPONSE_SCRIPTS"], 'latex', 'sty')
+        ##except KeyError:
+        ##    styledsrc = os.path.join(os.getcwd(), 'latex', 'sty')
+        ##if os.path.exists(styledpath):
+        ##    os.unlink(styledpath)
         # but only if source exists (user decision, only needed on some systems)
-        if os.path.exists(styledsrc):
-            os.symlink(styledsrc,styledpath)
+        ##if os.path.exists(styledsrc):
+        ##    os.symlink(styledsrc,styledpath)
 
     def make_pdf(self):
         # get environment variables
         env = dict(os.environ)
         # add location for sty files
-        env['TEXINPUTS'] = './:./sty/:'
+        #env['TEXINPUTS'] = './:./sty/:'
         subprocess.call(['pdflatex','-interaction=batchmode','-output-directory=%s' % self.dirname, 
                         self.dirname+'/'+self.analysisid+"_report.tex"],
                         #cwd=self.dirname,
                         env = env,
                        )
+
+class FastResponseReport(ReportGenerator):
+    def __init__(self):
+        pass
+
+    def generate_report(self):
+        pass
+
+class GravitationalWaveReport(ReportGenerator):
+    def __init(self):
+        pass
+
+    def generate_report(self):
+        pass
