@@ -532,7 +532,7 @@ class FastResponseAnalysis(object):
 
         current_rate = self.llh.nbackground / (self.duration * 86400.) * 1000.
         closest_rate = find_nearest(np.linspace(6.2, 7.2, 6), current_rate)
-        pre_ts_array = sparse.load_npz('/data/user/apizzuto/fast_response_skylab/fast-response/trunk/precomputed_background/glob_trials/precomputed_trials_delta_t_{:.2e}_trials_rate_{:.1f}_low_stats.npz'.format(self.duration * 86400., closest_rate, self.duration * 86400.))
+        pre_ts_array = sparse.load_npz('/data/user/apizzuto/fast_response_skylab/fast-response/fast_response/precomputed_background/glob_trials/precomputed_trials_delta_t_{:.2e}_trials_rate_{:.1f}_low_stats.npz'.format(self.duration * 86400., closest_rate, self.duration * 86400.))
         ts_norm = np.log(np.amax(self.skymap))
         ts_prior = pre_ts_array.copy()
         ts_prior.data += 2.*(np.log(self.skymap[pre_ts_array.indices]) - ts_norm)

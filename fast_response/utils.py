@@ -72,7 +72,7 @@ def createFastResponsePage(analysis):
     '''
     new_f = []
     keypairs = [('ANALYSISTS', 'ts'), ('ANALYSISNS', 'ns'), ('ANALYSISP', 'p')]
-    with open('/data/user/apizzuto/fast_response_skylab/fast-response/trunk/html/analysis_base.html', 'r') as f:
+    with open('/data/user/apizzuto/fast_response_skylab/fast-response/fast_response/html/analysis_base.html', 'r') as f:
         for line in f.readlines():
             for k, r in keypairs:
                 if k in line:

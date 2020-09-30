@@ -14,7 +14,7 @@ import pandas as pd
 import subprocess
 import pickle
 
-base_path = os.path.join('/data/user/apizzuto/fast_response_skylab/fast-response/trunk/','')
+base_path = os.path.join('/data/user/apizzuto/fast_response_skylab/fast-response/fast_response/','')
 sys.path.append(base_path)
 
 from FastResponseAnalysis import FastResponseAnalysis

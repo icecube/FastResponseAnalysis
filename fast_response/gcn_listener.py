@@ -93,11 +93,11 @@ if __name__ == '__main__':
         gcn.listen(handler=process_gcn)
     elif not args.test_cascade:
         print("Running on sample track . . . ")
-        payload = open('/data/user/apizzuto/fast_response_skylab/fast-response/trunk/alert_event_followup/sample_astrotrack_alert.xml', 'rb').read()
+        payload = open('/data/user/apizzuto/fast_response_skylab/fast-response/fast_response/alert_event_followup/sample_astrotrack_alert.xml', 'rb').read()
         root = lxml.etree.fromstring(payload)
         process_gcn(payload, root)
     else:
         print("Running on sample cascade . . . ")
-        payload = open('/data/user/apizzuto/fast_response_skylab/fast-response/trunk/sample_cascade.txt', 'rb').read()
+        payload = open('/data/user/apizzuto/fast_response_skylab/fast-response/fast_response/sample_cascade.txt', 'rb').read()
         root = lxml.etree.fromstring(payload)
         process_gcn(payload, root)
