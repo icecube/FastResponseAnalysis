@@ -218,9 +218,6 @@ class ReportGenerator(object):
             req = urllib.request.Request(run_url)
             with urllib.request.urlopen(req, data=req_data, timeout=500) as fi:
                 run_table = json.load(fi)
-        #run_table= json.loads(
-        #        urllib.request.urlopen(urllib.request.Request(
-        #            run_url,urllib.parse.urlencode(run_query)),timeout=500).read())
 
         #add duration to run table
         for run in run_table:
@@ -276,204 +273,6 @@ class ReportGenerator(object):
             events['t']=t.datetime
             events['mjd'] = t.mjd
         return events
-
-    def generate_gw_report(self):
-
-        report_fname = os.path.join(self.dirname,"r.tex")
-
-        self.run_table = self.query_db_runs(self.time_window)
-        now = datetime.datetime.utcnow()
-        self.ontime = {}
-        self.ontime['type']='database'
-        self.ontime['stream'] = self.stream
-        self.ontime['runkey']='run_id'
-        self.ontime['time_start']=Time(self.run_table[0]['start'],format='iso',scale='utc',precision=0).iso
-        self.ontime['time_stop'] =Time(self.run_table[-1]['stop'],format='iso',scale='utc',precision=0).iso
-        self.ontime['time_query']=now.strftime('%Y-%m-%d %H:%M:%S')
-
-        self.query_events=icecube.realtime_tools.live.get_events(
-            self.ontime['stream'], self.ontime['time_start'],self.ontime['time_stop'])
-
-        self.widewindow = self.ontime_table(self.query_events)
-        self.widewindow['t']=Time(list(self.widewindow['eventtime']),scale='utc',format='iso')
-
-        for run in self.run_table:
-            run['gfu_counts'] = (self.widewindow['run_id']==run['run_number']).sum()
-
-        s=self.source
-
-        # Make rate plots and put them in analysis directory
-        make_rate_plots(self.time_window,self.run_table,self.query_events,self.dirname)
-
-        with open(report_fname,'wt') as f:
-
-            d1=s["time_start_iso"].split()[0]
-            d2=s["time_stop_iso"].split()[0]
-
-            if d1==d2:
-                obsdate = d1
-            else:
-                obsdate = d1+' -- '+d2
-
-            f.write(
-                r"\newcommand{"+"\\"+"sourcename"+"}{"+
-                s["name"]+"}\n")
-
-            f.write(r"\newcommand{\analysisid}{"+self.analysisid+"}\n")
-            
-            f.write(
-                r"\newcommand{"+"\\"+"gfurate"+"}{"+ self.dirname+"/"+
-                "GFU_rate_plot.png"+
-                "}\n")
-
-            f.write(
-                r"\newcommand{"+"\\"+"reportdate"+"}{"+
-                datetime.date.today().strftime("%Y-%m-%d")+
-                "}\n")
-
-            f.write(
-                r"\newcommand{"+"\\"+"skymap"+"}{"+ self.dirname+"/"+
-                self.analysisid + "unblinded_skymap.png" +
-                "}\n")
-
-            f.write(
-                r"\newcommand{"+"\\"+"muonfilter"+"}{"+ self.dirname+"/"+
-                "MuonFilter_13_plot.png"+
-                "}\n")
-       
-            f.write(
-                r"\newcommand{"+"\\"+"Lfilter"+"}{"+ self.dirname+"/"+
-                "OnlineL2Filter_17_plot.png"+
-                "}\n")
-            
-            f.write(
-                r"\newcommand{"+"\\"+"badness"+"}{"+ self.dirname+"/"+
-                "badness_plot.png"+
-                "}\n")
-
-            f.write(
-                r"\newcommand{"+"\\"+"obsdate"+"}{"+
-                obsdate+"}\n")
-
-            f.write(
-                r"\newcommand{"+"\\"+"multiplicity"+"}{"+ self.dirname+"/"+
-                "IN_ICE_SIMPLE_MULTIPLICITY_plot.png"+
-                "}\n")
-
-            sf_fname = os.path.join(self.dirname,self.analysisid+"_SurvivalFunction.pdf")
-            if os.path.exists(sf_fname):
-                f.write(r"\newcommand{"+"\\"+"survivialfunctionplot"+"}{"+
-                        r"\includegraphics[width=\textwidth]{\analysisid_SurvivalFunction}"+
-                        "}\n")
-            else:
-                f.write(r"\newcommand{"+"\\"+"survivialfunctionplot"+"}{}\n")
-
-            dist_fname = os.path.join(self.dirname,self.analysisid+"_BackgroundPDF.pdf")
-            if os.path.exists(sf_fname):
-                f.write(r"\newcommand{"+"\\"+"backgroundpdfplot"+"}{"+
-                        r"\includegraphics[width=\textwidth]{\analysisid_BackgroundPDF}"+
-                        "}\n")
-            else:
-                f.write(r"\newcommand{"+"\\"+"backgroundpdfplot"+"}{}\n")
-
-            self.write_table(f,"sourcetable",[],[
-                ("Source Name",s["name"]),
-                ("Trigger Time","{} (MJD={:12.6f})".format(s["time_trigger_iso"],s["time_trigger_mjd"])),
-                ("Start Time", "{} (Trigger{:+1.1f}s)".format(s["time_start_iso"],
-                                                              (self.time_window[0]-self.trigger).sec)),
-                ("Stop Time", "{} (Trigger{:+1.1f}s)".format(s["time_stop_iso"],
-                                                             (self.time_window[1]-self.trigger).sec)),
-                ("Time Window",r"{:1.1f}s".format(s["realtime"])),
-            ])
-
-            r1=[]
-            r2=[]
-            livetime = 0
-
-            for run in self.run_table:
-                r1.append((run["run_number"],run["start"].split(".")[0],run["stop"].split(".")[0],run["duration"],"{:1.1f}s".format(run["livetime"])))
-
-                livetime += run['livetime']
-            self.write_table(f,"runtimetable",["Run","Start Time","Stop Time","Duration","Livetime"],r1,)
-
-            if 'status' in self.run_table[0]:
-                for run in self.run_table:
-                    r2.append((run['run_number'],run['status'],run['lightmode'],run['filter_mode'],
-                               run['run_mode'],run["OK"],run["gfu_counts"]))
-                self.write_table(f,"runstatustable",["Run","Status","Light","Filter Mode","Run Mode","OK","GFU" ],r2,)
-            else:
-                self.write_table(f,"runstatustable",[],[])
-
-            f.write(r"\newcommand{\livetime}{"+'{:0,.1f}'.format(livetime)+"}\n")
-
-            if self.ontime['type']=='database':
-                self.write_table(f,"ontimetable",[],[("Access Method",self.ontime['type']),
-                                                ("Stream", r"\texttt{"+self.ontime['stream']+"}"),
-                                                ("Query Time",self.ontime['time_query']),
-                                                ("Start Time",self.ontime['time_start']),
-                                                ("Stop Time", self.ontime['time_stop']),
-                                                ])
-
-
-            event_table = []
-            if self.events is not None:
-                for event in self.events:
-                    event_table+=[
-                        ("Run",'{}'.format(event['run'])),
-                        ("Event",'{}'.format(event['event'])),
-                        ("Time","{}".format(
-                            event['time'])),
-                        ("Right Ascension","{:3.2f}\degree"
-                         .format(np.rad2deg(event['ra']))),
-                        ("Declination","{:3.2f}\degree"
-                         .format(np.rad2deg(event['dec']))),
-                        ("Angular Uncertainty (90\%)","{:3.2f}\degree"
-                            .format(np.rad2deg(event["sigma"]*2.145966))),
-                        ("Reconstructed Energy (GeV)","{:2.2f}"
-                            .format(10**event['logE'])),
-                        None,
-                    ]
-
-                self.write_table(f,"event",[],event_table)
-            else:
-                f.write(r"\newcommand{\event}{[None]}")
-
-            llh_table = []
-            for i in range(s['ts'].size):
-                llh_table+=[
-                    ("$TS$",'{:1.3f}'.format(s['ts'][i])),
-                    ("$n_s$",'{:1.3f}'.format(s['ns'][i])),
-                    ("P value","{:1.4f}".format(s['pvalue'][i])),
-                    ("$\gamma$","{:1.3f}".format(s['gamma'][i]))
-                ]
-
-            self.write_table(f,"results",[],llh_table)
-            # self.write_table(f,"results",[],[
-            #     ("$n_s$","{:1.3f}".format(s['ns'])),
-            #     ("$TS$","{:1.3f}".format(s['ts'])),
-            #     ("$P value$","{:1.4f}".format(s['pvalue'])),
-            #     ("$\gamma$","{:1.3f}".format(s['gamma']))
-            # ])           
-
-
-        # symlink main report tex file
-        reportfname = self.analysisid+"_report.tex"
-        reportpath = os.path.join(self.dirname,reportfname)
-        reportsrc = os.path.join(os.environ["I3_BUILD"],'fast_response','resources','latex','report_gw.tex')
-        if os.path.exists(reportpath):
-            os.unlink(reportpath)
-
-        os.symlink(reportsrc,reportpath)
-
-        # symlink directory of needed sty files
-        styledname = 'sty'
-        styledpath = os.path.join(self.dirname, styledname)
-        styledsrc  = os.path.join(os.environ["I3_BUILD"],'fast_response','resources','latex','sty')
-        if os.path.exists(styledpath):
-            os.unlink(styledpath)
-        # but only if source exists (user decision, only needed on some systems)
-        if os.path.exists(styledsrc):
-            os.symlink(styledsrc,styledpath)
 
     def generate_report(self):
 
@@ -702,16 +501,6 @@ class ReportGenerator(object):
             else:
                 f.write(r"\newcommand{\event}{[None]}")
 
-            #llh_table = []
-            #for i in range(s['ts'].size):
-            #    llh_table+=[
-            #        ("$TS$",'{:1.3f}'.format(s['ts'][i])),
-            #        ("$n_s$",'{:1.3f}'.format(s['ns'][i])),
-            #        ("P value","{:1.4f}".format(s['pvalue'][i])),
-            #        ("$\gamma$","{:1.3f}".format(s['gamma'][i]))
-            #    ]
-
-            #self.write_table(f,"results",[],llh_table)
             self.write_table(f,"results",[],[
                  ("$n_s$","{:1.3f}".format(s['ns'])),
                  ("$TS$","{:1.3f}".format(s['ts'])),
@@ -732,25 +521,10 @@ class ReportGenerator(object):
 
         os.symlink(reportsrc,reportpath)
 
-        # symlink directory of needed sty files
-        ##styledname = 'sty'
-        ##styledpath = os.path.join(self.dirname, styledname)
-        #styledsrc  = os.path.join(os.environ["I3_BUILD"],'fast_response','resources','latex','sty')
-        ##try:
-        ##    styledsrc = os.path.join(os.environ["FAST_RESPONSE_SCRIPTS"], 'latex', 'sty')
-        ##except KeyError:
-        ##    styledsrc = os.path.join(os.getcwd(), 'latex', 'sty')
-        ##if os.path.exists(styledpath):
-        ##    os.unlink(styledpath)
-        # but only if source exists (user decision, only needed on some systems)
-        ##if os.path.exists(styledsrc):
-        ##    os.symlink(styledsrc,styledpath)
 
     def make_pdf(self):
         # get environment variables
         env = dict(os.environ)
-        # add location for sty files
-        #env['TEXINPUTS'] = './:./sty/:'
         subprocess.call(['pdflatex','-interaction=batchmode','-output-directory=%s' % self.dirname, 
                         self.dirname+'/'+self.analysisid+"_report.tex"],
                         #cwd=self.dirname,
@@ -768,5 +542,183 @@ class GravitationalWaveReport(ReportGenerator):
     def __init(self):
         pass
 
-    def generate_report(self):
-        pass
+    def generate_gw_report(self):
+
+        report_fname = os.path.join(self.dirname,"r.tex")
+
+        self.run_table = self.query_db_runs(self.time_window)
+        now = datetime.datetime.utcnow()
+        self.ontime = {}
+        self.ontime['type']='database'
+        self.ontime['stream'] = self.stream
+        self.ontime['runkey']='run_id'
+        self.ontime['time_start']=Time(self.run_table[0]['start'],format='iso',scale='utc',precision=0).iso
+        self.ontime['time_stop'] =Time(self.run_table[-1]['stop'],format='iso',scale='utc',precision=0).iso
+        self.ontime['time_query']=now.strftime('%Y-%m-%d %H:%M:%S')
+
+        self.query_events=icecube.realtime_tools.live.get_events(
+            self.ontime['stream'], self.ontime['time_start'],self.ontime['time_stop'])
+
+        self.widewindow = self.ontime_table(self.query_events)
+        self.widewindow['t']=Time(list(self.widewindow['eventtime']),scale='utc',format='iso')
+
+        for run in self.run_table:
+            run['gfu_counts'] = (self.widewindow['run_id']==run['run_number']).sum()
+
+        s=self.source
+
+        # Make rate plots and put them in analysis directory
+        make_rate_plots(self.time_window,self.run_table,self.query_events,self.dirname)
+
+        with open(report_fname,'wt') as f:
+
+            d1=s["time_start_iso"].split()[0]
+            d2=s["time_stop_iso"].split()[0]
+
+            if d1==d2:
+                obsdate = d1
+            else:
+                obsdate = d1+' -- '+d2
+
+            f.write(
+                r"\newcommand{"+"\\"+"sourcename"+"}{"+
+                s["name"]+"}\n")
+
+            f.write(r"\newcommand{\analysisid}{"+self.analysisid+"}\n")
+            
+            f.write(
+                r"\newcommand{"+"\\"+"gfurate"+"}{"+ self.dirname+"/"+
+                "GFU_rate_plot.png"+
+                "}\n")
+
+            f.write(
+                r"\newcommand{"+"\\"+"reportdate"+"}{"+
+                datetime.date.today().strftime("%Y-%m-%d")+
+                "}\n")
+
+            f.write(
+                r"\newcommand{"+"\\"+"skymap"+"}{"+ self.dirname+"/"+
+                self.analysisid + "unblinded_skymap.png" +
+                "}\n")
+
+            f.write(
+                r"\newcommand{"+"\\"+"muonfilter"+"}{"+ self.dirname+"/"+
+                "MuonFilter_13_plot.png"+
+                "}\n")
+       
+            f.write(
+                r"\newcommand{"+"\\"+"Lfilter"+"}{"+ self.dirname+"/"+
+                "OnlineL2Filter_17_plot.png"+
+                "}\n")
+            
+            f.write(
+                r"\newcommand{"+"\\"+"badness"+"}{"+ self.dirname+"/"+
+                "badness_plot.png"+
+                "}\n")
+
+            f.write(
+                r"\newcommand{"+"\\"+"obsdate"+"}{"+
+                obsdate+"}\n")
+
+            f.write(
+                r"\newcommand{"+"\\"+"multiplicity"+"}{"+ self.dirname+"/"+
+                "IN_ICE_SIMPLE_MULTIPLICITY_plot.png"+
+                "}\n")
+
+            sf_fname = os.path.join(self.dirname,self.analysisid+"_SurvivalFunction.pdf")
+            if os.path.exists(sf_fname):
+                f.write(r"\newcommand{"+"\\"+"survivialfunctionplot"+"}{"+
+                        r"\includegraphics[width=\textwidth]{\analysisid_SurvivalFunction}"+
+                        "}\n")
+            else:
+                f.write(r"\newcommand{"+"\\"+"survivialfunctionplot"+"}{}\n")
+
+            dist_fname = os.path.join(self.dirname,self.analysisid+"_BackgroundPDF.pdf")
+            if os.path.exists(sf_fname):
+                f.write(r"\newcommand{"+"\\"+"backgroundpdfplot"+"}{"+
+                        r"\includegraphics[width=\textwidth]{\analysisid_BackgroundPDF}"+
+                        "}\n")
+            else:
+                f.write(r"\newcommand{"+"\\"+"backgroundpdfplot"+"}{}\n")
+
+            self.write_table(f,"sourcetable",[],[
+                ("Source Name",s["name"]),
+                ("Trigger Time","{} (MJD={:12.6f})".format(s["time_trigger_iso"],s["time_trigger_mjd"])),
+                ("Start Time", "{} (Trigger{:+1.1f}s)".format(s["time_start_iso"],
+                                                              (self.time_window[0]-self.trigger).sec)),
+                ("Stop Time", "{} (Trigger{:+1.1f}s)".format(s["time_stop_iso"],
+                                                             (self.time_window[1]-self.trigger).sec)),
+                ("Time Window",r"{:1.1f}s".format(s["realtime"])),
+            ])
+
+            r1=[]
+            r2=[]
+            livetime = 0
+
+            for run in self.run_table:
+                r1.append((run["run_number"],run["start"].split(".")[0],run["stop"].split(".")[0],run["duration"],"{:1.1f}s".format(run["livetime"])))
+
+                livetime += run['livetime']
+            self.write_table(f,"runtimetable",["Run","Start Time","Stop Time","Duration","Livetime"],r1,)
+
+            if 'status' in self.run_table[0]:
+                for run in self.run_table:
+                    r2.append((run['run_number'],run['status'],run['lightmode'],run['filter_mode'],
+                               run['run_mode'],run["OK"],run["gfu_counts"]))
+                self.write_table(f,"runstatustable",["Run","Status","Light","Filter Mode","Run Mode","OK","GFU" ],r2,)
+            else:
+                self.write_table(f,"runstatustable",[],[])
+
+            f.write(r"\newcommand{\livetime}{"+'{:0,.1f}'.format(livetime)+"}\n")
+
+            if self.ontime['type']=='database':
+                self.write_table(f,"ontimetable",[],[("Access Method",self.ontime['type']),
+                                                ("Stream", r"\texttt{"+self.ontime['stream']+"}"),
+                                                ("Query Time",self.ontime['time_query']),
+                                                ("Start Time",self.ontime['time_start']),
+                                                ("Stop Time", self.ontime['time_stop']),
+                                                ])
+
+
+            event_table = []
+            if self.events is not None:
+                for event in self.events:
+                    event_table+=[
+                        ("Run",'{}'.format(event['run'])),
+                        ("Event",'{}'.format(event['event'])),
+                        ("Time","{}".format(
+                            event['time'])),
+                        ("Right Ascension","{:3.2f}\degree"
+                         .format(np.rad2deg(event['ra']))),
+                        ("Declination","{:3.2f}\degree"
+                         .format(np.rad2deg(event['dec']))),
+                        ("Angular Uncertainty (90\%)","{:3.2f}\degree"
+                            .format(np.rad2deg(event["sigma"]*2.145966))),
+                        ("Reconstructed Energy (GeV)","{:2.2f}"
+                            .format(10**event['logE'])),
+                        None,
+                    ]
+
+                self.write_table(f,"event",[],event_table)
+            else:
+                f.write(r"\newcommand{\event}{[None]}")
+
+            llh_table = []
+            for i in range(s['ts'].size):
+                llh_table+=[
+                    ("$TS$",'{:1.3f}'.format(s['ts'][i])),
+                    ("$n_s$",'{:1.3f}'.format(s['ns'][i])),
+                    ("P value","{:1.4f}".format(s['pvalue'][i])),
+                    ("$\gamma$","{:1.3f}".format(s['gamma'][i]))
+                ]
+
+            self.write_table(f,"results",[],llh_table)        
+
+        # symlink main report tex file
+        reportfname = self.analysisid+"_report.tex"
+        reportpath = os.path.join(self.dirname,reportfname)
+        reportsrc = os.path.join(os.environ["I3_BUILD"],'fast_response','resources','latex','report_gw.tex')
+        if os.path.exists(reportpath):
+            os.unlink(reportpath)
+
+        os.symlink(reportsrc,reportpath)
