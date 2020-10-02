@@ -7,8 +7,7 @@ from astropy.time import TimeDelta
 from scipy.optimize       import curve_fit
 from scipy.stats          import chi2
 from numpy.lib.recfunctions import append_fields
-sys.path.append('/data/user/apizzuto/fast_response_skylab/fast-response/trunk/')
-from FastResponseAnalysis import FastResponseAnalysis
+from fast_response.FastResponseAnalysis import FastResponseAnalysis
 
 parser = argparse.ArgumentParser(description='Fast Response Analysis')
 parser.add_argument('--deltaT', type=float, default=None,

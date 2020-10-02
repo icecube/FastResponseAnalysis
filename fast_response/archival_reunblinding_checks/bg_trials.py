@@ -6,10 +6,7 @@ from astropy.time import Time
 from astropy.time import TimeDelta
 from numpy.lib.recfunctions import append_fields
 
-base_path = os.path.join('/data/user/apizzuto/fast_response_skylab/fast-response/trunk/','')
-sys.path.append(base_path)
-
-from FastResponseAnalysis import FastResponseAnalysis
+from fast_response.FastResponseAnalysis import FastResponseAnalysis
 
 parser = argparse.ArgumentParser(description='Fast Response Analysis')
 parser.add_argument('--sinDec', type=float,default=None,
@@ -46,6 +43,6 @@ results = f.llh.do_trials(args.ntrials, src_ra = 0., src_dec = dec)
 bg_trials = np.array(results['TS'])
 bg_trials = {'n_zero': np.count_nonzero(bg_trials == 0.),
                 'tsd': bg_trials[bg_trials != 0.0]}
-with open('/data/user/apizzuto/fast_response_skylab/fast-response/trunk/analysis_checks/bg/ps_sinDec_{}_deltaT_{}_month_{}.pkl'.format(args.sinDec, args.deltaT, args.month), 'w') as f:
+with open('/data/user/apizzuto/fast_response_skylab/fast-response/fast_response/analysis_checks/bg/ps_sinDec_{}_deltaT_{}_month_{}.pkl'.format(args.sinDec, args.deltaT, args.month), 'w') as f:
     pickle.dump(bg_trials, f)
 

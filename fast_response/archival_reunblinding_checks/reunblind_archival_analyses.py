@@ -13,11 +13,8 @@ from astropy.time import TimeDelta
 import pandas as pd
 import subprocess
 
-base_path = os.path.join('/data/user/apizzuto/fast_response_skylab/fast-response/trunk/','')
-sys.path.append(base_path)
-
-from FastResponseAnalysis import FastResponseAnalysis
-import utils
+from fast_response.FastResponseAnalysis import FastResponseAnalysis
+import fast_response.utils
 
 parser = argparse.ArgumentParser(description='Fast Response Analysis')
 parser.add_argument('--index', type=int,default=None,
@@ -28,7 +25,7 @@ parser.add_argument('--ntrials', type=int, default=1000,
                     help="Number of background trials to run, default 1000")
 args = parser.parse_args()
 
-output_dir = "/data/user/apizzuto/fast_response_skylab/fast-response/trunk/archival_unblinding_results/"
+output_dir = "/data/user/apizzuto/fast_response_skylab/fast-response/fast_response/archival_unblinding_results/"
 results_df = pd.read_pickle('/data/user/apizzuto/fast_response_skylab/results_dataframe_grbllh.pkl')
 
 src_index = args.index

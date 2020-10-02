@@ -69,7 +69,7 @@ def format_db_runs(run_table, events, i3_grl):
 if __name__=='__main__':
     official_grl = goodrunlist.GRL()
 
-    with open('/data/user/apizzuto/fast_response_skylab/fast-response/trunk/all_realtimeEvent.json', 'r') as f:
+    with open('/data/user/apizzuto/fast_response_skylab/fast-response/fast_response/all_realtimeEvent.json', 'r') as f:
             docs = json.loads(f.read())
             
     exp_compare = np.load('/data/ana/analyses/gfu_online/current/IC86_2018_data.npy')
@@ -100,5 +100,5 @@ if __name__=='__main__':
     
     trimmed_grl = grl[1:] #There will be one overlapping run at the beginning that's acutally in 2018
 
-    np.save('/data/user/apizzuto/fast_response_skylab/fast-response/trunk/2019_data/IC86_2019_data.npy', exp)
-    np.save('/data/user/apizzuto/fast_response_skylab/fast-response/trunk/2019_data/GRL/IC86_2019_data.npy', trimmed_grl)
+    np.save('/data/user/apizzuto/fast_response_skylab/fast-response/fast_response/2019_data/IC86_2019_data.npy', exp)
+    np.save('/data/user/apizzuto/fast_response_skylab/fast-response/fast_response/2019_data/GRL/IC86_2019_data.npy', trimmed_grl)

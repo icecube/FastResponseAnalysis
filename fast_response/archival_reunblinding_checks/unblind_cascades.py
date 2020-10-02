@@ -14,11 +14,8 @@ import pandas as pd
 import subprocess
 import pickle
 
-base_path = os.path.join('/data/user/apizzuto/fast_response_skylab/fast-response/trunk/','')
-sys.path.append(base_path)
-
-from FastResponseAnalysis import FastResponseAnalysis
-import utils
+from fast_response.FastResponseAnalysis import FastResponseAnalysis
+import fast_response.utils
 
 parser = argparse.ArgumentParser(description='Fast Response Analysis')
 parser.add_argument('--index', type=int,default=None,
@@ -27,7 +24,7 @@ parser.add_argument('--deltat', type=float, default=None,
                     help='Time window for analysis (1000 s or 172800 s)')
 args = parser.parse_args()
 
-output_dir = "/data/user/apizzuto/fast_response_skylab/fast-response/trunk/cascades_results/"
+output_dir = "/data/user/apizzuto/fast_response_skylab/fast-response/fast_response/cascades_results/"
 with open('/home/tgregoire/hese_cascades/archival_data.pkl', 'r') as f:
     cascades_archival = pickle.load(f)
 
