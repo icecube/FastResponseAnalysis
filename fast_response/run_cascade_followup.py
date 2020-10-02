@@ -14,11 +14,8 @@ import pandas as pd
 import subprocess
 import pickle
 
-base_path = os.path.join('/data/user/apizzuto/fast_response_skylab/fast-response/fast_response/','')
-sys.path.append(base_path)
-
-from FastResponseAnalysis import FastResponseAnalysis
-import utils
+from fast_response.FastResponseAnalysis import FastResponseAnalysis
+from . import utils
 
 parser = argparse.ArgumentParser(description='Fast Response Analysis')
 parser.add_argument('--skymap', type=str, default=None,

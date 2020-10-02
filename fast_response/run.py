@@ -74,7 +74,7 @@ import logging as log
 from astropy.time import Time
 from astropy.coordinates import Angle
 import astropy.units as u
-from FastResponseAnalysis import FastResponseAnalysis
+from fast_response.FastResponseAnalysis import FastResponseAnalysis
 
 log.basicConfig(level=log.ERROR)
 source = final_args
