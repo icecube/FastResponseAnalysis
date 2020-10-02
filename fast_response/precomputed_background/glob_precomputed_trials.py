@@ -12,7 +12,7 @@ def glob_allsky_scans(delta_t, rate, low_stats=False):
     #n_per_job = {1000.: 1000, 172800.: 50, 2678400.: 30}
     #jobs_per_window = {1000.: 20, 172800.: 100, 2678400.: 100}
 
-    files = glob('/data/user/apizzuto/fast_response_skylab/fast-response/trunk/precomputed_background/trials/{:.1f}_mHz_seed_*_delta_t_{:.1e}.npz'.format(rate, delta_t))
+    files = glob('/data/user/apizzuto/fast_response_skylab/fast-response/fast_response/precomputed_background/trials/{:.1f}_mHz_seed_*_delta_t_{:.1e}.npz'.format(rate, delta_t))
     nside = 256
     npix = hp.nside2npix(nside)
     maps = sparse.csr_matrix((0, npix), dtype=float)
@@ -33,7 +33,7 @@ def glob_allsky_scans(delta_t, rate, low_stats=False):
     # Save the sparse array
     stats_str = '' if not low_stats else '_low_stats'
     outfilename = 'precomputed_trials_delta_t_{:.2e}_trials_rate_{:.1f}{}.npz'.format(delta_t, rate, stats_str)
-    scan_path = '/data/user/apizzuto/fast_response_skylab/fast-response/trunk/precomputed_background/glob_trials/'
+    scan_path = '/data/user/apizzuto/fast_response_skylab/fast-response/fast_response/precomputed_background/glob_trials/'
     sparse.save_npz(scan_path+outfilename, scans)
     
     return maps

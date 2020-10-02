@@ -16,9 +16,7 @@ from glob import glob
 from scipy import sparse
 import pickle
 
-base_path = os.path.join('/data/user/apizzuto/fast_response_skylab/fast-response/trunk/','')
-sys.path.append(base_path)
-from FastResponseAnalysis import FastResponseAnalysis
+from fast_response.FastResponseAnalysis import FastResponseAnalysis
 
 parser = argparse.ArgumentParser(description='Fast Response Analysis')
 parser.add_argument('--deltaT', type=float, default=None,
@@ -66,9 +64,6 @@ for jj in range(trials_per_sig):
         maps[jj, pixels] = val['TS']
 print("DONE")
 hp_sparse = maps.tocsr()
-outfilename = '/data/user/apizzuto/fast_response_skylab/fast-response/trunk/precomputed_background/trials/{:.1f}_mHz_seed_{}_delta_t_{:.1e}.npz'.format(args.bkg, args.seed, args.deltaT)
+outfilename = '/data/user/apizzuto/fast_response_skylab/fast-response/fast_response/precomputed_background/trials/{:.1f}_mHz_seed_{}_delta_t_{:.1e}.npz'.format(args.bkg, args.seed, args.deltaT)
 sparse.save_npz(outfilename, hp_sparse)
 print("Saved to {}".format(outfilename))
-
-#np.save('/data/user/apizzuto/fast_response_skylab/fast-response/trunk/precomputed_background/trials/{:.1f}_mHz_seed_{}_delta_t_{:.1e}.npy'.format(args.bkg, args.seed, args.deltaT),
-#        results_array)
