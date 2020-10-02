@@ -32,7 +32,7 @@ from icecube             import icetray
 from astropy.time        import Time,TimeDelta
 from astropy.coordinates import Angle
 from astropy             import units
-from make_ontime_plots   import make_rate_plots
+from .make_ontime_plots   import make_rate_plots
 
 log.basicConfig(level=log.ERROR)
 mpl_logger = log.getLogger('matplotlib') 
@@ -539,7 +539,7 @@ class FastResponseReport(ReportGenerator):
         pass
 
 class GravitationalWaveReport(ReportGenerator):
-    def __init(self):
+    def __init__(self):
         pass
 
     def generate_gw_report(self):

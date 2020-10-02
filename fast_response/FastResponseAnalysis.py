@@ -25,9 +25,8 @@ from scipy.stats          import chi2
 from scipy import sparse
 from scipy.special import erfinv
 
-import utils
-from make_ontime_plots import make_rate_plots
-from ReportGenerator import ReportGenerator
+from . import utils
+from .ReportGenerator import ReportGenerator
 from skylab.datasets import Datasets
 from skylab.llh_models import EnergyLLH
 from skylab.priors import SpatialPrior
