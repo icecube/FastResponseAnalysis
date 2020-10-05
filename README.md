@@ -53,6 +53,11 @@ eval `/cvmfs/icecube.opensciencegrid.org/py3-v4.1.0/setup.sh`
 source /path/to/fra_env/bin/activate
 ```
 
+If you would like to be able to import fast response tools from any directory in the future, you must append to your python path with 
+```console
+export PYTHONPATH=$PYTHONPATH:/path/to/fast-response
+```
+
 ## Tutorial
 In order to perform a short timescale followup using the realtime GFU stream, you need only know:
 1. The time window of interest
