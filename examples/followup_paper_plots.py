@@ -20,6 +20,10 @@ icecube_lim = 3.5e-01 * gev_to_erg / icecube_delta_t
 icecube_es = np.array([8e4, 2e7]) * 1e9
 mid_icecube_e = 10.**np.mean(np.log10(icecube_es))
 
+icecube_sens =3.5e-2 * gev_to_erg / icecube_delta_t
+icecube_sens_es = np.array([1e3, 5e6]) * 1e9
+mid_icecube_sens_e = 10.**np.mean(np.log10(icecube_sens_es))
+
 antares_delta_t = 1600.
 antares_es = np.array([1e4, 2e7]) * 1e9
 antares_lim = 1.6 * gev_to_erg / antares_delta_t
@@ -67,6 +71,12 @@ plt.errorbar([mid_icecube_e], [icecube_lim], xerr=[np.array([mid_icecube_e]) - i
                     marker='v', color=sns.xkcd_rgb['dark magenta'], 
                      label = 'IceCube U.L. (-150 s, 3600 s)')
 
+eb=plt.errorbar([mid_icecube_sens_e], [icecube_sens], xerr=[np.array([mid_icecube_sens_e]) - icecube_sens_es[0],
+                    -1.*np.array([mid_icecube_sens_e]) + icecube_sens_es[1]], lw=1.25,
+                    marker='v', color=sns.xkcd_rgb['dark magenta'], markersize=0., ls='--',
+                     label = 'IceCube sens., ' + r'$\delta=0.0^{\circ}$ (-150 s, 3600 s)')
+eb[-1][0].set_linestyle('--')
+
 plt.errorbar([mid_antares_e], [antares_lim], xerr=[np.array([mid_antares_e]) - antares_es[0],
                     -1.*np.array([mid_antares_e]) + antares_es[1]],
                     marker='v', color='grey', label = 'ANTARES U.L. (-350 s, 1250 s)')
@@ -92,7 +102,7 @@ plt.legend(loc='upper left', fontsize=12, ncol=1, frameon=False)
 plt.xlabel(r'$E$ (eV)')
 plt.xticks(np.logspace(3, 15, 5))
 #if ii == 0:
-plt.ylabel(r'Flux (erg cm$^{-2}$ s$^{-1}$)')
+plt.ylabel(r'$E^2 \frac{dN}{dEdt}$ (erg cm$^{-2}$ s$^{-1}$)')
 plt.savefig('figures/GRB_190114C_upper_limit.png', bbox_inches='tight', dpi=200)
 
 
@@ -156,10 +166,11 @@ plt.errorbar([mid_icecube_e], [icecube_lim], xerr=[np.array([mid_icecube_e]) - i
                     marker='v', color=sns.xkcd_rgb['dark magenta'], 
                      label = 'IceCube U.L.')
 
-plt.errorbar([mid_icecube_sens_e], [icecube_sens], xerr=[np.array([mid_icecube_sens_e]) - icecube_sens_es[0],
+eb=plt.errorbar([mid_icecube_sens_e], [icecube_sens], xerr=[np.array([mid_icecube_sens_e]) - icecube_sens_es[0],
                     -1.*np.array([mid_icecube_sens_e]) + icecube_sens_es[1]],
-                    marker='v', color=sns.xkcd_rgb['grey'], markersize=0.,
-                     label = 'IceCube sens.,\n' + r'$\delta=0.0^{\circ}$')
+                    marker='v', color=sns.xkcd_rgb['dark magenta'], markersize=0., lw=1.25,
+                     label = 'IceCube sens.,\n' + r'$\delta=0.0^{\circ}$', ls='--')
+eb[-1][0].set_linestyle('--')
 
 ens, fls = load_cta()
 plt.plot(ens, fls, color = 'k', label='CTA (5 h)', ls = '--')
@@ -168,7 +179,7 @@ plt.plot(ens, fls, color = 'k', label='CTA (5 h)', ls = '--')
 plt.loglog()
 plt.xlabel(r'$E$ (eV)')
 plt.xticks(np.logspace(-3, 15, 7))
-plt.ylabel(r'Flux (erg cm$^{-2}$ s$^{-1}$)')
+plt.ylabel(r'$E^2 \frac{dN}{dEdt}$ (erg cm$^{-2}$ s$^{-1}$)')
 plt.ylim(6e-15, 4e-8)
 plt.legend(loc='upper left', fontsize=12, frameon=True, ncol=2, columnspacing=0.5)
 plt.savefig('figures/PKS_0346_upper_limit.png', bbox_inches='tight', dpi=200)
