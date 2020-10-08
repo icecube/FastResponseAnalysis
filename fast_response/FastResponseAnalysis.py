@@ -185,6 +185,7 @@ class FastResponseAnalysis(object):
 
         print(self.intro_message())
 
+        self.llh_seed = kwargs.pop('seed', 1)
         self.llh = self.initialize_llh(skipped = skip_events, extension = self.extension, 
                         scramble=self.scramble, alert_event=self.alert_event)
         self.ts, self.ns, self.p, self.sigma = None, None, None, None
@@ -292,7 +293,8 @@ class FastResponseAnalysis(object):
                                 temporal_model=box,    # use box profile for temporal model
                                 nsource_bounds=(0., 1e3),  # bounds on fitted number of signal events
                                 src_extension = src_extension, # Model symmetrically extended source
-                                nsource=1.)            # seed for nsignal fit
+                                nsource=1.,              # seed for nsignal fit
+                                seed=self.llh_seed)           
 
         #print("assembling took {} seconds".format(time.time() - ttt))                                               
         print("Initializing Point Source COMPLETE")
@@ -839,7 +841,8 @@ class FastResponseAnalysis(object):
         events = events[(events['time'] < self.stop) & (events['time'] > self.start)]
 
         col_num = 5000
-        seq_palette = sns.diverging_palette(255, 133, l=60, n=col_num, center="dark")
+        #seq_palette = sns.diverging_palette(255, 133, l=60, n=col_num, center="dark")
+        seq_palette = sns.color_palette("coolwarm", col_num)
         lscmap = mpl.colors.ListedColormap(seq_palette)
 
         rel_t = np.array((events['time'] - self.start) * col_num / (self.stop - self.start), dtype = int)
@@ -890,7 +893,7 @@ class FastResponseAnalysis(object):
         #plt.text(1.2*np.pi / 180., 2.8*np.pi / 180., 'IceCube\nPreliminary', color = 'r', fontsize = 22)
         plt.legend(loc = 2, ncol=2, mode = 'expand', fontsize = 18.5, framealpha = 0.95)
         plot_color_bar(range=[0,6], cmap=lscmap, col_label=r"IceCube Event Time",
-                    offset=-50, labels = [r'-$\Delta t \Bigg/ 2$', r'+$\Delta t \Bigg/ 2$'])
+                    offset=-50, labels = [r'-$\Delta T \Bigg/ 2$', r'+$\Delta T \Bigg/ 2$'])
         plt.savefig(self.analysispath + '/' + self.analysisid + 'unblinded_skymap_zoom.png',bbox_inches='tight')
         plt.savefig(self.analysispath + '/' + self.analysisid + 'unblinded_skymap_zoom.pdf',bbox_inches='tight', dpi=300)
 
