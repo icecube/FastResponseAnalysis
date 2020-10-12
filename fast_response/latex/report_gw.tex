@@ -1,0 +1,138 @@
+\documentclass[titlepage]{article}
+%\usepackage[printwatermark]{xwatermark}
+\usepackage{tikz}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{grffile}
+\usepackage[margin=1.2in]{geometry}
+%\usepackage{lipsum}
+%\usepackage{gensymb}
+
+%\newwatermark*[allpages,color=red!25,angle=45,scale=3,xpos=0,ypos=0]{TEST}
+
+%\savebox\mybox{\tikz[color=red,opacity=0.5]\node{TEST};}
+%\newwatermark*[
+%  allpages,
+%  angle=45,
+%  scale=12,
+%  xpos=-40,
+%  ypos=50
+%]{\usebox\mybox}
+
+\setlength{\parindent}{0cm} 
+\include{r}
+
+\newcommand{\degree}{$^{\circ}$}
+\begin{document}
+
+\begin{titlepage}
+  \centering
+  \vspace{4cm}
+  {\huge\bfseries IceCube GW Follow Up \\ Analysis Report\par}
+  \vspace{1cm}
+  {\LARGE For Internal Use Only\par}
+  \vfill
+  {\Large Source Name: \\ \itshape\sourcename\par}
+  \vspace{0.5cm}
+  {\Large Observation Date(s):\\ \obsdate \par}
+  \vfill
+  \vspace{1cm} 
+  {\Large Report Generated On:\\ \reportdate \par}
+% {\color{red} This is a test. \\
+%   This station is conducting a test of the IceCube Alert System.\\
+%   This is only a test. }
+\end{titlepage}
+
+\centering
+\section{Inputs}
+\subsection{Source Information}
+\sourcetable
+\subsection{On-Time Data}
+\ontimetable
+\subsection{Signal Simulation}
+\sigfiletable
+\subsection{Off-Time Data}
+\bgfiletable
+
+\pagebreak
+\centering
+\section{Detector Operations}
+
+\subsection{Run Times}
+\runtimetable
+
+Total Livetime = \livetime\,s
+
+\centering
+\subsection{Run Status}
+\runstatustable
+
+\pagebreak
+\subsection{Event Rates}
+Plots for key trigger and filter rates for the data period
+and the neighboring runs.  Red indicates selected time window.
+Cyan indicates average GFU singlet rate. Badness $>10$s may indicate
+a problem.
+
+\vspace{1em}
+{
+ \centering        
+ \includegraphics[width=0.7\textwidth]{\multiplicity}\\
+ \includegraphics[width=0.7\textwidth]{\muonfilter}\\
+ \includegraphics[width=0.7\textwidth]{\Lfilter}\\
+ \includegraphics[width=0.7\textwidth]{\gfurate}\\
+ \includegraphics[width=0.7\textwidth]{\badnessplot}
+}
+\vspace{2cm}
+
+\pagebreak
+%\section{Energy PDF}
+%Ratio of Energy PDFs from the selected Zenith band.
+%
+%\energytable
+%
+%{
+%  \centering
+%
+%    {\Large Energy PDF Fit}
+%
+%    \includegraphics[width=0.8\textwidth]{\analysisid_EnergyPDFRatio}
+%
+%    {\Large Energy of Observed Events}
+%
+%    \includegraphics[width=0.8\textwidth]{\analysisid_energy_events}
+%
+%    }
+
+\section{Results}
+
+{
+  \centering
+  {\Large All Sky On-time Events}
+
+  \includegraphics[width=0.9\textwidth]{\skymap}
+  \vspace{3cm}
+  \includegraphics[width=0.9\textwidth]{\skymapzoom}
+  \vspace{2cm}
+  \includegraphics[width=0.9\textwidth]{\decPDF}
+
+}
+\pagebreak
+
+\subsection{On-Time Events}
+\event
+
+\subsection{Likelihood Analysis}
+\results
+\pagebreak
+
+\backgroundpdfplot
+
+\survivialfunctionplot
+
+\vfill        
+%{\color{red}If this had been an actual analysis,
+%  the attention signal you just heard would have been
+%  followed by official information, news, or instructions.}
+
+\end{document}
