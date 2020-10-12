@@ -143,7 +143,7 @@ class FastResponseAnalysis(object):
 
         start = Time(dateutil.parser.parse(tstart)).mjd
         stop = Time(dateutil.parser.parse(tstop)).mjd
-        
+
         start_date = Time(dateutil.parser.parse(tstart)).datetime
         start_str = '{:02d}'.format(start_date.year) + '_' + '{:02d}'.format(start_date.month) + '_' + '{:02d}'.format(start_date.day)
         
@@ -778,7 +778,7 @@ class FastResponseAnalysis(object):
             shutil.copy2(self.analysispath + '/' + self.analysisid + "_report.pdf", 
                 '/home/{}/public_html/FastResponse/{}_report.pdf'.format(username, self.analysisid))
         else:
-            print("Creating FastResponse Directory in {}'s public html and copyting report")
+            print("Creating FastResponse Directory in {}'s public html and copying report")
             os.mkdir('/home/{}/public_html/FastResponse/'.format(username))
             shutil.copy2(self.analysispath + '/' + self.analysisid + "_report.pdf", 
                 '/home/{}/public_html/FastResponse/{}_report.pdf'.format(username, self.analysisid))
