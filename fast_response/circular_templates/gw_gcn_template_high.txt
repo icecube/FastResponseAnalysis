@@ -1,0 +1,49 @@
+********************************
+SUBJECT: LIGO/Virgo <name>: <N> counterpart neutrino candidate from IceCube neutrino searches
+
+IceCube Collaboration (http://icecube.wisc.edu/) reports:
+
+Searches for track-like muon neutrino events detected by IceCube consistent with the sky 
+localization of gravitational-wave candidate <name> in a time range of 1000 seconds [1] 
+centered on the alert event time (<tstart> UTC to <tstop> UTC) have been performed. 
+During this time period IceCube was collecting good quality data. Two hypothesis tests 
+were conducted. The first search is a maximum likelihood analysis which searches for a 
+generic point-like neutrino source coincident with the given GW skymap [2]. The
+second uses a Bayesian approach to quantify the joint GW + neutrino event significance, which
+assumes a binary merger scenario and accounts for known astrophysical priors in the 
+significance estimate, such as GW source distance [3].
+
+<N> track-like event(s) are found in spatial and temporal coincidence with the gravitational-wave 
+candidate <name> calculated from the map circulated in the <noticeID> notice. This
+represents an overall p-value of <p_gwava> (<sig_gwava>sigma) from the generic transient search 
+and an overall p-value of <p_llama> (<sig_llama>sigma) for the Bayesian search. These p-values 
+measure the consistency of the observed track-like events with the known atmospheric backgrounds.
+
+The reported p-values can differ due to the estimated distance of the GW 
+candidate. The distance is used as a prior in Bayesian binary merger search, while it is not 
+taken into account in the generic transient point-like source search.
+
+Properties of the coincident events are shown below.
+
+  dt        ra         dec    Angular Uncertainty(deg)  p-value(generic transient) p-value(binary merger)
+-----------------------------------------------------------------------------------------------------
+ <dt>   <ra>       <dec>          <angErr>                    <p_gwava>                 <p_llama>
+
+
+where:
+dt = Time offset (sec) of track event with respect to GW trigger.
+Angular uncertainty = Angular uncertainty of track event: the radius of a circle 
+     representing 90% CL containment by area.
+Pvalue = the pvalue for this specific track event from each search.
+
+
+The IceCube Neutrino Observatory is a cubic-kilometer neutrino detector operating at the 
+geographic South Pole, Antarctica. The IceCube realtime alert point of contact can be 
+reached at roc@icecube.wisc.edu
+
+
+[1] Baret et al., Astroparticle Physics 35, 1 (2011)
+[2] PoS(ICRC2019)918 Braun et al., Astroparticle Physics 29, 299 (2008)
+[3] Bartos et al. arXiv:1810.11467 (2018) and Countryman et al.arXiv:1901.05486 (2019)
+
+********************************
