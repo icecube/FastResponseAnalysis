@@ -842,7 +842,8 @@ class FastResponseAnalysis(object):
 
         col_num = 5000
         #seq_palette = sns.diverging_palette(255, 133, l=60, n=col_num, center="dark")
-        seq_palette = sns.color_palette("coolwarm", col_num)
+        #seq_palette = sns.color_palette("coolwarm", col_num)
+        seq_palette = sns.color_palette("icefire", col_num)
         lscmap = mpl.colors.ListedColormap(seq_palette)
 
         rel_t = np.array((events['time'] - self.start) * col_num / (self.stop - self.start), dtype = int)
