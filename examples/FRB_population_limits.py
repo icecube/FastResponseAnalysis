@@ -12,6 +12,7 @@ from astropy import units as u
 import numpy as np
 import logging
 import seaborn as sns
+import copy
 logging.getLogger().setLevel("INFO")
 #logging.getLogger().setLevel("ERROR")
 import sys
@@ -79,9 +80,14 @@ for spec, lim_dict in lim_dicts.items():
     e_lim = (lim_dict['flux_norm_lim'] * epdf.fluence_integral() * norm_energy**2 * 4 * np.pi * dist.to("cm")**2.).to("erg")
     print(f"Muon Neutrino Energy limit for SGR 1935+2154 is {e_lim:.2g} between {epdf.e_min:.2g} GeV and {epdf.e_max:.2g} GeV")
 
+non_standard_candle_fac = 5e2
+scaled_lim_dicts = copy.deepcopy(lim_dicts[2.5])
+scaled_lim_dicts['flux_norm_lim'] *= non_standard_candle_fac
+
 limits = [
     ("Standard Candle, $E^{-2}$", lim_dicts[2.0]['flux_norm_lim'], e_pdf_dicts[2.0]),
-    ("SGR 1935+2154-like FRBs,\n (Standard Candle)", lim_dicts[2.5]['flux_norm_lim'], e_pdf_dicts[2.5])
+    ("SGR 1935+2154-like FRBs, (Standard Candle)", lim_dicts[2.5]['flux_norm_lim'], e_pdf_dicts[2.5]),
+    ("SGR 1935+2154-like FRBs, " + r'($\mathcal{E}_{\nu}\propto \mathcal{E}_{\mathrm{radio}}$)', scaled_lim_dicts['flux_norm_lim'], e_pdf_dicts[2.5])
 ]
 
 fit = "joint_15"
@@ -91,16 +97,19 @@ ax = plt.subplot(111)
 fig.set_facecolor('w')
 
 best_fit, upper_butterfly, lower_butterfly, e_range = get_diffuse_flux_contour(fit=fit)
-plt.plot(e_range, best_fit(e_range) * e_range**2, label="IceCube Diffuse\n Flux",
-            color = sns.xkcd_rgb['dark navy blue'])
+plt.plot(e_range, best_fit(e_range) * e_range**2, label="IceCube Diffuse Flux",
+            color = sns.xkcd_rgb['dark navy blue'], zorder=4)
 plt.fill_between(e_range, upper_butterfly(e_range)* e_range**2, 
             lower_butterfly(e_range)* e_range**2, alpha=0.3, 
-            color = sns.xkcd_rgb['dark navy blue'], linewidth=0.0)
+            color = sns.xkcd_rgb['dark navy blue'], linewidth=0.0, zorder=3)
 
 def frb_rate_high(z):
     return frb_rate(z) * (8.78+7.23) / 7.23
 def frb_rate_low(z):
     return frb_rate(z) * (7.23-6.13) / 7.23
+
+cols = [sns.xkcd_rgb['dark sky blue'], sns.xkcd_rgb['steel grey']]
+counter = 0
 
 for label, mean_flux_norm_lim, e_pdf_dict in limits[1:]:
     epdf = EnergyPDF.create(e_pdf_dict)
@@ -124,9 +133,9 @@ for label, mean_flux_norm_lim, e_pdf_dict in limits[1:]:
     high_rate_fl = high_rate_integrated.value*np.power(ens, -1.*e_pdf_dict['gamma'])*ens**2.
     
     plt.errorbar(ens, fluxes, yerr=0.25*fluxes, uplims=True, 
-                 label=label, color=sns.xkcd_rgb['dark sky blue'])
-    plt.fill_between(ens, low_rate_fl, high_rate_fl, alpha=0.5,
-                    color=sns.xkcd_rgb['dark sky blue'])
+                 label=label, color=cols[counter], zorder=2)
+    plt.fill_between(ens, low_rate_fl, high_rate_fl, alpha=0.5, linewidth=0.,
+                    color=cols[counter], zorder=3)
 
 plt.yscale("log")
 plt.xscale("log")
@@ -134,6 +143,7 @@ plt.xlabel(r"$E_{\nu}$ (GeV)")
 plt.ylabel(r"$E_{\nu}^{2} \frac{dN}{dE}$ (GeV cm$^{-2}$ s$^{-1}$ sr$^{-1}$)")
 #ax.legend(loc='upper center', bbox_to_anchor=(0.5, 1.4),
 #          ncol=2, fancybox=True, shadow=True, fontsize=12)
-ax.legend(loc=2, ncol=1, frameon=False, fontsize=12)
+ax.legend(loc=1, ncol=1, frameon=True, fontsize=10.5)
 plt.xlim(1e2, 5e6)
+plt.ylim(7e-12, 3e-5)
 plt.savefig('figures/SGR1935_2154_FRB_standard_candle_lims.png', bbox_inches='tight', dpi=200)
