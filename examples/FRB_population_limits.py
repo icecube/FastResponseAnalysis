@@ -136,11 +136,12 @@ for label, mean_flux_norm_lim, e_pdf_dict in limits[1:]:
                  label=label, color=cols[counter], zorder=2)
     plt.fill_between(ens, low_rate_fl, high_rate_fl, alpha=0.5, linewidth=0.,
                     color=cols[counter], zorder=3)
+    counter += 1
 
 plt.yscale("log")
 plt.xscale("log")
 plt.xlabel(r"$E_{\nu}$ (GeV)")
-plt.ylabel(r"$E_{\nu}^{2} \frac{dN}{dE}$ (GeV cm$^{-2}$ s$^{-1}$ sr$^{-1}$)")
+plt.ylabel(r"$E_{\nu}^{2} \frac{d\Phi}{dE}$ (GeV cm$^{-2}$ s$^{-1}$ sr$^{-1}$)")
 #ax.legend(loc='upper center', bbox_to_anchor=(0.5, 1.4),
 #          ncol=2, fancybox=True, shadow=True, fontsize=12)
 ax.legend(loc=1, ncol=1, frameon=True, fontsize=10.5)
