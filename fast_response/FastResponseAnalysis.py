@@ -219,7 +219,7 @@ class FastResponseAnalysis(object):
         ###################### BEGIN DATASET ######################
         t0 = time.time()
 
-        dataset = Datasets['GFUOnline']
+        dataset = Datasets['GFUOnline_v001p02']
 
         # only ends up in the if part for archival analyses, where it takes
         #a while to query i3live
@@ -893,6 +893,7 @@ class FastResponseAnalysis(object):
 
         #plt.text(1.2*np.pi / 180., 2.8*np.pi / 180., 'IceCube\nPreliminary', color = 'r', fontsize = 22)
         plt.legend(loc = 2, ncol=2, mode = 'expand', fontsize = 18.5, framealpha = 0.95)
+        #plt.legend(loc = 1, ncol=2, fontsize = 18.5, framealpha = 0.75)
         plot_color_bar(range=[0,6], cmap=lscmap, col_label=r"IceCube Event Time",
                     offset=-50, labels = [r'-$\Delta T \Bigg/ 2$', r'+$\Delta T \Bigg/ 2$'])
         plt.savefig(self.analysispath + '/' + self.analysisid + 'unblinded_skymap_zoom.png',bbox_inches='tight')
