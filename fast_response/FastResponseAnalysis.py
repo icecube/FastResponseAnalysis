@@ -237,8 +237,27 @@ class FastResponseAnalysis(object):
             grl = np.concatenate(grls)
             grl.sort(order='run')
             livetime = grl['livetime'].sum()
+        elif stop < 59215.:
+            print("Grabbing archival data and appending 2020 data")
+            exps, grls = [], []
+            for season in ["IC86, 2011", "IC86, 2012", "IC86, 2013", "IC86, 2014",
+                            "IC86, 2015", "IC86, 2016", "IC86, 2017", "IC86, 2018", "IC86, 2019"]:
+                exp, mc, livetime = dataset.season(season, floor=self.floor)
+                grl = dataset.grl(season)
+                exps.append(exp)
+                grls.append(grl)
+            for season in ["IC86, 2020"]:
+                exp = np.load('/data/user/apizzuto/fast_response_skylab/fast-response/fast_response/2020_data/2020_data.npy')
+                grl = np.load('/data/user/apizzuto/fast_response_skylab/fast-response/fast_response/2020_data/GRL/2020_data.npy')
+                exps.append(exp)
+                grls.append(grl)
+            exp = np.concatenate(exps)
+            exp.sort(order='time')
+            grl = np.concatenate(grls)
+            grl.sort(order='run')
+            livetime = grl['livetime'].sum()
         else:
-            #print("querying the i3live database")
+            print("Recent time: querying the i3live database")
             exps, grls = [], []
             exp, mc, livetime, grl = dataset.livestream(start - 6., stop,
                                                     append=["IC86, 2011", "IC86, 2012", "IC86, 2013", "IC86, 2014",
