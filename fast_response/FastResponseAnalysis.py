@@ -247,8 +247,8 @@ class FastResponseAnalysis(object):
                 exps.append(exp)
                 grls.append(grl)
             for season in ["IC86, 2020"]:
-                exp = np.load('/data/user/apizzuto/fast_response_skylab/fast-response/fast_response/2020_data/2020_data.npy')
-                grl = np.load('/data/user/apizzuto/fast_response_skylab/fast-response/fast_response/2020_data/GRL/2020_data.npy')
+                exp = np.load('/data/user/apizzuto/fast_response_skylab/fast-response/fast_response/2020_data/IC86_2020_data.npy')
+                grl = np.load('/data/user/apizzuto/fast_response_skylab/fast-response/fast_response/2020_data/GRL/IC86_2020_data.npy')
                 exps.append(exp)
                 grls.append(grl)
             exp = np.concatenate(exps)
