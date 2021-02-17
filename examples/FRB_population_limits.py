@@ -86,8 +86,8 @@ scaled_lim_dicts['flux_norm_lim'] *= non_standard_candle_fac
 
 limits = [
     ("Standard Candle, $E^{-2}$", lim_dicts[2.0]['flux_norm_lim'], e_pdf_dicts[2.0]),
-    ("SGR 1935+2154-like FRBs (Standard Candle)", lim_dicts[2.5]['flux_norm_lim'], e_pdf_dicts[2.5]),
-    ("SGR 1935+2154-like FRBs " + r'($\mathcal{E}_{\nu}\propto \mathcal{E}_{\mathrm{radio}}$)', scaled_lim_dicts['flux_norm_lim'], e_pdf_dicts[2.5])
+    ("SGR 1935+2154-like FRBs " + r'($\mathcal{E}_{\nu}\propto \mathcal{E}_{\mathrm{radio}}$)', scaled_lim_dicts['flux_norm_lim'], e_pdf_dicts[2.5]),
+    ("SGR 1935+2154-like FRBs (Standard Candle)", lim_dicts[2.5]['flux_norm_lim'], e_pdf_dicts[2.5])
 ]
 
 fit = "joint_15"
@@ -108,7 +108,7 @@ def frb_rate_high(z):
 def frb_rate_low(z):
     return frb_rate(z) * (7.23-6.13) / 7.23
 
-cols = [sns.xkcd_rgb['dark sky blue'], sns.xkcd_rgb['burnt orange']]
+cols = [sns.xkcd_rgb['burnt orange'], sns.xkcd_rgb['dark sky blue']]
 counter = 0
 
 for label, mean_flux_norm_lim, e_pdf_dict in limits[1:]:
@@ -132,8 +132,12 @@ for label, mean_flux_norm_lim, e_pdf_dict in limits[1:]:
     )
     high_rate_fl = high_rate_integrated.value*np.power(ens, -1.*e_pdf_dict['gamma'])*ens**2.
     
+    if label == 'SGR 1935+2154-like FRBs (Standard Candle)':
+        linestyle = 'solid'
+    else:
+        linestyle = 'dashed'
     plt.errorbar(ens, fluxes, yerr=0.25*fluxes, uplims=True, 
-                 label=label, color=cols[counter], zorder=2)
+                 label=label, color=cols[counter], zorder=2, linestyle=linestyle)
     plt.fill_between(ens, low_rate_fl, high_rate_fl, alpha=0.5, linewidth=0.,
                     color=cols[counter], zorder=3)
     counter += 1
