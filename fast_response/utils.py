@@ -14,7 +14,6 @@ import matplotlib.pyplot as plt
 
 ############################# Plotting Parameters #############################
 mpl.rcParams['text.usetex'] = True
-mpl.rcParams['text.latex.unicode'] = True
 mpl.rcParams['mathtext.rm'] = 'Times New Roman'
 mpl.rcParams['mathtext.it'] = 'Times New Roman:italic'
 mpl.rcParams['mathtext.bf'] = 'Times New Roman:bold'
