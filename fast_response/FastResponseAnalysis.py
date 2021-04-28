@@ -59,6 +59,8 @@ current_palette = sns.color_palette('colorblind', 10)
 logging.getLogger("skylab.ps_llh.PointSourceLLH").setLevel(logging.ERROR)
 logging.getLogger("skylab.ps_injector.PointSourceInjector").setLevel(logging.ERROR)
 logging.getLogger("skylab.ps_injector.PriorInjector").setLevel(logging.ERROR)
+pil_logger = logging.getLogger('PIL')
+pil_logger.setLevel(logging.ERROR)
 
 class FastResponseAnalysis(object):
     r''' Object to do realtime followup analyses of 
