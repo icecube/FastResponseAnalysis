@@ -61,6 +61,10 @@ logging.getLogger("skylab.ps_injector.PointSourceInjector").setLevel(logging.ERR
 logging.getLogger("skylab.ps_injector.PriorInjector").setLevel(logging.ERROR)
 pil_logger = logging.getLogger('PIL')
 pil_logger.setLevel(logging.ERROR)
+logging.getLogger('numexpr').setLevel(logging.WARNING)
+import warnings
+warnings.simplefilter("ignore", UserWarning)
+warnings.simplefilter("ignore", RuntimeWarning) # to ignore nan pixel warnings
 
 class FastResponseAnalysis(object):
     r''' Object to do realtime followup analyses of 
@@ -825,13 +829,13 @@ class FastResponseAnalysis(object):
             plt.yscale('log')
             plt.savefig(self.analysispath + '/TS_distribution.png', bbox_inches='tight')
 
-    def plot_ontime(self):
+    def plot_ontime(self, contour_files=None):
         r'''Plots ontime events with either the full sky spatial
         prior or a zoomed in version like traditional fast response
         followups
         '''
-        self.plot_skymap_zoom()
-        self.plot_skymap()
+        self.plot_skymap_zoom(contour_files=contour_files)
+        self.plot_skymap(contour_files=contour_files)
 
     def sens_range_plot(self):
         r'''For alert events, make a sensitivity plot highlighting
@@ -860,7 +864,7 @@ class FastResponseAnalysis(object):
         if self.save_output:
             plt.savefig(self.analysispath + '/upper_limit_distribution.png', bbox_inches='tight', dpi=200)        
 
-    def plot_skymap_zoom(self):
+    def plot_skymap_zoom(self, contour_files=None):
         r'''Make a zoomed in portion of a skymap with
         all neutrino events within a certain range
         '''
@@ -899,7 +903,7 @@ class FastResponseAnalysis(object):
                 msk *= events['event'] == int(self.skipped[0][1])
                 plot_events(self.skipped_event['dec'], self.skipped_event['ra'], self.skipped_event['sigma']*2.145966, 
                             ra, dec, 2*6, sigma_scale=1.0, constant_sigma=False, same_marker=True, 
-                            energy_size=True, col = 'k', with_dash=True)
+                            energy_size=True, col = 'grey', with_dash=True)
                 events = events[~msk]
                 cols = cols[~msk]
             except:
@@ -914,6 +918,17 @@ class FastResponseAnalysis(object):
             plot_events(events['dec'], events['ra'], events['sigma']*2.145966, ra, dec, 2*6, sigma_scale=None,
                     constant_sigma=False, same_marker=True, energy_size=True, col = cols)
 
+        if contour_files is not None:
+            cont_ls = ['solid', 'dashed']
+            contour_counter = 0
+            for c_file in contour_files:
+                cont = np.loadtxt(c_file, skiprows=1)
+                cont_ra = cont.T[0]
+                cont_dec = cont.T[1]
+                hp.projplot(np.pi/2. - cont_dec, cont_ra, linewidth=3., 
+                    color='k', linestyle=cont_ls[contour_counter], coord='C')
+                contour_counter += 1
+
         plt.scatter(0,0, marker='*', c = 'k', s = 130, label = label_str) 
         #hp.projscatter(np.pi/2-dec, ra, marker='o', linewidth=2, edgecolor='k', linestyle=':', facecolor="None", s=5200*1, alpha=1.0)
         #hp.projscatter(np.pi/2-dec, ra, marker='o', linewidth=2, edgecolor='g', linestyle=':', facecolor="None", s=5200*4.0, alpha=1.0)
@@ -926,7 +941,7 @@ class FastResponseAnalysis(object):
         plt.savefig(self.analysispath + '/' + self.analysisid + 'unblinded_skymap_zoom.png',bbox_inches='tight')
         plt.savefig(self.analysispath + '/' + self.analysisid + 'unblinded_skymap_zoom.pdf',bbox_inches='tight', dpi=300)
 
-    def plot_skymap(self):
+    def plot_skymap(self, contour_files=None):
         r''' Make skymap with event localization and all
         neutrino events on the sky within the given time window
         '''
@@ -958,7 +973,7 @@ class FastResponseAnalysis(object):
                 skymap = self.skymap
                 max_val = max(skymap)
         moll_cbar = True if self.skymap is not None else None
-        hp.mollview(skymap,coord='C',cmap=cmap, cbar=moll_cbar)
+        hp.mollview(skymap, coord='C', cmap=cmap, cbar=moll_cbar)
         hp.graticule(verbose=False)
 
         theta=np.pi/2 - events['dec']
@@ -968,20 +983,31 @@ class FastResponseAnalysis(object):
         sigma_90 = events['sigma']*2.145966
 
         # plot events on sky with error contours
-        hp.projscatter(theta,phi,c=cols,marker='x',label='GFU Event',coord='C')
+        hp.projscatter(theta,phi,c=cols,marker='x',label='GFU Event',coord='C', zorder=5)
 
         if (self.stop - self.start) <= 0.5:        #Only plot contours if less than 2 days
             for i in range(events['ra'].size):
                 my_contour = self.contour(events['ra'][i], 
                                     events['dec'][i],sigma_90[i], 256)
                 hp.projplot(my_contour[0], my_contour[1], linewidth=2., 
-                                    color=cols[i], linestyle="solid",coord='C')
+                                    color=cols[i], linestyle="solid",coord='C', zorder=5)
 
         if self.skymap is None:
             src_theta = np.pi/2. - self.dec
             src_phi = self.ra
             hp.projscatter(src_theta, src_phi, c = 'k', marker = '*',
                                 label = self.name, coord='C', s=350)
+
+        if contour_files is not None:
+            cont_ls = ['solid', 'dashed']
+            contour_counter = 0
+            for c_file in contour_files:
+                cont = np.loadtxt(c_file, skiprows=1)
+                cont_ra = cont.T[0]
+                cont_dec = cont.T[1]
+                hp.projplot(np.pi/2. - cont_dec, cont_ra, linewidth=3., 
+                    color='k', linestyle=cont_ls[contour_counter], coord='C')
+                contour_counter += 1
 
         plt.title('Fast Response Skymap')
         plt.legend(loc=1)
@@ -1195,7 +1221,7 @@ def plot_zoom(scan, ra, dec, title, reso=3, var="pVal", range=[0, 6],cmap=None):
         cmap = mpl.colors.ListedColormap(pdf_palette)
     hp.gnomview(scan, rot=(np.degrees(ra), np.degrees(dec), 0),
                     cmap=cmap,
-                    max=max(scan)*0.1,
+                    max=max(scan),
                     reso=reso,
                     title=title,
                     notext=True,
