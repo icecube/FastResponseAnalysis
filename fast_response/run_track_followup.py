@@ -11,11 +11,10 @@ import os, sys, argparse
 from astropy.time import Time
 from astropy.time import TimeDelta
 import pandas as pd
-import subprocess
-import pickle
+import subprocess, pickle
 
 from fast_response.FastResponseAnalysis import FastResponseAnalysis
-from . import utils
+from fast_response import utils
 
 parser = argparse.ArgumentParser(description='Fast Response Analysis')
 parser.add_argument('--skymap', type=str, default=None,
@@ -52,9 +51,21 @@ for delta_t in [1000., 2.*86400.]:
     source['alert_type'] = 'track'
     source['Skipped Events'] = args.alert_id
 
+    run_id = args.alert_id[0][0]
+    ev_id = args.alert_id[0][1]
+
+    # look for contour files
+    base_skymap_path = '/home/followup/output_plots/'
+    contour_fs = [base_skymap_path \
+            + f'run{run_id:08d}.evt{ev_id:012d}.HESE.contour_{containment}.txt' \
+            for containment in ['50', '90']]
+    contour_fs = [f for f in contour_fs if os.path.exists(f)]
+    if len(contour_fs) == 0:
+        contour_fs = None
+
     f = FastResponseAnalysis(args.skymap, start, stop, **source)
     f.unblind_TS()
-    f.plot_ontime()
+    f.plot_ontime(contour_files=contour_fs)
     f.calc_pvalue()
     f.make_dNdE()
     f.plot_tsd()
