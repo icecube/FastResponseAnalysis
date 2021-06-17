@@ -15,11 +15,17 @@ def process_gcn(payload, root):
     print("INCOMING ALERT")
     analysis_path = os.environ.get('FAST_RESPONSE_SCRIPTS')
     if analysis_path is None:
-        print('###########################################################################')
-        print('CANNOT FIND ENVIRONMENT VARIABLE POINTING TO REALTIME FAST RESPONSE PACKAGE\n')
-        print('put \'export FAST_RESPONSE_SCRIPTS=/path/to/fra\' in your bashrc')
-        print('###########################################################################')
-        exit()
+        try:
+            import fast_response
+            analysis_path = os.path.dirname(fast_response.__file__) + '/'
+        except Exception as e:
+            print(e)
+            print('###########################################################################')
+            print('CANNOT FIND ENVIRONMENT VARIABLE POINTING TO REALTIME FAST RESPONSE PACKAGE\n')
+            print('You can either (1) install fast_response via pip or ')
+            print('(2) put \'export FAST_RESPONSE_SCRIPTS=/path/to/fra\' in your bashrc')
+            print('###########################################################################')
+            exit()
 
     # Read all of the VOEvent parameters from the "What" section.
     params = {elem.attrib['name']:
@@ -34,7 +40,6 @@ def process_gcn(payload, root):
     else:
         print("Found track type alert, running track followup. . . ")
         alert_type='track'
-        print("CANNOT RUN AUTOMATED TRACK FOLLOWUP WITHOUT KNOWN SKYMAP LOCATION")
 
     event_id = params['event_id']
     run_id = params['run_id']
@@ -50,14 +55,17 @@ def process_gcn(payload, root):
     needed_delay = 1.
     current_delay = current_mjd - event_mjd
     while current_delay < needed_delay:
-        print("Need to wait another {:.1f} seconds before running".format((needed_delay - current_delay)*86400.))
+        print("Need to wait another {:.1f} seconds before running".format(
+            (needed_delay - current_delay)*86400.)
+            )
         time.sleep((needed_delay - current_delay)*86400.)
         current_mjd = Time(datetime.utcnow(), scale='utc').mjd
         current_delay = current_mjd - event_mjd
 
     if alert_type == 'track':
-        base_skymap_path = '/data/ana/realtime/SOMETHING/???'
-        skymap_f = glob(base_skymap_path + './runid_{}_eventid_{}_*.fits')
+        base_skymap_path = '/home/followup/output_plots/'
+        skymap_f = glob(base_skymap_path \
+            + f'run{int(run_id):08d}.evt{int(event_id):012d}.*.fits.gz')
         if len(skymap_f) == 0:
             print("COULD NOT FIND THE SKYMAP FILE FOR V2 TRACK ALERT EVENT")
             return
@@ -67,8 +75,10 @@ def process_gcn(payload, root):
             print("TOO MANY OPTIONS FOR THE SKYMAP FILE FOR V2 TRACK ALERT EVENT")
             return
 
-    subprocess.call([command, '--skymap={}'.format(skymap), '--time={}'.format(str(event_mjd)), 
-                    '--alert_id={}'.format(run_id+':'+event_id)])
+    subprocess.call([command, '--skymap={}'.format(skymap), 
+        '--time={}'.format(str(event_mjd)), 
+        '--alert_id={}'.format(run_id+':'+event_id)]
+        )
 
 if __name__ == '__main__':
     import os, subprocess
@@ -93,11 +103,15 @@ if __name__ == '__main__':
         gcn.listen(handler=process_gcn)
     elif not args.test_cascade:
         print("Running on sample track . . . ")
-        payload = open('/data/user/apizzuto/fast_response_skylab/fast-response/fast_response/alert_event_followup/sample_astrotrack_alert.xml', 'rb').read()
+        payload = open('/data/user/apizzuto/fast_response_skylab/' \
+            + 'fast-response/fast_response/sample_skymaps/' \
+            + 'sample_astrotrack_alert_2021.xml', 'rb').read()
         root = lxml.etree.fromstring(payload)
         process_gcn(payload, root)
     else:
         print("Running on sample cascade . . . ")
-        payload = open('/data/user/apizzuto/fast_response_skylab/fast-response/fast_response/sample_cascade.txt', 'rb').read()
+        payload = open('/data/user/apizzuto/fast_response_skylab/' \
+            + 'fast-response/fast_response/sample_skymaps/' \
+            + 'sample_cascade.txt', 'rb').read()
         root = lxml.etree.fromstring(payload)
         process_gcn(payload, root)
