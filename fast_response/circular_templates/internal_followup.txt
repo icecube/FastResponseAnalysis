@@ -25,4 +25,4 @@ The IceCube Neutrino Observatory is a cubic-kilometer neutrino detector operatin
 the geographic South Pole, Antarctica. The IceCube realtime alert point of contact can 
 be reached at roc@icecube.wisc.edu.
 
-[1] IceCube Collaboration, M.G. Aartsen et al., e-Print:2004.02910 [astro-ph.HE]
+[1] IceCube Collaboration, R. Abbasi  et al., ApJ 910 4 (2021)
