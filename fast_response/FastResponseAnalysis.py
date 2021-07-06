@@ -15,13 +15,10 @@ mpl.use('agg')
 import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
-from astropy.io import fits
 from astropy.time import Time
-from matplotlib import cm
 import scipy as sp
-from numpy.lib.recfunctions   import append_fields
 from scipy.optimize       import curve_fit
-from scipy.stats          import chi2
+# from scipy.stats          import chi2
 from scipy import sparse
 from scipy.special import erfinv
 
@@ -451,8 +448,8 @@ class FastResponseAnalysis(object):
         events = self.llh.exp[t_mask]
         exp_theta = 0.5*np.pi - events['dec']
         exp_phi   = events['ra']
-        exp_pix   = hp.ang2pix(self.nside,exp_theta,exp_phi)
-        overlap   = np.isin(exp_pix,self.ipix_90)
+        exp_pix   = hp.ang2pix(self.nside, exp_theta, exp_phi)
+        overlap   = np.isin(exp_pix, self.ipix_90)
         events = events[overlap]
         if len(events) == 0:
             return None
@@ -901,9 +898,11 @@ class FastResponseAnalysis(object):
             try:
                 msk = events['run'] == int(self.skipped[0][0])
                 msk *= events['event'] == int(self.skipped[0][1])
-                plot_events(self.skipped_event['dec'], self.skipped_event['ra'], self.skipped_event['sigma']*2.145966, 
-                            ra, dec, 2*6, sigma_scale=1.0, constant_sigma=False, same_marker=True, 
-                            energy_size=True, col = 'grey', with_dash=True)
+                plot_events(self.skipped_event['dec'], self.skipped_event['ra'], 
+                    self.skipped_event['sigma']*2.145966, 
+                    ra, dec, 2*6, sigma_scale=1.0, constant_sigma=False, 
+                    same_marker=True, energy_size=True, col = 'grey', 
+                    with_dash=True)
                 events = events[~msk]
                 cols = cols[~msk]
             except:
@@ -925,8 +924,11 @@ class FastResponseAnalysis(object):
                 cont = np.loadtxt(c_file, skiprows=1)
                 cont_ra = cont.T[0]
                 cont_dec = cont.T[1]
+                label = 'Millipede 50\%, 90\% (160427A syst.)' \
+                    if contour_counter == 0 else ''
                 hp.projplot(np.pi/2. - cont_dec, cont_ra, linewidth=3., 
-                    color='k', linestyle=cont_ls[contour_counter], coord='C')
+                    color='k', linestyle=cont_ls[contour_counter], coord='C', 
+                    label=label)
                 contour_counter += 1
 
         plt.scatter(0,0, marker='*', c = 'k', s = 130, label = label_str) 
@@ -934,7 +936,7 @@ class FastResponseAnalysis(object):
         #hp.projscatter(np.pi/2-dec, ra, marker='o', linewidth=2, edgecolor='g', linestyle=':', facecolor="None", s=5200*4.0, alpha=1.0)
 
         #plt.text(1.2*np.pi / 180., 2.8*np.pi / 180., 'IceCube\nPreliminary', color = 'r', fontsize = 22)
-        plt.legend(loc = 2, ncol=2, mode = 'expand', fontsize = 18.5, framealpha = 0.95)
+        plt.legend(loc = 2, ncol=1, mode = 'expand', fontsize = 18.5, framealpha = 0.95)
         #plt.legend(loc = 1, ncol=2, fontsize = 18.5, framealpha = 0.75)
         plot_color_bar(range=[0,6], cmap=lscmap, col_label=r"IceCube Event Time",
                     offset=-50, labels = [r'-$\Delta T \Bigg/ 2$', r'+$\Delta T \Bigg/ 2$'])
@@ -1093,7 +1095,7 @@ class FastResponseAnalysis(object):
         if dec_mask_3 is not None:
             dec_mask = dec_mask_3 * dec_mask_4
             a = plt.hist(self.llh.mc['trueE'][dec_mask], bins = np.logspace(1., 8., 50), 
-                weights = self.llh.mc['ow'][dec_mask] * np.power(self.llh.mc['trueE'][dec_mask], -1.) / self.llh.mc['trueE'][dec_mask], 
+                weights = self.llh.mc['ow'][dec_mask] * np.power(self.llh.mc['trueE'][dec_mask], delta_gamma) / self.llh.mc['trueE'][dec_mask], 
                 histtype = 'step', linewidth = 2., color = sns.xkcd_rgb['dark navy blue'], label = 'Max dec.')
             cdf = np.cumsum(a[0]) / np.sum(a[0])
             low_5 = np.interp(0.05, cdf, a[1][:-1])
@@ -1276,7 +1278,8 @@ def plot_labels(src_dec, src_ra, reso):
                 ha='center', va='center', fontsize=fontsize)
 
 def plot_events(dec, ra, sigmas, src_ra, src_dec, reso, sigma_scale=5., col = 'k', constant_sigma=False,
-                    same_marker=False, energy_size=False, with_mark=True, with_dash=False):
+                    same_marker=False, energy_size=False, with_mark=True, with_dash=False,
+                    label=''):
     """Adds events to a healpy zoom, get events from llh."""
     cos_ev = np.cos(dec)
     tmp = np.cos(src_ra - ra) * np.cos(src_dec) * cos_ev + np.sin(src_dec) * np.sin(dec)
@@ -1288,11 +1291,15 @@ def plot_events(dec, ra, sigmas, src_ra, src_dec, reso, sigma_scale=5., col = 'k
         if constant_sigma:
             sizes = 20*np.ones_like(sizes)
         if with_dash:
-            hp.projscatter(np.pi/2-dec, ra, marker='o', linewidth=2, edgecolor=col, linestyle=':', facecolor="None", s=sizes, alpha=1.0)
+            hp.projscatter(np.pi/2-dec, ra, marker='o', linewidth=2, 
+                edgecolor=col, linestyle=':', facecolor="None", s=sizes, 
+                alpha=1.0)
         else:
-            hp.projscatter(np.pi/2-dec, ra, marker='o', linewidth=2, edgecolor=col, facecolor="None", s=sizes, alpha=1.0)
+            hp.projscatter(np.pi/2-dec, ra, marker='o', linewidth=2, 
+                edgecolor=col, facecolor="None", s=sizes, alpha=1.0)
     if with_mark:
-        hp.projscatter(np.pi/2-dec, ra, marker='x', linewidth=2, edgecolor=col, facecolor=col, s=60, alpha=1.0)
+        hp.projscatter(np.pi/2-dec, ra, marker='x', linewidth=2, 
+            edgecolor=col, facecolor=col, s=60, alpha=1.0)
 
 def find_nearest_idx(array, value):
     array = np.asarray(array)
