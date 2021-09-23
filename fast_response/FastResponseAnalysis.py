@@ -89,6 +89,8 @@ class FastResponseAnalysis(object):
     def generate_report(self):
         pass
 
+    
+
     def significance(self, p):
         r'''Given p value, report significance
 
