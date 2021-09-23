@@ -7,8 +7,6 @@ r''' General Fast Response Analysis Class.
     Date: April, 2019
     '''
 
-from abc import ABCMeta
-from abc import ABCMeta, abstractmethod, abstractproperty
 import os
 import sys
 import time
@@ -27,7 +25,6 @@ from scipy.optimize       import curve_fit
 # from scipy.stats          import chi2
 from scipy import sparse
 from scipy.special import erfinv
-from scipy import stats
 
 from . import utils
 from .ReportGenerator import ReportGenerator
@@ -39,6 +36,23 @@ from skylab.ps_llh import PointSourceLLH
 from skylab.spectral_models import PowerLaw 
 from skylab.temporal_models import BoxProfile, TemporalModel
 # import meander
+############################# Plotting Parameters #############################
+mpl.use('agg')
+mpl.rcParams['text.usetex'] = True
+try:
+    mpl.rcParams['text.latex.unicode'] = True
+except:
+    # new mpl doesn't like this rcParam
+    pass
+mpl.rcParams['mathtext.rm'] = 'Times New Roman'
+mpl.rcParams['mathtext.it'] = 'Times New Roman:italic'
+mpl.rcParams['mathtext.bf'] = 'Times New Roman:bold'
+
+mpl.rc('font', family='serif', size=12)
+mpl.rcParams['xtick.labelsize'] = 16
+mpl.rcParams['ytick.labelsize'] = 16
+mpl.rcParams['xtick.major.size'] = 5
+mpl.rcParams['ytick.major.size'] = 5
 
 current_palette = sns.color_palette('colorblind', 10)
 ############################# Plotting Parameters #############################
@@ -54,71 +68,6 @@ warnings.simplefilter("ignore", UserWarning)
 warnings.simplefilter("ignore", RuntimeWarning) # to ignore nan pixel warnings
 
 class FastResponseAnalysis(object):
-    r''' Object to do realtime followup analyses of 
-        astrophysical transients with arbitrary event
-        localization
-        '''
-    def __init__(self):
-        pass
-    
-    @abstractmethod
-    def initialize_llh(self):
-        pass
-
-    @abstractmethod
-    def initialize_injector(self):
-        pass
-
-    @abstractmethod
-    def unblind_TS(self):
-        pass
-
-    @abstractmethod
-    def run_background_trials(self):
-        pass
-
-    @abstractmethod
-    def calc_pvalue(self):
-        pass
-
-    @abstractmethod
-    def save_results(self, results_dict):
-        pass
-
-    @abstractmethod
-    def generate_report(self):
-        pass
-
-    def significance(self, p):
-        r'''Given p value, report significance
-
-        Parameters:
-        ----------
-        p: float
-            P value
-        Returns:
-        --------
-        sigma: float
-            Significance
-        '''
-        sigma = stats.norm.isf(p)
-        # sigma = np.sqrt(2)*erfinv(1-2*self.p)
-        return sigma
-
-    
-
-class PriorFollowup(FastResponseAnalysis):
-    def __init__(self):
-        super().__init__()
-
-class PointSourceFollowup(FastResponseAnalysis):
-    def __init__(self):
-        super().__init__()
-
-
-    
-
-class FastResponseAnalysis_old(object):
     r''' Object to do realtime followup analyses of 
         astrophysical transients with arbitrary event
         localization
@@ -1235,3 +1184,160 @@ class FastResponseAnalysis_old(object):
             return low, high
         else:
             return None, None
+
+
+def deltaPsi(dec1, ra1, dec2, ra2):
+    """
+    Calculate angular distance.
+    
+    Args:
+        dec1: Declination of first direction in radian
+        ra1: Right ascension of first direction in radian
+        dec2: Declination of second direction in radian
+        ra2: Right ascension of second direction in radian
+        
+    Returns angular distance in radian
+    """
+    return deltaPsi2(np.sin(dec1), np.cos(dec1), np.sin(ra1), np.cos(ra1), np.sin(dec2), np.cos(dec2), np.sin(ra2), np.cos(ra2))
+
+def deltaPsi2(sDec1, cDec1, sRa1, cRa1, sDec2, cDec2, sRa2, cRa2):
+    """
+    Calculate angular distance.
+    
+    Args:
+        sDec1: sin(Declination of first direction)
+        cDec1: cos(Declination of first direction)
+        sRa1: sin(Right ascension of first direction)
+        cRa1: cos(Right ascension of first direction)
+        sDec2: sin(Declination of second direction)
+        cDec2: cos(Declination of second direction)
+        sRa2: sin(Right ascension of second direction)
+        cRa2: cos(Right ascension of second direction)
+        
+    Returns angular distance in radian
+    """
+    tmp = cDec1*cRa1*cDec2*cRa2 + cDec1*sRa1*cDec2*sRa2 + sDec1*sDec2
+    tmp[tmp>1.] = 1.
+    tmp[tmp<-1.] = -1.
+    return np.arccos(tmp)
+                                 
+def plot_zoom(scan, ra, dec, title, reso=3, var="pVal", range=[0, 6],cmap=None):
+    if cmap is None:
+        pdf_palette = sns.color_palette("Blues", 500)
+        cmap = mpl.colors.ListedColormap(pdf_palette)
+    hp.gnomview(scan, rot=(np.degrees(ra), np.degrees(dec), 0),
+                    cmap=cmap,
+                    max=max(scan),
+                    reso=reso,
+                    title=title,
+                    notext=True,
+                    cbar=False
+                    #unit=r""
+                    )
+
+    plt.plot(4.95/3.*reso*np.radians([-1, 1, 1, -1, -1]), 4.95/3.*reso*np.radians([1, 1, -1, -1, 1]), color="k", ls="-", lw=3)
+    hp.graticule(verbose=False)
+    plot_labels(dec, ra, reso)
+
+def plot_color_bar(labels=[0.,2.,4.,6.], col_label=r"IceCube Event Time", range=[0,6], cmap=None, offset=-35):
+    fig = plt.gcf()
+    #ax = fig.add_axes([0.25, -0.03, 0.5, 0.03])
+    ax = fig.add_axes([0.95, 0.2, 0.03, 0.6])
+    labels = labels
+    cb = mpl.colorbar.ColorbarBase(ax, cmap=ps_map if cmap is None else cmap,
+                        #norm=mpl.colors.Normalize(vmin=range[0], vmax=range[1]), 
+                        orientation="vertical")
+    #cb.ax.minorticks_on()
+
+    cb.set_label(col_label, labelpad=offset, fontsize=18)
+    cb.set_ticks([0., 1.])
+    cb.set_ticklabels(labels)
+    cb.update_ticks()
+    #cb.ax.get_xaxis().set_ticklabels(labels)
+
+def plot_labels(src_dec, src_ra, reso):
+    """Add labels to healpy zoom"""
+    fontsize = 20
+    plt.text(-1*np.radians(1.75*reso),np.radians(0), r"%.2f$^{\circ}$"%(np.degrees(src_dec)),
+             horizontalalignment='right',
+             verticalalignment='center', fontsize=fontsize)
+    plt.text(-1*np.radians(1.75*reso),np.radians(reso), r"%.2f$^{\circ}$"%(reso+np.degrees(src_dec)),
+             horizontalalignment='right',
+             verticalalignment='center', fontsize=fontsize)
+    plt.text(-1*np.radians(1.75*reso),np.radians(-reso), r"%.2f$^{\circ}$"%(-reso+np.degrees(src_dec)),
+             horizontalalignment='right',
+             verticalalignment='center', fontsize=fontsize)
+    plt.text(np.radians(0),np.radians(-1.75*reso), r"%.2f$^{\circ}$"%(np.degrees(src_ra)),
+             horizontalalignment='center',
+             verticalalignment='top', fontsize=fontsize)
+    plt.text(np.radians(reso),np.radians(-1.75*reso), r"%.2f$^{\circ}$"%(-reso+np.degrees(src_ra)),
+             horizontalalignment='center',
+             verticalalignment='top', fontsize=fontsize)
+    plt.text(np.radians(-reso),np.radians(-1.75*reso), r"%.2f$^{\circ}$"%(reso+np.degrees(src_ra)),
+             horizontalalignment='center',
+             verticalalignment='top', fontsize=fontsize)
+    plt.text(-1*np.radians(2.35*reso), np.radians(0), r"declination", 
+                ha='center', va='center', rotation=90, fontsize=fontsize)
+    plt.text(np.radians(0), np.radians(-2.05*reso), r"right ascension", 
+                ha='center', va='center', fontsize=fontsize)
+
+def plot_events(dec, ra, sigmas, src_ra, src_dec, reso, sigma_scale=5., col = 'k', constant_sigma=False,
+                    same_marker=False, energy_size=False, with_mark=True, with_dash=False,
+                    label=''):
+    """Adds events to a healpy zoom, get events from llh."""
+    cos_ev = np.cos(dec)
+    tmp = np.cos(src_ra - ra) * np.cos(src_dec) * cos_ev + np.sin(src_dec) * np.sin(dec)
+    dist = np.arccos(tmp)
+
+    if sigma_scale is not None:
+        sigma = np.degrees(sigmas)/sigma_scale
+        sizes = 5200*sigma**2
+        if constant_sigma:
+            sizes = 20*np.ones_like(sizes)
+        if with_dash:
+            hp.projscatter(np.pi/2-dec, ra, marker='o', linewidth=2, 
+                edgecolor=col, linestyle=':', facecolor="None", s=sizes, 
+                alpha=1.0)
+        else:
+            hp.projscatter(np.pi/2-dec, ra, marker='o', linewidth=2, 
+                edgecolor=col, facecolor="None", s=sizes, alpha=1.0)
+    if with_mark:
+        hp.projscatter(np.pi/2-dec, ra, marker='x', linewidth=2, 
+            edgecolor=col, facecolor=col, s=60, alpha=1.0)
+
+def find_nearest_idx(array, value):
+    array = np.asarray(array)
+    idx = (np.abs(array - value)).argmin()
+    return idx
+
+def find_nearest(array, value):
+    array = np.asarray(array)
+    ind = (np.abs(array - value)).argmin()
+    return array[ind]
+    
+def sensitivity_fit(signal_fluxes, passing, errs, fit_func, p0 = None, conf_lev = 0.9):
+    r'''
+    Given an array of injected fluxes (or events) and passing fraction
+    relative to the unblinded TS, do a fit given a CDF
+    '''
+    try:
+        name = fit_func.__name__
+        name = name.replace("_", " ")
+    except:
+        name = 'fit'
+    popt, pcov = curve_fit(fit_func, signal_fluxes, passing, sigma = errs, p0 = p0, maxfev=50000)
+    fit_points = fit_func(signal_fluxes, *popt)
+    chi2 = np.sum((fit_points - passing)**2. / errs**2.)
+    dof = len(fit_points) - len(popt)
+    xfit = np.linspace(np.min(signal_fluxes) - 0.5, np.max(signal_fluxes), 100)
+    yfit = fit_func(xfit, *popt)
+    pval = sp.stats.chi2.sf(chi2, dof)
+    sens = xfit[find_nearest_idx(yfit, 0.9)]
+    return {'popt': popt, 'pcov': pcov, 'chi2': chi2, 
+            'dof': dof, 'xfit': xfit, 'yfit': yfit, 
+            'name': name, 'pval':pval, 'ls':'--', 'sens': sens}
+
+def scale_2d_gauss(arr, sigma_arr, new_sigma):
+    tmp = arr**(sigma_arr**2. / new_sigma**2.)/(np.sqrt(2.*np.pi)*new_sigma)* \
+                    np.power(np.sqrt(2.*np.pi)*sigma_arr, (sigma_arr**2. / new_sigma**2.)) 
+    return tmp / np.sum(tmp)
