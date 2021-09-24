@@ -165,7 +165,7 @@ class FastResponseAnalysis(object):
         self.initialize_llh(exp, mc, grl, livetime, sinDec_bins, energy_bins)
         
     def initialize_llh(self, exp, mc, grl, livetime, sinDec_bins, energy_bins):
-        assert self._fix_index != self._float_index,
+        assert self._fix_index != self._float_index,\
             'Must choose to either float or fix the index'
         if self._fix_index:
             llh_model = EnergyLLH(
@@ -236,7 +236,7 @@ class FastResponseAnalysis(object):
         pass
 
     @abstractmethod
-    def coincident_events(self):
+    def find_coincident_events(self):
         pass
 
     @abstractmethod
@@ -297,7 +297,7 @@ class PriorFollowup(FastResponseAnalysis):
             temporal_model=self.llh.temporal_model)
         self.inj = inj
 
-    def coincident_events(self):
+    def find_coincident_events(self):
         r'''Find "coincident events" for a skymap
         based analysis'''
         t_mask=(self.llh.exp['time']<=self.stop)&(self.llh.exp['time']>=self.start)
@@ -320,9 +320,66 @@ class PriorFollowup(FastResponseAnalysis):
                 coincident_events[-1]['energy_w'] = np.nan
             return coincident_events
 
+    def unblind_TS(self):
+        r''' Unblind TS, either sky scan for spatial prior,
+        or just at one location for a point source
+
+        Parameters:
+        -----------
+        self 
+        --------
+        ts, ns: Test statistic and best fit ns
+        ''' 
+        # TODO: Fix the case of getting best-fit gamma
+        t0 = time.time()
+        if 'ice' in self.name.lower():
+            spatial_prior = SpatialPrior(self.skymap, containment = 0.99)
+        else:
+            spatial_prior = SpatialPrior(self.skymap, containment = 0.99)
+        pixels = np.arange(len(self.skymap))
+        t1 = time.time()
+        print("Starting scan")
+        val = self.llh.scan(0.0,0.0, scramble = False,spatial_prior=spatial_prior,
+                            time_mask = [self.duration/2., self.centertime],
+                            pixel_scan=[self.nside, 4.0])
+        t2 = time.time()
+        print("finished scan, took {} s".format(t2-t1))
+        try:
+            ts = val['TS_spatial_prior_0'].max()
+            max_prior = np.argmax(val['TS_spatial_prior_0'])
+            ns = val['nsignal'][max_prior]
+            if ts > 0:
+                self.skymap_fit_ra = val['ra'][max_prior]
+                self.skymap_fit_dec = val['dec'][max_prior]
+                if 'casc' in self.name.lower() and self.duration > 0.5:
+                    self.coincident_events = None
+                else:
+                    self.coincident_events = self.prior_coincident_events() 
+            else:
+                max_pix = np.argmax(self.skymap)
+                theta, phi = hp.pix2ang(self.nside, max_pix)
+                dec = np.pi/2. - theta
+                self.skymap_fit_ra = phi
+                self.skymap_fit_dec = dec
+        except:
+            ts, ns = 0., 0.
+            max_pix = np.argmax(self.skymap)
+            theta, phi = hp.pix2ang(self.nside, max_pix)
+            dec = np.pi/2. - theta
+            self.skymap_fit_ra = phi
+            self.skymap_fit_dec = dec
+        print("TS = {}".format(ts))
+        print("ns = {}\n\n".format(ns))
+        self.ts, self.ns = ts, ns
+        return ts, ns
+
+    
+
 class PointSourceFollowup(FastResponseAnalysis):
     def __init__(self, name, ra, dec, start, stop, extension=0.0, skipped=None):
-        pass
+        self.name = name
+        self.ra = ra
+        self.dec = dec
 
     def initialize_injector(self, e_range=(0., np.inf)):
         inj = PointSourceInjector(
@@ -336,6 +393,52 @@ class PointSourceFollowup(FastResponseAnalysis):
             self.llh.livetime,
             temporal_model=self.llh.temporal_model)
         self.inj = inj
+
+    def unblind_TS(self):
+        r''' Unblind TS, either sky scan for spatial prior,
+        or just at one location for a point source
+
+        Parameters:
+        -----------
+        self 
+        --------
+        ts, ns: Test statistic and best fit ns
+        ''' 
+        # Fix the case of getting best-fit gamma
+        ts, ns = self.llh.fit_source(src_ra=self.ra, src_dec=self.dec)
+        spatial_weights = self.llh.llh_model.signal(self.ra, self.dec, 
+                self.llh._events, src_extension=self.extension)[0] / self.llh._events['B']
+        params = ns.copy()
+        params.pop('nsignal')
+        energy_ratio, _ = self.llh.llh_model.weight(self.llh._events, **params)
+        #print(spatial_weights)
+        #print(energy_ratio)
+        #print(np.max(spatial_weights * energy_ratio))
+        ns = ns['nsignal']
+        temporal_weights = self.llh.temporal_model.signal(self.llh._events)
+        msk = spatial_weights * energy_ratio * temporal_weights > 10
+        if len(spatial_weights[msk]) > 0:
+            self.coincident_events = []
+            #print self.llh._events.dtype.names
+            for ev, s_w, en_w in zip(self.llh._events[msk], 
+                        spatial_weights[msk], energy_ratio[msk]):
+                self.coincident_events.append({})
+                for key in ['run', 'event', 'ra', 'dec', 'sigma', 'logE', 'time']:
+                    self.coincident_events[-1][key] = ev[key]
+                del_psi = deltaPsi([ev['dec']], [ev['ra']], [self.dec], [self.ra])[0]
+                self.coincident_events[-1]['delta_psi'] = del_psi 
+                self.coincident_events[-1]['spatial_w'] = s_w
+                self.coincident_events[-1]['energy_w'] = en_w
+        #print self.coincident_events
+        print("TS = {}".format(ts))
+        print("ns = {}\n\n".format(ns))
+        self.ts, self.ns = ts, ns
+        return ts, ns
+
+    def find_coincident_events(self):
+        # TODO: Steal this from the function above
+        pass
+        
 
 
     
@@ -482,86 +585,6 @@ class PointSourceFollowup(FastResponseAnalysis):
 #         self.low5, self.high5 = None, None
 #         self.sens_range = None
 #         #self.archival = kwargs.pop("archival", False) #Put this here to use GFU (not online) for archival analyses
-
-    def unblind_TS(self):
-        r''' Unblind TS, either sky scan for spatial prior,
-        or just at one location for a point source
-
-        Parameters:
-        -----------
-        self 
-        --------
-        ts, ns: Test statistic and best fit ns
-        ''' 
-        if self.skymap is not None:
-            t0 = time.time()
-            if 'ice' in self.name.lower():
-                spatial_prior = SpatialPrior(self.skymap, containment = 0.99)
-            else:
-                spatial_prior = SpatialPrior(self.skymap, containment = 0.99)
-            pixels = np.arange(len(self.skymap))
-            t1 = time.time()
-            print("Starting scan")
-            val = self.llh.scan(0.0,0.0, scramble = False,spatial_prior=spatial_prior,
-                                time_mask = [self.duration/2., self.centertime],
-                                pixel_scan=[self.nside, 4.0])
-            t2 = time.time()
-            print("finished scan, took {} s".format(t2-t1))
-            try:
-                ts = val['TS_spatial_prior_0'].max()
-                max_prior = np.argmax(val['TS_spatial_prior_0'])
-                ns = val['nsignal'][max_prior]
-                if ts > 0:
-                    self.skymap_fit_ra = val['ra'][max_prior]
-                    self.skymap_fit_dec = val['dec'][max_prior]
-                    if 'casc' in self.name.lower() and self.duration > 0.5:
-                        self.coincident_events = None
-                    else:
-                        self.coincident_events = self.prior_coincident_events() 
-                else:
-                    max_pix = np.argmax(self.skymap)
-                    theta, phi = hp.pix2ang(self.nside, max_pix)
-                    dec = np.pi/2. - theta
-                    self.skymap_fit_ra = phi
-                    self.skymap_fit_dec = dec
-            except:
-                ts, ns = 0., 0.
-                max_pix = np.argmax(self.skymap)
-                theta, phi = hp.pix2ang(self.nside, max_pix)
-                dec = np.pi/2. - theta
-                self.skymap_fit_ra = phi
-                self.skymap_fit_dec = dec
-
-        else:
-            ts, ns = self.llh.fit_source(src_ra=self.ra, src_dec=self.dec)
-            spatial_weights = self.llh.llh_model.signal(self.ra, self.dec, 
-                    self.llh._events, src_extension=self.extension)[0] / self.llh._events['B']
-            params = ns.copy()
-            params.pop('nsignal')
-            energy_ratio, _ = self.llh.llh_model.weight(self.llh._events, **params)
-            #print(spatial_weights)
-            #print(energy_ratio)
-            #print(np.max(spatial_weights * energy_ratio))
-            ns = ns['nsignal']
-            temporal_weights = self.llh.temporal_model.signal(self.llh._events)
-            msk = spatial_weights * energy_ratio * temporal_weights > 10
-            if len(spatial_weights[msk]) > 0:
-                self.coincident_events = []
-                #print self.llh._events.dtype.names
-                for ev, s_w, en_w in zip(self.llh._events[msk], 
-                            spatial_weights[msk], energy_ratio[msk]):
-                    self.coincident_events.append({})
-                    for key in ['run', 'event', 'ra', 'dec', 'sigma', 'logE', 'time']:
-                        self.coincident_events[-1][key] = ev[key]
-                    del_psi = deltaPsi([ev['dec']], [ev['ra']], [self.dec], [self.ra])[0]
-                    self.coincident_events[-1]['delta_psi'] = del_psi 
-                    self.coincident_events[-1]['spatial_w'] = s_w
-                    self.coincident_events[-1]['energy_w'] = en_w
-            #print self.coincident_events
-        print("TS = {}".format(ts))
-        print("ns = {}\n\n".format(ns))
-        self.ts, self.ns = ts, ns
-        return ts, ns
    
 
 #     def calc_pvalue(self, ntrials=1000, run_anyway=False):
