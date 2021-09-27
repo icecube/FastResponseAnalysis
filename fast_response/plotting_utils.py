@@ -1,3 +1,10 @@
+import numpy as np
+import healpy as hp
+import seaborn as sns
+
+import matplotlib.pyplot as plt
+import matplotlib as mpl
+
 def plot_zoom(scan, ra, dec, title, reso=3, var="pVal", range=[0, 6],cmap=None):
     if cmap is None:
         pdf_palette = sns.color_palette("Blues", 500)
@@ -18,19 +25,16 @@ def plot_zoom(scan, ra, dec, title, reso=3, var="pVal", range=[0, 6],cmap=None):
 
 def plot_color_bar(labels=[0.,2.,4.,6.], col_label=r"IceCube Event Time", range=[0,6], cmap=None, offset=-35):
     fig = plt.gcf()
-    #ax = fig.add_axes([0.25, -0.03, 0.5, 0.03])
     ax = fig.add_axes([0.95, 0.2, 0.03, 0.6])
     labels = labels
     cb = mpl.colorbar.ColorbarBase(ax, cmap=ps_map if cmap is None else cmap,
                         #norm=mpl.colors.Normalize(vmin=range[0], vmax=range[1]), 
                         orientation="vertical")
-    #cb.ax.minorticks_on()
 
     cb.set_label(col_label, labelpad=offset, fontsize=18)
     cb.set_ticks([0., 1.])
     cb.set_ticklabels(labels)
     cb.update_ticks()
-    #cb.ax.get_xaxis().set_ticklabels(labels)
 
 def plot_labels(src_dec, src_ra, reso):
     """Add labels to healpy zoom"""
@@ -99,3 +103,47 @@ def load_plotting_settings():
     mpl.rcParams['ytick.labelsize'] = 16
     mpl.rcParams['xtick.major.size'] = 5
     mpl.rcParams['ytick.major.size'] = 5
+
+
+def contour(ra, dec, sigma, nside):
+    r''' Function for plotting contours on skymaps
+
+    Parameters:
+    -----------
+    ra: ndarray
+        Array of ra for events 
+    dec: ndarray
+        Array of dec for events
+    sigma: ndarray
+        Array of sigma to make contours around events
+    nside:
+        nside of healpy map
+    Returns:
+    --------
+    Theta: array
+        array of theta values of contour
+    Phi: array
+        array of phi values of contour 
+    '''
+    dec = np.pi/2 - dec
+    sigma = np.rad2deg(sigma)
+    delta, step, bins = 0, 0, 0
+    delta= sigma/180.0*np.pi
+    step = 1./np.sin(delta)/20.
+    bins = int(360./step)
+    Theta = np.zeros(bins+1, dtype=np.double)
+    Phi = np.zeros(bins+1, dtype=np.double)
+    # define the contour
+    for j in range(0,bins) :
+        phi = j*step/180.*np.pi
+        vx = np.cos(phi)*np.sin(ra)*np.sin(delta) + np.cos(ra)*(np.cos(delta)*np.sin(dec) + np.cos(dec)*np.sin(delta)*np.sin(phi))
+        vy = np.cos(delta)*np.sin(dec)*np.sin(ra) + np.sin(delta)*(-np.cos(ra)*np.cos(phi) + np.cos(dec)*np.sin(ra)*np.sin(phi))
+        vz = np.cos(dec)*np.cos(delta) - np.sin(dec)*np.sin(delta)*np.sin(phi)
+        idx = hp.vec2pix(nside, vx, vy, vz)
+        DEC, RA = hp.pix2ang(nside, idx)
+        Theta[j] = DEC
+        Phi[j] = RA
+    Theta[bins] = Theta[0]
+    Phi[bins] = Phi[0]
+
+    return Theta, Phi
