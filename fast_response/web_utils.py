@@ -258,30 +258,6 @@ def write_alert_gcn(alert_results):
         for line in new_f:
             f.write(line)
 
-def erfunc(x, a, b):
-    x = np.array(x)
-    return 0.5 + 0.5*sp.special.erf(a*x + b)
-
-def chi2cdf(x,df1,loc,scale):
-    func = chi2.cdf(x,df1,loc,scale)
-    return func
-
-def incomplete_gamma(x, a, scale):
-    x = np.array(x)
-    return sp.special.gammaincc( scale*x, a)
-
-def poissoncdf(x, mu, loc):
-    func = sp.stats.poisson.cdf(x, mu, loc)
-    return func
-
-def binomial_error(p, number):
-    errs = np.sqrt(p*(1.-p) / number)
-    ntrig = p * number
-    bound_case_pass = (ntrig + (1./3.)) / (number + (2./3.))
-    bound_case_sigma = np.sqrt(bound_case_pass*(1. - bound_case_pass) / (number + 2))
-    errs = np.maximum(errs, bound_case_sigma)
-    return errs
-
 def sync_to_roc():
     #subprocess.Popen('rsync -a /home/apizzuto/public_html/FastResponse/webpage/ apizzuto@roc.icecube.wisc.edu:/mnt/roc/www/internal/fast_response')
     env = dict(os.environ)

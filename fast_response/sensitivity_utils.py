@@ -1,3 +1,8 @@
+import scipy as sp
+import numpy as np
+from scipy.optimize import curve_fit
+from scipy.stats import chi2
+
 def find_nearest_idx(array, value):
     array = np.asarray(array)
     idx = (np.abs(array - value)).argmin()
@@ -7,7 +12,6 @@ def find_nearest(array, value):
     array = np.asarray(array)
     ind = (np.abs(array - value)).argmin()
     return array[ind]
-
 
 def deltaPsi(dec1, ra1, dec2, ra2):
     """
@@ -65,3 +69,27 @@ def sensitivity_fit(signal_fluxes, passing, errs, fit_func, p0 = None, conf_lev 
     return {'popt': popt, 'pcov': pcov, 'chi2': chi2, 
             'dof': dof, 'xfit': xfit, 'yfit': yfit, 
             'name': name, 'pval':pval, 'ls':'--', 'sens': sens}
+
+def erfunc(x, a, b):
+    x = np.array(x)
+    return 0.5 + 0.5*sp.special.erf(a*x + b)
+
+def chi2cdf(x, df1, loc, scale):
+    func = chi2.cdf(x,df1,loc,scale)
+    return func
+
+def incomplete_gamma(x, a, scale):
+    x = np.array(x)
+    return sp.special.gammaincc( scale*x, a)
+
+def poissoncdf(x, mu, loc):
+    func = sp.stats.poisson.cdf(x, mu, loc)
+    return func
+
+def binomial_error(p, number):
+    errs = np.sqrt(p*(1.-p) / number)
+    ntrig = p * number
+    bound_case_pass = (ntrig + (1./3.)) / (number + (2./3.))
+    bound_case_sigma = np.sqrt(bound_case_pass*(1. - bound_case_pass) / (number + 2))
+    errs = np.maximum(errs, bound_case_sigma)
+    return errs
