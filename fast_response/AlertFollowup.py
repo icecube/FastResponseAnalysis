@@ -82,11 +82,11 @@ class AlertFollowup(PriorFollowup):
 
 class TrackFollowup(AlertFollowup):
     _smear = True
-    pass
 
     def format_skymap(self, skymap):
         self.convert_llh_to_prob(skymap)
         skymap = super().format_skymap(skymap)
+        return skymap
 
     def convert_llh_to_prob(self, skymap_fits):
         skymap_llh = skymap_fits.copy()
@@ -114,4 +114,3 @@ class TrackFollowup(AlertFollowup):
 
 class CascadeFollowup(AlertFollowup):
     _smear = False
-    pass
