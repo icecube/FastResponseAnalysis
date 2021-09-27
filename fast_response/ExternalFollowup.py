@@ -1,4 +1,4 @@
 from .FastResponseAnalysis import PointSourceFollowup
 
 class ExternalFollowup(PointSourceFollowup):
-    pass
+    _dataset = "GFUOnline_v001_p02"
