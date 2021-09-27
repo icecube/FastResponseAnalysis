@@ -29,10 +29,16 @@ from scipy import sparse
 from scipy.special import erfinv
 from scipy import stats
 
-from . import utils
+# from . import web_utils
+# from . import sensitivity_utils
+# from . import plotting_utils
+
+import web_utils, sensitivity_utils, plotting_utils
+
 import skylab
 
-from .ReportGenerator import ReportGenerator
+# from .ReportGenerator import ReportGenerator
+from ReportGenerator import ReportGenerator
 from skylab.datasets import Datasets
 from skylab.llh_models import EnergyLLH
 from skylab.priors import SpatialPrior
@@ -45,6 +51,8 @@ from skylab.temporal_models import BoxProfile, TemporalModel
 
 current_palette = sns.color_palette('colorblind', 10)
 ############################# Plotting Parameters #############################
+
+logging.getLogger().setLevel(logging.ERROR)
 
 # logging.getLogger("skylab.ps_llh.PointSourceLLH").setLevel(logging.ERROR)
 # logging.getLogger("skylab.ps_injector.PointSourceInjector").setLevel(logging.ERROR)
@@ -62,8 +70,6 @@ class FastResponseAnalysis(object):
         localization
         '''
     _dataset = None
-    _llh = None
-    _name = None
     _fix_index = True
     _float_index = not _fix_index
     _index_range = [1., 4.]
@@ -74,13 +80,12 @@ class FastResponseAnalysis(object):
     _llh_seed = 1
     _save_keys = {}
 
-    def __init__(self, name, start, stop, skipped=None, seed=None, outdir=None, save=True, extension=None):
+    def __init__(self, name, tstart, tstop, skipped=None, seed=None,
+                 outdir=None, save=True, extension=None):
         self.name = name
-        self.start = start
-        self.stop = stop
-        self.skipped = skipped
+        
         if seed is not None:
-            self.seed(seed)
+            self.llh_seed(seed)
         if outdir is None:
             outdir = os.environ.get('FAST_RESPONSE_OUTPUT')
             if outdir is None:
@@ -100,21 +105,18 @@ class FastResponseAnalysis(object):
         self.centertime = (start + stop) / 2.
         
         self.analysisid = start_str + '_' + self.name.replace(' ', '_') 
-        self.analysispath = self.dirname + '/' + self.analysisid
+        self.analysispath = self.outdir + '/' + self.analysisid
         self.save_output = save
 
         if os.path.isdir(self.analysispath) and self.save_output:
             print("Directory {} already exists. Deleting it ...".format(
                 self.analysispath))
-            # subprocess.call(['rm', '-r', self.analysispath])
-            # subprocess.call(['mkdir',self.analysispath])
-            sys.exit()
+            subprocess.call(['rm', '-r', self.analysispath])
+            subprocess.call(['mkdir',self.analysispath])
+            # sys.exit()
         elif self.save_output:
             subprocess.call(['mkdir', self.analysispath])
 
-        skip_events = kwargs.pop("Skipped Events", None)
-        self.skipped = skip_events
-        self.skipped_event = None
         if 'test' in self.name.lower():
             self.scramble = True
             if self._verbose:
@@ -125,15 +127,13 @@ class FastResponseAnalysis(object):
                 print('Working on unscrambled (UNBLINDED) data')
 
         self.extension = extension
+        if self.extension is not None:
+            self.extension = np.deg2rad(self.extension)
         self.llh_seed = seed if seed is not None else 1
-        self.llh = self.initialize_llh()
-
-    @property
-    def name(self):
-        return self._name
-    @name.setter
-    def name(self, x):
-        self._name = x
+        self.skipped = skipped
+        self.skipped_event = None
+        self.exp = None
+        self.llh = self.initialize_llh(skipped=skipped, scramble=self.scramble)
 
     @property
     def dataset(self):
@@ -156,9 +156,9 @@ class FastResponseAnalysis(object):
     def llh_seed(self, x):
         self._llh_seed = x
 
-    def get_data(self, skipped=None):
+    def get_data(self):
         if self._verbose:
-            print("Initializing Point Source LLH in Skylab")
+            print("Grabbing data")
 
         dset = Datasets[self.dataset]
         #if self.stop < 58933.0: 
@@ -205,41 +205,54 @@ class FastResponseAnalysis(object):
         sinDec_bins = dset.sinDec_bins("livestream")
         energy_bins = dset.energy_bins("livestream")
 
-        self.initialize_llh(exp, mc, grl, livetime, sinDec_bins, energy_bins)
+        self.exp = exp
+        self.mc = mc
+        self.grl = grl
+        self.livetime = livetime
+        self.dset = dset
+        self.sinDec_bins = sinDec_bins
+        self.energy_bins = energy_bins
         
-    def initialize_llh(self, exp, mc, grl, livetime, sinDec_bins, energy_bins):
+    def initialize_llh(self, skipped=None, scramble=False):
+        if self.exp is None:
+            self.get_data()
+
+        if self._verbose:
+            print("Initializing Point Source LLH in Skylab")
+
         assert self._fix_index != self._float_index,\
             'Must choose to either float or fix the index'
+
         if self._fix_index:
             llh_model = EnergyLLH(
-                twodim_bins=[energy_bins, sinDec_bins],
+                twodim_bins=[self.energy_bins, self.sinDec_bins],
                 allow_empty=True,
-                spectrum=PowerLaw(A=1, gamma=self.index(), E0=1000.)) 
+                spectrum=PowerLaw(A=1, gamma=self.index, E0=1000.)) 
         elif self._float_index:
             llh_model = EnergyLLH(
-                twodim_bins=[energy_bins, sinDec_bins],
+                twodim_bins=[self.energy_bins, self.sinDec_bins],
                 allow_empty=True,
                 bounds=self._index_range,
-                seed = 2.0)
+                seed = self.index)
         
         box = TemporalModel(
-            grl=grl,
+            grl=self.grl,
             poisson_llh=True,
             days=10,
             signal=BoxProfile(self.start, self.stop))
         
         if skipped is not None:
-            exp = self.remove_event(exp, dset, skipped)
+            exp = self.remove_event(self.exp, self.dset, skipped)
 
         if self.extension is not None:
-            src_extension = float(extension)
+            src_extension = float(self.extension)
         else:
             src_extension = None
 
         llh = PointSourceLLH(
-            exp,                   # array with data events
-            mc,                    # array with Monte Carlo events
-            livetime,              # total livetime of the data events
+            self.exp,                   # array with data events
+            self.mc,                    # array with Monte Carlo events
+            self.livetime,              # total livetime of the data events
             ncpu=5,               # use 10 CPUs when computing trials
             scramble=scramble,        # use scrambled data, set to False for unblinding
             timescramble=True,     # use full time scrambling, not just RA scrambling
@@ -274,7 +287,6 @@ class FastResponseAnalysis(object):
     def run_background_trials(self, ntrials=1000):
         pass
 
-    @abstractmethod
     def calc_pvalue(self, ntrials=1000, run_anyway=False):
         r''' Given an unblinded TS value, calculate the p value
 
@@ -287,18 +299,22 @@ class FastResponseAnalysis(object):
             P value for this analysis
         ''' 
         if self.ts is None:
-            print("Need TS value to find p value")
+            if self._verbose:
+                print("Need TS value to find p value")
             self.unblind_TS()
         if self.ts == 0.0 and not run_anyway:
-            print("TS=0, no need to run background trials")
+            if self._verbose:
+                print("TS=0, no need to run background trials")
             p = 1.0
             self.tsd = None
         else:
-            print("Need to reinitialize LLH for background trials")
+            if self._verbose:
+                print("Need to reinitialize LLH for background trials")
             self.run_background_trials(ntrials=ntrials)
-            p = np.count_nonzer(self.tsd >= self.ts) / float(self.tsd.size)
+            p = np.count_nonzero(self.tsd >= self.ts) / float(self.tsd.size)
             sigma = self.significance(p)
-            print("Significance: {:.3f}sigma\n\n".format(sigma))
+            if self._verbose:
+                print("Significance: {:.3f}sigma\n\n".format(sigma))
         self.p = p
         return p
 
@@ -308,14 +324,6 @@ class FastResponseAnalysis(object):
 
     @abstractmethod
     def upper_limit(self):
-        pass
-
-    @abstractmethod
-    def save_results(self, results_dict):
-        pass
-
-    @abstractmethod
-    def generate_report(self):
         pass
 
     @abstractmethod
@@ -449,13 +457,13 @@ class FastResponseAnalysis(object):
             label_str = self.name
             cmap = mpl.colors.ListedColormap([(1.,1.,1.)] * 50)
 
-        plot_zoom(skymap, ra, dec, "", range = [0,10], reso=3., cmap = cmap)
+        plotting_utils.plot_zoom(skymap, ra, dec, "", range = [0,10], reso=3., cmap = cmap)
 
         if self.skipped is not None:
             try:
                 msk = events['run'] == int(self.skipped[0][0])
                 msk *= events['event'] == int(self.skipped[0][1])
-                plot_events(self.skipped_event['dec'], self.skipped_event['ra'], 
+                plotting_utils.plot_events(self.skipped_event['dec'], self.skipped_event['ra'], 
                     self.skipped_event['sigma']*2.145966, 
                     ra, dec, 2*6, sigma_scale=1.0, constant_sigma=False, 
                     same_marker=True, energy_size=True, col = 'grey', 
@@ -466,12 +474,12 @@ class FastResponseAnalysis(object):
                 print("Removed event not in GFU")
 
         if (self.stop - self.start) <= 21.:
-            plot_events(events['dec'], events['ra'], events['sigma']*2.145966, ra, dec, 2*6, sigma_scale=1.0,
+            plotting_utils.plot_events(events['dec'], events['ra'], events['sigma']*2.145966, ra, dec, 2*6, sigma_scale=1.0,
                     constant_sigma=False, same_marker=True, energy_size=True, col = cols)
                     #2.145966 for 90% containment
         else:
             #Long time windows means don't plot contours
-            plot_events(events['dec'], events['ra'], events['sigma']*2.145966, ra, dec, 2*6, sigma_scale=None,
+            plotting_utils.plot_events(events['dec'], events['ra'], events['sigma']*2.145966, ra, dec, 2*6, sigma_scale=None,
                     constant_sigma=False, same_marker=True, energy_size=True, col = cols)
 
         if contour_files is not None:
@@ -495,7 +503,7 @@ class FastResponseAnalysis(object):
         #plt.text(1.2*np.pi / 180., 2.8*np.pi / 180., 'IceCube\nPreliminary', color = 'r', fontsize = 22)
         plt.legend(loc = 2, ncol=1, mode = 'expand', fontsize = 18.5, framealpha = 0.95)
         #plt.legend(loc = 1, ncol=2, fontsize = 18.5, framealpha = 0.75)
-        plot_color_bar(range=[0,6], cmap=lscmap, col_label=r"IceCube Event Time",
+        plotting_utils.plot_color_bar(range=[0,6], cmap=lscmap, col_label=r"IceCube Event Time",
                     offset=-50, labels = [r'-$\Delta T \Bigg/ 2$', r'+$\Delta T \Bigg/ 2$'])
         plt.savefig(self.analysispath + '/' + self.analysisid + 'unblinded_skymap_zoom.png',bbox_inches='tight')
         plt.savefig(self.analysispath + '/' + self.analysisid + 'unblinded_skymap_zoom.pdf',bbox_inches='tight', dpi=300)
@@ -597,16 +605,24 @@ class FastResponseAnalysis(object):
     
 
 class PriorFollowup(FastResponseAnalysis):
-    def __init__(self, name, skymap, start, stop, skipped=None):
-        super.__init__(****ARGS)
-        skymap = hp.read_map(location, verbose=False)
+    def __init__(self, name, skymap_path, tstart, tstop, skipped=None, seed=None,
+                 outdir=None, save=True, extension=None):
+
+        super.__init__(name, tstart, tstop, skipped=skipped, seed=seed,
+                       outdir=outdir, save=save, extension=extension)
+
+        self.skymap_path = skymap_path
+        skymap, skymap_header = hp.read_map(skymap_path, h=True, verbose=False)
+        self.skymap_header = skymap_header
+        skymap = self.format_skymap(skymap)
+        self.skymap = skymap
         self.nside = hp.pixelfunc.get_nside(self.skymap)
-        self.ipix_90 = self.ipixs_in_percentage(self.skymap,0.9)
-        self.ra, self.dec, self.extension = None, None, None
+        self.ipix_90 = self.ipixs_in_percentage(self.skymap, 0.9)
+        self.ra, self.dec, self.extension = None, None, extension
 
     def __str__(self):
         int_str = super().__str__()
-        int_str += ' '*10 + 'Skymap file:' + self.skymap_url
+        int_str += ' '*10 + 'Skymap file:' + self.skymap_path
         int_str += '\n\n'
         return int_str
 
@@ -614,6 +630,7 @@ class PriorFollowup(FastResponseAnalysis):
         if hp.pixelfunc.get_nside(skymap) != 256:
             skymap = hp.pixelfunc.ud_grade(skymap, 256)
             skymap = skymap/skymap.sum()
+        return skymap
 
     def initialize_injector(self, e_range=(0., np.inf)):
         r'''Method to make relevant injector in Skylab, done for analysis
@@ -632,7 +649,7 @@ class PriorFollowup(FastResponseAnalysis):
         self.spatial_prior = spatial_prior
         inj = PriorInjector(
             spatial_prior, 
-            gamma=self._index, 
+            gamma=self.index, 
             e_range = e_range, 
             E0=1000., 
             seed = self.llh_seed())
@@ -655,7 +672,7 @@ class PriorFollowup(FastResponseAnalysis):
         spatial_prior = SpatialPrior(self.skymap, containment=0.99)
 
         self.llh = self.initialize_llh(
-            extension = self.extension, 
+            skipped = self.skipped, 
             scramble=True)
 
         toolbar_width = 50
@@ -670,7 +687,7 @@ class PriorFollowup(FastResponseAnalysis):
                 0.0, 0.0, scramble = True, seed=i, 
                 spatial_prior=spatial_prior,
                 time_mask = [self.duration/2., self.centertime], 
-                pixel_scan=[self.nside,4.0])
+                pixel_scan=[self.nside, 4.0])
             try:
                 tsd.append(val['TS_spatial_prior_0'].max())
             except ValueError:
@@ -689,7 +706,7 @@ class PriorFollowup(FastResponseAnalysis):
         overlap   = np.isin(exp_pix, self.ipix_90)
         events = events[overlap]
         if len(events) == 0:
-            return None
+            coincident_events = []
         else:
             coincident_events = []
             for ev in events:
@@ -699,7 +716,7 @@ class PriorFollowup(FastResponseAnalysis):
                 coincident_events[-1]['delta_psi'] = np.nan
                 coincident_events[-1]['spatial_w'] = np.nan
                 coincident_events[-1]['energy_w'] = np.nan
-            return coincident_events
+        self.coincident_events = coincident_events
 
     def unblind_TS(self):
         r''' Unblind TS, either sky scan for spatial prior,
@@ -732,10 +749,6 @@ class PriorFollowup(FastResponseAnalysis):
             if ts > 0:
                 self.skymap_fit_ra = val['ra'][max_prior]
                 self.skymap_fit_dec = val['dec'][max_prior]
-                if 'casc' in self.name.lower() and self.duration > 0.5:
-                    self.coincident_events = None
-                else:
-                    self.coincident_events = self.prior_coincident_events() 
             else:
                 max_pix = np.argmax(self.skymap)
                 theta, phi = hp.pix2ang(self.nside, max_pix)
@@ -827,7 +840,7 @@ class PriorFollowup(FastResponseAnalysis):
         fig, ax = plt.subplots(figsize = (8,5))
         fig.set_facecolor('white')
         lab = 'Min dec.'
-        delta_gamma = -1. * self.index() + 1.
+        delta_gamma = -1. * self.index + 1.
         a = plt.hist(self.llh.mc['trueE'][dec_mask], bins = np.logspace(1., 8., 50), 
                 weights = self.llh.mc['ow'][dec_mask] * np.power(self.llh.mc['trueE'][dec_mask], delta_gamma) / self.llh.mc['trueE'][dec_mask], 
                 histtype = 'step', linewidth = 2., color = sns.xkcd_rgb['windows blue'], label = lab)
@@ -858,35 +871,39 @@ class PriorFollowup(FastResponseAnalysis):
         plt.legend(loc=4, fontsize=18)
         plt.savefig(self.analysispath + '/central_90_dNdE.png',bbox_inches='tight')
 
+    def write_circular(self):
+        pass
+
         
 class PointSourceFollowup(FastResponseAnalysis):
-    def __init__(self, name, ra, dec, start, stop, extension=0.0, skipped=None):
-        name, start, stop, skipped=None, seed=None, outdir=None, save=True
-        super().__init__(name, start, stop, skipped=None, seed=None, outdir=None, save=True, extension=extension)
-        self.name = name
-        self.ra = ra
-        self.dec = dec
-        self.ra, self.dec = np.deg2rad(float(location[0].rstrip(','))), np.deg2rad(float(location[1]))
-        if (self.ra < 0 or self.ra > 2*np.pi) or (self.dec < -np.pi/2. or self.dec > np.pi/2.):
+    def __init__(self, name, ra, dec, tstart, tstop, extension=None,
+                 skipped=None, outdir=None, save=True, seed=None):
+        
+        super().__init__(name, tstart, tstop, skipped=skipped, seed=seed,
+                       outdir=outdir, save=save, extension=extension)
+
+        self.ra = np.deg2rad(ra)
+        self.dec = np.deg2rad(dec)
+        
+        if (self.ra < 0 or self.ra > 2*np.pi) or \
+           (self.dec < -np.pi/2. or self.dec > np.pi/2.):
             print("Right ascension and declination are not valid")
             sys.exit()
+        
         self.skymap, self.nside, self.ipix_90 = None, None, None
-        self.extension = kwargs.pop("Extension", None)
-        if self.extension is not None:
-            self.extension = np.deg2rad(float(self.extension))
-        self.source_type = "PS"
 
     def __str__(self):
         int_str = super().__str__()
-        int_str += ' '*10 + 'RA, dec.: {:.2f}, {:+.3f}'.format(self.ra*180. / np.pi, self.dec*180. / np.pi)
+        int_str += ' '*10 + 'RA, dec.: {:.2f}, {:+.3f}'.format(
+            self.ra*180. / np.pi, self.dec*180. / np.pi)
         exts = 0. if self.extension is None else self.extension
         int_str += ' '*10 + 'Extension: {}'.format(exts * 180. / np.pi)
         int_str += '\n\n'
         return int_str
 
-    def run_background_trials(self, ntrials):
+    def run_background_trials(self, ntrials=1000):
         self.llh = self.initialize_llh(
-            extension = self.extension, scramble=True)
+            skipped=self.skipped, scramble=True)
         trials = self.llh.do_trials(
             int(ntrials),
             src_ra=self.ra,
@@ -895,7 +912,7 @@ class PointSourceFollowup(FastResponseAnalysis):
 
     def initialize_injector(self, e_range=(0., np.inf)):
         inj = PointSourceInjector(
-            gamma = self._index, 
+            gamma = self.index, 
             E0 = 1000., 
             e_range=e_range)
         inj.fill(
@@ -919,6 +936,7 @@ class PointSourceFollowup(FastResponseAnalysis):
         # Fix the case of getting best-fit gamma
         # TODO: What if gamma is floated
         ts, ns = self.llh.fit_source(src_ra=self.ra, src_dec=self.dec)
+        ns = ns['nsignal']
         if self._verbose:
             print("TS = {}".format(ts))
             print("ns = {}\n\n".format(ns))
@@ -991,12 +1009,13 @@ class PointSourceFollowup(FastResponseAnalysis):
         Value of E^2 dN / dE in units of TeV / cm^2 
         '''
         if self.inj is None:
-            self.initialize_injector(gamma = self.index())
+            self.initialize_injector(gamma = self.index)
         ninj = np.array([1., 1.5, 2., 2.5, 3., 4., 5., 6.])
         passing = []
         for n in ninj:
-            results = self.llh.do_trials(n_per_sig, src_ra=self.ra, src_dec=self.dec,
-                        injector=self.inj, mean_signal=n, poisson=True)
+            results = self.llh.do_trials(
+                n_per_sig, src_ra=self.ra, src_dec=self.dec,
+                injector=self.inj, mean_signal=n, poisson=True)
             msk = results['TS'] > self.ts
             npass = len(results['TS'][msk])
             passing.append((n, npass, n_per_sig))
@@ -1006,13 +1025,15 @@ class PointSourceFollowup(FastResponseAnalysis):
         passing = np.array(passing, dtype=float)
         number = np.array(number, dtype=float)
         passing /= number
-        errs = utils.binomial_error(passing, number)
+        errs = sensitivity_utils.binomial_error(passing, number)
         fits, plist = [], []
-        for func, func_name in [(utils.chi2cdf, 'chi2'),
-                                (utils.erfunc, 'Error function'),
-                                (utils.incomplete_gamma, 'Incomplete gamma')]:
+        for func, func_name in [(sensitivity_utils.chi2cdf, 'chi2'),
+                                (sensitivity_utils.erfunc, 'Error function'),
+                                (sensitivity_utils.incomplete_gamma, 
+                                'Incomplete gamma')]:
             try:
-                fits.append(sensitivity_fit(signal_fluxes, passing, errs, func, p0=p0))
+                fits.append(sensitivity_utils.sensitivity_fit(
+                    signal_fluxes, passing, errs, func, p0=p0))
                 plist.append(fits[-1]['pval'])
             except:
                 print(f"{func_name} fit failed in upper limit calculation")
@@ -1025,9 +1046,11 @@ class PointSourceFollowup(FastResponseAnalysis):
 
         fig, ax = plt.subplots()
         for fit_dict in fits:
-            ax.plot(fit_dict['xfit'], fit_dict['yfit'], 
-                     label = r'{}: $\chi^2$ = {:.2f}, d.o.f. = {}'.format(fit_dict['name'], fit_dict['chi2'], fit_dict['dof']),
-                    ls = fit_dict['ls'])
+            ax.plot(
+                fit_dict['xfit'], fit_dict['yfit'], 
+                label = r'{}: $\chi^2$ = {:.2f}, d.o.f. = {}'.format(
+                    fit_dict['name'], fit_dict['chi2'], fit_dict['dof']),
+                ls = fit_dict['ls'])
             if fit_dict['ls'] == '-':
                 ax.axhline(0.9, color = 'm', linewidth = 0.3, linestyle = '-.')
                 ax.axvline(fit_dict['sens'], color = 'm', linewidth = 0.3, linestyle = '-.')
@@ -1053,7 +1076,7 @@ class PointSourceFollowup(FastResponseAnalysis):
         fig, ax = plt.subplots(figsize = (8,5))
         fig.set_facecolor('white')
         lab = None
-        delta_gamma = -1. * self.index() + 1.
+        delta_gamma = -1. * self.index + 1.
         a = plt.hist(self.llh.mc['trueE'][dec_mask], bins = np.logspace(1., 8., 50), 
                 weights = self.llh.mc['ow'][dec_mask] * np.power(self.llh.mc['trueE'][dec_mask], delta_gamma) / self.llh.mc['trueE'][dec_mask], 
                 histtype = 'step', linewidth = 2., color = sns.xkcd_rgb['windows blue'], label = lab)
@@ -1073,3 +1096,6 @@ class PointSourceFollowup(FastResponseAnalysis):
         plt.xlim(1e1, 1e8)
         plt.legend(loc=4, fontsize=18)
         plt.savefig(self.analysispath + '/central_90_dNdE.png',bbox_inches='tight')
+
+    def write_circular(self):
+        pass
