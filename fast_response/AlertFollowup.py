@@ -1,7 +1,21 @@
+import numpy as np
+import healpy as hp
+from scipy import sparse
+import pickle
+import matplotlib as mpl
+mpl.use('agg')
+import matplotlib.pyplot as plt
+import seaborn as sns
+
 from .FastResponseAnalysis import PriorFollowup
+from . import sensitivity_utils
 
 class AlertFollowup(PriorFollowup):
     _smear = False
+    _dataset = "GFUOnline_v001p02"
+    _fix_index = True
+    _float_index = not _fix_index
+    _index = 2.5
 
     def run_background_trials(self, ntrials = 1000):
         r'''For alert events with specific time windows,
@@ -14,7 +28,7 @@ class AlertFollowup(PriorFollowup):
                 from alert event spatial prior
         '''
         current_rate = self.llh.nbackground / (self.duration * 86400.) * 1000.
-        closest_rate = find_nearest(np.linspace(6.2, 7.2, 6), current_rate)
+        closest_rate = sensitivity_utils.find_nearest(np.linspace(6.2, 7.2, 6), current_rate)
         pre_ts_array = sparse.load_npz(
             '/data/user/apizzuto/fast_response_skylab/fast-response/'
             + 'fast_response/precomputed_background/glob_trials/'
@@ -34,24 +48,22 @@ class AlertFollowup(PriorFollowup):
     def upper_limit(self):
         sens_range = self.ps_sens_range()
         self.sens_range = sens_range
+        self.save_items['sens_range'] = sens_range
         self.sens_range_plot()
 
     def ps_sens_range(self):
         r'''Compute the minimum and maximum sensitivities
         within the 90% contour of the skymap'''
-        if self.alert_event:
-            with open('/data/user/apizzuto/fast_response_skylab/dump/ideal_ps_sensitivity_deltaT_{:.2e}_50CL.pkl'.format(self.duration), 'rb') as f:
-                ideal = pickle.load(f, encoding='bytes')
-            delta_t = self.duration * 86400.
-            src_theta, src_phi = hp.pix2ang(self.nside, self.ipix_90)
-            src_dec = np.pi/2. - src_theta
-            src_dec = np.unique(src_dec)
-            src_dec = np.sin(src_dec)
-            sens = np.interp(src_dec, ideal[b'sinDec'], np.array(ideal[b'sensitivity'])*delta_t*1e6)
-            low = sens.min(); high=sens.max()
-            return low, high
-        else:
-            return None, None
+        with open('/data/user/apizzuto/fast_response_skylab/dump/ideal_ps_sensitivity_deltaT_{:.2e}_50CL.pkl'.format(self.duration), 'rb') as f:
+            ideal = pickle.load(f, encoding='bytes')
+        delta_t = self.duration * 86400.
+        src_theta, src_phi = hp.pix2ang(self.nside, self.ipix_90)
+        src_dec = np.pi/2. - src_theta
+        src_dec = np.unique(src_dec)
+        src_dec = np.sin(src_dec)
+        sens = np.interp(src_dec, ideal[b'sinDec'], np.array(ideal[b'sensitivity'])*delta_t*1e6)
+        low = sens.min(); high=sens.max()
+        return low, high
 
     def sens_range_plot(self):
         r'''For alert events, make a sensitivity plot highlighting
@@ -78,13 +90,17 @@ class AlertFollowup(PriorFollowup):
         plt.ylabel(r'$E^2 \frac{dN_{\nu+\bar{\nu}}}{dEdA} \Big|_{\mathrm{1 TeV}}$ (GeV cm$^{-2}$)', fontsize=20)
         plt.ylim(3e-2, 3e2)
         if self.save_output:
-            plt.s
+            plt.savefig(self.analysispath + '/upper_limit_distribution.png', bbox_inches='tight', dpi=200)
 
 class TrackFollowup(AlertFollowup):
     _smear = True
+    _dataset = "GFUOnline_v001p02"
+    _fix_index = True
+    _float_index = not _fix_index
+    _index = 2.5
 
     def format_skymap(self, skymap):
-        self.convert_llh_to_prob(skymap)
+        skymap = self.convert_llh_to_prob(skymap)
         skymap = super().format_skymap(skymap)
         return skymap
 
@@ -103,9 +119,9 @@ class TrackFollowup(AlertFollowup):
             new_ninety_area = hp.nside2pixarea(nside) * np.count_nonzero(skymap_fits[ninety_msk])
             original_ninety_radius = np.sqrt(original_ninety_area / np.pi)
             new_ninety_radius = np.sqrt(new_ninety_area / np.pi)
-            scaled_probs = scale_2d_gauss(skymap_fits, original_ninety_radius, new_ninety_radius)
+            scaled_probs = self._scale_2d_gauss(skymap_fits, original_ninety_radius, new_ninety_radius)
             skymap_fits = scaled_probs
-        self.skymap = skymap_fits
+        return skymap_fits
 
     def _scale_2d_gauss(self, arr, sigma_arr, new_sigma):
         tmp = arr**(sigma_arr**2. / new_sigma**2.)/(np.sqrt(2.*np.pi)*new_sigma)* \
@@ -114,3 +130,7 @@ class TrackFollowup(AlertFollowup):
 
 class CascadeFollowup(AlertFollowup):
     _smear = False
+    _dataset = "GFUOnline_v001p02"
+    _fix_index = True
+    _float_index = not _fix_index
+    _index = 2.5

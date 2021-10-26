@@ -25,20 +25,19 @@ from astropy.time import Time
 import scipy as sp
 from scipy.optimize       import curve_fit
 # from scipy.stats          import chi2
-from scipy import sparse
 from scipy.special import erfinv
 from scipy import stats
 
-# from . import web_utils
-# from . import sensitivity_utils
-# from . import plotting_utils
+from . import web_utils
+from . import sensitivity_utils
+from . import plotting_utils
 
-import web_utils, sensitivity_utils, plotting_utils
+# import web_utils, sensitivity_utils, plotting_utils
 
 import skylab
 
 # from .ReportGenerator import ReportGenerator
-from ReportGenerator import ReportGenerator
+from .reports.ReportGenerator import ReportGenerator
 from skylab.datasets import Datasets
 from skylab.llh_models import EnergyLLH
 from skylab.priors import SpatialPrior
@@ -78,7 +77,6 @@ class FastResponseAnalysis(object):
     _verbose = True
     _angScale = 2.145966
     _llh_seed = 1
-    _save_keys = {}
 
     def __init__(self, name, tstart, tstop, skipped=None, seed=None,
                  outdir=None, save=True, extension=None):
@@ -126,6 +124,11 @@ class FastResponseAnalysis(object):
             if self._verbose:
                 print('Working on unscrambled (UNBLINDED) data')
 
+        self.save_items = {
+            'start':self.start, 'stop': self.stop,
+            'name': self.name, 'analysisid': self.analysisid,
+            'analysispath': self.analysispath
+        }
         self.extension = extension
         if self.extension is not None:
             self.extension = np.deg2rad(self.extension)
@@ -134,6 +137,7 @@ class FastResponseAnalysis(object):
         self.skipped_event = None
         self.exp = None
         self.llh = self.initialize_llh(skipped=skipped, scramble=self.scramble)
+        self.inj = None
 
     @property
     def dataset(self):
@@ -246,6 +250,7 @@ class FastResponseAnalysis(object):
 
         if self.extension is not None:
             src_extension = float(self.extension)
+            self.save_items['extension'] = src_extension
         else:
             src_extension = None
 
@@ -271,6 +276,7 @@ class FastResponseAnalysis(object):
             mjd_keys = exp['time'][(exp['run'] == int(event[0])) & (exp['event'] == int(event[1]))]
             self.skipped_event = exp[exp['time'] == mjd_keys[0]][0]
             exp = dset.remove_ev(exp, mjd_keys=mjd_keys[0])
+            self.save_items['skipped_event'] = self.skipped_event
         except:
             print("Was not able to remove event {}".format(skipped))
         return exp
@@ -316,6 +322,7 @@ class FastResponseAnalysis(object):
             if self._verbose:
                 print("Significance: {:.3f}sigma\n\n".format(sigma))
         self.p = p
+        self.save_items['p'] = p
         return p
 
     @abstractmethod
@@ -332,6 +339,14 @@ class FastResponseAnalysis(object):
 
     @abstractmethod
     def make_dNdE(self):
+        pass
+
+    @abstractmethod
+    def make_all_report_plots(self):
+        pass
+
+    @abstractmethod
+    def make_all_report_tables(self):
         pass
 
     def plot_tsd(self):
@@ -391,32 +406,18 @@ class FastResponseAnalysis(object):
 
         TODO: Make a dictionary of keys that we want to save
         '''
-        results = {}
-        for key, val in [('start', self.start), ('stop', self.stop), 
-                        ('name', self.name),  ('source_type', self.source_type),
-                        ('analysisid', self.analysisid), ('analysispath', self.analysispath)]:
-            results[key] = val
-        for key, val in [('ts', self.ts), ('p', self.p), ('sigma', self.sigma), ('ns', self.ns),
-                        ('tsd', self.tsd), ('extension', self.extension), 
-                        ('ra', self.ra), ('dec', self.dec),
-                        ('coincident_events', self.coincident_events), ('skipped', self.skipped_event), 
-                        ('upper_limit', self.upperlimit), ('upper_limit_ninj', self.upperlimit_ninj),
-                        ('ns_profile', self.ns_profile), ('low_en', self.low5), ('high_en', self.high5),
-                        ('sens_range', self.sens_range)]:
-            if val is not None:
-                results[key] = val
         if alt_path is None:
             print("Saving results to directory:\n\t{}".format(self.analysispath))
             with open(self.analysispath + '/' + self.analysisid + '_' + 'results.pickle', 'wb') as f:
-                pickle.dump(results, f, protocol=pickle.HIGHEST_PROTOCOL)
+                pickle.dump(self.save_items, f, protocol=pickle.HIGHEST_PROTOCOL)
             print("Results successfully saved")
-            return results       
+            return self.save_items       
         else:
             print("Saving to specified directory")
             with open(alt_path + '/' + self.analysisid + '_' + 'results.pickle', 'wb') as f:
-                pickle.dump(results, f, protocol=pickle.HIGHEST_PROTOCOL)
+                pickle.dump(self.save_items, f, protocol=pickle.HIGHEST_PROTOCOL)
             print("Results successfully saved")
-            return results
+            return self.save_items
 
     def plot_ontime(self, contour_files=None):
         r'''Plots ontime events with either the full sky spatial
@@ -554,7 +555,7 @@ class FastResponseAnalysis(object):
 
         if (self.stop - self.start) <= 0.5:        #Only plot contours if less than 2 days
             for i in range(events['ra'].size):
-                my_contour = self.contour(events['ra'][i], 
+                my_contour = plotting_utils.contour(events['ra'][i], 
                                     events['dec'][i],sigma_90[i], 256)
                 hp.projplot(my_contour[0], my_contour[1], linewidth=2., 
                                     color=cols[i], linestyle="solid",coord='C', zorder=5)
@@ -608,7 +609,7 @@ class PriorFollowup(FastResponseAnalysis):
     def __init__(self, name, skymap_path, tstart, tstop, skipped=None, seed=None,
                  outdir=None, save=True, extension=None):
 
-        super.__init__(name, tstart, tstop, skipped=skipped, seed=seed,
+        super().__init__(name, tstart, tstop, skipped=skipped, seed=seed,
                        outdir=outdir, save=save, extension=extension)
 
         self.skymap_path = skymap_path
@@ -619,6 +620,7 @@ class PriorFollowup(FastResponseAnalysis):
         self.nside = hp.pixelfunc.get_nside(self.skymap)
         self.ipix_90 = self.ipixs_in_percentage(self.skymap, 0.9)
         self.ra, self.dec, self.extension = None, None, extension
+        self.save_items['skymap'] = skymap
 
     def __str__(self):
         int_str = super().__str__()
@@ -694,6 +696,7 @@ class PriorFollowup(FastResponseAnalysis):
                 tsd.append(0.)
         tsd = np.asarray(tsd, dtype=float)
         self.tsd = tsd
+        self.save_items['tsd'] = tsd
 
     def find_coincident_events(self):
         r'''Find "coincident events" for a skymap
@@ -717,6 +720,7 @@ class PriorFollowup(FastResponseAnalysis):
                 coincident_events[-1]['spatial_w'] = np.nan
                 coincident_events[-1]['energy_w'] = np.nan
         self.coincident_events = coincident_events
+        self.save_items['coincident_events'] = coincident_events
 
     def unblind_TS(self):
         r''' Unblind TS, either sky scan for spatial prior,
@@ -730,14 +734,11 @@ class PriorFollowup(FastResponseAnalysis):
         ''' 
         # TODO: Fix the case of getting best-fit gamma
         t0 = time.time()
-        if 'ice' in self.name.lower():
-            spatial_prior = SpatialPrior(self.skymap, containment = 0.99)
-        else:
-            spatial_prior = SpatialPrior(self.skymap, containment = 0.99)
+        spatial_prior = SpatialPrior(self.skymap, containment = 0.99)
         pixels = np.arange(len(self.skymap))
         t1 = time.time()
         print("Starting scan")
-        val = self.llh.scan(0.0,0.0, scramble = False,spatial_prior=spatial_prior,
+        val = self.llh.scan(0.0,0.0, scramble = False, spatial_prior=spatial_prior,
                             time_mask = [self.duration/2., self.centertime],
                             pixel_scan=[self.nside, 4.0])
         t2 = time.time()
@@ -765,6 +766,10 @@ class PriorFollowup(FastResponseAnalysis):
         print("TS = {}".format(ts))
         print("ns = {}\n\n".format(ns))
         self.ts, self.ns = ts, ns
+        self.save_items['ts'] = ts
+        self.save_items['ns'] = ns
+        self.save_items['fit_ra'] = self.skymap_fit_ra
+        self.save_items['fit_dec'] = self.skymap_fit_dec
         return ts, ns
 
     def upper_limit(self):
@@ -871,6 +876,9 @@ class PriorFollowup(FastResponseAnalysis):
         plt.legend(loc=4, fontsize=18)
         plt.savefig(self.analysispath + '/central_90_dNdE.png',bbox_inches='tight')
 
+    def ns_scan(self):
+        print("ns scan not an option for skymap based analyses")
+
     def write_circular(self):
         pass
 
@@ -897,7 +905,7 @@ class PointSourceFollowup(FastResponseAnalysis):
         int_str += ' '*10 + 'RA, dec.: {:.2f}, {:+.3f}'.format(
             self.ra*180. / np.pi, self.dec*180. / np.pi)
         exts = 0. if self.extension is None else self.extension
-        int_str += ' '*10 + 'Extension: {}'.format(exts * 180. / np.pi)
+        int_str += ' '*10 + 'Extension: {:.2f}'.format(exts * 180. / np.pi)
         int_str += '\n\n'
         return int_str
 
@@ -909,6 +917,7 @@ class PointSourceFollowup(FastResponseAnalysis):
             src_ra=self.ra,
             src_dec=self.dec)
         self.tsd = trials['TS']
+        self.save_items['tsd'] = self.tsd
 
     def initialize_injector(self, e_range=(0., np.inf)):
         inj = PointSourceInjector(
@@ -936,22 +945,24 @@ class PointSourceFollowup(FastResponseAnalysis):
         # Fix the case of getting best-fit gamma
         # TODO: What if gamma is floated
         ts, ns = self.llh.fit_source(src_ra=self.ra, src_dec=self.dec)
+        params = ns.copy()
+        params.pop('nsignal')
+        self.ns_params = params
         ns = ns['nsignal']
         if self._verbose:
             print("TS = {}".format(ts))
             print("ns = {}\n\n".format(ns))
         self.ts, self.ns = ts, ns
+        self.save_items['ts'] = ts
+        self.save_items['ns'] = ns
         return ts, ns
 
     def find_coincident_events(self):
         spatial_weights = self.llh.llh_model.signal(
             self.ra, self.dec, self.llh._events, 
             src_extension=self.extension)[0] / self.llh._events['B']
-        params = ns.copy()
-        params.pop('nsignal')
         energy_ratio, _ = self.llh.llh_model.weight(
-            self.llh._events, **params)
-        ns = ns['nsignal']
+            self.llh._events, **self.ns_params)
         temporal_weights = self.llh.temporal_model.signal(self.llh._events)
         msk = spatial_weights * energy_ratio * temporal_weights > 10
         if len(spatial_weights[msk]) > 0:
@@ -961,10 +972,11 @@ class PointSourceFollowup(FastResponseAnalysis):
                 self.coincident_events.append({})
                 for key in ['run', 'event', 'ra', 'dec', 'sigma', 'logE', 'time']:
                     self.coincident_events[-1][key] = ev[key]
-                del_psi = deltaPsi([ev['dec']], [ev['ra']], [self.dec], [self.ra])[0]
+                del_psi = sensitivity_utils.deltaPsi([ev['dec']], [ev['ra']], [self.dec], [self.ra])[0]
                 self.coincident_events[-1]['delta_psi'] = del_psi 
                 self.coincident_events[-1]['spatial_w'] = s_w
                 self.coincident_events[-1]['energy_w'] = en_w
+        self.save_items['coincident_events'] = self.coincident_events
 
     def ns_scan(self, params = {'spectrum': 'dN/dE = 1.00e+00 * (E / 1.00e+03 GeV)^-2.00 [GeV^-1cm^-2s^-1]'}):
         r''' Calculate the llh as a function of ns, to 
@@ -999,6 +1011,7 @@ class PointSourceFollowup(FastResponseAnalysis):
             plt.savefig(self.analysispath + '/llh_ns_scan.png', bbox_inches='tight', dpi=200)
 
         self.ns_profile = (xs, delta_llh)
+        self.save_items['ns_scan'] = xs, delta_llh
         return xs, delta_llh
 
     def upper_limit(self, n_per_sig=100, p0=None):
@@ -1009,7 +1022,7 @@ class PointSourceFollowup(FastResponseAnalysis):
         Value of E^2 dN / dE in units of TeV / cm^2 
         '''
         if self.inj is None:
-            self.initialize_injector(gamma = self.index)
+            self.initialize_injector()
         ninj = np.array([1., 1.5, 2., 2.5, 3., 4., 5., 6.])
         passing = []
         for n in ninj:
@@ -1064,6 +1077,8 @@ class PointSourceFollowup(FastResponseAnalysis):
         if self.save_output:
             plt.savefig(self.analysispath + '/upper_limit_distribution.png', bbox_inches='tight', dpi=200)
         print("Found upper limit of {:.2f} events".format(self.upperlimit_ninj))
+        self.save_items['upper_limit'] = self.upperlimit
+        self.save_items['upper_limit_ninj'] = self.upperlimit_ninj
         return self.upperlimit
 
     def make_dNdE(self):
