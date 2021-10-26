@@ -33,7 +33,7 @@ from astropy.time        import Time,TimeDelta
 from astropy.coordinates import Angle
 from astropy             import units
 # from .make_ontime_plots   import make_rate_plots
-from make_ontime_plots   import make_rate_plots
+from fast_response.make_ontime_plots   import make_rate_plots
 
 log.basicConfig(level=log.ERROR)
 mpl_logger = log.getLogger('matplotlib') 
