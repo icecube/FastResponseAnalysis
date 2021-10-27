@@ -9,12 +9,8 @@ May 2020'''
 import numpy as np
 import os, sys, argparse
 from astropy.time import Time
-from astropy.time import TimeDelta
-import pandas as pd
-import subprocess
-import pickle
 
-from fast_response.FastResponseAnalysis import FastResponseAnalysis
+from fast_response.AlertFollowup import CascadeFollowup
 from . import utils
 
 parser = argparse.ArgumentParser(description='Fast Response Analysis')
@@ -44,15 +40,11 @@ for delta_t in [1000., 2.*86400.]:
     stop = stop_time.iso
 
     name = casc_name + ' {:.1e}_s'.format(delta_t)
+    name = name.replace('_', ' ')
+    name = name + ' new code framework'
 
-    source = {}
-    source['Name'] = name.replace('_', ' ')
-    source['alert_event'] = True
-    source['smear'] = False #CASCADES ARE ALREADY SENT AS PDFS NOT LLH
-    source['alert_type'] = 'cascade'
-    source['Skipped Events'] = args.alert_id
+    f = CascadeFollowup(name, args.skymap, start, stop, skipped=args.alert_id)
 
-    f = FastResponseAnalysis(args.skymap, start, stop, **source)
     f.unblind_TS()
     f.plot_ontime()
     f.calc_pvalue()
@@ -60,11 +52,11 @@ for delta_t in [1000., 2.*86400.]:
     f.plot_tsd()
     f.upper_limit()
     results = f.save_results()
-    f.generate_report()
-    if args.document:
-        subprocess.call(['cp','-r',results['analysispath'],
-        '/home/apizzuto/public_html/FastResponse/webpage/output/{}'.format(results['analysisid'])])
-        utils.updateFastResponseWeb(results)
+    # f.generate_report()
+    # if args.document:
+    #     subprocess.call(['cp','-r',results['analysispath'],
+    #     '/home/apizzuto/public_html/FastResponse/webpage/output/{}'.format(results['analysisid'])])
+    #     utils.updateFastResponseWeb(results)
     all_results[delta_t] = results
 
 all_results[1000.]['gcn_num'] = args.gcn_notice_num
