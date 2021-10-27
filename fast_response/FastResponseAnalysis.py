@@ -60,8 +60,8 @@ logging.getLogger().setLevel(logging.ERROR)
 # pil_logger.setLevel(logging.ERROR)
 # logging.getLogger('numexpr').setLevel(logging.WARNING)
 # import warnings
-# warnings.simplefilter("ignore", UserWarning)
-# warnings.simplefilter("ignore", RuntimeWarning) # to ignore nan pixel warnings
+warnings.simplefilter("ignore", UserWarning)
+warnings.simplefilter("ignore", RuntimeWarning) # to ignore nan pixel warnings
 
 class FastResponseAnalysis(object):
     r''' Object to do realtime followup analyses of 
@@ -246,7 +246,7 @@ class FastResponseAnalysis(object):
             signal=BoxProfile(self.start, self.stop))
         
         if skipped is not None:
-            exp = self.remove_event(self.exp, self.dset, skipped)
+            self.exp = self.remove_event(self.exp, self.dset, skipped)
 
         if self.extension is not None:
             src_extension = float(self.extension)
@@ -320,6 +320,7 @@ class FastResponseAnalysis(object):
             p = np.count_nonzero(self.tsd >= self.ts) / float(self.tsd.size)
             sigma = self.significance(p)
             if self._verbose:
+                print(f"p: {p:.4f}")
                 print("Significance: {:.3f}sigma\n\n".format(sigma))
         self.p = p
         self.save_items['p'] = p
@@ -390,8 +391,8 @@ class FastResponseAnalysis(object):
         sigma: float
             Significance
         '''
-        sigma = stats.norm.isf(p)
-        # sigma = np.sqrt(2)*erfinv(1-2*self.p)
+        # sigma = stats.norm.isf(p)
+        sigma = np.sqrt(2)*erfinv(1-2*self.p)
         return sigma
 
     def save_results(self, alt_path=None):
@@ -606,6 +607,8 @@ class FastResponseAnalysis(object):
     
 
 class PriorFollowup(FastResponseAnalysis):
+    _pixel_scan_nsigma = 4.0
+
     def __init__(self, name, skymap_path, tstart, tstop, skipped=None, seed=None,
                  outdir=None, save=True, extension=None):
 
@@ -689,7 +692,7 @@ class PriorFollowup(FastResponseAnalysis):
                 0.0, 0.0, scramble = True, seed=i, 
                 spatial_prior=spatial_prior,
                 time_mask = [self.duration/2., self.centertime], 
-                pixel_scan=[self.nside, 4.0])
+                pixel_scan=[self.nside, self._pixel_scan_nsigma])
             try:
                 tsd.append(val['TS_spatial_prior_0'].max())
             except ValueError:
@@ -722,7 +725,7 @@ class PriorFollowup(FastResponseAnalysis):
         self.coincident_events = coincident_events
         self.save_items['coincident_events'] = coincident_events
 
-    def unblind_TS(self):
+    def unblind_TS(self, custom_events=None):
         r''' Unblind TS, either sky scan for spatial prior,
         or just at one location for a point source
 
@@ -738,9 +741,12 @@ class PriorFollowup(FastResponseAnalysis):
         pixels = np.arange(len(self.skymap))
         t1 = time.time()
         print("Starting scan")
-        val = self.llh.scan(0.0,0.0, scramble = False, spatial_prior=spatial_prior,
-                            time_mask = [self.duration/2., self.centertime],
-                            pixel_scan=[self.nside, 4.0])
+        val = self.llh.scan(
+            0.0,0.0, scramble = False, spatial_prior=spatial_prior,
+            time_mask = [self.duration/2., self.centertime],
+            pixel_scan=[self.nside, self._pixel_scan_nsigma],
+            custom_events=custom_events
+        )
         t2 = time.time()
         print("finished scan, took {} s".format(t2-t1))
         try:
@@ -756,7 +762,8 @@ class PriorFollowup(FastResponseAnalysis):
                 dec = np.pi/2. - theta
                 self.skymap_fit_ra = phi
                 self.skymap_fit_dec = dec
-        except:
+        except Exception as e:
+            print(e)
             ts, ns = 0., 0.
             max_pix = np.argmax(self.skymap)
             theta, phi = hp.pix2ang(self.nside, max_pix)
