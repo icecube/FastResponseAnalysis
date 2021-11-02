@@ -59,7 +59,7 @@ logging.getLogger().setLevel(logging.ERROR)
 # pil_logger = logging.getLogger('PIL')
 # pil_logger.setLevel(logging.ERROR)
 # logging.getLogger('numexpr').setLevel(logging.WARNING)
-# import warnings
+import warnings
 warnings.simplefilter("ignore", UserWarning)
 warnings.simplefilter("ignore", RuntimeWarning) # to ignore nan pixel warnings
 
@@ -392,7 +392,7 @@ class FastResponseAnalysis(object):
             Significance
         '''
         # sigma = stats.norm.isf(p)
-        sigma = np.sqrt(2)*erfinv(1-2*self.p)
+        sigma = np.sqrt(2)*erfinv(1-2*p)
         return sigma
 
     def save_results(self, alt_path=None):
@@ -453,7 +453,7 @@ class FastResponseAnalysis(object):
             label_str = "Scan Hot Spot"
             cmap = None
         else:
-            skymap = np.zeros(hp.nside2npix(256))
+            skymap = np.zeros(hp.nside2npix(self._nside))
             ra = self.ra
             dec = self.dec
             label_str = self.name
@@ -531,7 +531,7 @@ class FastResponseAnalysis(object):
         cmap.set_under("w")
 
         if self.skymap is None:
-            skymap = np.zeros(hp.nside2npix(256))
+            skymap = np.zeros(hp.nside2npix(self._nside))
             max_val = 1.
             cmap = mpl.colors.ListedColormap([(1.,1.,1.)] * 50)
         else:
@@ -557,7 +557,7 @@ class FastResponseAnalysis(object):
         if (self.stop - self.start) <= 0.5:        #Only plot contours if less than 2 days
             for i in range(events['ra'].size):
                 my_contour = plotting_utils.contour(events['ra'][i], 
-                                    events['dec'][i],sigma_90[i], 256)
+                                    events['dec'][i],sigma_90[i], self._nside)
                 hp.projplot(my_contour[0], my_contour[1], linewidth=2., 
                                     color=cols[i], linestyle="solid",coord='C', zorder=5)
 
@@ -608,6 +608,9 @@ class FastResponseAnalysis(object):
 
 class PriorFollowup(FastResponseAnalysis):
     _pixel_scan_nsigma = 4.0
+    _containment = 0.99
+    _allow_neg = False
+    _nside = 256
 
     def __init__(self, name, skymap_path, tstart, tstop, skipped=None, seed=None,
                  outdir=None, save=True, extension=None):
@@ -632,8 +635,8 @@ class PriorFollowup(FastResponseAnalysis):
         return int_str
 
     def format_skymap(self, skymap):
-        if hp.pixelfunc.get_nside(skymap) != 256:
-            skymap = hp.pixelfunc.ud_grade(skymap, 256)
+        if hp.pixelfunc.get_nside(skymap) != self._nside:
+            skymap = hp.pixelfunc.ud_grade(skymap, self._nside)
             skymap = skymap/skymap.sum()
         return skymap
 
@@ -650,7 +653,7 @@ class PriorFollowup(FastResponseAnalysis):
         --------
         inj: Skylab injector object'''
         print("Initializing Prior Injector")
-        spatial_prior = SpatialPrior(self.skymap, containment = 0.99)
+        spatial_prior = SpatialPrior(self.skymap, containment = self._containment, allow_neg=self._allow_neg)
         self.spatial_prior = spatial_prior
         inj = PriorInjector(
             spatial_prior, 
@@ -674,7 +677,7 @@ class PriorFollowup(FastResponseAnalysis):
             TS distribution for the background only trials
         ''' 
         tsd = []
-        spatial_prior = SpatialPrior(self.skymap, containment=0.99)
+        spatial_prior = SpatialPrior(self.skymap, containment = self._containment, allow_neg=self._allow_neg)
 
         self.llh = self.initialize_llh(
             skipped = self.skipped, 
@@ -737,15 +740,16 @@ class PriorFollowup(FastResponseAnalysis):
         ''' 
         # TODO: Fix the case of getting best-fit gamma
         t0 = time.time()
-        spatial_prior = SpatialPrior(self.skymap, containment = 0.99)
+        spatial_prior = SpatialPrior(
+            self.skymap, containment = self._containment,
+            allow_neg=self._allow_neg)
         pixels = np.arange(len(self.skymap))
         t1 = time.time()
         print("Starting scan")
         val = self.llh.scan(
             0.0,0.0, scramble = False, spatial_prior=spatial_prior,
             time_mask = [self.duration/2., self.centertime],
-            pixel_scan=[self.nside, self._pixel_scan_nsigma],
-            custom_events=custom_events
+            pixel_scan=[self.nside, self._pixel_scan_nsigma]
         )
         t2 = time.time()
         print("finished scan, took {} s".format(t2-t1))
@@ -753,6 +757,10 @@ class PriorFollowup(FastResponseAnalysis):
             ts = val['TS_spatial_prior_0'].max()
             max_prior = np.argmax(val['TS_spatial_prior_0'])
             ns = val['nsignal'][max_prior]
+            if self._float_index:
+                gamma_fit = val['gamma'][max_prior]
+            else:
+                gamma_fit = np.nan
             if ts > 0:
                 self.skymap_fit_ra = val['ra'][max_prior]
                 self.skymap_fit_dec = val['dec'][max_prior]
@@ -762,22 +770,38 @@ class PriorFollowup(FastResponseAnalysis):
                 dec = np.pi/2. - theta
                 self.skymap_fit_ra = phi
                 self.skymap_fit_dec = dec
+            self.scanned_pixels = hp.ang2pix(
+                self.nside, np.pi/2. - val['dec'], val['ra']
+            )
         except Exception as e:
             print(e)
             ts, ns = 0., 0.
+            if self._float_index:
+                gamma_fit = 2.0
+            else:
+                gamma_fit = np.nan
             max_pix = np.argmax(self.skymap)
             theta, phi = hp.pix2ang(self.nside, max_pix)
             dec = np.pi/2. - theta
             self.skymap_fit_ra = phi
             self.skymap_fit_dec = dec
+            self.scanned_pixels = None
         print("TS = {}".format(ts))
-        print("ns = {}\n\n".format(ns))
+        print("ns = {}".format(ns))
         self.ts, self.ns = ts, ns
+        if self._float_index:
+            self.gamma = gamma_fit
+            self.save_items['gamma'] = gamma_fit
+            print(f'gamma = {gamma_fit}')
+        print('\n\n')
         self.save_items['ts'] = ts
         self.save_items['ns'] = ns
         self.save_items['fit_ra'] = self.skymap_fit_ra
         self.save_items['fit_dec'] = self.skymap_fit_dec
-        return ts, ns
+        if self._float_index:
+            return ts, ns, gamma_fit
+        else:
+            return ts, ns
 
     def upper_limit(self):
         print("Upper limit with spatial prior not yet implemented")
@@ -830,7 +854,7 @@ class PriorFollowup(FastResponseAnalysis):
             highest declination in 90%
         '''
 
-        src_theta, src_phi = hp.pix2ang(self.nside,self.ipix_90)
+        src_theta, src_phi = hp.pix2ang(self.nside, self.ipix_90)
         src_dec = np.pi/2. - src_theta
         src_dec = np.unique(src_dec)
 
