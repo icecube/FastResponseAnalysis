@@ -23,8 +23,6 @@ except:
 import icecube.realtime_tools.live
 import subprocess
 import sys
-import skylab
-from skylab.datasets import Datasets
 from os.path import expanduser
 
 from icecube             import astro
@@ -34,152 +32,57 @@ from astropy.coordinates import Angle
 from astropy             import units
 # from .make_ontime_plots   import make_rate_plots
 from fast_response.make_ontime_plots   import make_rate_plots
+from report_utils import *
 
 log.basicConfig(level=log.ERROR)
 mpl_logger = log.getLogger('matplotlib') 
 mpl_logger.setLevel(log.ERROR) 
  
-def interptime(tstr):
-    if tstr is None:
-        t= None
-    elif tstr.endswith('sec'):
-        t = TimeDelta(float(tstr[:-3]),format='sec')
-    elif tstr.endswith('s'):
-        t = TimeDelta(float(tstr[:-1]),format='sec')
-    elif tstr.endswith('min'):
-        t = TimeDelta(float(tstr[:-3])*60,format='sec')
-    elif tstr.endswith('hr'):
-        t = TimeDelta(float(tstr[:-2])*3600,format='sec')
-    elif tstr.startswith('mjd'):
-        t = Time(float(tstr[3:]),format='mjd')
-    elif tstr.endswith('d'):
-        t = TimeDelta(float(tstr[:-1]),format='jd')
-    else:
-        t = Time(tstr,format='iso')
-    return t
- 
-def get_times(trig,sta,sto):
-
-    trigger = interptime(trig)
-
-    if type(trigger)!=Time:
-        trigger=None
-
-    start = interptime(sta)
-
-    if type(trigger)==Time and type(start)==Time:
-        pass
-    elif type(trigger)==Time and start is None:
-        start = trigger
-    elif type(start)==Time and trigger is None:
-        trigger = start
-    elif type(start)==TimeDelta and trigger is not None:
-        start = trigger+start
-    else:
-        raise Exception("either --trigger or --start must be a absolute time")
-
-    stop=interptime(sto)
-    if type(stop)!=Time:
-        stop = trigger+stop
-
-    return trigger,start,stop
-
-def valid_location(ra, dec):
-    r'''For a point source, check if location
-    is valid
-    Parameters:
-    -----------
-    ra: float
-        Right ascension in radians
-    dec: float
-        Declination in radians
-    Returns:
-    --------
-    True or False: Bool
-        Whether or not the location is valid
-    '''
-    if (ra is None) or (dec is None):
-        return False
-    else:
-        if (ra < 0.) or (ra > 2*np.pi):
-            return False
-        elif (dec < -np.pi / 2.) or (dec > np.pi/2.):
-            return False
-        else:
-            return True
-
-
 class ReportGenerator(object):
+    _figure_list = []
 
-    def __init__(self,name,trigger,start,stop,ts,ns,source_type,id,**kwargs):
-        r""" Constructor
-
-        Parameters
-        ----------
-        
-        """ 
-        self.source = {}
-        self.source['name'] = name
-        self.source['trigger'] = trigger
-        self.source['start'] = start
-        self.source['stop'] = stop
-        self.source['ts'] = ts
-        self.source['ns'] = ns
-        self.source['source_type'] = source_type
-
-        self.source['pvalue'] = kwargs.pop('p', None)
-        self.source['sigma'] = kwargs.pop('sigma', None)
-
-        if self.source['source_type'] == "PS":
-            self.source['ra'] = kwargs.pop("ra", None)
-            self.source['dec'] = kwargs.pop("dec", None)
-            self.source['extension'] = kwargs.pop("extension", None)
-            self.skymap = None
-            if not valid_location(self.source['ra'], self.source['dec']):
-                print("Invalid location for a point source")
-                sys.exit()
-            else:
-                self.source["ra_deg"]=np.rad2deg(self.source['ra'])
-                self.source["dec_deg"]=np.rad2deg(self.source['dec'])
-            if self.source['extension'] is not None:
-                self.source['extension'] = np.rad2deg(self.source['extension'])
-        elif self.source['source_type'] == "Prior":
-            self.source['skymap'] = kwargs.pop("skymap", None)
-            self.source['ra'], self.source['dec'] = None, None
-            if self.source['skymap'] is None:
-                print("Spatial Prior Analyses require skymaps")
-                sys.exit()
+    def __init__(self, analysis):
+        r'''
+        Generate report from a FastResponseAnalysis object
+        '''
+        self.analysis = analysis
+        if self.analysis.skymap is None:
+            self.source_type = 'PS'
         else:
-            print("Invalid source type")
-            sys.exit()
+            self.source_type = 'skymap'
 
-        try:
-            assert stop > start
-        except:
-            print("Stop Time must come after Start time. Exiting")
-            sys.exit()
+        source = {}
+        source['trigger_iso'] = Time(analysis.centertime, format='mjd').iso
+        source['start_iso'] = Time(analysis.start, format='mjd').iso
+        source['stop_iso'] = Time(analysis.stop, format='mjd').iso
+        source['realtime'] = (analysis.stop - analysis.start) * 86400.
+        source['start_mjd'] = analysis.start
+        source['stop_mjd'] = analysis.stop
+        source['trigger_mjd'] = analysis.centertime
+        self.source = source
 
-        self.source["time_trigger_iso"] = Time(self.source['trigger'], format='mjd').iso
-        self.source["time_start_iso"] = Time(self.source['start'], format='mjd').iso
-        self.source["time_stop_iso"] = Time(self.source['stop'], format='mjd').iso
-        self.source["time_trigger_mjd"] = self.source['trigger']
-        self.source["time_start_mjd"] = self.source['start']
-        self.source["time_stop_mjd"] = self.source['stop']
-        self.source["realtime"]= (stop - start) * 86400. #Convert days to seconds
-        if self.source["time_stop_mjd"] > 58309.74:
+        if self.source["stop_mjd"] > 58309.74:
             self.stream = 'neutrino'
-        elif self.source["time_stop_mjd"] > 57891.17:
+        elif self.source["stop_mjd"] > 57891.17:
             self.stream = 'neutrino17'
         else:
             self.stream = 'neutrino16'
 
-        self.time_window=(Time(self.source['start'], format='mjd'), Time(self.source['stop'], format='mjd'))
-        self.trigger = Time(self.source['trigger'], format='mjd')
-        self.analysisid = id
-        self.dirname = kwargs.pop('analysispath','./')
-        self.events = kwargs.pop('coincident_events',None)
+        self.analysisid = analysis.analysisid
+        self.dirname = analysis.analysispath
+        self.time_window=(
+            Time(self.source['start_mjd'], format='mjd'), 
+            Time(self.source['stop_mjd'], format='mjd'))
+        self.trigger = Time(self.source['trigger_mjd'], format='mjd')
 
-    def write_table(self,file,name,header,table,prefix=""):
+    def get_report_source(self):
+        # try:
+        #     reportsrc = os.path.join(os.environ["FAST_RESPONSE_SCRIPTS"], 'latex', 'report_skylab.tex')
+        # except KeyError:
+        #     reportsrc = os.path.join(os.getcwd(), 'latex', 'report_skylab.tex')
+        return fast_response.__file__ + '../latex/report_skylab.tex'
+
+    def write_table(self, file, name, header, table, prefix=""):
         """
         write a table in latex format for the generated reports
         """
@@ -200,7 +103,7 @@ class ReportGenerator(object):
             r"\end{longtable}"+
             "}\n")
 
-    def query_db_runs(self,time_window):
+    def query_db_runs(self, time_window):
         # first query the rundata base with the times of the analysis
         # plus 8 hours on either side
         run_url = 'https://live.icecube.wisc.edu/run_info/'
@@ -275,26 +178,67 @@ class ReportGenerator(object):
             events['mjd'] = t.mjd
         return events
 
+    def make_coinc_events_table(self, f):
+        event_table = []
+        if self.events is not None:
+            for event in self.events:
+                event_table+=[
+                    ("Run:Event",'{}:{}'.format(event['run'], event['event'])),
+                    ("Time","{}".format(
+                        event['time'])),
+                    (r'$\alpha$, $\delta$',"{:3.2f}\degree, {:+3.2f}\degree"
+                        .format(np.rad2deg(event['ra']), np.rad2deg(event['dec']))),
+                    ("Angular Uncertainty (90\%)","{:3.2f}\degree"
+                        .format(np.rad2deg(event["sigma"]*2.145966))),
+                    ("Distance from Source", "{:2.2f}\degree".format(event['delta_psi']*180. / np.pi)),
+                    ("Reconstructed Energy (GeV)","{:2.2e}"
+                        .format(10**event['logE'])),
+                    ("Spatial Weight", "{:.2f}".format(event['spatial_w'])),
+                    ("Energy Weight", "{:.2f}".format(event['energy_w'])),
+                    None,
+                ]
+
+            self.write_table(f,"event",[],event_table)
+        else:
+            f.write(r"\newcommand{\event}{[None]}")
+
+    def make_new_command(self, f, name, command):
+        f.write(r"\newcommand{"+"\\"+name+"}{"+
+                command+"}\n")
+
     def generate_report(self):
 
-        report_fname = os.path.join(self.dirname,"r.tex")
+        report_fname = os.path.join(self.dirname, "r.tex")
 
         self.run_table = self.query_db_runs(self.time_window)
         now = datetime.datetime.utcnow()
         self.ontime = {}
-        self.ontime['type']='database'
+        self.ontime['type'] = 'database'
         self.ontime['stream'] = self.stream
-        self.ontime['runkey']='run_id'
-        self.ontime['time_start']=Time(self.run_table[0]['start'],format='iso',scale='utc',precision=0).iso
-        self.ontime['time_stop'] =Time(self.run_table[-1]['stop'],format='iso',scale='utc',precision=0).iso
+        self.ontime['runkey'] = 'run_id'
+        self.ontime['time_start'] = Time(
+            self.run_table[0]['start'],
+            format='iso',
+            scale='utc',
+            precision=0).iso
+        self.ontime['time_stop'] =Time(
+            self.run_table[-1]['stop'],
+            format='iso',
+            scale='utc',
+            precision=0).iso
         self.ontime['time_query']=now.strftime('%Y-%m-%d %H:%M:%S')
 
         self.query_events=icecube.realtime_tools.live.get_events(
-            self.ontime['stream'], self.ontime['time_start'],self.ontime['time_stop'])
+            self.ontime['stream'],
+            self.ontime['time_start'],
+            self.ontime['time_stop'])
 
         self.widewindow = self.ontime_table(self.query_events)
         try:
-            self.widewindow['t']=Time(list(self.widewindow['eventtime']),scale='utc',format='iso')
+            self.widewindow['t']=Time(
+                list(self.widewindow['eventtime']),
+                scale='utc',
+                format='iso')
             for run in self.run_table:
                 run['gfu_counts'] = (self.widewindow['run_id']==run['run_number']).sum()
         except:
@@ -302,150 +246,98 @@ class ReportGenerator(object):
             for run in self.run_table:
                 run['gfu_counts'] = 0. 
 
-        s=self.source
+        s = self.source
 
-        dataset = Datasets['GFUOnline']
+        dataset = Datasets[self.analysis._dataset]
         # Make rate plots and put them in analysis directory
-        make_rate_plots(self.time_window,self.run_table,self.query_events,self.dirname, season=self.stream)
+        make_rate_plots(
+            self.time_window,
+            self.run_table,
+            self.query_events,
+            self.dirname,
+            season=self.stream)
 
-        with open(report_fname,'wt') as f:
+        with open(report_fname, 'wt') as f:
 
-            d1=s["time_start_iso"].split()[0]
-            d2=s["time_stop_iso"].split()[0]
+            d1 = s["start_iso"].split()[0]
+            d2 = s["stop_iso"].split()[0]
 
-            if d1==d2:
+            if d1 == d2:
                 obsdate = d1
             else:
                 obsdate = d1+' -- '+d2
 
-            f.write(
-                r"\newcommand{"+"\\"+"sourcename"+"}{"+
-                s["name"]+"}\n")
+            for name, command in [('sourcename', self.analysis.name),
+                                  ('analysisid', self.analysisid),
+                                  ('reportdate', datetime.date.today().strftime("%Y-%m-%d")),
+                                  ('obsdate', obsdate),
+                                  ()]:
+                self.make_new_command(f, name, command)
 
-            f.write(r"\newcommand{\analysisid}{"+self.analysisid+"}\n")
+            for plot_name, plot_path in self._figure_list:
+                f.write(
+                    r"\newcommand{"+"\\"+plot_name+"}{"+ self.dirname+"/"+
+                    plot_path +
+                    "}\n"
+                )
+
+            for plot_name, plot_path in [("gfurate", "GFU_rate_plot.png"),
+                                         ('skymap', self.analysisid + "unblinded_skymap.png"),
+                                         ('skymapzoom', self.analysisid + "unblinded_skymap_zoom.png"),
+                                         ('limitdNdE', "central_90_dNdE.png"),
+                                         ('muonfilter', "MuonFilter_13_plot.png"),
+                                         ("Lfilter", "OnlineL2Filter_17_plot.png"),
+                                         ("badnessplot", "badness_plot.png"),
+                                         ("multiplicity", "IN_ICE_SIMPLE_MULTIPLICITY_plot.png")]:
+                if os.path.isfile(self.dirname + '/' + plot_path):
+                    f.write(
+                        r"\newcommand{"+"\\"+plot_name+"}{"+ self.dirname+"/"+
+                        plot_path +
+                        "}\n"
+                    )
+
+            for plot_name, plot_path, else_message in [('tsd', 'TS_distribution.png', 'No background TS distribution'),
+                                                       ('upperlim', 'upper_limit_distribution.png', "No upper limit calculation"),
+                                                       ('nsscan', 'llh_ns_scan.png', 'No llh vs. ns scan')]:
+                if os.path.isfile(self.dirname + '/' + plot_path):
+                    f.write(
+                        r"\newcommand{"+"\\"+plot_name+"}{"+ "\\includegraphics[width=0.9\\textwidth]" +
+                        "{" + self.dirname+"/"+
+                        plot_path + "}" +
+                        "}\n"
+                    )
+                else:
+                    f.write(
+                        r"\newcommand{"+"\\"+"tsd"+"}{"+ 
+                            else_message + 
+                        "}\n"
+                    )
+
+            if self.source_type == "PS":
+                location_string = f'{np.rad2deg(self.analysis.ra):.2f}, {np.rad2deg(self.analysis.dec):+.2f}'
+                location_entry = "Source location (deg.)"
+            else:
+                location_string = f'{self.analysis.skymap_path}'
+                location_entry = "Skymap path"
             
-            f.write(
-                r"\newcommand{"+"\\"+"gfurate"+"}{"+ self.dirname+"/"+
-                "GFU_rate_plot.png"+
-                "}\n")
-
-            f.write(
-                r"\newcommand{"+"\\"+"reportdate"+"}{"+
-                datetime.date.today().strftime("%Y-%m-%d")+
-                "}\n")
-
-            f.write(
-                r"\newcommand{"+"\\"+"skymap"+"}{"+ self.dirname+"/"+
-                self.analysisid + "unblinded_skymap.png" +
-                "}\n")
-            
-            f.write(
-                r"\newcommand{"+"\\"+"skymapzoom"+"}{"+ self.dirname+"/"+
-                self.analysisid + "unblinded_skymap_zoom.png" +
-                "}\n")
-
-            f.write(
-                r"\newcommand{"+"\\"+"limitdNdE"+"}{"+ self.dirname+"/"+
-                "central_90_dNdE.png" +
-                "}\n"
+            self.write_table(
+                f,"sourcetable", [],[
+                    ("Source Name", self.analysis.name),
+                    (location_entry, location_string)
+                    ("Trigger Time", "{} (MJD={:12.6f})".format(s["trigger_iso"], s["trigger_mjd"])),
+                    ("Start Time", "{} (Trigger{:+1.1f}s)".format(s["start_iso"],
+                                                                (self.time_window[0]-s['trigger_mjd']).sec)),
+                    ("Stop Time", "{} (Trigger{:+1.1f}s)".format(s["time_stop_iso"],
+                                                                (self.time_window[1]-s['trigger_mjd']).sec)),
+                    ("Time Window",r"{:1.1f}s".format(s["realtime"])),
+                ]
             )
 
-            f.write(
-                r"\newcommand{"+"\\"+"muonfilter"+"}{"+ self.dirname+"/"+
-                "MuonFilter_13_plot.png"+
-                "}\n")
-       
-            f.write(
-                r"\newcommand{"+"\\"+"Lfilter"+"}{"+ self.dirname+"/"+
-                "OnlineL2Filter_17_plot.png"+
-                "}\n")
-            
-            f.write(
-                r"\newcommand{"+"\\"+"badnessplot"+"}{"+ self.dirname+"/"+
-                "badness_plot.png"+
-                "}\n")
-            
-            if os.path.isfile(self.dirname + '/TS_distribution.png'):
-                f.write(
-                    r"\newcommand{"+"\\"+"tsd"+"}{"+ "\\includegraphics[width=0.9\\textwidth]" +
-                    "{" + self.dirname+"/"+
-                    "TS_distribution.png"+ "}" +
-                    "}\n")
-            else:
-                f.write(
-                    r"\newcommand{"+"\\"+"tsd"+"}{"+ 
-                        "No background TS distribution" + 
-                    "}\n"
-                )
-
-            if os.path.isfile(self.dirname + '/upper_limit_distribution.png'):
-                f.write(
-                r"\newcommand{"+"\\"+"upperlim"+"}{"+ "\\includegraphics[width=0.9\\textwidth]" +
-                    "{" + self.dirname+"/"+
-                    "upper_limit_distribution.png"+ "}" +
-                    "}\n"
-                )
-            else:
-                f.write(
-                    r"\newcommand{"+"\\"+"upperlim"+"}{"+
-                        "No upper limit calculation" +
-                    "}\n"
-                )
-
-            if os.path.isfile(self.dirname + '/llh_ns_scan.png'):
-                f.write(
-                r"\newcommand{"+"\\"+"nsscan"+"}{"+ "\\includegraphics[width=0.9\\textwidth]" +
-                    "{" + self.dirname+"/"+
-                    "llh_ns_scan.png"+ "}" +
-                    "}\n" 
-                )
-            else:
-                f.write(
-                    r"\newcommand{"+"\\"+"nsscan"+"}{"+
-                        "No llh vs. ns scan" +
-                    "}\n"
-                )
-
-            f.write(
-                r"\newcommand{"+"\\"+"obsdate"+"}{"+
-                obsdate+"}\n")
-
-            f.write(
-                r"\newcommand{"+"\\"+"multiplicity"+"}{"+ self.dirname+"/"+
-                "IN_ICE_SIMPLE_MULTIPLICITY_plot.png"+
-                "}\n")
-
-            sf_fname = os.path.join(self.dirname,self.analysisid+"_SurvivalFunction.pdf")
-            if os.path.exists(sf_fname):
-                f.write(r"\newcommand{"+"\\"+"survivialfunctionplot"+"}{"+
-                        r"\includegraphics[width=\textwidth]{\analysisid_SurvivalFunction}"+
-                        "}\n")
-            else:
-                f.write(r"\newcommand{"+"\\"+"survivialfunctionplot"+"}{}\n")
-
-            dist_fname = os.path.join(self.dirname,self.analysisid+"_BackgroundPDF.pdf")
-            if os.path.exists(sf_fname):
-                f.write(r"\newcommand{"+"\\"+"backgroundpdfplot"+"}{"+
-                        r"\includegraphics[width=\textwidth]{\analysisid_BackgroundPDF}"+
-                        "}\n")
-            else:
-                f.write(r"\newcommand{"+"\\"+"backgroundpdfplot"+"}{}\n")
-
-            self.write_table(f,"sourcetable",[],[
-                ("Source Name",s["name"]),
-                ("Trigger Time","{} (MJD={:12.6f})".format(s["time_trigger_iso"],s["time_trigger_mjd"])),
-                ("Start Time", "{} (Trigger{:+1.1f}s)".format(s["time_start_iso"],
-                                                              (self.time_window[0]-self.trigger).sec)),
-                ("Stop Time", "{} (Trigger{:+1.1f}s)".format(s["time_stop_iso"],
-                                                             (self.time_window[1]-self.trigger).sec)),
-                ("Time Window",r"{:1.1f}s".format(s["realtime"])),
-            ])
-
             self.write_table(f,"skylabtable",[],[
-                ("Skylab Version",skylab.__version__),
-                ("IceTray Path",str(icetray.__path__).replace('_', '\_')),
+                ("Skylab Version", skylab.__version__),
+                ("IceTray Path", str(icetray.__path__).replace('_', '\_')),
                 ("Created by", expanduser('~')[6:]),
-                ("Dataset Used",str(dataset.subdir).replace('_',' ')),
+                ("Dataset Used", str(dataset.subdir).replace('_',' ')),
                 ("Dataset details", str(dataset.name)[:80]),
                 ("", str(dataset.name)[80:])
             ])
@@ -455,73 +347,79 @@ class ReportGenerator(object):
             livetime = 0
 
             for run in self.run_table:
-                r1.append((run["run_number"],run["start"].split(".")[0],run["stop"].split(".")[0],run["duration"],"{:1.1f}s".format(run["livetime"])))
+                r1.append((
+                    run["run_number"],
+                    run["start"].split(".")[0],
+                    run["stop"].split(".")[0],
+                    run["duration"],"{:1.1f}s".format(run["livetime"])
+                ))
 
                 livetime += run['livetime']
-            self.write_table(f,"runtimetable",["Run","Start Time","Stop Time","Duration","Livetime"],r1,)
+            
+            self.write_table(
+                f,
+                "runtimetable",
+                ["Run","Start Time","Stop Time","Duration","Livetime"],
+                r1
+            )
 
             if 'status' in self.run_table[0]:
                 for run in self.run_table:
                     r2.append((run['run_number'],run['status'],run['lightmode'],run['filter_mode'],
                                run['run_mode'],run["OK"],run["gfu_counts"]))
-                self.write_table(f,"runstatustable",["Run","Status","Light","Filter Mode","Run Mode","OK","GFU" ],r2,)
+                self.write_table(
+                    f,
+                    "runstatustable",
+                    ["Run","Status","Light","Filter Mode","Run Mode","OK","GFU" ],
+                    r2
+                )
             else:
                 self.write_table(f,"runstatustable",[],[])
 
             f.write(r"\newcommand{\livetime}{"+'{:0,.1f}'.format(livetime)+"}\n")
 
             if self.ontime['type']=='database':
-                self.write_table(f,"ontimetable",[],[("Access Method",self.ontime['type']),
-                                                ("Stream", r"\texttt{"+self.ontime['stream']+"}"),
-                                                ("Query Time",self.ontime['time_query']),
-                                                ("Start Time",self.ontime['time_start']),
-                                                ("Stop Time", self.ontime['time_stop']),
-                                                ])
-
-
-            event_table = []
-            if self.events is not None:
-                for event in self.events:
-                    event_table+=[
-                        ("Run:Event",'{}:{}'.format(event['run'], event['event'])),
-                        ("Time","{}".format(
-                            event['time'])),
-                        (r'$\alpha$, $\delta$',"{:3.2f}\degree, {:+3.2f}\degree"
-                         .format(np.rad2deg(event['ra']), np.rad2deg(event['dec']))),
-                        ("Angular Uncertainty (90\%)","{:3.2f}\degree"
-                            .format(np.rad2deg(event["sigma"]*2.145966))),
-                        ("Distance from Source", "{:2.2f}\degree".format(event['delta_psi']*180. / np.pi)),
-                        ("Reconstructed Energy (GeV)","{:2.2e}"
-                            .format(10**event['logE'])),
-                        ("Spatial Weight", "{:.2f}".format(event['spatial_w'])),
-                        ("Energy Weight", "{:.2f}".format(event['energy_w'])),
-                        None,
+                self.write_table(
+                    f, "ontimetable", [], [
+                        ("Access Method",self.ontime['type']),
+                        ("Stream", r"\texttt{"+self.ontime['stream']+"}"),
+                        ("Query Time",self.ontime['time_query']),
+                        ("Start Time",self.ontime['time_start']),
+                        ("Stop Time", self.ontime['time_stop']),
                     ]
+                )
 
-                self.write_table(f,"event",[],event_table)
+            self.make_coinc_events_table(f)
+            
+            if self.analysis._float_index:
+                self.write_table(
+                    f,
+                    "results",
+                    [],
+                    [("$n_s$", "{:1.3f}".format(self.analysis.ns)),
+                     ("$TS$", "{:1.3f}".format(self.analysis.ts)),
+                     ("$\gamma$", f"{self.analysis.gamma:.2f}")
+                     ("$p-value$", "{:1.4f}".format(self.analysis.p))]
+                )
             else:
-                f.write(r"\newcommand{\event}{[None]}")
-
-            self.write_table(f,"results",[],[
-                 ("$n_s$","{:1.3f}".format(s['ns'])),
-                 ("$TS$","{:1.3f}".format(s['ts'])),
-                 ("$p-value$","{:1.4f}".format(s['pvalue']))
-            ])           
-
+                self.write_table(
+                    f,
+                    "results",
+                    [],
+                    [("$n_s$","{:1.3f}".format(self.analysis.ns)),
+                     ("$TS$","{:1.3f}".format(self.analysis.ts)),
+                     ("$p-value$","{:1.4f}".format(self.analysis.p))]
+                )
 
         # symlink main report tex file
-        reportfname = self.analysisid+"_report.tex"
-        reportpath = os.path.join(self.dirname,reportfname)
-        #reportsrc = os.path.join(os.environ["I3_BUILD"],'fast_response','resources','latex','report_skylab.tex')
-        try:
-            reportsrc = os.path.join(os.environ["FAST_RESPONSE_SCRIPTS"], 'latex', 'report_skylab.tex')
-        except KeyError:
-            reportsrc = os.path.join(os.getcwd(), 'latex', 'report_skylab.tex')
+        reportfname = self.analysisid + "_report.tex"
+        reportpath = os.path.join(self.dirname, reportfname)
+        reportsrc = self.get_report_source()
+        
         if os.path.exists(reportpath):
             os.unlink(reportpath)
 
-        os.symlink(reportsrc,reportpath)
-
+        os.symlink(reportsrc, reportpath)
 
     def make_pdf(self):
         # get environment variables
