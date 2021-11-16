@@ -7,8 +7,7 @@ r''' General Fast Response Analysis Class.
     Date: April, 2019
     '''
 
-from abc import ABCMeta
-from abc import ABCMeta, abstractmethod, abstractproperty
+from abc import ABCMeta, abstractmethod
 import os
 import sys
 import time
@@ -16,6 +15,7 @@ import subprocess
 import pickle, shutil, dateutil.parser, logging
 
 import healpy as hp
+import h5py
 import matplotlib as mpl
 mpl.use('agg')
 import matplotlib.pyplot as plt
@@ -24,9 +24,7 @@ import seaborn as sns
 from astropy.time import Time
 import scipy as sp
 from scipy.optimize       import curve_fit
-# from scipy.stats          import chi2
 from scipy.special import erfinv
-from scipy import stats
 
 from . import web_utils
 from . import sensitivity_utils
@@ -578,7 +576,8 @@ class FastResponseAnalysis(object):
                     color='k', linestyle=cont_ls[contour_counter], coord='C')
                 contour_counter += 1
 
-        plt.title('Fast Response Skymap')
+        # plt.title('Fast Response Skymap')
+        plt.title(self.name.replace('_', ' '))
         plt.legend(loc=1)
         plt.savefig(self.analysispath + '/' + self.analysisid + 'unblinded_skymap.png',bbox_inches='tight')
 
@@ -619,8 +618,19 @@ class PriorFollowup(FastResponseAnalysis):
                        outdir=outdir, save=save, extension=extension)
 
         self.skymap_path = skymap_path
-        skymap, skymap_header = hp.read_map(skymap_path, h=True, verbose=False)
-        self.skymap_header = skymap_header
+        try:
+            skymap, skymap_header = hp.read_map(skymap_path, h=True, verbose=False)
+            self.skymap_header = skymap_header
+        except OSError:
+            hdf_data = h5py.File(skymap_path, 'r')
+            probs = hdf_data['PROBDENSITY'][()]
+            area = 4*np.pi/probs.size
+            probs *= area
+            skymap = hp.pixelfunc.ud_grade(
+                probs, self._nside, power=-2,
+                order_in='NESTED', order_out='RING'
+            )
+            skymap_header = None
         skymap = self.format_skymap(skymap)
         self.skymap = skymap
         self.nside = hp.pixelfunc.get_nside(self.skymap)
@@ -751,6 +761,7 @@ class PriorFollowup(FastResponseAnalysis):
             time_mask = [self.duration/2., self.centertime],
             pixel_scan=[self.nside, self._pixel_scan_nsigma]
         )
+        self.ts_scan = val
         t2 = time.time()
         print("finished scan, took {} s".format(t2-t1))
         try:
@@ -915,6 +926,7 @@ class PriorFollowup(FastResponseAnalysis):
 
         
 class PointSourceFollowup(FastResponseAnalysis):
+    _nside = 256
     def __init__(self, name, ra, dec, tstart, tstop, extension=None,
                  skipped=None, outdir=None, save=True, seed=None):
         

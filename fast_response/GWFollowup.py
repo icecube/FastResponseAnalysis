@@ -1,3 +1,4 @@
+from multiprocessing import Value
 from .FastResponseAnalysis import PriorFollowup
 
 from numpy.lib.recfunctions   import append_fields
@@ -19,6 +20,7 @@ class GWFollowup(PriorFollowup):
     _nside = 512
 
     # def format_skymap(self, skymap):
+    #     if 'hdf' not in skymap:
     #     skymap = hp.pixelfunc.ud_grade(
     #         skymap, self._nside, power=-2,
     #         order_in='NESTED',order_out='RING'
@@ -39,10 +41,7 @@ class GWFollowup(PriorFollowup):
         # Create spatial prior weighting
         max_ts = []
         ts_norm = np.log(np.amax(self.skymap))
-        print(f"BG array has {pre_ts_array.size} trials")
         for i in range(pre_ts_array.size):
-            if i%100 == 0:
-                print(i, end=' ')
             # If a particular scramble in the pre-computed ts_array is empty,
             #that means that sky scan had no events in the sky, so max_ts=0
             if pre_ts_array[i]['ts'].size == 0:
@@ -135,6 +134,8 @@ class GWFollowup(PriorFollowup):
         return (results, events)
 
     def find_coincident_events(self):
+        if self.ts_scan is None:
+            raise ValueError("Need to unblind TS before finding events")
         exp_theta = 0.5*np.pi - self.llh.exp['dec']
         exp_phi   = self.llh.exp['ra']
         exp_pix   = hp.ang2pix(self.nside, exp_theta, exp_phi)
@@ -144,8 +145,8 @@ class GWFollowup(PriorFollowup):
         events = self.llh.exp[t_mask]
 
         events = append_fields(
-            events, names=['in_contour', 'ts', 'ns', 'gamma', 'B', 'pvalue'],
-            data=np.empty((6, events['ra'].size)),
+            events, names=['in_contour', 'ts', 'ns', 'gamma', 'B'],
+            data=np.empty((5, events['ra'].size)),
             usemask=False)
 
         for i in range(events['ra'].size):
@@ -155,9 +156,9 @@ class GWFollowup(PriorFollowup):
         val_pix = self.scanned_pixels
         for i in range(events['ra'].size):
             idx, = np.where(val_pix == exp_pix[t_mask][i])
-            events['ts'][i] = val['TS_spatial_prior_0'][idx[0]]
-            events['ns'][i] = val['nsignal'][idx[0]]
-            events['gamma'][i] = val['gamma'][idx[0]]
+            events['ts'][i] = self.ts_scan['TS_spatial_prior_0'][idx[0]]
+            events['ns'][i] = self.ts_scan['nsignal'][idx[0]]
+            events['gamma'][i] = self.ts_scan['gamma'][idx[0]]
 
         self.coincident_events = events
         self.save_items['coincident_events'] = self.coincident_events
