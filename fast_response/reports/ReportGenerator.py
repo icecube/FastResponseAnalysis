@@ -9,8 +9,7 @@
 
 import numpy as np
 import pandas as pd
-import os,json,hashlib,warnings,datetime,types,marshal
-import re
+import os, json, datetime
 import logging as log
 
 use_urllib2 = True
@@ -18,21 +17,18 @@ try:
     import urllib2, urllib
 except:
     use_urllib2 = False
-    import urllib.request, urllib.parse, urllib.error,urllib.request,urllib.error,urllib.parse
+    import urllib.request, urllib.parse, urllib.error
 
 import icecube.realtime_tools.live
 import subprocess
-import sys
 from os.path import expanduser
 
-from icecube             import astro
 from icecube             import icetray
-from astropy.time        import Time,TimeDelta
-from astropy.coordinates import Angle
-from astropy             import units
-# from .make_ontime_plots   import make_rate_plots
+import skylab
+from skylab.datasets import Datasets
+from astropy.time        import Time, TimeDelta
 from fast_response.make_ontime_plots   import make_rate_plots
-from report_utils import *
+import fast_response
 
 log.basicConfig(level=log.ERROR)
 mpl_logger = log.getLogger('matplotlib') 
@@ -80,7 +76,8 @@ class ReportGenerator(object):
         #     reportsrc = os.path.join(os.environ["FAST_RESPONSE_SCRIPTS"], 'latex', 'report_skylab.tex')
         # except KeyError:
         #     reportsrc = os.path.join(os.getcwd(), 'latex', 'report_skylab.tex')
-        return fast_response.__file__ + '../latex/report_skylab.tex'
+        base = os.path.dirname(fast_response.__file__)
+        return os.path.join(base, 'latex/report_general.tex')
 
     def write_table(self, file, name, header, table, prefix=""):
         """
@@ -180,25 +177,86 @@ class ReportGenerator(object):
 
     def make_coinc_events_table(self, f):
         event_table = []
-        if self.events is not None:
-            for event in self.events:
-                event_table+=[
-                    ("Run:Event",'{}:{}'.format(event['run'], event['event'])),
-                    ("Time","{}".format(
-                        event['time'])),
-                    (r'$\alpha$, $\delta$',"{:3.2f}\degree, {:+3.2f}\degree"
-                        .format(np.rad2deg(event['ra']), np.rad2deg(event['dec']))),
-                    ("Angular Uncertainty (90\%)","{:3.2f}\degree"
-                        .format(np.rad2deg(event["sigma"]*2.145966))),
-                    ("Distance from Source", "{:2.2f}\degree".format(event['delta_psi']*180. / np.pi)),
-                    ("Reconstructed Energy (GeV)","{:2.2e}"
-                        .format(10**event['logE'])),
-                    ("Spatial Weight", "{:.2f}".format(event['spatial_w'])),
-                    ("Energy Weight", "{:.2f}".format(event['energy_w'])),
-                    None,
-                ]
+        if self.analysis.coincident_events is not None:
+            if self.analysis.skymap is None:
+                for event in self.analysis.coincident_events:
+                    event_table+=[
+                        ("Run:Event",'{}:{}'.format(event['run'], event['event'])),
+                        ("Time","{}".format(
+                            event['time'])),
+                        (r'$\alpha$, $\delta$',"{:3.2f}\degree, {:+3.2f}\degree"
+                            .format(np.rad2deg(event['ra']), np.rad2deg(event['dec']))),
+                        ("Angular Uncertainty (90\%)","{:3.2f}\degree"
+                            .format(np.rad2deg(event["sigma"]*2.145966))),
+                        ("Distance from Source", "{:2.2f}\degree".format(event['delta_psi']*180. / np.pi)),
+                        ("Reconstructed Energy (GeV)","{:2.2e}"
+                            .format(10**event['logE'])),
+                        ("Spatial Weight", "{:.2f}".format(event['spatial_w'])),
+                        ("Energy Weight", "{:.2f}".format(event['energy_w'])),
+                        None,
+                    ]
+
+                self.write_table(f, "event", [], event_table)
+            else:
+                # TODO: fix this
+                if isinstance(self.analysis.coincident_events, dict) and 'pvalue' in self.analysis.coincident_events[0].keys():
+                    with_p = True
+                    event_table+=[
+                        ('$t_{\\nu}$-$t_{trigger}$ (s)','RA','Dec',
+                        '\sigma (90\%)','E_{reco} (GeV)',
+                        'p-value','In 90\% Contour')]
+                elif isinstance(self.analysis.coincident_events, np.recarray) and 'pvalue' in self.analysis.coincident_events.dtype.names:
+                    with_p = True
+                    event_table+=[
+                        ('$t_{\\nu}$-$t_{trigger}$ (s)','RA','Dec',
+                        '\sigma (90\%)','E_{reco} (GeV)',
+                        'p-value','In 90\% Contour')]
+                else:
+                    with_p = False
+                    event_table+=[
+                        ('$t_{\\nu}$-$t_{trigger}$ (s)','RA','Dec',
+                        '\sigma (90\%)','E_{reco} (GeV)',
+                        'In 90\% Contour')]
+                for event in self.analysis.coincident_events:
+                    if with_p:
+                        event_table+=[
+                            ('{:.0f}'.format((event['time']-self.source['trigger_mjd'])*86400.),
+                            "{:3.2f}\degree".format(np.rad2deg(event['ra'])),
+                            '{:3.2f}\degree'.format(np.rad2deg(event['dec'])),
+                            "{:3.2f}\degree".format(np.rad2deg(event["sigma"]*self.analysis._angScale)),
+                            "{:.2E}".format(10**event['logE']),
+                            '{:.4f}'.format(event['pvalue']),
+                            str(bool(event['in_contour']))
+                            )]
+                    else:
+                        event_table+=[
+                            ('{:.0f}'.format((event['time']-s['trigger_mjd'])*86400.),
+                            "{:3.2f}\degree".format(np.rad2deg(event['ra'])),
+                            '{:3.2f}\degree'.format(np.rad2deg(event['dec'])),
+                            "{:3.2f}\degree".format(np.rad2deg(event["sigma"]*self.analysis._angScale)),
+                            "{:.2E}".format(10**event['logE']),
+                            str(bool(event['in_contour']))
+                            )]
 
             self.write_table(f,"event",[],event_table)
+                # for event in self.analysis.coincident_events:
+                #     event_table+=[
+                #         ("Run",'{}'.format(event['run'])),
+                #         ("Event",'{}'.format(event['event'])),
+                #         ("Time","{}".format(
+                #             event['time'])),
+                #         ("Right Ascension","{:3.2f}\degree"
+                #             .format(np.rad2deg(event['ra']))),
+                #         ("Declination","{:3.2f}\degree"
+                #             .format(np.rad2deg(event['dec']))),
+                #         ("Angular Uncertainty (90\%)","{:3.2f}\degree"
+                #             .format(np.rad2deg(event["sigma"]*2.145966))),
+                #         ("Reconstructed Energy (GeV)","{:2.2f}"
+                #             .format(10**event['logE'])),
+                #         None,
+                #     ]
+
+                # self.write_table(f, "event", [] , event_table)
         else:
             f.write(r"\newcommand{\event}{[None]}")
 
@@ -270,14 +328,14 @@ class ReportGenerator(object):
             for name, command in [('sourcename', self.analysis.name),
                                   ('analysisid', self.analysisid),
                                   ('reportdate', datetime.date.today().strftime("%Y-%m-%d")),
-                                  ('obsdate', obsdate),
-                                  ()]:
+                                  ('obsdate', obsdate)]:
                 self.make_new_command(f, name, command)
 
             for plot_name, plot_path in self._figure_list:
                 f.write(
-                    r"\newcommand{"+"\\"+plot_name+"}{"+ self.dirname+"/"+
-                    plot_path +
+                    r"\newcommand{"+"\\"+plot_name+"}{"+ "\\includegraphics[width=0.8\\textwidth]" +
+                    "{" + self.dirname+"/"+
+                    plot_path + "}" +
                     "}\n"
                 )
 
@@ -297,18 +355,17 @@ class ReportGenerator(object):
                     )
 
             for plot_name, plot_path, else_message in [('tsd', 'TS_distribution.png', 'No background TS distribution'),
-                                                       ('upperlim', 'upper_limit_distribution.png', "No upper limit calculation"),
-                                                       ('nsscan', 'llh_ns_scan.png', 'No llh vs. ns scan')]:
+                                                       ('upperlim', 'upper_limit_distribution.png', "No upper limit calculation")]:
                 if os.path.isfile(self.dirname + '/' + plot_path):
                     f.write(
-                        r"\newcommand{"+"\\"+plot_name+"}{"+ "\\includegraphics[width=0.9\\textwidth]" +
+                        r"\newcommand{"+"\\"+plot_name+"}{"+ "\\includegraphics[width=0.8\\textwidth]" +
                         "{" + self.dirname+"/"+
                         plot_path + "}" +
                         "}\n"
                     )
                 else:
                     f.write(
-                        r"\newcommand{"+"\\"+"tsd"+"}{"+ 
+                        r"\newcommand{"+"\\"+plot_name+"}{"+ 
                             else_message + 
                         "}\n"
                     )
@@ -323,12 +380,13 @@ class ReportGenerator(object):
             self.write_table(
                 f,"sourcetable", [],[
                     ("Source Name", self.analysis.name),
-                    (location_entry, location_string)
-                    ("Trigger Time", "{} (MJD={:12.6f})".format(s["trigger_iso"], s["trigger_mjd"])),
-                    ("Start Time", "{} (Trigger{:+1.1f}s)".format(s["start_iso"],
-                                                                (self.time_window[0]-s['trigger_mjd']).sec)),
-                    ("Stop Time", "{} (Trigger{:+1.1f}s)".format(s["time_stop_iso"],
-                                                                (self.time_window[1]-s['trigger_mjd']).sec)),
+                    (location_entry, location_string),
+                    ("Trigger Time", "{} (MJD={:12.6f})".format(
+                        s["trigger_iso"], s["trigger_mjd"])),
+                    ("Start Time", "{} (Trigger{:+1.1f}s)".format(
+                        s["start_iso"], (self.time_window[0].mjd-s['trigger_mjd'])*86400.)),
+                    ("Stop Time", "{} (Trigger{:+1.1f}s)".format(
+                        s["stop_iso"], (self.time_window[1].mjd-s['trigger_mjd'])*86400.)),
                     ("Time Window",r"{:1.1f}s".format(s["realtime"])),
                 ]
             )
@@ -398,7 +456,7 @@ class ReportGenerator(object):
                     [],
                     [("$n_s$", "{:1.3f}".format(self.analysis.ns)),
                      ("$TS$", "{:1.3f}".format(self.analysis.ts)),
-                     ("$\gamma$", f"{self.analysis.gamma:.2f}")
+                     ("$\gamma$", f"{self.analysis.gamma:.2f}"),
                      ("$p-value$", "{:1.4f}".format(self.analysis.p))]
                 )
             else:
@@ -424,200 +482,33 @@ class ReportGenerator(object):
     def make_pdf(self):
         # get environment variables
         env = dict(os.environ)
-        subprocess.call(['pdflatex','-interaction=batchmode','-output-directory=%s' % self.dirname, 
-                        self.dirname+'/'+self.analysisid+"_report.tex"],
-                        #cwd=self.dirname,
-                        env = env,
-                       )
+        subprocess.call(
+            ['pdflatex', '-interaction=batchmode',
+             '-output-directory=%s' % self.dirname, 
+             self.dirname+'/'+self.analysisid+"_report.tex"],
+            #cwd=self.dirname,
+            env = env,
+        )
 
 class FastResponseReport(ReportGenerator):
-    def __init__(self):
-        pass
+    _figure_list = [('nsscan', 'llh_ns_scan.png')]
+
+    def __init__(self, analysis):
+        super().__init__(analysis)
 
     def generate_report(self):
-        pass
+        super().generate_report()
 
 class GravitationalWaveReport(ReportGenerator):
-    def __init__(self):
-        pass
+    _figure_list = []
 
-    def generate_gw_report(self):
+    def get_report_source(self):
+        base = os.path.dirname(fast_response.__file__)
+        return os.path.join(base, 'latex/report_gw.tex')
 
-        report_fname = os.path.join(self.dirname,"r.tex")
+class AlertReport(ReportGenerator):
+    _figure_list = []
 
-        self.run_table = self.query_db_runs(self.time_window)
-        now = datetime.datetime.utcnow()
-        self.ontime = {}
-        self.ontime['type']='database'
-        self.ontime['stream'] = self.stream
-        self.ontime['runkey']='run_id'
-        self.ontime['time_start']=Time(self.run_table[0]['start'],format='iso',scale='utc',precision=0).iso
-        self.ontime['time_stop'] =Time(self.run_table[-1]['stop'],format='iso',scale='utc',precision=0).iso
-        self.ontime['time_query']=now.strftime('%Y-%m-%d %H:%M:%S')
-
-        self.query_events=icecube.realtime_tools.live.get_events(
-            self.ontime['stream'], self.ontime['time_start'],self.ontime['time_stop'])
-
-        self.widewindow = self.ontime_table(self.query_events)
-        self.widewindow['t']=Time(list(self.widewindow['eventtime']),scale='utc',format='iso')
-
-        for run in self.run_table:
-            run['gfu_counts'] = (self.widewindow['run_id']==run['run_number']).sum()
-
-        s=self.source
-
-        # Make rate plots and put them in analysis directory
-        make_rate_plots(self.time_window,self.run_table,self.query_events,self.dirname)
-
-        with open(report_fname,'wt') as f:
-
-            d1=s["time_start_iso"].split()[0]
-            d2=s["time_stop_iso"].split()[0]
-
-            if d1==d2:
-                obsdate = d1
-            else:
-                obsdate = d1+' -- '+d2
-
-            f.write(
-                r"\newcommand{"+"\\"+"sourcename"+"}{"+
-                s["name"]+"}\n")
-
-            f.write(r"\newcommand{\analysisid}{"+self.analysisid+"}\n")
-            
-            f.write(
-                r"\newcommand{"+"\\"+"gfurate"+"}{"+ self.dirname+"/"+
-                "GFU_rate_plot.png"+
-                "}\n")
-
-            f.write(
-                r"\newcommand{"+"\\"+"reportdate"+"}{"+
-                datetime.date.today().strftime("%Y-%m-%d")+
-                "}\n")
-
-            f.write(
-                r"\newcommand{"+"\\"+"skymap"+"}{"+ self.dirname+"/"+
-                self.analysisid + "unblinded_skymap.png" +
-                "}\n")
-
-            f.write(
-                r"\newcommand{"+"\\"+"muonfilter"+"}{"+ self.dirname+"/"+
-                "MuonFilter_13_plot.png"+
-                "}\n")
-       
-            f.write(
-                r"\newcommand{"+"\\"+"Lfilter"+"}{"+ self.dirname+"/"+
-                "OnlineL2Filter_17_plot.png"+
-                "}\n")
-            
-            f.write(
-                r"\newcommand{"+"\\"+"badness"+"}{"+ self.dirname+"/"+
-                "badness_plot.png"+
-                "}\n")
-
-            f.write(
-                r"\newcommand{"+"\\"+"obsdate"+"}{"+
-                obsdate+"}\n")
-
-            f.write(
-                r"\newcommand{"+"\\"+"multiplicity"+"}{"+ self.dirname+"/"+
-                "IN_ICE_SIMPLE_MULTIPLICITY_plot.png"+
-                "}\n")
-
-            sf_fname = os.path.join(self.dirname,self.analysisid+"_SurvivalFunction.pdf")
-            if os.path.exists(sf_fname):
-                f.write(r"\newcommand{"+"\\"+"survivialfunctionplot"+"}{"+
-                        r"\includegraphics[width=\textwidth]{\analysisid_SurvivalFunction}"+
-                        "}\n")
-            else:
-                f.write(r"\newcommand{"+"\\"+"survivialfunctionplot"+"}{}\n")
-
-            dist_fname = os.path.join(self.dirname,self.analysisid+"_BackgroundPDF.pdf")
-            if os.path.exists(sf_fname):
-                f.write(r"\newcommand{"+"\\"+"backgroundpdfplot"+"}{"+
-                        r"\includegraphics[width=\textwidth]{\analysisid_BackgroundPDF}"+
-                        "}\n")
-            else:
-                f.write(r"\newcommand{"+"\\"+"backgroundpdfplot"+"}{}\n")
-
-            self.write_table(f,"sourcetable",[],[
-                ("Source Name",s["name"]),
-                ("Trigger Time","{} (MJD={:12.6f})".format(s["time_trigger_iso"],s["time_trigger_mjd"])),
-                ("Start Time", "{} (Trigger{:+1.1f}s)".format(s["time_start_iso"],
-                                                              (self.time_window[0]-self.trigger).sec)),
-                ("Stop Time", "{} (Trigger{:+1.1f}s)".format(s["time_stop_iso"],
-                                                             (self.time_window[1]-self.trigger).sec)),
-                ("Time Window",r"{:1.1f}s".format(s["realtime"])),
-            ])
-
-            r1=[]
-            r2=[]
-            livetime = 0
-
-            for run in self.run_table:
-                r1.append((run["run_number"],run["start"].split(".")[0],run["stop"].split(".")[0],run["duration"],"{:1.1f}s".format(run["livetime"])))
-
-                livetime += run['livetime']
-            self.write_table(f,"runtimetable",["Run","Start Time","Stop Time","Duration","Livetime"],r1,)
-
-            if 'status' in self.run_table[0]:
-                for run in self.run_table:
-                    r2.append((run['run_number'],run['status'],run['lightmode'],run['filter_mode'],
-                               run['run_mode'],run["OK"],run["gfu_counts"]))
-                self.write_table(f,"runstatustable",["Run","Status","Light","Filter Mode","Run Mode","OK","GFU" ],r2,)
-            else:
-                self.write_table(f,"runstatustable",[],[])
-
-            f.write(r"\newcommand{\livetime}{"+'{:0,.1f}'.format(livetime)+"}\n")
-
-            if self.ontime['type']=='database':
-                self.write_table(f,"ontimetable",[],[("Access Method",self.ontime['type']),
-                                                ("Stream", r"\texttt{"+self.ontime['stream']+"}"),
-                                                ("Query Time",self.ontime['time_query']),
-                                                ("Start Time",self.ontime['time_start']),
-                                                ("Stop Time", self.ontime['time_stop']),
-                                                ])
-
-
-            event_table = []
-            if self.events is not None:
-                for event in self.events:
-                    event_table+=[
-                        ("Run",'{}'.format(event['run'])),
-                        ("Event",'{}'.format(event['event'])),
-                        ("Time","{}".format(
-                            event['time'])),
-                        ("Right Ascension","{:3.2f}\degree"
-                         .format(np.rad2deg(event['ra']))),
-                        ("Declination","{:3.2f}\degree"
-                         .format(np.rad2deg(event['dec']))),
-                        ("Angular Uncertainty (90\%)","{:3.2f}\degree"
-                            .format(np.rad2deg(event["sigma"]*2.145966))),
-                        ("Reconstructed Energy (GeV)","{:2.2f}"
-                            .format(10**event['logE'])),
-                        None,
-                    ]
-
-                self.write_table(f,"event",[],event_table)
-            else:
-                f.write(r"\newcommand{\event}{[None]}")
-
-            llh_table = []
-            for i in range(s['ts'].size):
-                llh_table+=[
-                    ("$TS$",'{:1.3f}'.format(s['ts'][i])),
-                    ("$n_s$",'{:1.3f}'.format(s['ns'][i])),
-                    ("P value","{:1.4f}".format(s['pvalue'][i])),
-                    ("$\gamma$","{:1.3f}".format(s['gamma'][i]))
-                ]
-
-            self.write_table(f,"results",[],llh_table)        
-
-        # symlink main report tex file
-        reportfname = self.analysisid+"_report.tex"
-        reportpath = os.path.join(self.dirname,reportfname)
-        reportsrc = os.path.join(os.environ["I3_BUILD"],'fast_response','resources','latex','report_gw.tex')
-        if os.path.exists(reportpath):
-            os.unlink(reportpath)
-
-        os.symlink(reportsrc,reportpath)
+    def get_report_source(self):
+        base = os.path.dirname(fast_response.__file__)
+        return os.path.join(base, 'latex/report_alert.tex')

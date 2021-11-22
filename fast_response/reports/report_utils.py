@@ -1,4 +1,4 @@
-from astropy.time import Time,TimeDelta
+from astropy.time import Time, TimeDelta
 import numpy as np
 
 def interptime(tstr):

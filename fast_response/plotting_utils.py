@@ -1,9 +1,9 @@
 import numpy as np
 import healpy as hp
 import seaborn as sns
-
 import matplotlib.pyplot as plt
 import matplotlib as mpl
+import meander
 
 def plot_zoom(scan, ra, dec, title, reso=3, var="pVal", range=[0, 6],cmap=None):
     if cmap is None:
@@ -147,3 +147,44 @@ def contour(ra, dec, sigma, nside):
     Phi[bins] = Phi[0]
 
     return Theta, Phi
+
+def plot_contours(proportions, samples):
+    r''' Plot containment contour around desired level.
+    E.g 90% containment of a PDF on a healpix map
+
+    Parameters:
+    -----------
+    proportions: list
+        list of containment level to make contours for.
+        E.g [0.68,0.9]
+    samples: array
+        array of values read in from healpix map
+        E.g samples = hp.read_map(file)
+    Returns:
+    --------
+    theta_list: list
+        List of arrays containing theta values for desired contours
+    phi_list: list
+        List of arrays containing phi values for desired contours
+    '''
+
+    levels = []
+    sorted_samples = list(reversed(list(sorted(samples))))
+    nside = hp.pixelfunc.get_nside(samples)
+    sample_points = np.array(hp.pix2ang(nside, np.arange(len(samples)))).T
+    for proportion in proportions:
+        level_index = (np.cumsum(sorted_samples) > proportion).tolist().index(True)
+        level = (sorted_samples[level_index] +
+                (sorted_samples[level_index+1] if level_index+1<len(samples) else 0))/2.0
+        levels.append(level)
+    contours_by_level = meander.spherical_contours(sample_points, samples, levels)
+
+    theta_list = []; phi_list=[]
+    for contours in contours_by_level:
+        for contour in contours:
+            theta, phi = contour.T
+            phi[phi<0] += 2.0*np.pi
+            theta_list.append(theta)
+            phi_list.append(phi)
+
+    return theta_list, phi_list
