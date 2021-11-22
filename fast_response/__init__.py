@@ -4,3 +4,5 @@ from .AlertFollowup import TrackFollowup, CascadeFollowup
 from .GWFollowup import GWFollowup
 from .GRBFollowup import GRBFollowup
 from .ExternalFollowup import ExternalFollowup
+
+from .reports import __init__
