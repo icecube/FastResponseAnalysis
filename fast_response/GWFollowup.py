@@ -9,6 +9,8 @@ import matplotlib as mpl
 mpl.use('agg')
 import matplotlib.pyplot as plt
 
+from .reports import GravitationalWaveReport
+
 class GWFollowup(PriorFollowup):
     _dataset = 'GFUOnline_v001p02'
     _fix_index = False
@@ -57,6 +59,9 @@ class GWFollowup(PriorFollowup):
         self.tsd = max_ts
         return max_ts
 
+    def plot_ontime(self, with_contour=True, contour_files=None):
+        return super().plot_ontime(with_contour=True, contour_files=contour_files)
+
     def write_circular(self):
         pass
 
@@ -103,7 +108,7 @@ class GWFollowup(PriorFollowup):
         events = exp[t_mask]
 
         # add field to see if neutrino is within 90% GW contour
-        events = append_fields(events, names=['in_contour','ts','ns','gamma','B'],
+        events = append_fields(events, names=['in_contour', 'ts', 'ns', 'gamma', 'B'],
                               data=np.empty((5, events['ra'].size)),
                               usemask=False)
 
@@ -280,5 +285,15 @@ class GWFollowup(PriorFollowup):
         h2, l2 = ax2.get_legend_handles_labels()
         plt.legend(h1+h2,l1+l2,loc=1)
         if self.save_output:
-            plt.savefig(self.analysispath + '/%s_decPDF.png' % self.analysisid, bbox_inches='tight', dpi=200)
+            plt.savefig(
+                self.analysispath + f'/{self.analysisid}_decPDF.png',
+                bbox_inches='tight', dpi=200
+            )
         plt.close()
+
+    def generate_report(self):
+        r'''Generates report using class attributes
+        and the ReportGenerator Class'''
+        report = GravitationalWaveReport(self)
+        report.generate_report()
+        report.make_pdf()

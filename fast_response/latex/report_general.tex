@@ -1,24 +1,10 @@
 \documentclass[titlepage]{article}
-%\usepackage[printwatermark]{xwatermark}
 \usepackage{tikz}
 \usepackage{xcolor}
 \usepackage{graphicx}
 \usepackage{grffile}
 \usepackage{longtable}
 \usepackage[margin=1.0in]{geometry}
-%\usepackage{lipsum}
-%\usepackage{gensymb}
-
-%\newwatermark*[allpages,color=red!25,angle=45,scale=3,xpos=0,ypos=0]{TEST}
-
-%\savebox\mybox{\tikz[color=red,opacity=0.5]\node{TEST};}
-%\newwatermark*[
-%  allpages,
-%  angle=45,
-%  scale=12,
-%  xpos=-40,
-%  ypos=50
-%]{\usebox\mybox}
 
 \setlength{\parindent}{0cm} 
 \include{r}
@@ -39,9 +25,6 @@
   \vfill
   \vspace{1cm} 
   {\Large Report Generated On:\\ \reportdate \par}
-% {\color{red} This is a test. \\
-%   This station is conducting a test of the IceCube Alert System.\\
-%   This is only a test. }
 \end{titlepage}
 
 \section{Inputs}
@@ -73,33 +56,12 @@ Badness $>10$s may indicate a problem.
 \vspace{1em}
 {
  \centering        
- \includegraphics[width=1.0\textwidth]{\multiplicity}
- \includegraphics[width=1.0\textwidth]{\badnessplot}
- \includegraphics[width=1.0\textwidth]{\muonfilter}
- \includegraphics[width=1.0\textwidth]{\Lfilter}
- \includegraphics[width=1.0\textwidth]{\gfurate}
- % \includegraphics[width=1.0\textwidth]{"/home/rhussain/icecube/dump/badness_plot.png"}
+ \includegraphics[width=0.7\textwidth]{\multiplicity}\\
+ \includegraphics[width=0.7\textwidth]{\badnessplot}\\
+ \includegraphics[width=0.7\textwidth]{\muonfilter}\\
+ \includegraphics[width=0.7\textwidth]{\Lfilter}\\
+ \includegraphics[width=0.7\textwidth]{\gfurate}
 }
-
-
-%\pagebreak
-%\section{Energy PDF}
-%Ratio of Energy PDFs from the selected Zenith band.
-%
-%\energytable
-%
-%{
-%  \centering
-%
-%    {\Large Energy PDF Fit}
-%
-%    \includegraphics[width=0.8\textwidth]{\analysisid_EnergyPDFRatio}
-%
-%    {\Large Energy of Observed Events}
-%
-%    \includegraphics[width=0.8\textwidth]{\analysisid_energy_events}
-%
-%    }
 
 \pagebreak
 \section{Results}
@@ -117,22 +79,17 @@ Badness $>10$s may indicate a problem.
 
 
 \subsection{Coincident Events}
-For point sources, any events from the relevant time window with a spatial times energy weight greater than 10 is included in this table. For skymaps, any event reconstructed within the 90\% contour is included (for longer timescale cascades we skip this because of the large localization). 
+For point sources, any events from the relevant time window with a spatial times energy weight greater than 10 is included in this table. For skymaps, any event reconstructed within the 90\% contour is included (for longer timescale cascades we tend to skip this because of the large localization). 
 \event
 
 \subsection{Likelihood Analysis}
 \results
-\pagebreak
-
-\backgroundpdfplot
-
-\survivialfunctionplot
 
 \pagebreak
 {
   \centering
 
-  {\Large Limit $dN/dE$}
+  {\large Expected distribution of true neutrino energies, under the signal hypothesis }
 
   \includegraphics[width=0.9\textwidth]{\limitdNdE}
   \\
@@ -148,12 +105,9 @@ For point sources, any events from the relevant time window with a spatial times
   \\
   \nsscan
 
-  These plots are meant as validations of the minimizer, and cannot be interpreted directly using Wilk's assuming one degree of freedom because the low statistics invalidates the asymptotic condition for Wilk's theorem.  
+  This plot is meant as a validation of the minimizer, and cannot be interpreted directly using Wilk's assuming one degree of freedom because the low statistics invalidates the asymptotic condition for Wilk's theorem.  
 }
 
-\vfill        
-%{\color{red}If this had been an actual analysis,
-%  the attention signal you just heard would have been
-%  followed by official information, news, or instructions.}
+\vfill
 
 \end{document}

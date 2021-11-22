@@ -1,9 +1,16 @@
-import argparse
+import argparse, subprocess
 from astropy.time import Time
+import pyfiglet
 
 from fast_response import GWFollowup
 
 def run_gw_followup(name, time, skymap):
+    subprocess.call(['clear'])
+    message = '*'*80
+    message += '\n' + str(pyfiglet.figlet_format("GW Followup")) + '\n'
+    message += '*'*80
+    print(message)
+
     gw_time = Time(time, format='mjd')
 
     delta_t = 1000.
@@ -29,8 +36,9 @@ def run_gw_followup(name, time, skymap):
     f.upper_limit()
     f.find_coincident_events()
     f.per_event_pvalue()
-    f.make_dec_pdf()
     results = f.save_results()
+    print('making report')
+    f.generate_report()
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='GW Followup')

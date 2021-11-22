@@ -1,25 +1,12 @@
 \documentclass[titlepage]{article}
-%\usepackage[printwatermark]{xwatermark}
 \usepackage{tikz}
 \usepackage{xcolor}
 \usepackage{graphicx}
 \usepackage{grffile}
-\usepackage[margin=1.2in]{geometry}
-%\usepackage{lipsum}
-%\usepackage{gensymb}
+\usepackage{longtable}
+\usepackage[margin=1.0in]{geometry}
 
-%\newwatermark*[allpages,color=red!25,angle=45,scale=3,xpos=0,ypos=0]{TEST}
-
-%\savebox\mybox{\tikz[color=red,opacity=0.5]\node{TEST};}
-%\newwatermark*[
-%  allpages,
-%  angle=45,
-%  scale=12,
-%  xpos=-40,
-%  ypos=50
-%]{\usebox\mybox}
-
-\setlength{\parindent}{0cm} 
+\setlength{\parindent}{0cm}
 \include{r}
 
 \newcommand{\degree}{$^{\circ}$}
@@ -36,11 +23,8 @@
   \vspace{0.5cm}
   {\Large Observation Date(s):\\ \obsdate \par}
   \vfill
-  \vspace{1cm} 
+  \vspace{1cm}
   {\Large Report Generated On:\\ \reportdate \par}
-% {\color{red} This is a test. \\
-%   This station is conducting a test of the IceCube Alert System.\\
-%   This is only a test. }
 \end{titlepage}
 
 \centering
@@ -49,10 +33,9 @@
 \sourcetable
 \subsection{On-Time Data}
 \ontimetable
-\subsection{Signal Simulation}
-\sigfiletable
-\subsection{Off-Time Data}
-\bgfiletable
+\subsection{Skylab Analysis Information}
+\skylabtable 
+% Information about skylab stable release, path to skylab, etc.
 
 \pagebreak
 \centering
@@ -76,7 +59,7 @@ a problem.
 
 \vspace{1em}
 {
- \centering        
+ \centering
  \includegraphics[width=0.7\textwidth]{\multiplicity}\\
  \includegraphics[width=0.7\textwidth]{\muonfilter}\\
  \includegraphics[width=0.7\textwidth]{\Lfilter}\\
@@ -86,23 +69,6 @@ a problem.
 \vspace{2cm}
 
 \pagebreak
-%\section{Energy PDF}
-%Ratio of Energy PDFs from the selected Zenith band.
-%
-%\energytable
-%
-%{
-%  \centering
-%
-%    {\Large Energy PDF Fit}
-%
-%    \includegraphics[width=0.8\textwidth]{\analysisid_EnergyPDFRatio}
-%
-%    {\Large Energy of Observed Events}
-%
-%    \includegraphics[width=0.8\textwidth]{\analysisid_energy_events}
-%
-%    }
 
 \section{Results}
 
@@ -113,26 +79,33 @@ a problem.
   \includegraphics[width=0.9\textwidth]{\skymap}
   \vspace{3cm}
   \includegraphics[width=0.9\textwidth]{\skymapzoom}
-  \vspace{2cm}
-  \includegraphics[width=0.9\textwidth]{\decPDF}
-
 }
-\pagebreak
 
+\begin{figure}
+    \centering
+    \includegraphics[width=0.9\textwidth]{\decPDF}
+    \caption{Here we show IceCube's transient point source sensitivity in a 1000~s time window, overlaid with the declination PDF of the GW event. This is computed by binning the sky evenly in sin($\delta$) and computing the total probability in each bin. This is then converted to a PDF such that the blue curve above integrates to 1.}
+\end{figure}
+
+\newpage
 \subsection{On-Time Events}
 \event
 
 \subsection{Likelihood Analysis}
 \results
-\pagebreak
 
-\backgroundpdfplot
+\subsection{GFU Status}
+\GFUstatus
+\\
+\vspace{1cm}
+Here we summarize the status of the GFU stream during the time of the analysis.
+\\
+The first row shows the run-time of the analysis.
+The second row shows the number of events in the on-time window when the analysis initially ran.
+The third column checks the number of events in the on-time window after the analysis run time (first row) has passed. This number MUST BE THE SAME as the second row, otherwise something terrible has happened.
+The fourth row shows the number of GFU events that have arrived between the end of the on-time window and the end of the analysis run time. This shows that there are no extreme latency issues with the GFU stream.
 
-\survivialfunctionplot
-
-\vfill        
-%{\color{red}If this had been an actual analysis,
-%  the attention signal you just heard would have been
-%  followed by official information, news, or instructions.}
 
 \end{document}
+
+

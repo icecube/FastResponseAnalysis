@@ -1,65 +1,42 @@
 r''' General Fast Response Analysis Class.
-    Heavily influenced by Raamis Hussain's 
-    Realtime GW analysis and Kevin Meagher's 
-    original Fast Response analysis.
 
     Author: Alex Pizzuto
-    Date: April, 2019
+    Date: 2021
     '''
 
-from abc import ABCMeta, abstractmethod
-import os
-import sys
-import time
-import subprocess
-import pickle, shutil, dateutil.parser, logging
+from abc import abstractmethod
+import os, sys, time, subprocess
+import pickle, dateutil.parser, logging, warnings
 
-import healpy as hp
 import h5py
-import matplotlib as mpl
-mpl.use('agg')
-import matplotlib.pyplot as plt
-import numpy as np
-import seaborn as sns
-from astropy.time import Time
-import scipy as sp
-from scipy.optimize       import curve_fit
-from scipy.special import erfinv
+import healpy               as hp
+import numpy                as np
+import seaborn              as sns
+import matplotlib           as mpl
+import matplotlib.pyplot    as plt
+from astropy.time           import Time
+from scipy.special          import erfinv
 
-from . import web_utils
-from . import sensitivity_utils
-from . import plotting_utils
-
-# import web_utils, sensitivity_utils, plotting_utils
-
-import skylab
-
-# from .ReportGenerator import ReportGenerator
-from .reports.ReportGenerator import ReportGenerator
-from skylab.datasets import Datasets
-from skylab.llh_models import EnergyLLH
-from skylab.priors import SpatialPrior
-from skylab.ps_injector import PointSourceInjector
-from skylab.ps_llh import PointSourceLLH
-from skylab.ps_injector import PriorInjector
+from skylab.datasets        import Datasets
+from skylab.llh_models      import EnergyLLH
+from skylab.priors          import SpatialPrior
+from skylab.ps_injector     import PointSourceInjector
+from skylab.ps_llh          import PointSourceLLH
+from skylab.ps_injector     import PriorInjector
 from skylab.spectral_models import PowerLaw 
 from skylab.temporal_models import BoxProfile, TemporalModel
 # import meander
 
+from . import web_utils
+from . import sensitivity_utils
+from . import plotting_utils
+from .reports import FastResponseReport
+
+mpl.use('agg')
 current_palette = sns.color_palette('colorblind', 10)
-############################# Plotting Parameters #############################
-
 logging.getLogger().setLevel(logging.ERROR)
-
-# logging.getLogger("skylab.ps_llh.PointSourceLLH").setLevel(logging.ERROR)
-# logging.getLogger("skylab.ps_injector.PointSourceInjector").setLevel(logging.ERROR)
-# logging.getLogger("skylab.ps_injector.PriorInjector").setLevel(logging.ERROR)
-# pil_logger = logging.getLogger('PIL')
-# pil_logger.setLevel(logging.ERROR)
-# logging.getLogger('numexpr').setLevel(logging.WARNING)
-import warnings
 warnings.simplefilter("ignore", UserWarning)
-warnings.simplefilter("ignore", RuntimeWarning) # to ignore nan pixel warnings
+warnings.simplefilter("ignore", RuntimeWarning)
 
 class FastResponseAnalysis(object):
     r''' Object to do realtime followup analyses of 
@@ -108,7 +85,7 @@ class FastResponseAnalysis(object):
             print("Directory {} already exists. Deleting it ...".format(
                 self.analysispath))
             subprocess.call(['rm', '-r', self.analysispath])
-            subprocess.call(['mkdir',self.analysispath])
+            subprocess.call(['mkdir', self.analysispath])
             # sys.exit()
         elif self.save_output:
             subprocess.call(['mkdir', self.analysispath])
@@ -253,17 +230,17 @@ class FastResponseAnalysis(object):
             src_extension = None
 
         llh = PointSourceLLH(
-            self.exp,                   # array with data events
-            self.mc,                    # array with Monte Carlo events
-            self.livetime,              # total livetime of the data events
-            ncpu=5,               # use 10 CPUs when computing trials
-            scramble=scramble,        # use scrambled data, set to False for unblinding
-            timescramble=True,     # use full time scrambling, not just RA scrambling
-            llh_model=llh_model,   # likelihood model
-            temporal_model=box,    # use box profile for temporal model
-            nsource_bounds=(0., 1e3),  # bounds on fitted number of signal events
-            src_extension = src_extension, # Model symmetrically extended source
-            nsource=1.,              # seed for nsignal fit
+            self.exp,                      # array with data events
+            self.mc,                       # array with Monte Carlo events
+            self.livetime,                 # total livetime of the data events
+            ncpu=5,                        # use 10 CPUs when computing trials
+            scramble=scramble,             # set to False for unblinding
+            timescramble=True,             # not just RA scrambling
+            llh_model=llh_model,           # likelihood model
+            temporal_model=box,            # use box for temporal model
+            nsource_bounds=(0., 1e3),      # bounds on fitted ns
+            src_extension = src_extension, # Model symmetric extended source
+            nsource=1.,                    # seed for nsignal fit
             seed=self.llh_seed)           
 
         return llh
@@ -312,8 +289,6 @@ class FastResponseAnalysis(object):
             p = 1.0
             self.tsd = None
         else:
-            if self._verbose:
-                print("Need to reinitialize LLH for background trials")
             self.run_background_trials(ntrials=ntrials)
             p = np.count_nonzero(self.tsd >= self.ts) / float(self.tsd.size)
             sigma = self.significance(p)
@@ -418,15 +393,15 @@ class FastResponseAnalysis(object):
             print("Results successfully saved")
             return self.save_items
 
-    def plot_ontime(self, contour_files=None):
+    def plot_ontime(self, with_contour=False, contour_files=None):
         r'''Plots ontime events with either the full sky spatial
         prior or a zoomed in version like traditional fast response
         followups
         '''
-        self.plot_skymap_zoom(contour_files=contour_files)
-        self.plot_skymap(contour_files=contour_files)  
+        self.plot_skymap_zoom(with_contour=with_contour, contour_files=contour_files)
+        self.plot_skymap(with_contour=with_contour, contour_files=contour_files)  
 
-    def plot_skymap_zoom(self, contour_files=None):
+    def plot_skymap_zoom(self, with_contour=False, contour_files=None):
         r'''Make a zoomed in portion of a skymap with
         all neutrino events within a certain range
         '''
@@ -446,8 +421,6 @@ class FastResponseAnalysis(object):
             skymap = self.skymap
             ra = self.skymap_fit_ra
             dec = self.skymap_fit_dec
-            if 'ice' in self.name.lower() and not 'casc' in self.name.lower():
-                skymap = np.log10(skymap)
             label_str = "Scan Hot Spot"
             cmap = None
         else:
@@ -464,7 +437,7 @@ class FastResponseAnalysis(object):
                 msk = events['run'] == int(self.skipped[0][0])
                 msk *= events['event'] == int(self.skipped[0][1])
                 plotting_utils.plot_events(self.skipped_event['dec'], self.skipped_event['ra'], 
-                    self.skipped_event['sigma']*2.145966, 
+                    self.skipped_event['sigma']*self._angScale, 
                     ra, dec, 2*6, sigma_scale=1.0, constant_sigma=False, 
                     same_marker=True, energy_size=True, col = 'grey', 
                     with_dash=True)
@@ -474,12 +447,11 @@ class FastResponseAnalysis(object):
                 print("Removed event not in GFU")
 
         if (self.stop - self.start) <= 21.:
-            plotting_utils.plot_events(events['dec'], events['ra'], events['sigma']*2.145966, ra, dec, 2*6, sigma_scale=1.0,
+            plotting_utils.plot_events(events['dec'], events['ra'], events['sigma']*self._angScale, ra, dec, 2*6, sigma_scale=1.0,
                     constant_sigma=False, same_marker=True, energy_size=True, col = cols)
-                    #2.145966 for 90% containment
         else:
             #Long time windows means don't plot contours
-            plotting_utils.plot_events(events['dec'], events['ra'], events['sigma']*2.145966, ra, dec, 2*6, sigma_scale=None,
+            plotting_utils.plot_events(events['dec'], events['ra'], events['sigma']*self._angScale, ra, dec, 2*6, sigma_scale=None,
                     constant_sigma=False, same_marker=True, energy_size=True, col = cols)
 
         if contour_files is not None:
@@ -495,20 +467,27 @@ class FastResponseAnalysis(object):
                     color='k', linestyle=cont_ls[contour_counter], coord='C', 
                     label=label)
                 contour_counter += 1
+        
+        if with_contour:
+            probs = hp.pixelfunc.ud_grade(self.skymap, 64)
+            probs = probs/np.sum(probs)
+            ### plot 90% containment contour of LIGO PDF
+            levels = [0.9]
+            theta, phi = plotting_utils.plot_contours(levels, probs)
+            hp.projplot(theta[0], phi[0], linewidth=2., c='k')
+            for i in range(1, len(theta)):
+                hp.projplot(theta[i], phi[i], linewidth=2., c='k', label=None)
 
         plt.scatter(0,0, marker='*', c = 'k', s = 130, label = label_str) 
-        #hp.projscatter(np.pi/2-dec, ra, marker='o', linewidth=2, edgecolor='k', linestyle=':', facecolor="None", s=5200*1, alpha=1.0)
-        #hp.projscatter(np.pi/2-dec, ra, marker='o', linewidth=2, edgecolor='g', linestyle=':', facecolor="None", s=5200*4.0, alpha=1.0)
 
-        #plt.text(1.2*np.pi / 180., 2.8*np.pi / 180., 'IceCube\nPreliminary', color = 'r', fontsize = 22)
         plt.legend(loc = 2, ncol=1, mode = 'expand', fontsize = 18.5, framealpha = 0.95)
-        #plt.legend(loc = 1, ncol=2, fontsize = 18.5, framealpha = 0.75)
         plotting_utils.plot_color_bar(range=[0,6], cmap=lscmap, col_label=r"IceCube Event Time",
                     offset=-50, labels = [r'-$\Delta T \Bigg/ 2$', r'+$\Delta T \Bigg/ 2$'])
         plt.savefig(self.analysispath + '/' + self.analysisid + 'unblinded_skymap_zoom.png',bbox_inches='tight')
         plt.savefig(self.analysispath + '/' + self.analysisid + 'unblinded_skymap_zoom.pdf',bbox_inches='tight', dpi=300)
+        plt.close()
 
-    def plot_skymap(self, contour_files=None):
+    def plot_skymap(self, with_contour=False, contour_files=None):
         r''' Make skymap with event localization and all
         neutrino events on the sky within the given time window
         '''
@@ -533,12 +512,8 @@ class FastResponseAnalysis(object):
             max_val = 1.
             cmap = mpl.colors.ListedColormap([(1.,1.,1.)] * 50)
         else:
-            if 'ice' in self.name.lower() and not 'casc' in self.name.lower():
-                skymap = np.log10(self.skymap)
-                max_val = max(skymap)
-            else:
-                skymap = self.skymap
-                max_val = max(skymap)
+            skymap = self.skymap
+            max_val = max(skymap)
         moll_cbar = True if self.skymap is not None else None
         hp.mollview(skymap, coord='C', cmap=cmap, cbar=moll_cbar)
         hp.graticule(verbose=False)
@@ -547,7 +522,7 @@ class FastResponseAnalysis(object):
         phi = events['ra']
 
         #plot 90% containment errors
-        sigma_90 = events['sigma']*2.145966
+        sigma_90 = events['sigma']*self._angScale
 
         # plot events on sky with error contours
         hp.projscatter(theta,phi,c=cols,marker='x',label='GFU Event',coord='C', zorder=5)
@@ -576,33 +551,47 @@ class FastResponseAnalysis(object):
                     color='k', linestyle=cont_ls[contour_counter], coord='C')
                 contour_counter += 1
 
+        if with_contour and self.skymap is not None:
+            probs = hp.pixelfunc.ud_grade(self.skymap, 64)
+            probs = probs/np.sum(probs)
+            ### plot 90% containment contour of PDF
+            levels = [0.9]
+            theta, phi = plotting_utils.plot_contours(levels, probs)
+            hp.projplot(theta[0], phi[0], linewidth=2., c='k', label='Skymap (90\% cont.)')
+            for i in range(1, len(theta)):
+                hp.projplot(theta[i], phi[i], linewidth=2., c='k')
+
         # plt.title('Fast Response Skymap')
         plt.title(self.name.replace('_', ' '))
         plt.legend(loc=1)
         plt.savefig(self.analysispath + '/' + self.analysisid + 'unblinded_skymap.png',bbox_inches='tight')
+        plt.close()
 
     def generate_report(self):
         r'''Generates report using class attributes
         and the ReportGenerator Class'''
-        report_kwargs = vars(self).copy()
-        print("\nGenerating PDF Report")
-        for key in ['name', 'trigger', 'start', 'stop', 'ts', 'ns', 'source_type', 'analysisid']:
-            report_kwargs.pop(key)
-        report = ReportGenerator(self.name, self.trigger, self.start, self.stop, 
-                                self.ts, self.ns, self.source_type, self.analysisid, **report_kwargs)
+        report = FastResponseReport(self)
         report.generate_report()
         report.make_pdf()
-        print("Report saved to output directory")
-        username = subprocess.check_output(['whoami']).decode("utf-8").strip('\n')
-        if os.path.isdir('/home/{}/public_html/FastResponse/'.format(username)):
-            print("Copying report to {}'s public html in FastResponse Directory".format(username))
-            shutil.copy2(self.analysispath + '/' + self.analysisid + "_report.pdf", 
-                '/home/{}/public_html/FastResponse/{}_report.pdf'.format(username, self.analysisid))
-        else:
-            print("Creating FastResponse Directory in {}'s public html and copying report")
-            os.mkdir('/home/{}/public_html/FastResponse/'.format(username))
-            shutil.copy2(self.analysispath + '/' + self.analysisid + "_report.pdf", 
-                '/home/{}/public_html/FastResponse/{}_report.pdf'.format(username, self.analysisid))
+        # report_kwargs = vars(self).copy()
+        # print("\nGenerating PDF Report")
+        # for key in ['name', 'trigger', 'start', 'stop', 'ts', 'ns', 'source_type', 'analysisid']:
+        #     report_kwargs.pop(key)
+        # report = ReportGenerator(self.name, self.trigger, self.start, self.stop, 
+        #                         self.ts, self.ns, self.source_type, self.analysisid, **report_kwargs)
+        # report.generate_report()
+        # report.make_pdf()
+        # print("Report saved to output directory")
+        # username = subprocess.check_output(['whoami']).decode("utf-8").strip('\n')
+        # if os.path.isdir('/home/{}/public_html/FastResponse/'.format(username)):
+        #     print("Copying report to {}'s public html in FastResponse Directory".format(username))
+        #     shutil.copy2(self.analysispath + '/' + self.analysisid + "_report.pdf", 
+        #         '/home/{}/public_html/FastResponse/{}_report.pdf'.format(username, self.analysisid))
+        # else:
+        #     print("Creating FastResponse Directory in {}'s public html and copying report")
+        #     os.mkdir('/home/{}/public_html/FastResponse/'.format(username))
+        #     shutil.copy2(self.analysispath + '/' + self.analysisid + "_report.pdf", 
+        #         '/home/{}/public_html/FastResponse/{}_report.pdf'.format(username, self.analysisid))
     
 
 class PriorFollowup(FastResponseAnalysis):
@@ -735,6 +724,7 @@ class PriorFollowup(FastResponseAnalysis):
                 coincident_events[-1]['delta_psi'] = np.nan
                 coincident_events[-1]['spatial_w'] = np.nan
                 coincident_events[-1]['energy_w'] = np.nan
+                coincident_events[-1]['in_contour'] = np.nan # TODO: add this
         self.coincident_events = coincident_events
         self.save_items['coincident_events'] = coincident_events
 
@@ -772,7 +762,7 @@ class PriorFollowup(FastResponseAnalysis):
                 gamma_fit = val['gamma'][max_prior]
             else:
                 gamma_fit = np.nan
-            if ts > 0:
+            if ts != 0.0:
                 self.skymap_fit_ra = val['ra'][max_prior]
                 self.skymap_fit_dec = val['dec'][max_prior]
             else:
@@ -953,8 +943,10 @@ class PointSourceFollowup(FastResponseAnalysis):
         return int_str
 
     def run_background_trials(self, ntrials=1000):
-        self.llh = self.initialize_llh(
-            skipped=self.skipped, scramble=True)
+        # if self._verbose:
+        #     print("Need to reinitialize LLH for background trials")
+        # self.llh = self.initialize_llh(
+        #     skipped=self.skipped, scramble=True)
         trials = self.llh.do_trials(
             int(ntrials),
             src_ra=self.ra,
