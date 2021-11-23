@@ -39,7 +39,7 @@ def run_gw_followup(name, time, skymap):
     results = f.save_results()
     print('making report')
     f.generate_report()
-
+    
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='GW Followup')
     parser.add_argument('--skymap', type=str, default=None,

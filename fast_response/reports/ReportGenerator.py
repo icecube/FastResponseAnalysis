@@ -198,14 +198,7 @@ class ReportGenerator(object):
 
                 self.write_table(f, "event", [], event_table)
             else:
-                # TODO: fix this
-                if isinstance(self.analysis.coincident_events, dict) and 'pvalue' in self.analysis.coincident_events[0].keys():
-                    with_p = True
-                    event_table+=[
-                        ('$t_{\\nu}$-$t_{trigger}$ (s)','RA','Dec',
-                        '\sigma (90\%)','E_{reco} (GeV)',
-                        'p-value','In 90\% Contour')]
-                elif isinstance(self.analysis.coincident_events, np.recarray) and 'pvalue' in self.analysis.coincident_events.dtype.names:
+                if 'pvalue' in self.analysis.coincident_events[0].keys():
                     with_p = True
                     event_table+=[
                         ('$t_{\\nu}$-$t_{trigger}$ (s)','RA','Dec',
@@ -230,33 +223,14 @@ class ReportGenerator(object):
                             )]
                     else:
                         event_table+=[
-                            ('{:.0f}'.format((event['time']-s['trigger_mjd'])*86400.),
+                            ('{:.0f}'.format((event['time']-source['trigger_mjd'])*86400.),
                             "{:3.2f}\degree".format(np.rad2deg(event['ra'])),
                             '{:3.2f}\degree'.format(np.rad2deg(event['dec'])),
                             "{:3.2f}\degree".format(np.rad2deg(event["sigma"]*self.analysis._angScale)),
                             "{:.2E}".format(10**event['logE']),
                             str(bool(event['in_contour']))
                             )]
-
             self.write_table(f,"event",[],event_table)
-                # for event in self.analysis.coincident_events:
-                #     event_table+=[
-                #         ("Run",'{}'.format(event['run'])),
-                #         ("Event",'{}'.format(event['event'])),
-                #         ("Time","{}".format(
-                #             event['time'])),
-                #         ("Right Ascension","{:3.2f}\degree"
-                #             .format(np.rad2deg(event['ra']))),
-                #         ("Declination","{:3.2f}\degree"
-                #             .format(np.rad2deg(event['dec']))),
-                #         ("Angular Uncertainty (90\%)","{:3.2f}\degree"
-                #             .format(np.rad2deg(event["sigma"]*2.145966))),
-                #         ("Reconstructed Energy (GeV)","{:2.2f}"
-                #             .format(10**event['logE'])),
-                #         None,
-                #     ]
-
-                # self.write_table(f, "event", [] , event_table)
         else:
             f.write(r"\newcommand{\event}{[None]}")
 
@@ -469,6 +443,7 @@ class ReportGenerator(object):
                      ("$p-value$","{:1.4f}".format(self.analysis.p))]
                 )
 
+    def make_pdf(self):
         # symlink main report tex file
         reportfname = self.analysisid + "_report.tex"
         reportpath = os.path.join(self.dirname, reportfname)
@@ -479,13 +454,12 @@ class ReportGenerator(object):
 
         os.symlink(reportsrc, reportpath)
 
-    def make_pdf(self):
         # get environment variables
         env = dict(os.environ)
         subprocess.call(
             ['pdflatex', '-interaction=batchmode',
-             '-output-directory=%s' % self.dirname, 
-             self.dirname+'/'+self.analysisid+"_report.tex"],
+             '-output-directory=%s' % self.dirname,
+             self.dirname + '/' + self.analysisid + "_report.tex"],
             #cwd=self.dirname,
             env = env,
         )
@@ -500,7 +474,7 @@ class FastResponseReport(ReportGenerator):
         super().generate_report()
 
 class GravitationalWaveReport(ReportGenerator):
-    _figure_list = []
+    _figure_list = [('decPDF', 'decPDF.png')]
 
     def get_report_source(self):
         base = os.path.dirname(fast_response.__file__)

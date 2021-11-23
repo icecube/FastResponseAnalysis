@@ -20,15 +20,8 @@ class GWFollowup(PriorFollowup):
     _allow_neg = True
     _containment = None
     _nside = 512
-
-    # def format_skymap(self, skymap):
-    #     if 'hdf' not in skymap:
-    #     skymap = hp.pixelfunc.ud_grade(
-    #         skymap, self._nside, power=-2,
-    #         order_in='NESTED',order_out='RING'
-    #     )
-    #     skymap /= skymap.sum()
-    #     return skymap
+    _season_names = ['IC86, 2017', 'IC86, 2018', 'IC86, 2019']
+    _nb_days = 5.
     
     def run_background_trials(self, month=None, ntrials=1000):
         if month is None:
@@ -104,7 +97,7 @@ class GWFollowup(PriorFollowup):
         exp_pix   = hp.ang2pix(self.nside, exp_theta, exp_phi)
         overlap   = np.isin(exp_pix, self.ipix_90)
 
-        t_mask=(exp['time']<=self.stop)&(exp['time']>=self.start)
+        t_mask = (exp['time'] <= self.stop) & (exp['time'] >= self.start)
         events = exp[t_mask]
 
         # add field to see if neutrino is within 90% GW contour
@@ -119,7 +112,7 @@ class GWFollowup(PriorFollowup):
             events['B'][i] = self.llh.llh_model.background(events[i])
 
         if val['TS'].size==0:
-            return (0,0,2.0,None)
+            return (0, 0, 2.0, None)
         else:
             ts=val['TS_spatial_prior_0'].max()
             maxLoc = np.argmax(val['TS_spatial_prior_0'])
@@ -165,7 +158,8 @@ class GWFollowup(PriorFollowup):
             events['ns'][i] = self.ts_scan['nsignal'][idx[0]]
             events['gamma'][i] = self.ts_scan['gamma'][idx[0]]
 
-        self.coincident_events = events
+        self.events_rec_array = events
+        self.coincident_events = [dict(zip(events.dtype.names, x)) for x  in events]
         self.save_items['coincident_events'] = self.coincident_events
 
     def upper_limit(self):
@@ -203,21 +197,23 @@ class GWFollowup(PriorFollowup):
         return low,high
 
     def per_event_pvalue(self):
-        self.coincident_events = append_fields(
-            self.coincident_events,
+        self.events_rec_array = append_fields(
+            self.events_rec_array,
             names=['pvalue'],
-            data=np.empty((1, self.coincident_events['ra'].size)),
+            data=np.empty((1, self.events_rec_array['ra'].size)),
             usemask=False
         )
 
         if self.p < 0.05:
-            for i in range(self.coincident_events.size):
-                ts, p = self.per_event_scan(self.coincident_events[i])
-                self.coincident_events['pvalue'][i] = p
+            for i in range(self.events_rec_array.size):
+                ts, p = self.per_event_scan(self.events_rec_array[i])
+                self.events_rec_array['pvalue'][i] = p
         else:
-            for i in range(self.coincident_events.size):
-                p = np.count_nonzero(self.tsd >= self.coincident_events['ts'][i]) / float(len(self.tsd))
-                self.coincident_events['pvalue'][i] = p
+            for i in range(self.events_rec_array.size):
+                p = np.count_nonzero(self.tsd >= self.events_rec_array['ts'][i]) / float(len(self.tsd))
+                self.events_rec_array['pvalue'][i] = p
+        
+        self.coincident_events = [dict(zip(self.events_rec_array.dtype.names, x)) for x  in self.events_rec_array]
         self.save_items['coincident_events'] = self.coincident_events
 
     def per_event_scan(self, custom_events):
@@ -286,7 +282,7 @@ class GWFollowup(PriorFollowup):
         plt.legend(h1+h2,l1+l2,loc=1)
         if self.save_output:
             plt.savefig(
-                self.analysispath + f'/{self.analysisid}_decPDF.png',
+                self.analysispath + f'/decPDF.png',
                 bbox_inches='tight', dpi=200
             )
         plt.close()
