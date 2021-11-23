@@ -52,6 +52,8 @@ class FastResponseAnalysis(object):
     _verbose = True
     _angScale = 2.145966
     _llh_seed = 1
+    _season_names = [f"IC86, 201{y}" for y in range(1, 10)]
+    _nb_days = 10
 
     def __init__(self, name, tstart, tstop, skipped=None, seed=None,
                  outdir=None, save=True, extension=None):
@@ -144,9 +146,8 @@ class FastResponseAnalysis(object):
         if self.stop < 59215:
             if self._verbose:
                 print("Old times, just grabbing archival data")
-            season_names = [f"IC86, 201{y}" for y in range(1, 10)]
             exps, grls = [], []
-            for season in season_names:
+            for season in self._season_names:
                 exp, mc, livetime = dset.season(season, floor=self._floor)
                 grl = dset.grl(season)
                 exps.append(exp)
@@ -172,11 +173,10 @@ class FastResponseAnalysis(object):
         else:
             if self._verbose:
                 print("Recent time: querying the i3live database")
-            season_names = [f"IC86, 201{y}" for y in range(1, 10)]
             exp, mc, livetime, grl = dset.livestream(
                 self.start - 6., self.stop,
-                append=season_names, 
-                floor=self._floor)  
+                append=self._season_names, 
+                floor=self._floor)
         exp.sort(order='time')
         grl.sort(order='run')
         livetime = grl['livetime'].sum()
@@ -217,7 +217,7 @@ class FastResponseAnalysis(object):
         box = TemporalModel(
             grl=self.grl,
             poisson_llh=True,
-            days=10,
+            days=self._nb_days,
             signal=BoxProfile(self.start, self.stop))
         
         if skipped is not None:
@@ -329,7 +329,12 @@ class FastResponseAnalysis(object):
         '''
         if self.tsd is not None:
             fig, ax = plt.subplots()
-            plt.hist(self.tsd, bins= np.linspace(0., 25, 30), 
+            if np.min(self.tsd < 0.0):
+                lower = np.min([np.min(self.tsd), -500.])
+                bins = np.linspace(lower, 25., 101)
+            else:
+                bins = np.linspace(0., 25., 30)
+            plt.hist(self.tsd, bins= bins, 
                     label="Background Scrambles", density=True)
             plt.axvline(self.ts, color = 'k', label = "Observed TS")
             plt.legend(loc=1)
@@ -409,8 +414,6 @@ class FastResponseAnalysis(object):
         events = events[(events['time'] < self.stop) & (events['time'] > self.start)]
 
         col_num = 5000
-        #seq_palette = sns.diverging_palette(255, 133, l=60, n=col_num, center="dark")
-        #seq_palette = sns.color_palette("coolwarm", col_num)
         seq_palette = sns.color_palette("icefire", col_num)
         lscmap = mpl.colors.ListedColormap(seq_palette)
 
@@ -471,7 +474,7 @@ class FastResponseAnalysis(object):
         if with_contour:
             probs = hp.pixelfunc.ud_grade(self.skymap, 64)
             probs = probs/np.sum(probs)
-            ### plot 90% containment contour of LIGO PDF
+            ### plot 90% containment contour of PDF
             levels = [0.9]
             theta, phi = plotting_utils.plot_contours(levels, probs)
             hp.projplot(theta[0], phi[0], linewidth=2., c='k')
@@ -496,7 +499,7 @@ class FastResponseAnalysis(object):
         events = events[(events['time'] < self.stop) & (events['time'] > self.start)]
 
         col_num = 5000
-        seq_palette = sns.diverging_palette(255, 133, l=60, n=col_num, center="dark")
+        seq_palette = sns.color_palette("icefire", col_num)
         lscmap = mpl.colors.ListedColormap(seq_palette)
 
         rel_t = np.array((events['time'] - self.start) * col_num / (self.stop - self.start), dtype = int)
@@ -724,7 +727,7 @@ class PriorFollowup(FastResponseAnalysis):
                 coincident_events[-1]['delta_psi'] = np.nan
                 coincident_events[-1]['spatial_w'] = np.nan
                 coincident_events[-1]['energy_w'] = np.nan
-                coincident_events[-1]['in_contour'] = np.nan # TODO: add this
+                coincident_events[-1]['in_contour'] = True
         self.coincident_events = coincident_events
         self.save_items['coincident_events'] = coincident_events
 

@@ -104,7 +104,6 @@ def load_plotting_settings():
     mpl.rcParams['xtick.major.size'] = 5
     mpl.rcParams['ytick.major.size'] = 5
 
-
 def contour(ra, dec, sigma, nside):
     r''' Function for plotting contours on skymaps
 
