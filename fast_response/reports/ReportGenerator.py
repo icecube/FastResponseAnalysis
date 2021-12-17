@@ -177,7 +177,7 @@ class ReportGenerator(object):
 
     def make_coinc_events_table(self, f):
         event_table = []
-        if self.analysis.coincident_events is not None:
+        if self.analysis.coincident_events is not None and self.analysis.coincident_events != []:
             if self.analysis.skymap is None:
                 for event in self.analysis.coincident_events:
                     event_table+=[
@@ -223,7 +223,7 @@ class ReportGenerator(object):
                             )]
                     else:
                         event_table+=[
-                            ('{:.0f}'.format((event['time']-source['trigger_mjd'])*86400.),
+                            ('{:.0f}'.format((event['time']-self.source['trigger_mjd'])*86400.),
                             "{:3.2f}\degree".format(np.rad2deg(event['ra'])),
                             '{:3.2f}\degree'.format(np.rad2deg(event['dec'])),
                             "{:3.2f}\degree".format(np.rad2deg(event["sigma"]*self.analysis._angScale)),
