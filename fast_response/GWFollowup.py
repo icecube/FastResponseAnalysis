@@ -56,7 +56,84 @@ class GWFollowup(PriorFollowup):
         return super().plot_ontime(with_contour=True, contour_files=contour_files)
 
     def write_circular(self):
-        pass
+        base = os.path.dirname(fast_response.__file__)
+        if pvalue > 0.01:
+            template_path = os.path.join(base, 'circular_templates/gw_gcn_template_low.txt')
+        else:
+            template_path = os.path.join(base, 'circular_templates/gw_gcn_template_high.txt')
+        events = self.coincident_events
+        pvalue = self.p
+        namelist = self.name.split('-')
+        gw_name = namelist[0]
+        noticeID = namelist[1]+'-'+namelist[2]
+        if pvalue>0.01:
+            with open(self.analysis_path + '/gcn_template_low.txt','r') as gcn_template:
+
+                gcn = gcn_template.read()
+                low_sens, high_sens = self.sens_range
+                # for key, val in [('<lowSens>', f'{low_sens:1.3f}'),
+                #                  ()]
+                gcn = gcn.replace('<lowSens>','{:1.3f}'.format(low_sens))
+                gcn = gcn.replace('<highSens>','{:1.3f}'.format(high_sens))
+                gcn = gcn.replace('<name>',gw_name)
+                gcn = gcn.replace('<tstart>',start)
+                gcn = gcn.replace('<tstop>',stop)
+                gcn = gcn.replace('<noticeID>',noticeID)
+
+            gcn_file = open(self.dirname+'/gcn_%s.txt' % name,'w')
+            gcn_file.write(gcn)
+            gcn_file.close()
+
+        else:
+            significance = '{:1.2f}'.format(self.pval2sig(pvalue))
+
+            info = ' <dt>   <ra>       <dec>          <angErr>                    <p_gwava>                 <p_llama>\n'
+            table = ''
+            for event in events:
+                if event['pvalue']<=0.1:
+                    ev_info = info
+                    ra = '{:.2f}'.format(np.rad2deg(event['ra']))
+                    dec = '{:.2f}'.format(np.rad2deg(event['dec']))
+                    sigma = '{:.2f}'.format(np.rad2deg(event['sigma']*2.145966))
+                    dt = '{:.2f}'.format((event['time']-self.trigger)*86400.)
+                    ev_info = ev_info.replace('<dt>',dt)
+                    ev_info = ev_info.replace('<ra>',ra)
+                    ev_info = ev_info.replace('<dec>',dec)
+                    ev_info = ev_info.replace('<angErr>',sigma)
+                    if event['pvalue']<0.0013499:
+                        pval_str = '<0.00135'
+                        ev_info = ev_info.replace('<p_gwava>',pval_str)
+                    else:
+                        pval_str = '{:1.3f}'.format(event['pvalue'])
+                        ev_info = ev_info.replace('<p_gwava>',pval_str)
+                    # ev_info = ev_info.replace('<p_gwava>','{:.3f}'.format(pvalue))
+                    table+=ev_info
+
+
+            num = events['pvalue'][events['pvalue']<=0.1].size
+            gcn_file = open(self.dirname+'/gcn_%s.txt' % name,'w')
+            with open(self.analysis_path + '/gcn_template_high.txt','r') as gcn_template:
+
+                for line in gcn_template.readlines():
+                    line = line.replace('<N>',str(num))
+                    line = line.replace('<name>',gw_name)
+                    line = line.replace('<noticeID>',noticeID)
+                    line = line.replace('<tstart>',start)
+                    line = line.replace('<tstop>',stop)
+                    if pvalue<0.0013499:
+                        pval_str = '<0.00135'
+                        line = line.replace('<p_gwava>',pval_str)
+                        line = line.replace('<sig_gwava>','>3')
+                    else:
+                        pval_str = '{:1.3f}'.format(pvalue)
+                        line = line.replace('<p_gwava>',pval_str)
+                        line = line.replace('<sig_gwava>',significance)
+
+                    if '<dt>' in line:
+                        line = table
+
+                    gcn_file.write(line)
+                gcn_file.close()
 
     def inject_scan(self, ra, dec, ns, poisson=True):
         r''' Run All sky scan using event localization as 
