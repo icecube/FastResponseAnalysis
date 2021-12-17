@@ -626,7 +626,7 @@ class PriorFollowup(FastResponseAnalysis):
         skymap = self.format_skymap(skymap)
         self.skymap = skymap
         self.nside = hp.pixelfunc.get_nside(self.skymap)
-        self.ipix_90 = self.ipixs_in_percentage(self.skymap, 0.9)
+        self.ipix_90 = self.ipixs_in_percentage(0.9)
         self.ra, self.dec, self.extension = None, None, extension
         self.save_items['skymap'] = skymap
 
@@ -811,7 +811,7 @@ class PriorFollowup(FastResponseAnalysis):
         print("Upper limit with spatial prior not yet implemented")
         pass
 
-    def ipixs_in_percentage(self, skymap, percentage):
+    def ipixs_in_percentage(self, percentage):
         """Finding ipix indices confined in a given percentage.
         
         Input parameters
@@ -826,6 +826,7 @@ class PriorFollowup(FastResponseAnalysis):
             indices of pixels within percentage containment
         """
         # TODO: Find a more efficient way to do this
+        skymap = self.skymap
         sort = sorted(skymap, reverse = True)
         cumsum = np.cumsum(sort)
         index, value = min(enumerate(cumsum),key=lambda x:abs(x[1]-percentage))
@@ -877,6 +878,7 @@ class PriorFollowup(FastResponseAnalysis):
         dec_mask_4 = self.llh.mc['dec'] < max_dec + (5. * np.pi / 180.)
         dec_mask = dec_mask_1 * dec_mask_2
 
+        # Start with the lower declination
         fig, ax = plt.subplots(figsize = (8,5))
         fig.set_facecolor('white')
         lab = 'Min dec.'
@@ -889,27 +891,31 @@ class PriorFollowup(FastResponseAnalysis):
         plt.grid(which = 'major', alpha = 0.25)
         plt.xlabel('Energy (GeV)', fontsize = 24)
         cdf = np.cumsum(a[0]) / np.sum(a[0])
-        low_5 = np.interp(0.05, cdf, a[1][:-1])
-        median = np.interp(0.5, cdf, a[1][:-1])
-        high_5 = np.interp(0.95, cdf, a[1][:-1])
-        self.low5 = low_5
-        self.high5 = high_5
-        plt.axvspan(low_5, high_5, color = sns.xkcd_rgb['windows blue'], alpha = 0.25, label="Central 90\%")
+        low_5_min_dec = np.interp(0.05, cdf, a[1][:-1])
+        median_min_dec = np.interp(0.5, cdf, a[1][:-1])
+        high_5_min_dec = np.interp(0.95, cdf, a[1][:-1])
+        plt.axvspan(low_5_min_dec, high_5_min_dec, color = sns.xkcd_rgb['windows blue'], alpha = 0.25, label="Central 90\%")
         lab = 'Median (min dec.)'
-        plt.axvline(median, c = sns.xkcd_rgb['windows blue'], alpha = 0.75, label = lab)
+        plt.axvline(median_min_dec, c = sns.xkcd_rgb['windows blue'], alpha = 0.75, label = lab)
+
+        # Now do the same for the higher declinations
         dec_mask = dec_mask_3 * dec_mask_4
         a = plt.hist(self.llh.mc['trueE'][dec_mask], bins = np.logspace(1., 8., 50), 
             weights = self.llh.mc['ow'][dec_mask] * np.power(self.llh.mc['trueE'][dec_mask], delta_gamma) / self.llh.mc['trueE'][dec_mask], 
             histtype = 'step', linewidth = 2., color = sns.xkcd_rgb['dark navy blue'], label = 'Max dec.')
         cdf = np.cumsum(a[0]) / np.sum(a[0])
-        low_5 = np.interp(0.05, cdf, a[1][:-1])
-        median = np.interp(0.5, cdf, a[1][:-1])
-        high_5 = np.interp(0.95, cdf, a[1][:-1])
-        plt.axvspan(low_5, high_5, color = sns.xkcd_rgb['dark navy blue'], alpha = 0.25)
-        plt.axvline(median, c = sns.xkcd_rgb['dark navy blue'], alpha = 0.75, label = "Median (max dec.)", ls = '--')
+        low_5_max_dec = np.interp(0.05, cdf, a[1][:-1])
+        median_max_dec = np.interp(0.5, cdf, a[1][:-1])
+        high_5_max_dec = np.interp(0.95, cdf, a[1][:-1])
+        plt.axvspan(low_5_max_dec, high_5_max_dec, color = sns.xkcd_rgb['dark navy blue'], alpha = 0.25)
+        plt.axvline(median_max_dec, c = sns.xkcd_rgb['dark navy blue'], alpha = 0.75, label = "Median (max dec.)", ls = '--')
         plt.xlim(1e1, 1e8)
         plt.legend(loc=4, fontsize=18)
         plt.savefig(self.analysispath + '/central_90_dNdE.png',bbox_inches='tight')
+
+        self.energy_range = (np.min([low_5_min_dec, low_5_max_dec]),
+                             np.max([high_5_min_dec, high_5_max_dec]))
+        self.save_items['energy_range'] = self.energy_range
 
     def ns_scan(self):
         print("ns scan not an option for skymap based analyses")
@@ -1003,6 +1009,7 @@ class PointSourceFollowup(FastResponseAnalysis):
             self.llh._events, **self.ns_params)
         temporal_weights = self.llh.temporal_model.signal(self.llh._events)
         msk = spatial_weights * energy_ratio * temporal_weights > 10
+        self.coincident_events = []
         if len(spatial_weights[msk]) > 0:
             self.coincident_events = []
             for ev, s_w, en_w in zip(self.llh._events[msk], 
