@@ -62,8 +62,9 @@ for delta_t in [1000., 2.*86400.]:
     f.make_dNdE()
     f.plot_tsd()
     f.upper_limit()
+    f.find_coincident_events()
     results = f.save_results()
-    # f.generate_report()
+    f.generate_report()
     # if args.document:
     #     subprocess.call(['cp','-r',results['analysispath'],
     #     '/home/apizzuto/public_html/FastResponse/webpage/output/{}'.format(results['analysisid'])])
@@ -71,5 +72,7 @@ for delta_t in [1000., 2.*86400.]:
     all_results[delta_t] = results
 
 all_results[1000.]['gcn_num'] = args.gcn_notice_num
-web_utils.write_alert_gcn(all_results)
+
+# Write circular to the output directory of the 2 day analysis
+f.write_circular(all_results)
 
