@@ -1,13 +1,16 @@
 import numpy as np
 import healpy as hp
 from scipy import sparse
-import pickle
+import pickle, os
 import matplotlib as mpl
 mpl.use('agg')
 import matplotlib.pyplot as plt
 import seaborn as sns
+from astropy.time import Time
 
+import fast_response
 from .FastResponseAnalysis import PriorFollowup
+from .reports import AlertReport
 from . import sensitivity_utils
 
 class AlertFollowup(PriorFollowup):
@@ -92,6 +95,108 @@ class AlertFollowup(PriorFollowup):
         if self.save_output:
             plt.savefig(self.analysispath + '/upper_limit_distribution.png', bbox_inches='tight', dpi=200)
 
+    def generate_report(self):
+        r'''Generates report using class attributes
+        and the ReportGenerator Class'''
+        report = AlertReport(self)
+        report.generate_report()
+        report.make_pdf()
+
+    def write_circular(self, alert_results):
+        base = os.path.dirname(fast_response.__file__)
+        template_path = os.path.join(base, 'circular_templates/internal_followup.txt')
+
+        new_f = []
+        high_sig = False
+        for window in alert_results.keys():
+            if alert_results[window]['p'] < 0.01:
+                high_sig = True
+        
+        analysis_1000 = alert_results[1000.]
+        analysis_2day = alert_results[172800.]
+        alert_id = analysis_1000['name'][:15]
+        if 'coincident_events' not in analysis_1000.keys():
+            analysis_1000['coincident_events'] = []
+        ev_is_are = 'event is' if len(analysis_1000['coincident_events']) == 1 else 'events are'
+        if not high_sig:
+            if len(analysis_1000['coincident_events']) == 0:
+                coinc_and_p = ''
+            elif len(analysis_1000['coincident_events']) == 1:
+                coinc_and_p = 'We find that this additional event is well described by atmospheric\n' \
+                    + 'background expectations, with a p-value of {:.2f}. '.format(analysis_1000['p'])
+            else:
+                coinc_and_p = 'We find that these additional {} events are well described by atmospheric\n' \
+                    + 'background expectations, with a p-value of {:.2f}. '.format(len(analysis_1000['coincident_events']), analysis_1000['p'])
+            long_p_and_lim = 'In this case, we report a p-value of {:.2f},'.format(analysis_2day['p']) \
+                    + ' consistent with no significant \nexcess of track events.' 
+        else:
+            coinc_and_p = 'We accordingly derive a p-value of {:.3f}.'.format(analysis_1000['p'])
+            if analysis_1000['p'] < 0.01:
+                coinc_and_p = coinc_and_p + ' Due to the coincidences identified in this search, ' \
+                    + 'we strongly encourage followup observations.'
+            else:
+                pass
+            if analysis_2day['p'] < 0.01:
+                long_p_and_lim = 'In this case, we report a p-value of {:.3f}.'.format(analysis_2day['p']) \
+                    + ' Due to the coincidences identified in this search, we strongly encourage followup observations.'
+            else:
+                long_p_and_lim = 'In this case, we report a p-value of {:.2f},'.format(analysis_2day['p']) \
+                    + ' consistent with no significant \nexcess of track events. '
+        
+        if len(analysis_1000['coincident_events']) == 0:
+            nevents = 'zero'
+        elif len(analysis_1000['coincident_events']) == 1:
+            nevents = 'one'
+        elif len(analysis_1000['coincident_events']) == 2:
+            nevents = 'two'
+        else:
+            nevents = str(len(analysis_1000['coincident_events']))
+
+        if '{:.1e}'.format(analysis_1000['sens_range'][0]) == '{:.1e}'.format(analysis_1000['sens_range'][1]):
+            short_sens_range = f'is {analysis_1000["sens_range"][0]:.1e}'
+        else:
+            short_sens_range = f'ranges from {analysis_1000["sens_range"][0]:.1e} to {analysis_1000["sens_range"][1]:.1e}'
+        if '{:.1e}'.format(analysis_2day['sens_range'][0]) == '{:.1e}'.format(analysis_2day['sens_range'][1]):
+            long_sens_range = f'is {analysis_2day["sens_range"][0]:.1e}'
+        else:
+            long_sens_range = f'ranges from {analysis_2day["sens_range"][0]:.1e} to {analysis_2day["sens_range"][1]:.1e}'
+
+        keypairs = [('alert_name', alert_id), ('gcn_number', analysis_1000['gcn_num']), 
+                    ('start_utc', Time(analysis_1000['start'], format='mjd').iso), 
+                    ('stop_utc', Time(analysis_1000['stop'], format='mjd').iso), 
+                    ('long_start_utc', Time(analysis_2day['start'], format='mjd').iso), 
+                    ('long_stop_utc', Time(analysis_2day['stop'], format='mjd').iso),
+                    ('n_events', nevents), 
+                    ('events_is_are', ev_is_are),
+                    ('coincident_events_and_p_str', coinc_and_p),
+                    ('long_p_and_lim', long_p_and_lim),
+                    ('short_sens_range', short_sens_range),
+                    ('long_sens_range', long_sens_range),
+                    ('low_en', analysis_1000['energy_range'][0]), 
+                    ('high_en', analysis_1000['energy_range'][1])]
+
+        with open(template_path, 'r') as f:
+            for line in f.readlines():
+                for k, r in keypairs:
+                    if k in line:
+                        if type(r) == str:
+                            form_r = r
+                        elif type(r) == int:
+                            form_r = '{}'.format(r)
+                        elif k in ['low_en', 'high_en']:
+                            form_r = '{:.0e}'.format(r)
+                        elif 'sens' in k:
+                            form_r = '{:.1e}'.format(r)
+                        else:
+                            form_r = '{}'.format(r)
+                        line = line.replace('<'+k+'>', form_r)
+                new_f.append(line)
+        
+        with open(self.analysispath + f'/{alert_id}_circular.txt', 'w') as f:
+            for line in new_f:
+                f.write(line)
+        
+
 class TrackFollowup(AlertFollowup):
     _smear = True
     _dataset = "GFUOnline_v001p02"
@@ -104,10 +209,29 @@ class TrackFollowup(AlertFollowup):
         skymap = super().format_skymap(skymap)
         return skymap
 
+    def ipixs_in_percentage(self, percentage):
+        """Finding ipix indices confined in a given percentage.
+        """
+        skymap = self.skymap_llh
+        if hp.pixelfunc.get_nside(skymap) != self._nside:
+            skymap = hp.pixelfunc.ud_grade(skymap, self._nside, pess=True)
+        indices = np.r_[:len(skymap)]
+        if percentage == 0.9:
+            msk = (skymap < 64.2) * (skymap > 0.)
+        elif percentage == 0.5:
+            msk = (skymap < 22.2) * (skymap > 0.)
+        else:
+            raise ValueError('Must use 50\% or 90\% containment for alert events')
+        msk *= ~np.isnan(skymap)
+        msk *= ~np.isinf(skymap)
+        ipix = np.asarray(indices[msk], dtype=int)
+        return ipix
+
     def convert_llh_to_prob(self, skymap_fits):
         skymap_llh = skymap_fits.copy()
+        self.skymap_llh = skymap_llh
         skymap_fits = np.exp(-1. * skymap_fits / 2.) #Convert from 2LLH to unnormalized probability
-        skymap_fits = np.where(skymap_fits > 1e-20, skymap_fits, 0.0)
+        skymap_fits = np.where(skymap_fits > 1e-12, skymap_fits, 0.0)
         skymap_fits = skymap_fits / np.sum(skymap_fits)
         skymap_fits = skymap_fits/skymap_fits.sum()
         if self._smear:
