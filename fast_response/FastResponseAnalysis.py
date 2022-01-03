@@ -613,7 +613,7 @@ class PriorFollowup(FastResponseAnalysis):
         try:
             skymap, skymap_header = hp.read_map(skymap_path, h=True, verbose=False)
             self.skymap_header = skymap_header
-        except OSError:
+        except (TypeError, OSError):
             hdf_data = h5py.File(skymap_path, 'r')
             probs = hdf_data['PROBDENSITY'][()]
             area = 4*np.pi/probs.size
