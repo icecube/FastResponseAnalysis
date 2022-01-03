@@ -38,7 +38,3 @@ class GRBFollowup(PriorFollowup):
         # print '    \end{tabular}'
         # print '\end{table}'
         pass
-
-    # index fixed to 2
-    # Dataset: with zenith_smoothing
-    # Different precomputed trials
