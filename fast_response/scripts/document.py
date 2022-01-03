@@ -18,6 +18,6 @@ args = parser.parse_args()
 with open(glob(args.path + '*_results.pickle')[0], 'rb') as f:
     results = pickle.load(f)
 
-subprocess.call(['cp','-r',results['analysispath'],
+subprocess.call(['cp','-r', results['analysispath'],
         '/home/apizzuto/public_html/FastResponse/webpage/output/{}'.format(results['analysisid'])])
 utils.updateFastResponseWeb(results)
