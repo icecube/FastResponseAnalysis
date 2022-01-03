@@ -1,0 +1,113 @@
+\documentclass[titlepage]{article}
+\usepackage{tikz}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{grffile}
+\usepackage{longtable}
+\usepackage[margin=1.0in]{geometry}
+
+\setlength{\parindent}{0cm} 
+\include{r}
+
+\newcommand{\degree}{$^{\circ}$}
+\begin{document}
+
+\begin{titlepage}
+  \centering
+  \vspace{4cm}
+  {\huge\bfseries IceCube Fast-Response \\ Analysis Report\par}
+  \vspace{1cm}
+  {\LARGE For Internal Use Only\par}
+  \vfill
+  {\Large Source Name: \\ \itshape\sourcename\par}
+  \vspace{0.5cm}
+  {\Large Observation Date(s):\\ \obsdate \par}
+  \vfill
+  \vspace{1cm} 
+  {\Large Report Generated On:\\ \reportdate \par}
+\end{titlepage}
+
+\section{Inputs}
+\subsection{Source Information}
+\sourcetable
+\subsection{On-Time Data}
+\ontimetable
+\subsection{Skylab Analysis Information}
+\skylabtable 
+% Information about skylab stable release, path to skylab, etc.
+
+\pagebreak
+\section{Detector Operations}
+
+\subsection{Run Times}
+\runtimetable
+
+Total Livetime = \livetime\,s
+
+\subsection{Run Status}
+\runstatustable
+
+\pagebreak
+\subsection{Event Rates}
+Plots for key trigger and filter rates for the data period
+and the neighboring runs.  Blue indicates selected time window.
+Badness $>10$s may indicate a problem.
+
+\vspace{1em}
+{
+ \centering        
+ \includegraphics[width=0.7\textwidth]{\multiplicity}\\
+ \includegraphics[width=0.7\textwidth]{\badnessplot}\\
+ \includegraphics[width=0.7\textwidth]{\muonfilter}\\
+ \includegraphics[width=0.7\textwidth]{\Lfilter}\\
+ \includegraphics[width=0.7\textwidth]{\gfurate}
+}
+
+\pagebreak
+\section{Results}
+
+{
+  \centering
+  {\Large All Sky On-time Events}
+
+  \includegraphics[width=0.9\textwidth]{\skymap}
+
+  \includegraphics[width=0.9\textwidth]{\skymapzoom}
+  
+}
+\pagebreak
+
+
+\subsection{Coincident Events}
+For point sources, any events from the relevant time window with a spatial times energy weight greater than 10 is included in this table. For skymaps, any event reconstructed within the 90\% contour is included (for longer timescale cascades we tend to skip this because of the large localization). 
+\event
+
+\subsection{Likelihood Analysis}
+\results
+
+\pagebreak
+{
+  \centering
+
+  {\large Expected distribution of true neutrino energies, under the signal hypothesis }
+
+  \includegraphics[width=0.9\textwidth]{\limitdNdE}
+  \\
+  \\
+
+  \tsd
+
+  \\
+  \\
+  \upperlim
+
+  \\
+  \\
+  \nsscan
+
+  This plot is meant as a validation of the minimizer, and cannot be interpreted directly using Wilk's assuming one degree of freedom because the low statistics invalidates the asymptotic condition for Wilk's theorem.  
+}
+
+\vfill
+
+\end{document}

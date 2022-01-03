@@ -6,15 +6,11 @@ high-energy neutrino alert events
 Author: Alex Pizzuto
 May 2020'''
 
-import numpy as np
-import os, sys, argparse
+import os, argparse
 from astropy.time import Time
-from astropy.time import TimeDelta
-import pandas as pd
-import subprocess, pickle
 
-from fast_response.FastResponseAnalysis import FastResponseAnalysis
-from fast_response import utils
+from fast_response.AlertFollowup import TrackFollowup
+import fast_response.web_utils as web_utils
 
 parser = argparse.ArgumentParser(description='Fast Response Analysis')
 parser.add_argument('--skymap', type=str, default=None,
@@ -43,13 +39,8 @@ for delta_t in [1000., 2.*86400.]:
     stop = stop_time.iso
 
     name = track_name + ' {:.1e}_s'.format(delta_t)
-
-    source = {}
-    source['Name'] = name.replace('_', ' ')
-    source['alert_event'] = True
-    source['smear'] = True
-    source['alert_type'] = 'track'
-    source['Skipped Events'] = args.alert_id
+    name = name.replace('_', ' ')
+    name = name + 'new code framework'
 
     run_id = args.alert_id[0][0]
     ev_id = args.alert_id[0][1]
@@ -63,21 +54,25 @@ for delta_t in [1000., 2.*86400.]:
     if len(contour_fs) == 0:
         contour_fs = None
 
-    f = FastResponseAnalysis(args.skymap, start, stop, **source)
+    f = TrackFollowup(name, args.skymap, start, stop, skipped=args.alert_id)
+
     f.unblind_TS()
     f.plot_ontime(contour_files=contour_fs)
     f.calc_pvalue()
     f.make_dNdE()
     f.plot_tsd()
     f.upper_limit()
+    f.find_coincident_events()
     results = f.save_results()
     f.generate_report()
-    if args.document:
-        subprocess.call(['cp','-r',results['analysispath'],
-        '/home/apizzuto/public_html/FastResponse/webpage/output/{}'.format(results['analysisid'])])
-        utils.updateFastResponseWeb(results)
+    # if args.document:
+    #     subprocess.call(['cp','-r',results['analysispath'],
+    #     '/home/apizzuto/public_html/FastResponse/webpage/output/{}'.format(results['analysisid'])])
+    #     utils.updateFastResponseWeb(results)
     all_results[delta_t] = results
 
 all_results[1000.]['gcn_num'] = args.gcn_notice_num
-utils.write_alert_gcn(all_results)
+
+# Write circular to the output directory of the 2 day analysis
+f.write_circular(all_results)
 
