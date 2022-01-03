@@ -2,7 +2,7 @@ import argparse, subprocess
 from astropy.time import Time
 import pyfiglet
 
-from fast_response import GWFollowup
+from fast_response.GWFollowup import GWFollowup
 
 def run_gw_followup(name, time, skymap):
     subprocess.call(['clear'])
@@ -22,23 +22,19 @@ def run_gw_followup(name, time, skymap):
     name = name.replace('_', ' ')
     name = name + 'new code framework'
 
-    print('here')
     f = GWFollowup(name, skymap, start, stop)
-    print('analysis initialized')
     f.unblind_TS()
-    print('calculated TS')
     f.plot_ontime()
-    print('plotted ontime')
     f.calc_pvalue()
-    print('got pvalue')
     f.make_dNdE()
     f.plot_tsd()
     f.upper_limit()
     f.find_coincident_events()
     f.per_event_pvalue()
     results = f.save_results()
-    print('making report')
     f.generate_report()
+
+    f.write_circular()
     
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='GW Followup')
