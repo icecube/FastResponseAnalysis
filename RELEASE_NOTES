@@ -1,8 +1,0 @@
-## Fast Response Analysis `v02-00`
-Alex Pizzuto
-July 2020
-
-Changes:
-* Switched all code to python3
-* utils added to automatically sync to roc server
-* precomputed background arrays for alert event analyses
