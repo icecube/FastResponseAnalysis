@@ -138,6 +138,9 @@ class FastResponseAnalysis(object):
         self._llh_seed = x
 
     def get_data(self):
+        '''
+        Gets the skylab data and MC from querying the i3live livestream
+        '''
         if self._verbose:
             print("Grabbing data")
 
@@ -193,6 +196,9 @@ class FastResponseAnalysis(object):
         self.energy_bins = energy_bins
         
     def initialize_llh(self, skipped=None, scramble=False):
+        '''
+        Grab data and format it all into a skylab llh object
+        '''
         if self.exp is None:
             self.get_data()
 
@@ -246,6 +252,9 @@ class FastResponseAnalysis(object):
         return llh
     
     def remove_event(self, exp, dset, skipped):
+        '''
+        Remove a given event from the analysis, eg. for an alert event
+        '''
         try:
             event = skipped[0]
             mjd_keys = exp['time'][(exp['run'] == int(event[0])) & (exp['event'] == int(event[1]))]
@@ -598,6 +607,9 @@ class FastResponseAnalysis(object):
     
 
 class PriorFollowup(FastResponseAnalysis):
+    '''
+    Class for skymap based analyses
+    '''
     _pixel_scan_nsigma = 4.0
     _containment = 0.99
     _allow_neg = False
@@ -925,6 +937,10 @@ class PriorFollowup(FastResponseAnalysis):
 
         
 class PointSourceFollowup(FastResponseAnalysis):
+    '''
+    Class for point-source or extended source followup
+    i.e. there is a fixed location on the sky, not a healpy skymap
+    '''
     _nside = 256
     def __init__(self, name, ra, dec, tstart, tstop, extension=None,
                  skipped=None, outdir=None, save=True, seed=None):

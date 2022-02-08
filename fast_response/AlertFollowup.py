@@ -32,9 +32,11 @@ class AlertFollowup(PriorFollowup):
         '''
         current_rate = self.llh.nbackground / (self.duration * 86400.) * 1000.
         closest_rate = sensitivity_utils.find_nearest(np.linspace(6.2, 7.2, 6), current_rate)
+        bg_trial_dir = '/data/ana/analyses/NuSources/' \
+            + '2021_v2_alert_stacking_FRA/fast_response/' \
+            + 'alert_precomputed_trials/'
         pre_ts_array = sparse.load_npz(
-            '/data/user/apizzuto/fast_response_skylab/fast-response/'
-            + 'fast_response/precomputed_background/glob_trials/'
+            bg_trial_dir
             + 'precomputed_trials_delta_t_'
             + '{:.2e}_trials_rate_{:.1f}_low_stats.npz'.format(
                 self.duration * 86400., closest_rate, self.duration * 86400.))
@@ -57,7 +59,9 @@ class AlertFollowup(PriorFollowup):
     def ps_sens_range(self):
         r'''Compute the minimum and maximum sensitivities
         within the 90% contour of the skymap'''
-        with open('/data/user/apizzuto/fast_response_skylab/dump/ideal_ps_sensitivity_deltaT_{:.2e}_50CL.pkl'.format(self.duration), 'rb') as f:
+        sens_dir = '/data/ana/analyses/NuSources/2021_v2_alert_stacking_FRA/' \
+            + 'fast_response/reference_sensitivity_curves/'
+        with open(f'{sens_dir}ideal_ps_sensitivity_deltaT_{self.duration:.2e}_50CL.pkl', 'rb') as f:
             ideal = pickle.load(f, encoding='bytes')
         delta_t = self.duration * 86400.
         src_theta, src_phi = hp.pix2ang(self.nside, self.ipix_90)
@@ -72,7 +76,9 @@ class AlertFollowup(PriorFollowup):
         r'''For alert events, make a sensitivity plot highlighting
         the region where the contour lives'''
         fig, ax = plt.subplots()
-        with open('/data/user/apizzuto/fast_response_skylab/dump/ideal_ps_sensitivity_deltaT_{:.2e}_50CL.pkl'.format(self.duration), 'rb') as f:
+        sens_dir = '/data/ana/analyses/NuSources/2021_v2_alert_stacking_FRA/' \
+            + 'fast_response/reference_sensitivity_curves/'
+        with open(f'{sens_dir}ideal_ps_sensitivity_deltaT_{self.duration:.2e}_50CL.pkl', 'rb') as f:
             ideal = pickle.load(f, encoding='bytes')
         delta_t = self.duration * 86400.
         plt.plot(ideal[b'sinDec'], np.array(ideal[b'sensitivity'])*delta_t*1e6, lw=3, ls='-', 
@@ -228,6 +234,11 @@ class TrackFollowup(AlertFollowup):
         return ipix
 
     def convert_llh_to_prob(self, skymap_fits):
+        '''
+        This takes a millipede map and converts from the likelihood
+        values to a pdf assuming the order-preserving mapping
+        we use to account for systematics
+        '''
         skymap_llh = skymap_fits.copy()
         self.skymap_llh = skymap_llh
         skymap_fits = np.exp(-1. * skymap_fits / 2.) #Convert from 2LLH to unnormalized probability
@@ -248,6 +259,10 @@ class TrackFollowup(AlertFollowup):
         return skymap_fits
 
     def _scale_2d_gauss(self, arr, sigma_arr, new_sigma):
+        '''
+        Helper function for scaling the likelihood space
+        according to systematic resimulations
+        '''
         tmp = arr**(sigma_arr**2. / new_sigma**2.)/(np.sqrt(2.*np.pi)*new_sigma)* \
                         np.power(np.sqrt(2.*np.pi)*sigma_arr, (sigma_arr**2. / new_sigma**2.)) 
         return tmp / np.sum(tmp)

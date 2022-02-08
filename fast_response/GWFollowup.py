@@ -30,8 +30,10 @@ class GWFollowup(PriorFollowup):
             # month = datetime.datetime.utcnow().month
             month = Time(self.centertime, format='mjd').datetime.month
 
+        bg_trial_dir = '/data/ana/analyses/NuSources/' \
+            + '2021_v2_alert_stacking_FRA/fast_response/gw_precomputed_trials/'
         pre_ts_array = np.load(
-            f'/data/user/rhussain/ligo_skymaps/ts_map_{month:02d}.npy',
+            f'{bg_trial_dir}ts_map_{month:02d}.npy',
             allow_pickle=True,
             encoding='latin1'
         )
