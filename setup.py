@@ -22,7 +22,7 @@ setuptools.setup(
         'astropy==2.0.16',
         'healpy==1.13.0',
         'matplotlib==2.2.5',
-        'numpy==1.21.0',
+        'numpy==1.16.6',
         'pandas==0.24.2',
         'pyfiglet==0.8.post1',
         'python-dateutil==2.8.1',
