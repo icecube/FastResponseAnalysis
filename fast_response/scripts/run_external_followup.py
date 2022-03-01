@@ -61,7 +61,7 @@ if __name__ == "__main__":
     log.basicConfig(level=log.ERROR)
 
     parser = argparse.ArgumentParser(description='Fast Response Analysis')
-    parser.add_argument('--name', type=str, default=None,
+    parser.add_argument('--name', type=str, default="Fast Response",
                         help='Name of the source')
     parser.add_argument('--skymap', type=str, default=None,
                         help='Source localization PDF path')

@@ -40,7 +40,6 @@ for delta_t in [1000., 2.*86400.]:
 
     name = track_name + ' {:.1e}_s'.format(delta_t)
     name = name.replace('_', ' ')
-    name = name + 'new code framework'
 
     run_id = args.alert_id[0][0]
     ev_id = args.alert_id[0][1]
