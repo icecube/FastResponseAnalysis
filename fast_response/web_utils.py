@@ -44,13 +44,13 @@ def updateFastResponseWeb(analysis):
     createFastResponsePage(analysis)
     updateFastResponseTable(analysis)
     updateFastResponsePlots()
-    sync_to_roc()
+    # sync_to_roc()
 
 def updateDataFrame(analysis):
     r'''
     Read in official Fast Response Dataframe,
     add these results, save'''
-    base_path = os.path.dirname(fast_response.__path__)
+    base_path = os.path.dirname(fast_response.__file__)
     df = pd.read_pickle(f'{base_path}/results_dataframe.pkl')
     # df = pd.read_pickle('/data/user/apizzuto/fast_response_skylab/results_dataframe.pkl')
     evid = None if 'skipped' not in analysis.keys() else str(analysis['skipped']['run']) + ':' + str(analysis['skipped']['event'])
@@ -156,7 +156,7 @@ def updateFastResponsePlots():
     Update overview plots of all analyses (timing, 
     p-value distribution, etc.)
     '''
-    base_path = os.path.dirname(fast_response.__path__)
+    base_path = os.path.dirname(fast_response.__file__)
     df = pd.read_pickle(f'{base_path}/results_dataframe.pkl')
     # df = pd.read_pickle('/data/user/apizzuto/fast_response_skylab/results_dataframe.pkl')
     p_x_vals = np.logspace(-3,0.,15)
