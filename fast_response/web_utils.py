@@ -80,6 +80,7 @@ def createFastResponsePage(analysis):
     '''
     new_f = []
     keypairs = [('ANALYSISTS', 'ts'), ('ANALYSISNS', 'ns'), ('ANALYSISP', 'p')]
+    base_path = os.path.dirname(fast_response.__file__)
     html_base = f'{base_path}/../html/'
     with open(f'{html_base}analysis_base.html', 'r') as f:
         for line in f.readlines():
