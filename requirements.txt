@@ -4,9 +4,11 @@ attrs==19.3.0
 backports.functools-lru-cache==1.6.1
 cycler==0.10.0
 funcsigs==1.0.2
+h5py==3.5.0
 healpy==1.13.0
 kiwisolver==1.1.0
 matplotlib==2.2.5
+meander==0.0.3
 more-itertools==5.0.0
 numpy==1.16.6
 pandas==0.24.2

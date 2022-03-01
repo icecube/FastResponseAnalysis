@@ -28,6 +28,8 @@ You can now load the realtime project with
 /path/to/realtime/build/env-shell.sh
 ```
 
+You will also need a version of `skylab` to run this analysis. See [the Skylab GitHub](https://github.com/icecube/skylab) for instructioins on how to install this code and all of its dependencies.
+
 Once you are in your realtime project, you will need to install the relevant dependencies this project requires. We recommend making a virtual environment and installing the relevant dependencies by running the following lines
 
 ```console

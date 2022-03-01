@@ -8,3 +8,5 @@ fast_response/precomputed_background/glob_trials/
 *.json
 v01-00/
 fast_response.egg-info/
+examples/
+RELEASE_NOTES
