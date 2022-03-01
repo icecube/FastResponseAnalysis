@@ -82,6 +82,7 @@ def createFastResponsePage(analysis):
     keypairs = [('ANALYSISTS', 'ts'), ('ANALYSISNS', 'ns'), ('ANALYSISP', 'p')]
     base_path = os.path.dirname(fast_response.__file__)
     html_base = f'{base_path}/../html/'
+    username = pwd.getpwuid(os.getuid())[0]
     with open(f'{html_base}analysis_base.html', 'r') as f:
         for line in f.readlines():
             for k, r in keypairs:
@@ -108,8 +109,9 @@ def createFastResponsePage(analysis):
             if 'ANALYSISNAME' in new_f[i]:
                 new_f[i] = new_f[i].replace('ANALYSISNAME', analysis['name'])
             if 'ANALYSISID' in new_f[i]:
-                new_f[i] = new_f[i].replace('ANALYSISID', analysis['analysisid'])    
-    username = pwd.getpwuid(os.getuid())[0]
+                new_f[i] = new_f[i].replace('ANALYSISID', analysis['analysisid'])  
+            if 'ANALYZER' in new_f[i]:
+                new_f[i] = new_f[i].replace('ANALYZER', username)
     with open('/home/{}/public_html/FastResponse/webpage/output/{}.html'.format(username, analysis['analysisid']), 'w') as f:
         for line in new_f:
             f.write(line)
