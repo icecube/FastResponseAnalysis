@@ -16,7 +16,8 @@ parser.add_argument('--path', type=str,default=None,
                     help='Path to analysis')
 args = parser.parse_args()
 
-with open(glob(args.path + '*_results.pickle')[0], 'rb') as f:
+analysis_path = os.path.join(args.path, '')
+with open(glob(analysis_path + '*_results.pickle')[0], 'rb') as f:
     results = pickle.load(f)
 
 username = pwd.getpwuid(os.getuid())[0]
