@@ -145,7 +145,7 @@ def updateFastResponseTable(analysis):
         if '</div></div><hr/>' in lines[i]:
             ind = i
     lines[ind-1:ind-1] = [t + '\n' for t in tag.split('\n')]
-    with open("/home/{username}/public_html/FastResponse/webpage/index.html", 'w') as f:
+    with open(f"/home/{username}/public_html/FastResponse/webpage/index.html", 'w') as f:
         for line in lines:
             if line == '\n':
                 continue
