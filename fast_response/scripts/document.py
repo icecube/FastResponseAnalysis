@@ -8,6 +8,7 @@ import argparse
 import subprocess
 import pickle
 from glob import glob
+import os, pwd
 import fast_response.web_utils as web_utils
 
 parser = argparse.ArgumentParser(description='Document for FRA')
@@ -18,6 +19,7 @@ args = parser.parse_args()
 with open(glob(args.path + '*_results.pickle')[0], 'rb') as f:
     results = pickle.load(f)
 
+username = pwd.getpwuid(os.getuid())[0]
 subprocess.call(['cp','-r', results['analysispath'],
-        '/home/apizzuto/public_html/FastResponse/webpage/output/{}'.format(results['analysisid'])])
+        '/home/{}/public_html/FastResponse/webpage/output/{}'.format(username, results['analysisid'])])
 web_utils.updateFastResponseWeb(results)

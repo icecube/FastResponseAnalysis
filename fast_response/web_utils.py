@@ -4,13 +4,14 @@ from scipy.optimize       import curve_fit
 from scipy.stats          import chi2
 import pandas as pd
 import subprocess
-import os
+import os, pwd
 from astropy.time import Time
 import datetime
 import matplotlib as mpl
 mpl.use('agg')
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
+import fast_response
 
 ############################# Plotting Parameters #############################
 mpl.rcParams['text.usetex'] = True
@@ -49,7 +50,9 @@ def updateDataFrame(analysis):
     r'''
     Read in official Fast Response Dataframe,
     add these results, save'''
-    df = pd.read_pickle('/data/user/apizzuto/fast_response_skylab/results_dataframe.pkl')
+    base_path = os.path.dirname(fast_response.__path__)
+    df = pd.read_pickle(f'{base_path}/results_dataframe.pkl')
+    # df = pd.read_pickle('/data/user/apizzuto/fast_response_skylab/results_dataframe.pkl')
     evid = None if 'skipped' not in analysis.keys() else str(analysis['skipped']['run']) + ':' + str(analysis['skipped']['event'])
     dec = np.nan if 'dec' not in analysis.keys() else analysis['dec'] * 180. / np.pi
     ra = np.nan if 'ra' not in analysis.keys() else analysis['ra'] * 180. / np.pi
@@ -65,7 +68,8 @@ def updateDataFrame(analysis):
         num = np.count_nonzero(df.index == analysis['name'])
         analysis['name'] += '_{}'.format(num)
     df.loc[analysis['name']] = new_list
-    df.to_pickle('/data/user/apizzuto/fast_response_skylab/results_dataframe.pkl')    
+    # df.to_pickle('/data/user/apizzuto/fast_response_skylab/results_dataframe.pkl')    
+    df.to_pickle(f'{base_path}/results_dataframe.pkl')
 
 def createFastResponsePage(analysis):
     r'''
@@ -76,7 +80,8 @@ def createFastResponsePage(analysis):
     '''
     new_f = []
     keypairs = [('ANALYSISTS', 'ts'), ('ANALYSISNS', 'ns'), ('ANALYSISP', 'p')]
-    with open('/data/user/apizzuto/fast_response_skylab/fast-response/fast_response/html/analysis_base.html', 'r') as f:
+    html_base = f'{base_path}/../html/'
+    with open(f'{html_base}analysis_base.html', 'r') as f:
         for line in f.readlines():
             for k, r in keypairs:
                 if k in line:
@@ -103,8 +108,8 @@ def createFastResponsePage(analysis):
                 new_f[i] = new_f[i].replace('ANALYSISNAME', analysis['name'])
             if 'ANALYSISID' in new_f[i]:
                 new_f[i] = new_f[i].replace('ANALYSISID', analysis['analysisid'])    
-                        
-    with open('/home/apizzuto/public_html/FastResponse/webpage/output/{}.html'.format(analysis['analysisid']), 'w') as f:
+    username = pwd.getpwuid(os.getuid())[0]
+    with open('/home/{}/public_html/FastResponse/webpage/output/{}.html'.format(username, analysis['analysisid']), 'w') as f:
         for line in new_f:
             f.write(line)
 
@@ -131,14 +136,15 @@ def updateFastResponseTable(analysis):
     '''.format(analysis['analysisid'], analysis['name'], analysis['start'],
                 (analysis['stop'] - analysis['start']) * 86400., 
                     ra, dec, analysis['p'])
-    with open("/home/apizzuto/public_html/FastResponse/webpage/index.html", "r") as f:    
+    username = pwd.getpwuid(os.getuid())[0]
+    with open(f"/home/{username}/public_html/FastResponse/webpage/index.html", "r") as f:    
         lines = f.readlines()
     ind = None
     for i in range(len(lines)):
         if '</div></div><hr/>' in lines[i]:
             ind = i
     lines[ind-1:ind-1] = [t + '\n' for t in tag.split('\n')]
-    with open("/home/apizzuto/public_html/FastResponse/webpage/index.html", 'w') as f:
+    with open("/home/{username}/public_html/FastResponse/webpage/index.html", 'w') as f:
         for line in lines:
             if line == '\n':
                 continue
@@ -150,7 +156,9 @@ def updateFastResponsePlots():
     Update overview plots of all analyses (timing, 
     p-value distribution, etc.)
     '''
-    df = pd.read_pickle('/data/user/apizzuto/fast_response_skylab/results_dataframe.pkl')
+    base_path = os.path.dirname(fast_response.__path__)
+    df = pd.read_pickle(f'{base_path}/results_dataframe.pkl')
+    # df = pd.read_pickle('/data/user/apizzuto/fast_response_skylab/results_dataframe.pkl')
     p_x_vals = np.logspace(-3,0.,15)
     plt.figure(figsize = (10,6), dpi=300)
     plt.hist(df['Pre-trial p_val'], weights = np.ones(len(df)) / len(df), bins = p_x_vals)
@@ -169,13 +177,15 @@ def updateFastResponsePlots():
     plt.title("{} Fast Response Analyses as of {}".format(len(df), today), fontsize = 20)          
     #plt.text(7e-3, 5e-2, "IceCube\nPreliminary", fontsize = 20, color = 'r')
     plt.ylim(6e-3, 1e0)
-    plt.savefig('/home/apizzuto/public_html/FastResponse/webpage/output/pvalue_distribution_liveupdate.png', dpi=200, bbox_inches='tight')
+    username = pwd.getpwuid(os.getuid())[0]
+    plt.savefig(f'/home/{username}/public_html/FastResponse/webpage/output/pvalue_distribution_liveupdate.png', dpi=200, bbox_inches='tight')
 
 def sync_to_roc():
     #subprocess.Popen('rsync -a /home/apizzuto/public_html/FastResponse/webpage/ apizzuto@roc.icecube.wisc.edu:/mnt/roc/www/internal/fast_response')
     env = dict(os.environ)
-    subprocess.call(['rsync','-a','/home/apizzuto/public_html/FastResponse/webpage/',
-                        'apizzuto@roc.icecube.wisc.edu:/mnt/roc/www/internal/fast_response'],
+    username = pwd.getpwuid(os.getuid())[0]
+    subprocess.call(['rsync', '-a', f'/home/{username}/public_html/FastResponse/webpage/',
+                        '{username}@roc.icecube.wisc.edu:/mnt/roc/www/internal/fast_response'],
                         env = env
                        )
 
