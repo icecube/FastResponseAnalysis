@@ -1113,18 +1113,20 @@ class PointSourceFollowup(FastResponseAnalysis):
                 print(f"{func_name} fit failed in upper limit calculation")
         #Find best fit of the three, make it look different in plot
         plist = np.array(plist)
-        best_fit_ind= np.argmax(plist)
+        best_fit_ind = np.argmax(plist)
         fits[best_fit_ind]['ls'] = '-'
         self.upperlimit = self.inj.mu2flux(fits[best_fit_ind]['sens'])
         self.upperlimit_ninj = fits[best_fit_ind]['sens']
 
         fig, ax = plt.subplots()
         for fit_dict in fits:
+            lw = 1. if fit_dict['ls'] == '-' else 1.5
             ax.plot(
                 fit_dict['xfit'], fit_dict['yfit'], 
                 label = r'{}: $\chi^2$ = {:.2f}, d.o.f. = {}'.format(
                     fit_dict['name'], fit_dict['chi2'], fit_dict['dof']),
-                ls = fit_dict['ls'])
+                ls = fit_dict['ls'],
+                lw=lw)
             if fit_dict['ls'] == '-':
                 ax.axhline(0.9, color = 'm', linewidth = 0.3, linestyle = '-.')
                 ax.axvline(fit_dict['sens'], color = 'm', linewidth = 0.3, linestyle = '-.')
