@@ -354,7 +354,7 @@ class ReportGenerator(object):
             self.write_table(
                 f,"sourcetable", [],[
                     ("Source Name", self.analysis.name),
-                    (location_entry, location_string),
+                    (location_entry, location_string.replace('_', '\_')),
                     ("Trigger Time", "{} (MJD={:12.6f})".format(
                         s["trigger_iso"], s["trigger_mjd"])),
                     ("Start Time", "{} (Trigger{:+1.1f}s)".format(
