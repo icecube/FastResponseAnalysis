@@ -10,3 +10,6 @@ v01-00/
 fast_response.egg-info/
 examples/
 RELEASE_NOTES
+fast_response/results_dataframe.pkl
+output/
+output/*

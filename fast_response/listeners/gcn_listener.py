@@ -17,13 +17,13 @@ def process_gcn(payload, root):
     if analysis_path is None:
         try:
             import fast_response
-            analysis_path = os.path.dirname(fast_response.__file__) + '/'
+            analysis_path = os.path.dirname(fast_response.__file__) + '/scripts/'
         except Exception as e:
             print(e)
             print('###########################################################################')
             print('CANNOT FIND ENVIRONMENT VARIABLE POINTING TO REALTIME FAST RESPONSE PACKAGE\n')
             print('You can either (1) install fast_response via pip or ')
-            print('(2) put \'export FAST_RESPONSE_SCRIPTS=/path/to/fra\' in your bashrc')
+            print('(2) put \'export FAST_RESPONSE_SCRIPTS=/path/to/fra/scripts\' in your bashrc')
             print('###########################################################################')
             exit()
 
