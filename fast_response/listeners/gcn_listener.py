@@ -41,6 +41,7 @@ def process_gcn(payload, root):
         print("Found track type alert, running track followup. . . ")
         alert_type='track'
 
+    print(params)
     event_id = params['event_id']
     run_id = params['run_id']
     eventtime = root.find('.//ISOTime').text
@@ -74,7 +75,7 @@ def process_gcn(payload, root):
         else:
             print("TOO MANY OPTIONS FOR THE SKYMAP FILE FOR V2 TRACK ALERT EVENT")
             return
-
+    print('Running {}'.format(command))
     subprocess.call([command, '--skymap={}'.format(skymap), 
         '--time={}'.format(str(event_mjd)), 
         '--alert_id={}'.format(run_id+':'+event_id)]
@@ -101,17 +102,23 @@ if __name__ == '__main__':
     if args.run_live:
         print("Listening for GCNs . . . ")
         gcn.listen(handler=process_gcn)
-    elif not args.test_cascade:
-        print("Running on sample track . . . ")
-        payload = open('/data/user/apizzuto/fast_response_skylab/' \
-            + 'fast-response/fast_response/sample_skymaps/' \
-            + 'sample_astrotrack_alert_2021.xml', 'rb').read()
-        root = lxml.etree.fromstring(payload)
-        process_gcn(payload, root)
     else:
-        print("Running on sample cascade . . . ")
-        payload = open('/data/user/apizzuto/fast_response_skylab/' \
-            + 'fast-response/fast_response/sample_skymaps/' \
-            + 'sample_cascade.txt', 'rb').read()
-        root = lxml.etree.fromstring(payload)
-        process_gcn(payload, root)
+        try:
+            import fast_response
+            sample_skymap_path=os.path.dirname(fast_response.__file__) +'/sample_skymaps/'
+        except Exception as e:
+            sample_skymap_path='/data/user/apizzuto/fast_response_skylab/' \
+            + 'fast-response/fast_response/sample_skymaps/'
+        
+        if not args.test_cascade:
+            print("Running on sample track . . . ")
+            payload = open(sample_skymap_path \
+                + 'sample_astrotrack_alert_2021.xml', 'rb').read()
+            root = lxml.etree.fromstring(payload)
+            process_gcn(payload, root)
+        else:
+            print("Running on sample cascade . . . ")
+            payload = open(sample_skymap_path \
+                + 'sample_cascade.txt', 'rb').read()
+            root = lxml.etree.fromstring(payload)
+            process_gcn(payload, root)
