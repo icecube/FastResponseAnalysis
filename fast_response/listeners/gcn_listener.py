@@ -41,7 +41,6 @@ def process_gcn(payload, root):
         print("Found track type alert, running track followup. . . ")
         alert_type='track'
 
-    print(params)
     event_id = params['event_id']
     run_id = params['run_id']
     eventtime = root.find('.//ISOTime').text
@@ -108,7 +107,7 @@ if __name__ == '__main__':
             sample_skymap_path=os.path.dirname(fast_response.__file__) +'/sample_skymaps/'
         except Exception as e:
             sample_skymap_path='/data/user/apizzuto/fast_response_skylab/' \
-            + 'fast-response/fast_response/sample_skymaps/'
+                + 'fast-response/fast_response/sample_skymaps/'
         
         if not args.test_cascade:
             print("Running on sample track . . . ")
