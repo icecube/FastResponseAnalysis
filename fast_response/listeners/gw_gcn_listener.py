@@ -61,17 +61,19 @@ def process_gcn(payload, root):
 
     skymap = params['skymap_fits']
     name = root.attrib['ivorn'].split('#')[1]
+    
+    if root.attrib['role']=='test':
+        name=name+'_test'
     command = analysis_path + 'run_gw_followup.py'
 
     print('Running {}'.format(command))
+    
     subprocess.call([command, 
         '--skymap={}'.format(skymap), 
         '--trigger={}'.format(event_mjd),
         '--name={}'.format(name),
-        #'--role={}'.format(root.attrib['role']) #appears to not be needed?
         ])
-    #args = ['--skymap', '--trigger','--name','--role']
-    #subprocess.call([command,args[0],skymap,args[1],trigger,args[2],name,args[3],root.attrib['role']])
+
 
 if __name__ == '__main__':
     import os, subprocess
@@ -103,8 +105,10 @@ if __name__ == '__main__':
         payload = open(sample_skymap_path \
             + 'S191216ap_update.xml', 'rb').read()
         root = lxml.etree.fromstring(payload)
-        #test appears to not change anything? 
+
+        #test runs on scrambles, observation runs on unblinded data
         root.attrib['role']='test'
+
         process_gcn(payload, root)
         ### For more test skymaps:
         # https://gracedb.ligo.org/api/superevents/MS190403g/files/bayestar.fits.gz
