@@ -1,8 +1,8 @@
 ''' Script to automatically receive GCN alerts and get LIGO skymaps 
     to run realtime neutrino follow-up
 
-    Author: Raamis Hussain
-    Date:   Mar 27, 2019
+    Author: Raamis Hussain, updated by Jessie Thwaites
+    Date:   April 2022
 '''
 
 import gcn
@@ -61,18 +61,17 @@ def process_gcn(payload, root):
 
     skymap = params['skymap_fits']
     name = root.attrib['ivorn'].split('#')[1]
-    
+    name= name.split('-')[0] #remove? this removes the map identifiers from the name
+
     if root.attrib['role']=='test':
         name=name+'_test'
     command = analysis_path + 'run_gw_followup.py'
 
     print('Running {}'.format(command))
-    
-    subprocess.call([command, 
-        '--skymap={}'.format(skymap), 
-        '--trigger={}'.format(event_mjd),
-        '--name={}'.format(name),
-        ])
+    subprocess.call([command, '--skymap={}'.format(skymap), 
+        '--time={}'.format(str(event_mjd)), 
+        '--name={}'.format(name)]
+        )
 
 
 if __name__ == '__main__':
