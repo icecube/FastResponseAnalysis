@@ -338,11 +338,18 @@ class FastResponseAnalysis(object):
         '''
         if self.tsd is not None:
             fig, ax = plt.subplots()
-            if np.min(self.tsd < 0.0):
-                lower = np.min([np.min(self.tsd), -500.])
-                bins = np.linspace(lower, 25., 101)
+            if np.min(self.tsd) < 0.0:
+                if str(np.min(self.tsd))== '-inf': 
+                    lower=-500.
+                else: 
+                    lower = np.min([np.min(self.tsd), -500.])
+                pos_bins=np.linspace(0., 25., 30) #fine pos bins
+                neg_bins=np.linspace(lower, 0., 30) #coarse neg bins
+
+                bins=np.concatenate([ neg_bins[:-1], pos_bins ]) 
             else:
                 bins = np.linspace(0., 25., 30)
+            
             plt.hist(self.tsd, bins= bins, 
                     label="Background Scrambles", density=True)
             plt.axvline(self.ts, color = 'k', label = "Observed TS")
