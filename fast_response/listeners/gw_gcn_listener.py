@@ -63,7 +63,7 @@ def process_gcn(payload, root):
     name = root.attrib['ivorn'].split('#')[1]
     name= name.split('-')[0] #remove? this removes the map identifiers from the name
 
-    if root.attrib['role']=='test':
+    if root.attrib['role'] != 'observation':
         name=name+'_test'
     command = analysis_path + 'run_gw_followup.py'
 

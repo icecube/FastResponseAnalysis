@@ -106,8 +106,10 @@ if __name__ == '__main__':
             import fast_response
             sample_skymap_path=os.path.dirname(fast_response.__file__) +'/sample_skymaps/'
         except Exception as e:
-            sample_skymap_path='/data/user/apizzuto/fast_response_skylab/' \
-                + 'fast-response/fast_response/sample_skymaps/'
+            #future: possibly point to FRA on /data/ana/ 
+            print(e)
+            print('Cannot find path to sample skymaps')
+            exit()
         
         if not args.test_cascade:
             print("Running on sample track . . . ")
