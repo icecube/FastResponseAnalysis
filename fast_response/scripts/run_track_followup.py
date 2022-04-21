@@ -24,12 +24,15 @@ parser.add_argument('--alert_id', default=None,
                     help="list of events to exclude from this analysis. "
                     "such as HESE events that contributed to the trigger."
                     "Example --alert_id  127853:67093193,128290:6888376")
+parser.add_argument('--suffix', type=str, default='A',
+                    help="letter to differentiate multiple alerts on the same day (default = A)."
+                    "Event name given by IceCube-yymmdd + suffix.")
 args = parser.parse_args()
 
 track_time = Time(args.time, format='mjd')
 year, month, day = track_time.iso.split('-')
 day = day[:2]
-track_name = 'IceCube-{}{}{}A'.format(year[-2:], month, day)
+track_name = 'IceCube-{}{}{}{}'.format(year[-2:], month, day, args.suffix)
 
 all_results = {}
 for delta_t in [1000., 2.*86400.]:
