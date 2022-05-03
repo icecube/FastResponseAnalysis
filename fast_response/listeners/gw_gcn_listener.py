@@ -61,7 +61,7 @@ def process_gcn(payload, root):
 
     skymap = params['skymap_fits']
     name = root.attrib['ivorn'].split('#')[1]
-    name= name.split('-')[0] #remove? this removes the map identifiers from the name
+    #name= name.split('-')[0] #remove? this removes the map identifiers from the name
 
     if root.attrib['role'] != 'observation':
         name=name+'_test'
