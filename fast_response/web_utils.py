@@ -32,7 +32,7 @@ mpl.rcParams['ytick.major.size'] = 5
 ############################# Plotting Parameters #############################
 
 
-def updateFastResponseWeb(analysis):
+def updateFastResponseWeb(analysis, gw=False):
     r'''
     Create analysis specific page, and update
     plots with information from all analyses
@@ -40,19 +40,21 @@ def updateFastResponseWeb(analysis):
     -----------
     analysis: FastResponseAnalysis instance
     '''
-    updateDataFrame(analysis)
-    createFastResponsePage(analysis)
-    updateFastResponseTable(analysis)
-    updateFastResponsePlots()
+    updateDataFrame(analysis, gw=gw)
+    createFastResponsePage(analysis, gw=gw)
+    updateFastResponseTable(analysis, gw=gw)
+    updateFastResponsePlots(gw=gw)
     # sync_to_roc()
 
-def updateDataFrame(analysis):
+def updateDataFrame(analysis, gw=False):
     r'''
     Read in official Fast Response Dataframe,
     add these results, save'''
     base_path = os.path.dirname(fast_response.__file__)
+    #if gw: df = pd.read_pickle(f'{base_path}/results_dataframe_gw.pkl')
+    #else: df = pd.read_pickle(f'{base_path}/results_dataframe.pkl')
     df = pd.read_pickle(f'{base_path}/results_dataframe.pkl')
-    # df = pd.read_pickle('/data/user/apizzuto/fast_response_skylab/results_dataframe.pkl')
+
     evid = None if 'skipped' not in analysis.keys() else str(analysis['skipped']['run']) + ':' + str(analysis['skipped']['event'])
     dec = np.nan if 'dec' not in analysis.keys() else analysis['dec'] * 180. / np.pi
     ra = np.nan if 'ra' not in analysis.keys() else analysis['ra'] * 180. / np.pi
@@ -68,10 +70,11 @@ def updateDataFrame(analysis):
         num = np.count_nonzero(df.index == analysis['name'])
         analysis['name'] += '_{}'.format(num)
     df.loc[analysis['name']] = new_list
+    
     # df.to_pickle('/data/user/apizzuto/fast_response_skylab/results_dataframe.pkl')    
     df.to_pickle(f'{base_path}/results_dataframe.pkl')
 
-def createFastResponsePage(analysis):
+def createFastResponsePage(analysis, gw=False):
     r'''
     Create analysis specific page
     Parameters:
@@ -116,7 +119,7 @@ def createFastResponsePage(analysis):
         for line in new_f:
             f.write(line)
 
-def updateFastResponseTable(analysis):
+def updateFastResponseTable(analysis, gw=False):
     r'''
     Push information from this analysis to overall
     tables, include new entries where applicable
@@ -154,7 +157,7 @@ def updateFastResponseTable(analysis):
             else:
                 f.write(line)
 
-def updateFastResponsePlots():
+def updateFastResponsePlots(gw=False):
     r'''
     Update overview plots of all analyses (timing, 
     p-value distribution, etc.)

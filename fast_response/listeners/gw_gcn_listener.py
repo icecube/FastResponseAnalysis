@@ -76,7 +76,8 @@ def process_gcn(payload, root):
 
     for directory in os.listdir(analysis_path+'../../output'):
         if name in directory: 
-            print('Output directory: ', directory)
+            print('Output directory: ',analysis_path+'../../output/'+directory)
+            break
 
 
 if __name__ == '__main__':
@@ -101,7 +102,7 @@ if __name__ == '__main__':
         import sys
         original_stdout=sys.stdout
         logfile='/home/jthwaites/public_html/FastResponse/gw-webpage/output/log.log'
-        sys.stdout = open(logfile, 'a+') #'w' writes, but clears all prev output, 'a' appends
+        sys.stdout = open(logfile, 'a+') #'w' writes, but clears all prev output, 'a+' appends
 
     if args.run_live:
         print("Listening for GCNs . . . ")
