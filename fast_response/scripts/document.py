@@ -24,14 +24,11 @@ with open(glob(analysis_path + '*_results.pickle')[0], 'rb') as f:
 
 username = pwd.getpwuid(os.getuid())[0]
 
-print(results.keys())
 if args.gw:
     subprocess.call(['cp','-r', results['analysispath'],
         '/home/{}/public_html/FastResponse/gw-webpage/output/{}'.format(username, results['analysisid'])])
-    #web_utils.updateFastResponseWeb(results, gw=True)
 else: 
     subprocess.call(['cp','-r', results['analysispath'],
         '/home/{}/public_html/FastResponse/webpage/output/{}'.format(username, results['analysisid'])])
-    web_utils.updateFastResponseWeb(results)
 
-#web_utils.updateFastResponseWeb(results)
+web_utils.updateFastResponseWeb(results, gw=args.gw)
