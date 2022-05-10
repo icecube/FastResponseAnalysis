@@ -115,6 +115,12 @@ def createFastResponsePage(analysis, gw=False):
                 new_f[i] = new_f[i].replace('ANALYSISID', analysis['analysisid'])  
             if 'ANALYZER' in new_f[i]:
                 new_f[i] = new_f[i].replace('ANALYZER', username)
+
+    if gw: 
+        webpage_path='/home/{}/public_html/FastResponse/gw-webpage/output/{}.html'.format(username, analysis['analysisid'])
+    else: 
+        webpage_path='/home/{}/public_html/FastResponse/webpage/output/{}.html'.format(username, analysis['analysisid'])
+    #with open(webpage_path, 'w') as f:
     with open('/home/{}/public_html/FastResponse/webpage/output/{}.html'.format(username, analysis['analysisid']), 'w') as f:
         for line in new_f:
             f.write(line)
