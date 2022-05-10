@@ -165,6 +165,9 @@ class GWFollowup(PriorFollowup):
         ts: array
             array of ts values of 
         '''
+        from skylab.priors import SpatialPrior
+        from skylab.ps_injector import PointSourceInjector
+
         ### Set up spatial prior to be used in scan
         spatial_prior = SpatialPrior(self.skymap, allow_neg=self._allow_neg, containment=self._containment)
         pixels = np.arange(len(self.skymap))
@@ -307,6 +310,8 @@ class GWFollowup(PriorFollowup):
         self.save_items['coincident_events'] = self.coincident_events
 
     def per_event_scan(self, custom_events):
+        from skylab.priors import SpatialPrior
+
         spatial_prior = SpatialPrior(self.skymap, containment = self._containment, allow_neg=self._allow_neg)
         val = self.llh.scan(
             0.0,0.0, scramble = False, spatial_prior=spatial_prior,
