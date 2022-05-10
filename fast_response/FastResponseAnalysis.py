@@ -342,7 +342,7 @@ class FastResponseAnalysis(object):
                 if str(np.min(self.tsd))== '-inf': 
                     lower=-500.
                 else: 
-                    lower = np.min([np.min(self.tsd), -500.])
+                    lower = np.max([np.min(self.tsd), -500.])
 
                 #lowest bin as underflow bin
                 self.tsd[self.tsd < lower] = lower 
