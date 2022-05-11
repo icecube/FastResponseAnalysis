@@ -143,6 +143,9 @@ def createFastResponsePage(analysis, gw=False):
                 new_f[i] = new_f[i].replace('ANALYSISID', analysis['analysisid'])  
             if 'ANALYZER' in new_f[i]:
                 new_f[i] = new_f[i].replace('ANALYZER', username)
+            if gw:
+                if 'webpage' in new_f[i]:
+                    new_f[i] = new_f[i].replace('webpage', 'gw-webpage')
 
     if gw: 
         webpage_path='/home/{}/public_html/FastResponse/gw-webpage/output/{}.html'.format(username, analysis['analysisid'])
@@ -200,7 +203,7 @@ def updateGWTable(analysis):
     '''
     dec = '-' if analysis['ts']<=0. else '{:+.2f}'.format(analysis['fit_dec'] * 180. / np.pi)
     ra = '-' if analysis['ts']<=0. else '{:.2f}'.format(analysis['fit_ra'] * 180. / np.pi)
-    ts= min(0.,analysis['ts'])
+    ts= max(0.,analysis['ts'])
 
     tag = '''
     <tr>
