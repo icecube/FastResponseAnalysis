@@ -357,7 +357,10 @@ class FastResponseAnalysis(object):
             
             plt.hist(self.tsd, bins= bins, 
                     label="Background Scrambles", density=True)
-            plt.axvline(self.ts, color = 'k', label = "Observed TS")
+            if self.ts >= -500.:
+                plt.axvline(self.ts, color = 'k', label = "Observed TS")
+            else: 
+                plt.annotate("Unblinded TS: {:.0f}".format(self.ts), (lower+20, 1e-3))
             plt.legend(loc=1)
 
             if bins[0]<0.:

@@ -203,7 +203,8 @@ def updateGWTable(analysis):
     '''
     dec = '-' if analysis['ts']<=0. else '{:+.2f}'.format(analysis['fit_dec'] * 180. / np.pi)
     ra = '-' if analysis['ts']<=0. else '{:.2f}'.format(analysis['fit_ra'] * 180. / np.pi)
-    ts= max(0.,analysis['ts'])
+    ts=analysis['ts']
+    #ts= max(0.,analysis['ts'])
 
     tag = '''
     <tr>
