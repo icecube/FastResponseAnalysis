@@ -11,7 +11,7 @@ import os, sys, argparse
 from astropy.time import Time
 
 from fast_response.AlertFollowup import CascadeFollowup
-from . import utils
+import fast_response.web_utils as web_utils
 
 parser = argparse.ArgumentParser(description='Fast Response Analysis')
 parser.add_argument('--skymap', type=str, default=None,
@@ -25,12 +25,15 @@ parser.add_argument('--alert_id', default=None,
                     help="list of events to exclude from this analysis. "
                     "such as HESE events that contributed to the trigger."
                     "Example --alert_id  127853:67093193,128290:6888376")
+parser.add_argument('--suffix', type=str, default='A',
+                    help="letter to differentiate multiple alerts on the same day (default = A)."
+                    "Event name given by IceCube-yymmdd + suffix.")
 args = parser.parse_args()
 
 cascade_time = Time(args.time, format='mjd')
 year, month, day = cascade_time.iso.split('-')
 day = day[:2]
-casc_name = 'IceCube-Cascade_{}{}{}'.format(year[-2:], month, day)
+casc_name = 'IceCube-Cascade_{}{}{}{}'.format(year[-2:], month, day, args.suffix)
 
 all_results = {}
 for delta_t in [1000., 2.*86400.]:
@@ -41,7 +44,9 @@ for delta_t in [1000., 2.*86400.]:
 
     name = casc_name + ' {:.1e}_s'.format(delta_t)
     name = name.replace('_', ' ')
-    name = name + ' new code framework'
+
+    run_id = args.alert_id[0][0]
+    ev_id = args.alert_id[0][1]
 
     f = CascadeFollowup(name, args.skymap, start, stop, skipped=args.alert_id)
 
@@ -51,8 +56,9 @@ for delta_t in [1000., 2.*86400.]:
     f.make_dNdE()
     f.plot_tsd()
     f.upper_limit()
+    f.find_coincident_events()
     results = f.save_results()
-    # f.generate_report()
+    f.generate_report()
     # if args.document:
     #     subprocess.call(['cp','-r',results['analysispath'],
     #     '/home/apizzuto/public_html/FastResponse/webpage/output/{}'.format(results['analysisid'])])
@@ -60,5 +66,7 @@ for delta_t in [1000., 2.*86400.]:
     all_results[delta_t] = results
 
 all_results[1000.]['gcn_num'] = args.gcn_notice_num
-utils.write_alert_gcn(all_results)
+#utils.write_alert_gcn(all_results)
 
+# Write circular to the output directory of the 2 day analysis
+f.write_circular(all_results)

@@ -5,6 +5,7 @@
     Date:   July 2020
 '''
 
+from itertools import count
 import gcn
 @gcn.handlers.include_notice_types(
         gcn.notice_types.ICECUBE_ASTROTRACK_GOLD,
@@ -74,10 +75,26 @@ def process_gcn(payload, root):
         else:
             print("TOO MANY OPTIONS FOR THE SKYMAP FILE FOR V2 TRACK ALERT EVENT")
             return
+    
+    #checking for events on the same day: looks for existing output files from previous runs
+    event_name='IceCube-{}{}{}'.format(eventtime[2:4],eventtime[5:7],eventtime[8:10])
+    count_dir=0
+    for directory in os.listdir(analysis_path+'../../output'):
+        if event_name in directory: count_dir+=1
+    if count_dir==0: suffix='A'
+    elif count_dir==2: suffix='B'
+    elif count_dir==4: suffix='C'
+    else: 
+        print("COULD NOT DETERMINE EVENT SUFFIX")
+        print("check for other events on the same day and re-run with args:")
+        print('--skymap={} --time={} --alert_id={}'.format(skymap, str(event_mjd), run_id+':'+event_id)) 
+        return
+    
     print('Running {}'.format(command))
     subprocess.call([command, '--skymap={}'.format(skymap), 
         '--time={}'.format(str(event_mjd)), 
-        '--alert_id={}'.format(run_id+':'+event_id)]
+        '--alert_id={}'.format(run_id+':'+event_id),
+        '--suffix={}'.format(suffix)]
         )
 
 if __name__ == '__main__':

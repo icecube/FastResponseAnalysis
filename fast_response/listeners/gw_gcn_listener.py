@@ -11,6 +11,7 @@ import gcn
     gcn.notice_types.LVC_PRELIMINARY,
     gcn.notice_types.LVC_INITIAL,
     gcn.notice_types.LVC_UPDATE)
+
 def process_gcn(payload, root):
 
     print('INCOMING ALERT FOUND')
@@ -61,10 +62,10 @@ def process_gcn(payload, root):
 
     skymap = params['skymap_fits']
     name = root.attrib['ivorn'].split('#')[1]
-    name= name.split('-')[0] #remove? this removes the map identifiers from the name
 
     if root.attrib['role'] != 'observation':
         name=name+'_test'
+        print('Running on scrambled data')
     command = analysis_path + 'run_gw_followup.py'
 
     print('Running {}'.format(command))
@@ -72,6 +73,11 @@ def process_gcn(payload, root):
         '--time={}'.format(str(event_mjd)), 
         '--name={}'.format(name)]
         )
+
+    for directory in os.listdir(analysis_path+'../../output'):
+        if name in directory: 
+            print('Output directory: ',analysis_path+'../../output/'+directory)
+            break
 
 
 if __name__ == '__main__':
@@ -87,7 +93,16 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='FRA GW followup')
     parser.add_argument('--run_live', action='store_true', default=False,
                         help='Run on live GCNs')
+    parser.add_argument('--log', default=False, 
+                        help='Redirect output to a log file, on gw webpage:'
+                        'https://user-web.icecube.wisc.edu/~jthwaites/FastResponse/gw-webpage/')
     args = parser.parse_args()
+
+    if args.log:
+        import sys
+        original_stdout=sys.stdout
+        logfile='/home/jthwaites/public_html/FastResponse/gw-webpage/output/log.log'
+        sys.stdout = open(logfile, 'a+') #'w' writes, but clears all prev output, 'a+' appends
 
     if args.run_live:
         print("Listening for GCNs . . . ")
@@ -106,8 +121,11 @@ if __name__ == '__main__':
         root = lxml.etree.fromstring(payload)
 
         #test runs on scrambles, observation runs on unblinded data
-        root.attrib['role']='test'
-
+        #root.attrib['role']='test'
         process_gcn(payload, root)
-        ### For more test skymaps:
-        # https://gracedb.ligo.org/api/superevents/MS190403g/files/bayestar.fits.gz
+     
+    if args.log:
+        print('Finished running.')
+        sys.stdout=original_stdout
+        print('Output written to log: ',logfile)
+    

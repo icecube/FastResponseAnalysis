@@ -342,7 +342,12 @@ class FastResponseAnalysis(object):
                 if str(np.min(self.tsd))== '-inf': 
                     lower=-500.
                 else: 
-                    lower = np.min([np.min(self.tsd), -500.])
+                    lower = np.max([np.min(self.tsd), -500.])
+
+                #lowest bin as underflow bin
+                self.tsd[self.tsd < lower] = lower 
+                self.tsd[np.isinf(self.tsd)]= lower
+
                 pos_bins=np.linspace(0., 25., 30) #fine pos bins
                 neg_bins=np.linspace(lower, 0., 30) #coarse neg bins
 
@@ -352,9 +357,16 @@ class FastResponseAnalysis(object):
             
             plt.hist(self.tsd, bins= bins, 
                     label="Background Scrambles", density=True)
-            plt.axvline(self.ts, color = 'k', label = "Observed TS")
+            if self.ts >= -500.:
+                plt.axvline(self.ts, color = 'k', label = "Observed TS")
+            else: 
+                plt.annotate("Unblinded TS: {:.0f}".format(self.ts), (lower+20, 1e-3))
             plt.legend(loc=1)
-            plt.xlabel("TS")
+
+            if bins[0]<0.:
+                plt.xlabel("TS (Note: lowest bin is an underflow bin)")
+            else:
+                plt.xlabel("TS")
             plt.ylabel("Probability Density")
             plt.yscale('log')
             plt.savefig(
@@ -534,7 +546,20 @@ class FastResponseAnalysis(object):
             skymap = self.skymap
             max_val = max(skymap)
         moll_cbar = True if self.skymap is not None else None
-        hp.mollview(skymap, coord='C', cmap=cmap, cbar=moll_cbar)
+        hp.mollview(skymap, coord='C', cmap=cmap, rot=180, cbar=moll_cbar)
+        plt.text(2.0,0., r"$0^\circ$", ha="left", va="center")
+        plt.text(1.9,0.45, r"$30^\circ$", ha="left", va="center")
+        plt.text(1.4,0.8, r"$60^\circ$", ha="left", va="center")
+        plt.text(1.9,-0.45, r"$-30^\circ$", ha="left", va="center")
+        plt.text(1.4,-0.8, r"$-60^\circ$", ha="left", va="center")
+        plt.text(2.0, -0.15, r"$0^\circ$", ha="center", va="center")
+        plt.text(1.333, -0.15, r"$60^\circ$", ha="center", va="center")
+        plt.text(.666, -0.15, r"$120^\circ$", ha="center", va="center")
+        plt.text(0.0, -0.15, r"$180^\circ$", ha="center", va="center")
+        plt.text(-.666, -0.15, r"$240^\circ$", ha="center", va="center")
+        plt.text(-1.333, -0.15, r"$300^\circ$", ha="center", va="center")
+        plt.text(-2.0, -0.15, r"$360^\circ$", ha="center", va="center")
+
         hp.graticule(verbose=False)
 
         theta=np.pi/2 - events['dec']
