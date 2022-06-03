@@ -120,7 +120,12 @@ class AlertFollowup(PriorFollowup):
         
         analysis_1000 = alert_results[1000.]
         analysis_2day = alert_results[172800.]
-        alert_id = analysis_1000['name'][:15]
+        
+        if 'Cascade' in analysis_1000['name']:
+            alert_id=analysis_1000['name'][:23]
+        else:
+            alert_id = analysis_1000['name'][:15]
+        
         if 'coincident_events' not in analysis_1000.keys():
             analysis_1000['coincident_events'] = []
         ev_is_are = 'event is' if len(analysis_1000['coincident_events']) == 1 else 'events are'
