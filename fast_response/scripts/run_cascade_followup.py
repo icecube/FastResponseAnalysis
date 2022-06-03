@@ -7,7 +7,7 @@ Author: Alex Pizzuto
 May 2020'''
 
 import numpy as np
-import os, sys, argparse
+import os, sys, argparse, subprocess
 from astropy.time import Time
 
 from fast_response.AlertFollowup import CascadeFollowup
@@ -34,6 +34,17 @@ cascade_time = Time(args.time, format='mjd')
 year, month, day = cascade_time.iso.split('-')
 day = day[:2]
 casc_name = 'IceCube-Cascade_{}{}{}{}'.format(year[-2:], month, day, args.suffix)
+
+if 'https://roc.icecube.wisc.edu' in args.skymap:
+    print('Downloading skymap from https://roc.icecube.wisc.edu')
+    saved_skymaps_path = os.environ.get('FAST_RESPONSE_OUTPUT') + '/../cascade_skymaps/'
+    skymap_filename=args.skymap.split('/')[-1]
+    if not os.path.isdir(saved_skymaps_path):
+        subprocess.call(['mkdir', saved_skymaps_path])
+    subprocess.call(['wget', args.skymap,'--no-check-certificate'])
+    subprocess.call(['mv',skymap_filename,saved_skymaps_path])
+    print('Done.')
+    args.skymap=saved_skymaps_path+skymap_filename
 
 all_results = {}
 for delta_t in [1000., 2.*86400.]:
