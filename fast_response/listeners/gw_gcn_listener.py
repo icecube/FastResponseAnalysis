@@ -69,6 +69,7 @@ def process_gcn(payload, root):
     command = analysis_path + 'run_gw_followup.py'
 
     print('Running {}'.format(command))
+
     subprocess.call([command, '--skymap={}'.format(skymap), 
         '--time={}'.format(str(event_mjd)), 
         '--name={}'.format(name)]
@@ -76,9 +77,15 @@ def process_gcn(payload, root):
 
     for directory in os.listdir(analysis_path+'../../output'):
         if name in directory: 
-            print('Output directory: ',analysis_path+'../../output/'+directory)
+            if root.attrib['role'] != 'observation':
+                skymap_filename=skymap.split('/')[-1]
+                subprocess.call(['wget', skymap])
+                subprocess.call(['mv', skymap_filename, analysis_path+'../../output/'+directory])
+                subprocess.call(['mv',analysis_path+'../../output/'+directory, '/data/user/jthwaites/o4-mocks/'])
+                print('Output directory: ','/data/user/jthwaites/o4-mocks/'+directory)
+            else: 
+                print('Output directory: ',analysis_path+'../../output/'+directory)
             break
-
 
 if __name__ == '__main__':
     import os, subprocess
@@ -102,7 +109,7 @@ if __name__ == '__main__':
         import sys
         original_stdout=sys.stdout
         logfile='/home/jthwaites/public_html/FastResponse/gw-webpage/output/log.log'
-        sys.stdout = open(logfile, 'a+') #'w' writes, but clears all prev output, 'a+' appends
+        sys.stdout = open(logfile, 'a+') 
 
     if args.run_live:
         print("Listening for GCNs . . . ")
@@ -111,19 +118,19 @@ if __name__ == '__main__':
         ### FOR OFFLINE TESTING
         try:
             import fast_response
-            sample_skymap_path=os.path.dirname(fast_response.__file__) +'/sample_skymaps/'
+            sample_skymap_path='/data/user/jthwaites/o3-gw-skymaps/'
+            #sample_skymap_path=os.path.dirname(fast_response.__file__) +'/sample_skymaps/'
         except Exception as e:
             sample_skymap_path='/data/user/apizzuto/fast_response_skylab/' \
                 + 'fast-response/fast_response/sample_skymaps/'
         
-        payload = open(sample_skymap_path \
-            + 'S191216ap_update.xml', 'rb').read()
-        root = lxml.etree.fromstring(payload)
+        payload = open(sample_skymap_path + 'S200302c-4-Update.xml', 'rb').read()
+        root = lxml.etree.fromstring(payload) 
 
         #test runs on scrambles, observation runs on unblinded data
         #root.attrib['role']='test'
         process_gcn(payload, root)
-     
+    
     if args.log:
         print('Finished running.')
         sys.stdout=original_stdout

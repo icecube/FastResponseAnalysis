@@ -22,8 +22,6 @@ parser.add_argument('--name', type=str,
                     default="GW Followup")
 args = parser.parse_args()
 
-##subprocess.call(['clear']) #not sure what this does, but seems unnecessary?
-
 #GW message header
 message = '*'*80
 message += '\n' + str(pyfiglet.figlet_format("GW Followup")) + '\n'
@@ -52,5 +50,5 @@ f.per_event_pvalue()
 results = f.save_results()
 f.generate_report()
 
-f.write_circular()
+f.write_circular() #need to update! to write proper gw options
 
