@@ -66,7 +66,7 @@ class GWFollowup(PriorFollowup):
         pvalue = self.p
         start_iso = str(Time(self.start, format = 'mjd', scale = 'utc').iso)
         stop_iso = str(Time(self.stop, format = 'mjd', scale = 'utc').iso)
-
+        
         namelist = self.name.split('-')
         gw_name = namelist[0]
         try:
@@ -98,17 +98,18 @@ class GWFollowup(PriorFollowup):
             gcn_file.close()
 
         else:
-            significance = '{:1.2f}'.format(self.sigma(pvalue))
+            significance = '{:1.2f}'.format(self.significance(pvalue))
 
             info = ' <dt>   <ra>       <dec>          <angErr>                    <p_gwava>                 <p_llama>\n'
             table = ''
+            n_coincident_events=0
             for event in events:
                 if event['pvalue']<=0.1:
                     ev_info = info
                     ra = '{:.2f}'.format(np.rad2deg(event['ra']))
                     dec = '{:.2f}'.format(np.rad2deg(event['dec']))
                     sigma = '{:.2f}'.format(np.rad2deg(event['sigma']*2.145966))
-                    dt = '{:.2f}'.format((event['time']-self.trigger)*86400.)
+                    dt = '{:.2f}'.format((event['time']-self.centertime)*86400.)
                     ev_info = ev_info.replace('<dt>', dt)
                     ev_info = ev_info.replace('<ra>', ra)
                     ev_info = ev_info.replace('<dec>', dec)
@@ -121,14 +122,22 @@ class GWFollowup(PriorFollowup):
                         ev_info = ev_info.replace('<p_gwava>', pval_str)
                     # ev_info = ev_info.replace('<p_gwava>','{:.3f}'.format(pvalue))
                     table+=ev_info
+                    n_coincident_events+=1
 
-
-            num = events['pvalue'][events['pvalue']<=0.1].size
-            gcn_file = open(self.dirname+'/gcn_%s.txt' % gw_name,'w')
+            if n_coincident_events == 0:
+                num = 'Zero'
+            elif n_coincident_events == 1:
+                num = 'One'
+            elif n_coincident_events == 2:
+                num = 'Two'
+            else:
+                num = str(n_coincident_events)
+            #num = events['pvalue'][events['pvalue']<=0.1].size
+            gcn_file = open(self.analysispath+'/gcn_%s.txt' % gw_name,'w')
             with open(template_path,'r') as gcn_template:
 
                 for line in gcn_template.readlines():
-                    line = line.replace('<N>', str(num))
+                    line = line.replace('<N>', num)
                     line = line.replace('<name>', gw_name)
                     line = line.replace('<noticeID>', noticeID)
                     line = line.replace('<tstart>', start_iso)
