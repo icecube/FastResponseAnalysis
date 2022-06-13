@@ -312,7 +312,7 @@ class GWFollowup(PriorFollowup):
                 self.events_rec_array['pvalue'][i] = p
         elif self.tsd is None:
             for i in range(self.events_rec_array.size):
-                self.events_rec_array['pvalue'][i] = 1.0 
+                self.events_rec_array['pvalue'][i] = None
         else:
             for i in range(self.events_rec_array.size):
                 p = np.count_nonzero(self.tsd >= self.events_rec_array['ts'][i]) / float(len(self.tsd))

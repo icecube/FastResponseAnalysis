@@ -66,7 +66,6 @@ def time_series(ax, run_table, time_window, t1, t2, n,
 def make_rate_plots(time_window, run_table, query_events, dirname, season='neutrino'):
     try:
         badness = icecube.realtime_tools.live.get_badness(run_table[0]['start'], run_table[-1]['stop'])
-        rates = icecube.realtime_tools.live.get_rates(run_table[0]['start'], run_table[-1]['stop'])
 
         ########## MAKE BADNESS PLOT ##########   
         fig, ax = plt.subplots(figsize = (12,4))
@@ -83,6 +82,8 @@ def make_rate_plots(time_window, run_table, query_events, dirname, season='neutr
         plt.savefig('{}/badness_plot.png'.format(dirname))
 
         ########## MAKE RATES PLOTS ##########
+        #rates = icecube.realtime_tools.live.get_rates(run_table[0]['start'], run_table[-1]['stop'])
+        rates=np.load('/data/user/jthwaites/FastResponseAnalysis/output/2022_04_04_FSRQ_B2_1348+30B_(2_month)/rates.npy')
         recstart= Time(rates['rec_start'],format='mjd',scale='utc')
         recstop = Time(rates['rec_stop' ],format='mjd',scale='utc')
 
@@ -124,5 +125,6 @@ def make_rate_plots(time_window, run_table, query_events, dirname, season='neutr
         plt.grid(b = True, axis = 'y', alpha = 0.3)
         plt.savefig('{}/GFU_rate_plot.png'.format(dirname))
 
-    except:
-        print("Times too old to get rate information")
+    except Exception as e:
+        print(e)
+        print("ISSUE MAKING RATE PLOTS")
