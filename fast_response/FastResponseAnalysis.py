@@ -990,6 +990,9 @@ class PointSourceFollowup(FastResponseAnalysis):
            (self.dec < -np.pi/2. or self.dec > np.pi/2.):
             print("Right ascension and declination are not valid")
             sys.exit()
+        else:
+            self.save_items['ra'] = self.ra
+            self.save_items['dec'] = self.dec
         
         self.skymap, self.nside, self.ipix_90 = None, None, None
 
