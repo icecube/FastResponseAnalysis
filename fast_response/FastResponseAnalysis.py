@@ -353,7 +353,7 @@ class FastResponseAnalysis(object):
 
                 bins=np.concatenate([ neg_bins[:-1], pos_bins ]) 
             else:
-                if np.min(self.tsd) < 0.0:
+                if (np.min(self.tsd) < 0.0) or (str(np.min(self.tsd))== '-inf'):
                     self.tsd[self.tsd < 0.] = 0.
                     self.tsd[np.isinf(self.tsd)]= 0.
                 bins = np.linspace(0., 25., 30)
