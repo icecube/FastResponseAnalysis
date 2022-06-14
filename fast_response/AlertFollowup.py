@@ -125,6 +125,11 @@ class AlertFollowup(PriorFollowup):
             alert_id=analysis_1000['name'][:23]
         else:
             alert_id = analysis_1000['name'][:15]
+                    
+        if len(analysis_1000['gcn_num'])>6:
+            gcn_link='notices_amon_icecube_cascade/'+analysis_1000['gcn_num']+'.amon'
+        else:
+            gcn_link= 'gcn3/'+ analysis_1000['gcn_num'] +'.gcn3'
         
         if 'coincident_events' not in analysis_1000.keys():
             analysis_1000['coincident_events'] = []
@@ -172,7 +177,7 @@ class AlertFollowup(PriorFollowup):
         else:
             long_sens_range = f'ranges from {analysis_2day["sens_range"][0]:.1e} to {analysis_2day["sens_range"][1]:.1e}'
 
-        keypairs = [('alert_name', alert_id), ('gcn_number', analysis_1000['gcn_num']), 
+        keypairs = [('alert_name', alert_id), ('gcn_number', gcn_link), 
                     ('start_utc', Time(analysis_1000['start'], format='mjd').iso), 
                     ('stop_utc', Time(analysis_1000['stop'], format='mjd').iso), 
                     ('long_start_utc', Time(analysis_2day['start'], format='mjd').iso), 

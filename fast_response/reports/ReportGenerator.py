@@ -424,7 +424,7 @@ class ReportGenerator(object):
             self.make_coinc_events_table(f)
             
             if self.analysis._float_index:
-                if self.analysis.ts >= 0.:
+                if self.analysis.ts > 0.:
                     self.write_table(
                         f,
                         "results",

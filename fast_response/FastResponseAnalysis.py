@@ -332,13 +332,13 @@ class FastResponseAnalysis(object):
     def make_all_report_tables(self):
         pass
 
-    def plot_tsd(self):
+    def plot_tsd(self, allow_neg=False):
         r'''Outputs a plot of the background TS distributions
         as well as the observed TS
         '''
         if self.tsd is not None:
             fig, ax = plt.subplots()
-            if np.min(self.tsd) < 0.0:
+            if allow_neg:
                 if str(np.min(self.tsd))== '-inf': 
                     lower=-500.
                 else: 
@@ -353,6 +353,9 @@ class FastResponseAnalysis(object):
 
                 bins=np.concatenate([ neg_bins[:-1], pos_bins ]) 
             else:
+                if np.min(self.tsd) < 0.0:
+                    self.tsd[self.tsd < 0.] = 0.
+                    self.tsd[np.isinf(self.tsd)]= 0.
                 bins = np.linspace(0., 25., 30)
             
             plt.hist(self.tsd, bins= bins, 
@@ -987,6 +990,9 @@ class PointSourceFollowup(FastResponseAnalysis):
            (self.dec < -np.pi/2. or self.dec > np.pi/2.):
             print("Right ascension and declination are not valid")
             sys.exit()
+        else:
+            self.save_items['ra'] = self.ra
+            self.save_items['dec'] = self.dec
         
         self.skymap, self.nside, self.ipix_90 = None, None, None
 
