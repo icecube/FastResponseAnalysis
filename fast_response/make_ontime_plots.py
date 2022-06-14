@@ -37,6 +37,10 @@ def time_axis(ax, run_table, time_window):
         
     plt.axvspan(time_window[0].plot_date, time_window[1].plot_date, alpha = 0.2)
 
+    #possibly needed for longer followups
+    #ax.xaxis.set_major_locator(mdates.MonthLocator(bymonth=[4,5,6], interval=10))
+    #ax.xaxis.set_major_formatter( mdates.DateFormatter("%m"))
+
     ax.xaxis.set_minor_locator(mdates.HourLocator())
     ax.xaxis.set_major_locator(mdates.HourLocator([0,12]))
     ax.xaxis.set_major_formatter( mdates.DateFormatter("%m-%d %H:%M"))
@@ -82,8 +86,8 @@ def make_rate_plots(time_window, run_table, query_events, dirname, season='neutr
         plt.savefig('{}/badness_plot.png'.format(dirname))
 
         ########## MAKE RATES PLOTS ##########
-        #rates = icecube.realtime_tools.live.get_rates(run_table[0]['start'], run_table[-1]['stop'])
-        rates=np.load('/data/user/jthwaites/FastResponseAnalysis/output/2022_04_04_FSRQ_B2_1348+30B_(2_month)/rates.npy')
+        rates = icecube.realtime_tools.live.get_rates(run_table[0]['start'], run_table[-1]['stop'])
+        #rates=np.load('/data/user/jthwaites/FastResponseAnalysis/output/2022_2mo_followup_rates.npy')
         recstart= Time(rates['rec_start'],format='mjd',scale='utc')
         recstop = Time(rates['rec_stop' ],format='mjd',scale='utc')
 
@@ -97,7 +101,7 @@ def make_rate_plots(time_window, run_table, query_events, dirname, season='neutr
                         recstart,  
                         recstop, 
                         rates[rate])
-            
+
             
             plt.title(name, fontsize = 18)
             plt.ylabel('{} {}'.format(name, unit), fontsize = 16)
