@@ -125,7 +125,8 @@ class AlertFollowup(PriorFollowup):
             alert_id=analysis_1000['name'][:23]
         else:
             alert_id = analysis_1000['name'][:15]
-                    
+        analysis_1000['gcn_num']=str(analysis_1000['gcn_num'])
+
         if len(analysis_1000['gcn_num'])>6:
             gcn_link='notices_amon_icecube_cascade/'+analysis_1000['gcn_num']+'.amon'
         else:
