@@ -13,7 +13,8 @@ import gcn
         gcn.notice_types.ICECUBE_CASCADE)
 
 def process_gcn(payload, root):
-    print("INCOMING ALERT")
+    print("INCOMING ALERT: ",datetime.utcnow())
+
     analysis_path = os.environ.get('FAST_RESPONSE_SCRIPTS')
     if analysis_path is None:
         try:
@@ -41,6 +42,10 @@ def process_gcn(payload, root):
     else:
         print("Found track type alert, running track followup. . . ")
         alert_type='track'
+
+        # IceCube sends 2: a notice and a revision, only want to run once
+        if int(params['Rev']) !=0:
+            return
 
     event_id = params['event_id']
     run_id = params['run_id']
