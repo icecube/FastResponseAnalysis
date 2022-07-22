@@ -72,7 +72,8 @@ def process_gcn(payload, root):
 
     subprocess.call([command, '--skymap={}'.format(skymap), 
         '--time={}'.format(str(event_mjd)), 
-        '--name={}'.format(name+'_2')]
+        '--name={}'.format(name)]
+        #'--allow_neg_ts=True']
         )
 
     for directory in os.listdir(analysis_path+'../../output'):
@@ -135,7 +136,7 @@ if __name__ == '__main__':
         except Exception as e:
             sample_skymap_path='/data/user/jthwaites/o3-gw-skymaps/'
         
-        payload = open(sample_skymap_path + 'S190521g-2-Initial.xml', 'rb').read()
+        payload = open(sample_skymap_path + 'S190728q-5-Update.xml', 'rb').read()
         root = lxml.etree.fromstring(payload) 
 
         #test runs on scrambles, observation runs on unblinded data

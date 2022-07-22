@@ -27,7 +27,7 @@ def plot_color_bar(labels=[0.,2.,4.,6.], col_label=r"IceCube Event Time", range=
     fig = plt.gcf()
     ax = fig.add_axes([0.95, 0.2, 0.03, 0.6])
     labels = labels
-    cb = mpl.colorbar.ColorbarBase(ax, cmap=ps_map if cmap is None else cmap,
+    cb = mpl.colorbar.ColorbarBase(ax, cmap="Blues" if cmap is None else cmap,
                         #norm=mpl.colors.Normalize(vmin=range[0], vmax=range[1]), 
                         orientation="vertical")
 
