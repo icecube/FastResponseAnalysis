@@ -16,10 +16,10 @@ In order to grab events from the i3live database, you will also need a the `real
 After you have a version of `icetray` built, you will want to do a parasitic build of the realtime project, building off of this version of `icetray`. To do this, navigate to a new directory where you want your realtime project to live, and run
 
 ```console
-svn co http://code.icecube.wisc.edu/svn/meta-projects/realtime/trunk/ src
-mkdir build 
+git clone https://github.com/icecube/realtime.git src
+mkdir build
 cd build
-cmake ../src/ -DMETAPROJECT=/path/to/icerec/build/ -DCMAKE_INSTALL_PREFIX=combo-plus.${OS_ARCH}
+cmake ../src/ -DMETAPROJECT=/path/to/icerec/build/ -DCMAKE_INSTALL_PREFIX=icerec-plus.${OS_ARCH}
 make
 ```
 
@@ -130,10 +130,38 @@ python run_track_followup.py --skymap=/home/followup/output_plots/run{RUNID}.evt
 
 This will run two analyses, one with a time window of 1000 s and one with a time window of 2 days, both centered on the alert time. It will also remove the alert event from the sample, and it will assume a spectral index of -2.5, which is different than the -2 used for the `run_external_followup.py` script.
 
+## Tutorial — Gravitational wave followup
+To run the analysis to follow up a graviational wave event, you will need to navigate to the directory including `run_gw_followup.py`. You need to know:
+1. The name of the GW event
+2. The time of the GW
+3. A link to the skymap for the GW (can be a string url link or a path if run on the cobalts
 
+As an example, there is a sample map included here: `fast_response/sample_skymaps/S191216ap_update.xml`. To run this event, the input would look like:
+```console
+python run_gw_followup.py --name="S191216ap Update" --time=58833.893 --skymap="../sample_skymaps/S191216ap_update.xml"
+```
+Additionally, you can choose to pass the argument `--allow_neg_ts` (bool) if you want to use the convention where a negative TS is allowed. The default is to use the convention TS>=0.
+
+When running the code, you will see a printout like (similar to the externally triggered follow up):
+```
+********************************************************************************
+  ______        __  _____     _ _                           
+ / ___\ \      / / |  ___|__ | | | _____      ___   _ _ __  
+| |  _ \ \ /\ / /  | |_ / _ \| | |/ _ \ \ /\ / / | | | '_ \ 
+| |_| | \ V  V /   |  _| (_) | | | (_) \ V  V /| |_| | |_) |
+ \____|  \_/\_/    |_|  \___/|_|_|\___/ \_/\_/  \__,_| .__/ 
+                                                     |_|    
+
+********************************************************************************
+Working on unscrambled (UNBLINDED) data
+Grabbing data
+```
+
+Performance plots will be saved and a report with the results generated in the same way as the above analyses. The output directory is specified in the same way as above, with the `FAST_RESPONSE_OUTPUT` environment variable.
 
 ## Contacts
 Please send any questions or feature requests to:
+* Jessie Thwaites (thwaites@wisc.edu)
 * Alex Pizzuto (apizzuto@icecube.wisc.edu)
 * Raamis Hussain (raamis.hussain@icecube.wisc.edu)
 * Justin Vandenbroucke (justin.vandenbroucke@wisc.edu)
