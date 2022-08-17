@@ -14,7 +14,7 @@ import gcn
 
 def process_gcn(payload, root):
 
-    print('INCOMING ALERT FOUND')
+    print('INCOMING ALERT FOUND: ',datetime.utcnow())
     analysis_path = os.environ.get('FAST_RESPONSE_SCRIPTS')
     if analysis_path is None:
         try:
@@ -73,14 +73,22 @@ def process_gcn(payload, root):
     subprocess.call([command, '--skymap={}'.format(skymap), 
         '--time={}'.format(str(event_mjd)), 
         '--name={}'.format(name)]
+        #'--allow_neg_ts=True']
         )
 
     for directory in os.listdir(analysis_path+'../../output'):
         if name in directory: 
-            if root.attrib['role'] != 'observation':
-                skymap_filename=skymap.split('/')[-1]
+            skymap_filename=skymap.split('/')[-1]
+            if 'MS22' in name:
+                #import glob
+                et = lxml.etree.ElementTree(root)
+                et.write(analysis_path+'../../output/'+directory+'/{}-{}-{}.xml'.format(params['GraceID'], 
+                         params['Pkt_Ser_Num'], params['AlertType']), pretty_print=True)
                 subprocess.call(['wget', skymap])
                 subprocess.call(['mv', skymap_filename, analysis_path+'../../output/'+directory])
+                #pkl_file=glob.glob(analysis_path+'../../output/'+directory+'/*.pickle')
+                #if len(pkl_file)==1:
+                #    subprocess.call(['rm','-r', pkl_file[0]])
                 subprocess.call(['mv',analysis_path+'../../output/'+directory, '/data/user/jthwaites/o4-mocks/'])
                 print('Output directory: ','/data/user/jthwaites/o4-mocks/'+directory)
             else: 
@@ -106,13 +114,18 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     if args.log:
-        import sys
-        original_stdout=sys.stdout
+        #import sys
+        #original_stdout=sys.stdout
         logfile='/home/jthwaites/public_html/FastResponse/gw-webpage/output/log.log'
-        sys.stdout = open(logfile, 'a+') 
+        #sys.stdout = open(logfile, 'a+') 
+        import logging
+        logging.basicConfig(filename=logfile,
+                            format='%(levelname)s:%(message)s', 
+                            level=logging.INFO)
 
     if args.run_live:
-        print("Listening for GCNs . . . ")
+        if args.log: logging.info("Listening for GCNs . . . ")
+        else: print("Listening for GCNs . . . ")
         gcn.listen(handler=process_gcn)
     else: 
         ### FOR OFFLINE TESTING
@@ -121,10 +134,9 @@ if __name__ == '__main__':
             sample_skymap_path='/data/user/jthwaites/o3-gw-skymaps/'
             #sample_skymap_path=os.path.dirname(fast_response.__file__) +'/sample_skymaps/'
         except Exception as e:
-            sample_skymap_path='/data/user/apizzuto/fast_response_skylab/' \
-                + 'fast-response/fast_response/sample_skymaps/'
+            sample_skymap_path='/data/user/jthwaites/o3-gw-skymaps/'
         
-        payload = open(sample_skymap_path + 'S200302c-4-Update.xml', 'rb').read()
+        payload = open(sample_skymap_path + 'S190728q-5-Update.xml', 'rb').read()
         root = lxml.etree.fromstring(payload) 
 
         #test runs on scrambles, observation runs on unblinded data
@@ -132,7 +144,7 @@ if __name__ == '__main__':
         process_gcn(payload, root)
     
     if args.log:
-        print('Finished running.')
-        sys.stdout=original_stdout
-        print('Output written to log: ',logfile)
+        logging.info('Finished running.')
+        #sys.stdout=original_stdout
+        logging.info('Output written to log: ',logfile)
     

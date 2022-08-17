@@ -42,6 +42,7 @@ name = name.replace('_', ' ')
 
 f = GWFollowup(name, args.skymap, start, stop)
 f._allow_neg = args.allow_neg_ts
+f._dataset = 'GFUOnline_v001p03'
 
 f.unblind_TS()
 f.plot_ontime()
