@@ -40,10 +40,10 @@ pip install -r /path/to/fast-response/requirements.txt
 
 This will create a virtual environment named `fra_env`, and the `source fra_env/bin/activate` line will activate the environment.
 
-You should then install `fast_response` into this environment by running
+You should then install `fast_response` into this environment by navigating into the FastResponseAnalysis and running
 
 ```console
-pip install fast_response
+pip install .
 ```
 
 In the future, you will not need to jump through these hoops, and you can load the environment with these lines:
