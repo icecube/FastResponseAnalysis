@@ -54,6 +54,7 @@ class FastResponseAnalysis(object):
     _llh_seed = 1
     _season_names = [f"IC86, 201{y}" for y in range(1, 10)]
     _nb_days = 10
+    _ncpu = 5
 
     def __init__(self, name, tstart, tstop, skipped=None, seed=None,
                  outdir=None, save=True, extension=None):
@@ -239,7 +240,7 @@ class FastResponseAnalysis(object):
             self.exp,                      # array with data events
             self.mc,                       # array with Monte Carlo events
             self.livetime,                 # total livetime of the data events
-            ncpu=5,                        # use 10 CPUs when computing trials
+            ncpu=self._ncpu,                        # use 10 CPUs when computing trials
             scramble=scramble,             # set to False for unblinding
             timescramble=True,             # not just RA scrambling
             llh_model=llh_model,           # likelihood model

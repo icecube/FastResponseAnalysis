@@ -24,6 +24,7 @@ class GWFollowup(PriorFollowup):
     _nside = 512
     _season_names = ['IC86, 2017', 'IC86, 2018', 'IC86, 2019']
     _nb_days = 5.
+    _ncpu = 10
     
     def run_background_trials(self, month=None, ntrials=1000):
         if month is None:
