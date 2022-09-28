@@ -12,6 +12,7 @@ matplotlib==2.2.5
 meander==0.0.3
 more-itertools==5.0.0
 numpy>=1.21.5
+numexpr=2.8.1
 pandas>=1.2.2
 pluggy==0.7.1
 pyfiglet==0.8.post1
