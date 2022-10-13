@@ -62,7 +62,7 @@ In order to perform a short timescale followup using the realtime GFU stream, yo
 
 In order to run an analysis, navigate to the directory containing `run_external_followup.py`. All you need to do is
 ```console
-python run_external_followup.py --name="Fast Response Example" --start="2020-01-01 12:00:00.00" --stop="2020-01-02 12:00:00.0" --ra=250.0 --dec=45.0
+python run_external_followup.py --name="Fast Response Test" --start="2020-01-01 12:00:00.00" --stop="2020-01-02 12:00:00.0" --ra=250.0 --dec=45.0
 ```
 You can either pass the location as an RA, DEC or pass a skymap with `--skymap=/path/to/skymap` (this can be a string with a url or a path if running on the cobalts). After a few seconds, you should see the following screen:
 
@@ -138,7 +138,7 @@ To run the analysis to follow up a graviational wave event, you will need to nav
 
 As an example, there is a sample map included here: `fast_response/sample_skymaps/S191216ap_update.xml`. To run this event, the input would look like:
 ```console
-python run_gw_followup.py --name="S191216ap Update" --time=58833.893 --skymap="../sample_skymaps/S191216ap_update.xml"
+python run_gw_followup.py --name="S191216ap Update" --time=58833.893 --skymap="https://gracedb.ligo.org/api/superevents/S191216ap/files/LALInference.fits.gz,0"
 ```
 Additionally, you can choose to pass the argument `--allow_neg_ts` (bool) if you want to use the convention where a negative TS is allowed. The default is to use the convention TS>=0.
 

@@ -86,9 +86,6 @@ def process_gcn(payload, root):
                          params['Pkt_Ser_Num'], params['AlertType']), pretty_print=True)
                 subprocess.call(['wget', skymap])
                 subprocess.call(['mv', skymap_filename, analysis_path+'../../output/'+directory])
-                #pkl_file=glob.glob(analysis_path+'../../output/'+directory+'/*.pickle')
-                #if len(pkl_file)==1:
-                #    subprocess.call(['rm','-r', pkl_file[0]])
                 subprocess.call(['mv',analysis_path+'../../output/'+directory, '/data/user/jthwaites/o4-mocks/'])
                 print('Output directory: ','/data/user/jthwaites/o4-mocks/'+directory)
             else: 

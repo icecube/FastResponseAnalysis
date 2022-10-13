@@ -1,10 +1,10 @@
 *.pyc
 *.fits
 *.xml
-fast_response/output/*
 fast_response/output/
 fast_response/precomputed_background/trials/
 fast_response/precomputed_background/glob_trials/
+build/
 *.json
 v01-00/
 fast_response.egg-info/
@@ -13,8 +13,6 @@ RELEASE_NOTES
 fast_response/results_dataframe.pkl
 fast_response/results_dataframe_gw.pkl
 output/
-output/*
 fast_response/results_dataframe_bkup.pkl
 fast_response/scripts/make_call.py
 cascade_skymaps/
-cascade_skymaps/*
