@@ -114,20 +114,27 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     if args.log:
-        #import sys
-        #original_stdout=sys.stdout
-        logfile='/home/jthwaites/public_html/FastResponse/gw-webpage/output/log.log'
-        #sys.stdout = open(logfile, 'a+') 
-        import logging
-        logging.basicConfig(filename=logfile,
-                            format='%(levelname)s:%(message)s', 
-                            level=logging.INFO)
+        import sys
+        original_stdout=sys.stdout
+        original_stderr=sys.stderr
+        logfile='/home/mromfoe/public_html/logfile.log'
+        log_file = open(logfile, "a+")
+        
+        sys.stdout=log_file
+        print("WOAH LOOK AT THAT GRB FROM TODAY")
+        log_file.close()
+        #sys.stdout=original_stdout
+          
 
     if args.run_live:
-        if args.log: logging.info("Listening for GCNs . . . ")
-        else: print("Listening for GCNs . . . ")
+        print("Listening for GCNs . . . ")
         gcn.listen(handler=process_gcn)
     else: 
+        log_file = open(logfile, "a+")
+        sys.stdout=log_file
+        print("Listening for GCNs . . . ")
+        log_file.close()
+        sys.stdout=original_stdout
         ### FOR OFFLINE TESTING
         try:
             import fast_response
@@ -142,9 +149,3 @@ if __name__ == '__main__':
         #test runs on scrambles, observation runs on unblinded data
         #root.attrib['role']='test'
         process_gcn(payload, root)
-    
-    if args.log:
-        logging.info('Finished running.')
-        #sys.stdout=original_stdout
-        logging.info('Output written to log: ',logfile)
-    
