@@ -1214,5 +1214,7 @@ class PointSourceFollowup(FastResponseAnalysis):
         plt.legend(loc=4, fontsize=18)
         plt.savefig(self.analysispath + '/central_90_dNdE.png',bbox_inches='tight')
 
+        self.save_items['energy_range'] = (self.low5, self.high5)
+
     def write_circular(self):
         pass
