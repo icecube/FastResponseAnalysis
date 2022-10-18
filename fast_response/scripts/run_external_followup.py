@@ -16,7 +16,7 @@ import pyfiglet
 def run_analysis(args):
     assert ((args.skymap is None) != (args.ra is None and args.dec is None)), 'Must pass exactly one option between RA, Dec or skymap location'
 
-    subprocess.call(['clear'])
+    #subprocess.call(['clear'])
     message = '*'*80
     message += '\n' + str(pyfiglet.figlet_format("Fast Response Followup")) + '\n'
     message += '*'*80
@@ -54,7 +54,6 @@ def run_analysis(args):
     #     subprocess.call(['cp','-r',results['analysispath'],
     #         '/home/apizzuto/public_html/FastResponse/webpage/output/{}'.format(results['analysisid'])])
     #     web_utils.updateFastResponseWeb(results)
-
 
 if __name__ == "__main__":
     warnings.filterwarnings("ignore")
