@@ -1,11 +1,16 @@
 ''' Script to automatically receive GCN alerts and get LIGO skymaps 
     to run realtime neutrino follow-up
 
-    Author: Raamis Hussain, updated by Jessie Thwaites
-    Date:   April 2022
+    Author: Raamis Hussain, updated by Jessie Thwaites, MJ Romfoe
+    Date:   October 2022
 '''
 
 import gcn
+import sys
+
+logfile='/home/mromfoe/public_html/logfile.log'
+original_stdout=sys.stdout
+
 
 @gcn.handlers.include_notice_types(
     gcn.notice_types.LVC_PRELIMINARY,
@@ -14,19 +19,27 @@ import gcn
 
 def process_gcn(payload, root):
 
+    log_file = open(logfile, "a+")
+    sys.stdout=log_file
+    sys.stderr=log_file
     print('INCOMING ALERT FOUND: ',datetime.utcnow())
+    log_file.flush()
     analysis_path = os.environ.get('FAST_RESPONSE_SCRIPTS')
     if analysis_path is None:
         try:
             import fast_response
             analysis_path = os.path.dirname(fast_response.__file__) + '/scripts/'
         except Exception as e:
+            log_file = open(logfile, "a+")
+            sys.stdout=log_file
+            sys.stderr=log_file
             print(e)
             print('###########################################################################')
             print('CANNOT FIND ENVIRONMENT VARIABLE POINTING TO REALTIME FAST RESPONSE PACKAGE\n')
             print('You can either (1) install fast_response via pip or ')
             print('(2) put \'export FAST_RESPONSE_SCRIPTS=/path/to/fra/scripts\' in your bashrc')
             print('###########################################################################')
+            log_file.flush()
             exit()
 
     # Respond only to 'test' events.
@@ -47,15 +60,23 @@ def process_gcn(payload, root):
     eventtime = root.find('.//ISOTime').text
     event_mjd = Time(eventtime, format='isot').mjd
 
+    log_file = open(logfile, "a+")
+    sys.stdout=log_file
+    sys.stderr=log_file
     print('GW trigger time: %s \n' % Time(eventtime, format='isot').iso)
+    log_file.flush()
 
     current_mjd = Time(datetime.utcnow(), scale='utc').mjd
     needed_delay = 1000./84600./2.
     current_delay = current_mjd - event_mjd
     while current_delay < needed_delay:
+        log_file = open(logfile, "a+")
+        sys.stdout=log_file
+        sys.stderr=log_file
         print("Need to wait another {:.1f} seconds before running".format(
             (needed_delay - current_delay)*86400.)
             )
+        log_file.flush()
         time.sleep((needed_delay - current_delay)*86400.)
         current_mjd = Time(datetime.utcnow(), scale='utc').mjd
         current_delay = current_mjd - event_mjd
@@ -65,10 +86,18 @@ def process_gcn(payload, root):
 
     if root.attrib['role'] != 'observation':
         name=name+'_test'
+        log_file = open(logfile, "a+")
+        sys.stdout=log_file
+        sys.stderr=log_file
         print('Running on scrambled data')
+        log_file.flush()
     command = analysis_path + 'run_gw_followup.py'
 
+    log_file = open(logfile, "a+")
+    sys.stdout=log_file
+    sys.stderr=log_file
     print('Running {}'.format(command))
+    log_file.flush()
 
     subprocess.call([command, '--skymap={}'.format(skymap), 
         '--time={}'.format(str(event_mjd)), 
@@ -87,9 +116,17 @@ def process_gcn(payload, root):
                 subprocess.call(['wget', skymap])
                 subprocess.call(['mv', skymap_filename, analysis_path+'../../output/'+directory])
                 subprocess.call(['mv',analysis_path+'../../output/'+directory, '/data/user/jthwaites/o4-mocks/'])
+                log_file = open(logfile, "a+")
+                sys.stdout=log_file
+                sys.stderr=log_file
                 print('Output directory: ','/data/user/jthwaites/o4-mocks/'+directory)
-            else: 
+                log_file.flush()
+            else:
+                log_file = open(logfile, "a+")
+                sys.stdout=log_file
+                sys.stderr=log_file
                 print('Output directory: ',analysis_path+'../../output/'+directory)
+                log_file.flush()
             break
 
 if __name__ == '__main__':
@@ -116,21 +153,25 @@ if __name__ == '__main__':
         original_stderr=sys.stderr
         logfile='/home/mromfoe/public_html/logfile.log'
         log_file = open(logfile, "a+")
-        
         sys.stdout=log_file
-        print("WOAH LOOK AT THAT GRB FROM TODAY")
-        log_file.close()
-        #sys.stdout=original_stdout
+        sys.stderr=log_file
+        print("This is new")
+        log_file.flush()
           
 
     if args.run_live:
+        log_file = open(logfile, "a+")
+        sys.stdout=log_file
+        sys.stderr=log_file
         print("Listening for GCNs . . . ")
+        log_file.flush()
         gcn.listen(handler=process_gcn)
     else: 
         log_file = open(logfile, "a+")
         sys.stdout=log_file
+        sys.stderr=log_file
         print("Listening for GCNs . . . ")
-        log_file.close()
+        log_file.flush()
         sys.stdout=original_stdout
         ### FOR OFFLINE TESTING
         try:
