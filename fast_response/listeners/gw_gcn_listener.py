@@ -8,13 +8,6 @@
 import gcn
 import sys
 
-logfile='/home/mromfoe/public_html/logfile.log'
-original_stdout=sys.stdout
-log_file = open(logfile, "a+")
-sys.stdout=log_file
-sys.stderr=log_file
-
-
 @gcn.handlers.include_notice_types(
     gcn.notice_types.LVC_PRELIMINARY,
     gcn.notice_types.LVC_INITIAL,
@@ -118,21 +111,24 @@ if __name__ == '__main__':
     from astropy.time import Time
     from datetime import datetime
 
+    output_path=os.environ.get('FAST_RESPONSE_OUTPUT')
+    if output_path==None:
+        output_path=os.getcwd()
+
     parser = argparse.ArgumentParser(description='FRA GW followup')
     parser.add_argument('--run_live', action='store_true', default=False,
                         help='Run on live GCNs')
-    parser.add_argument('--log', default=False, 
-                        help='Redirect output to a log file, on gw webpage:'
-                        'https://user-web.icecube.wisc.edu/~jthwaites/FastResponse/gw-webpage/')
+    parser.add_argument('--log_path', default=output_path, type=str,
+                        help='Redirect output to a log file with this path')
     args = parser.parse_args()
+    logfile=args.log_path
+    original_stdout=sys.stdout
+    log_file = open(logfile, "a+")
+    sys.stdout=log_file
+    sys.stderr=log_file
 
-    if args.log:
-        import sys
-        original_stdout=sys.stdout
-        original_stderr=sys.stderr
-        logfile='/home/mromfoe/public_html/logfile.log'
-        print("This is new")
-        log_file.flush()
+    print("Wowza!!!")
+    log_file.flush()
           
 
     if args.run_live:
