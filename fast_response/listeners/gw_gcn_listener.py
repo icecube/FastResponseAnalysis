@@ -16,6 +16,7 @@ import sys
 def process_gcn(payload, root):
 
     print('INCOMING ALERT FOUND: ',datetime.utcnow())
+    AlertTime=datetime.utcnow().isoformat()
     log_file.flush()
     analysis_path = os.environ.get('FAST_RESPONSE_SCRIPTS')
     if analysis_path is None:
@@ -82,6 +83,28 @@ def process_gcn(payload, root):
         '--name={}'.format(name)]
         #'--allow_neg_ts=True']
         )
+    endtime=datetime.utcnow().isoformat()
+
+    from dateutil.parser import parse
+    from dateutil.relativedelta import relativedelta
+
+#Creates txt file for latency evaluation
+    file_object = open('LatencyMonitoring.txt', "a+")
+    file_object.write("GCN Alert" +repr(AlertTime) +'\n' +"Trigger Time" +repr(eventtime) +'\n' +"End Time" +repr(endtime))
+    file_object.close()
+
+    file_object = open('LatencyTimes.txt', "a+")
+    time_1 = parse(AlertTime)
+    time_2 = parse(eventtime)
+    time_3 = parse(endtime)
+
+    delta_Ligo = relativedelta(time_1, time_2)
+    delta_Ice = relativedelta(time_3, time_1)
+    delta_total = relativedelta(time_3, time_2)
+
+    file_object.write("Ligo Latency:" +repr(delta_Ligo) +'\n' +"IceCube Latency:" +repr(delta_Ice) +'\n' + "Total Latency:" +repr(delta_total))
+    file_object.close()
+
 
     for directory in os.listdir(analysis_path+'../../output'):
         if name in directory: 
