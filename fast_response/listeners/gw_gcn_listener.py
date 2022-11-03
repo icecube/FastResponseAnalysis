@@ -89,18 +89,18 @@ def process_gcn(payload, root):
     from dateutil.relativedelta import relativedelta
 
 #Creates txt file for latency evaluation
-    file_object = open('LatencyMonitoring.txt', "a+")
+    file_object = open('MilestoneTimes.txt', "a+")
     file_object.write("GCN Alert" +repr(AlertTime) +'\n' +"Trigger Time" +repr(eventtime) +'\n' +"End Time" +repr(endtime))
     file_object.close()
 
-    file_object = open('LatencyTimes.txt', "a+")
-    time_1 = parse(AlertTime)
-    time_2 = parse(eventtime)
+    file_object = open('GWLatency.txt', "a+")
+    time_1 = parse(eventtime)
+    time_2 = parse(AlertTime)
     time_3 = parse(endtime)
 
-    delta_Ligo = relativedelta(time_1, time_2)
-    delta_Ice = relativedelta(time_3, time_1)
-    delta_total = relativedelta(time_3, time_2)
+    delta_Ligo = relativedelta(time_2, time_1)
+    delta_Ice = relativedelta(time_3, time_2)
+    delta_total = relativedelta(time_3, time_1)
 
     file_object.write("Ligo Latency:" +repr(delta_Ligo) +'\n' +"IceCube Latency:" +repr(delta_Ice) +'\n' + "Total Latency:" +repr(delta_total))
     file_object.close()
