@@ -710,7 +710,7 @@ class PriorFollowup(FastResponseAnalysis):
             gamma=self.index, 
             e_range = e_range, 
             E0=1000., 
-            seed = self.llh_seed())
+            seed = self.llh_seed)
         inj.fill(
             self.llh.exp,
             self.llh.mc,
