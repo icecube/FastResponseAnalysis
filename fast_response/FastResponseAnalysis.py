@@ -213,13 +213,15 @@ class FastResponseAnalysis(object):
             llh_model = EnergyLLH(
                 twodim_bins=[self.energy_bins, self.sinDec_bins],
                 allow_empty=True,
-                spectrum=PowerLaw(A=1, gamma=self.index, E0=1000.)) 
+                spectrum=PowerLaw(A=1, gamma=self.index, E0=1000.),
+                ncpu=self._ncpu) 
         elif self._float_index:
             llh_model = EnergyLLH(
                 twodim_bins=[self.energy_bins, self.sinDec_bins],
                 allow_empty=True,
                 bounds=self._index_range,
-                seed = self.index)
+                seed = self.index,
+                ncpu=self._ncpu)
         
         box = TemporalModel(
             grl=self.grl,
@@ -240,7 +242,7 @@ class FastResponseAnalysis(object):
             self.exp,                      # array with data events
             self.mc,                       # array with Monte Carlo events
             self.livetime,                 # total livetime of the data events
-            ncpu=self._ncpu,                        # use 10 CPUs when computing trials
+            ncpu=self._ncpu,               # use 10 CPUs when computing trials
             scramble=scramble,             # set to False for unblinding
             timescramble=True,             # not just RA scrambling
             llh_model=llh_model,           # likelihood model

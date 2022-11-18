@@ -94,11 +94,11 @@ def process_gcn(payload, root):
     print('Running {}'.format(command))
     log_file.flush()
 
-    #subprocess.call([command, '--skymap={}'.format(skymap), 
-    #    '--time={}'.format(str(event_mjd)), 
-    #    '--name={}'.format(name)]
+    subprocess.call([command, '--skymap={}'.format(skymap), 
+        '--time={}'.format(str(event_mjd)), 
+        '--name={}'.format(name)]
         #'--allow_neg_ts=True']
-    #    )
+        )
     endtime=datetime.utcnow().isoformat()
 
     ###Creates txt file for latency evaluation###
@@ -137,8 +137,9 @@ def process_gcn(payload, root):
 
     for directory in os.listdir(analysis_path+'../../output'):
         if name in directory: 
+            import pwd
             skymap_filename=skymap.split('/')[-1]
-            if 'MS22' in name:
+            if ('MS22' in name) and (pwd.getpwuid(os.getuid())[0] =='jthwaites'):
                 #import glob
                 et = lxml.etree.ElementTree(root)
                 et.write(analysis_path+'../../output/'+directory+'/{}-{}-{}.xml'.format(params['GraceID'], 
@@ -173,7 +174,7 @@ if __name__ == '__main__':
     parser.add_argument('--log_path', default=output_path, type=str,
                         help='Redirect output to a log file with this path')
     parser.add_argument('--test_path', default='/data/user/jthwaites/o3-gw-skymaps/S190728q-5-Update.xml', type=str,
-                        help='Skymap to test the listener.')
+                        help='Skymap to test the listener')
     args = parser.parse_args()
 
     logfile=args.log_path
