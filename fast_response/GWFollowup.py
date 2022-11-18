@@ -21,7 +21,7 @@ class GWFollowup(PriorFollowup):
     _pixel_scan_nsigma = 3.0
     _allow_neg = True
     _containment = None
-    _nside = 512
+    _nside = 256
     _season_names = ['IC86, 2017', 'IC86, 2018', 'IC86, 2019']
     _nb_days = 5.
     _ncpu = 10
