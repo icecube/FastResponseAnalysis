@@ -16,7 +16,7 @@ In order to grab events from the i3live database, you will also need a the `real
 After you have a version of `icetray` built, you will want to do a parasitic build of the realtime project, building off of this version of `icetray`. To do this, navigate to a new directory where you want your realtime project to live, and run
 
 ```console
-git clone https://github.com/icecube/realtime.git src
+git clone git@github.com:icecube/realtime.git src
 mkdir build
 cd build
 cmake ../src/ -DMETAPROJECT=/path/to/icerec/build/ -DCMAKE_INSTALL_PREFIX=icerec-plus.${OS_ARCH}
