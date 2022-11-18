@@ -5,6 +5,7 @@
 *.txt
 *.log
 *.pkl
+*.csv
 fast_response/output/
 fast_response/precomputed_background/trials/
 fast_response/precomputed_background/glob_trials/

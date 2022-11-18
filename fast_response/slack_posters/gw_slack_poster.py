@@ -32,9 +32,9 @@ def process_gcn(payload, root):
 
     bot = slackbot(channel, bot_name, webhook)
     if mock: 
-        bot.send_message(f'Mock GW alert found: {name}, {AlertTime} UTC', 'chaos')
+        bot.send_message(f'Mock GW alert found: {name}, {AlertTime} UTC', 'gw')
     else: 
-        bot.send_message(f'GW alert found: {name}, {AlertTime} UTC', 'chaos')
+        bot.send_message(f'GW alert found: {name}, {AlertTime} UTC', 'gw')
     print('\n \n')
 
 if __name__ == '__main__':

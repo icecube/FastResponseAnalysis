@@ -51,6 +51,13 @@ def process_gcn(payload, root):
     run_id = params['run_id']
     eventtime = root.find('.//ISOTime').text
     event_mjd = Time(eventtime, format='isot').mjd
+    try:
+        bot.send_message(f'Listener found {alert_type} type alert, '+
+                    f'IceCube-{eventtime[2:4]}{eventtime[5:7]}{eventtime[8:10]} \n'+
+                    'Waiting 1 day to run FRA', 'blanket_blob')
+        print(' - slack message sent \n')
+    except:
+        print('Cannot post to slack (testing?)')
 
     if alert_type == 'cascade':
         command = analysis_path + 'run_cascade_followup.py'
@@ -101,6 +108,21 @@ def process_gcn(payload, root):
         '--alert_id={}'.format(run_id+':'+event_id),
         '--suffix={}'.format(suffix)]
         )
+    
+    try: 
+        shifters = pd.read_csv(analysis_path+'../slack_posters/fra_shifters.csv', header=None)
+        on_shift=''
+        for i in range(len(shifters[0])):
+            if parse(shifters[0][i])<datetime.utcnow()<parse(shifters[1][i]): 
+                on_shift=shifters[2][i]
+                break
+        bot.send_message(f'Done running FRA for {alert_type} alert, {event_name}. \n'+
+                         f'@{on_shift} on shift',
+                         'blanket_blob')
+        print(' - slack message sent \n')
+    except:
+        print('No slack message sent.')
+
 
 if __name__ == '__main__':
     import os, subprocess
@@ -110,8 +132,11 @@ if __name__ == '__main__':
     import argparse
     from astropy.time import Time
     from datetime import datetime
+    from dateutil.parser import parse
     import time
     from glob import glob
+    from fast_response.slack_posters.slack import slackbot
+    import pandas as pd
 
     parser = argparse.ArgumentParser(description='Fast Response Analysis')
     parser.add_argument('--run_live', action='store_true', default=False,
@@ -120,8 +145,20 @@ if __name__ == '__main__':
                         help='When testing, raise to run a cascade, else track')
     args = parser.parse_args()
 
+    #for now, testing
+    #with open('../slack_posters/internal_alert_slackbot.txt') as f:
+    #        channel = f.readline()
+    #        webhook = f.readline()
+    #        bot_name = f.readline()
+    #bot = slackbot(channel, bot_name, webhook)
+
     if args.run_live:
         print("Listening for GCNs . . . ")
+        with open('../slack_posters/internal_alert_slackbot.txt') as f:
+            channel = f.readline()
+            webhook = f.readline()
+            bot_name = f.readline()
+        bot = slackbot(channel, bot_name, webhook)
         gcn.listen(handler=process_gcn)
     else:
         try:
