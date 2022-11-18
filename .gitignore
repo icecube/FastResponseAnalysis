@@ -1,11 +1,14 @@
 *.pyc
 *.fits
 *.xml
+*.json
+*.txt
+*.log
+*.pkl
 fast_response/output/
 fast_response/precomputed_background/trials/
 fast_response/precomputed_background/glob_trials/
 build/
-*.json
 v01-00/
 fast_response.egg-info/
 examples/
