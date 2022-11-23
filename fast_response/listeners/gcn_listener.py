@@ -56,7 +56,8 @@ def process_gcn(payload, root):
                     f'IceCube-{eventtime[2:4]}{eventtime[5:7]}{eventtime[8:10]} \n'+
                     'Waiting 1 day to run FRA', 'blanket_blob')
         print(' - slack message sent \n')
-    except:
+    except Exception as e:
+        print(e)
         print('Cannot post to slack (testing?)')
 
     if alert_type == 'cascade':
@@ -114,10 +115,10 @@ def process_gcn(payload, root):
         on_shift=''
         for i in range(len(shifters[0])):
             if parse(shifters[0][i])<datetime.utcnow()<parse(shifters[1][i]): 
-                on_shift=shifters[2][i]
+                on_shift=[shifters[2][i],shifters[3][i]]
                 break
-        bot.send_message(f'Done running FRA for {alert_type} alert, {event_name}. \n'+
-                         f'@{on_shift} on shift',
+        bot.send_message(f'TESTING \nDone running FRA for {alert_type} alert, {event_name}. \n'+
+                         f'{on_shift[0]} (<@{on_shift[1]}>) on shift',
                          'blanket_blob')
         print(' - slack message sent \n')
     except:
