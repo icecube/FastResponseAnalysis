@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 ''' Script to automatically receive GCN alerts and get LIGO skymaps 
     to run realtime neutrino follow-up
 
@@ -7,6 +9,9 @@
 
 import gcn
 import sys
+import pickle
+from dateutil.parser import parse
+from dateutil.relativedelta import relativedelta
 
 @gcn.handlers.include_notice_types(
     gcn.notice_types.LVC_PRELIMINARY,
@@ -15,7 +20,7 @@ import sys
 
 def process_gcn(payload, root):
 
-    print('INCOMING ALERT FOUND: ',datetime.utcnow())
+    print('\n' +'INCOMING ALERT FOUND: ',datetime.utcnow())
     AlertTime=datetime.utcnow().isoformat()
     log_file.flush()
     analysis_path = os.environ.get('FAST_RESPONSE_SCRIPTS')
@@ -57,6 +62,10 @@ def process_gcn(payload, root):
     current_mjd = Time(datetime.utcnow(), scale='utc').mjd
     needed_delay = 1000./84600./2.
     current_delay = current_mjd - event_mjd
+
+    #checking how long we have to wait for the five hundred seconds of data
+    FiveHundred_delay = (needed_delay - current_delay)*86400.
+
     while current_delay < needed_delay:
         print("Need to wait another {:.1f} seconds before running".format(
             (needed_delay - current_delay)*86400.)
@@ -68,6 +77,20 @@ def process_gcn(payload, root):
 
     skymap = params['skymap_fits']
     name = root.attrib['ivorn'].split('#')[1]
+
+    if 'multiorder' in skymap:
+        try:
+            bayestar_map=skymap.replace('multiorder.','').split(',')
+            if len(bayestar_map)==1:
+                new_map=bayestar_map[0]+'.gz'
+            else: 
+                new_map=bayestar_map[0]+'.gz,'+ bayestar_map[1]
+            import requests
+            ret = requests.head(new_map)
+            assert ret.status_code == 200
+            skymap=new_map
+        except:
+            print('Failed to download skymap in correct format')
 
     if root.attrib['role'] != 'observation':
         name=name+'_test'
@@ -85,12 +108,10 @@ def process_gcn(payload, root):
         )
     endtime=datetime.utcnow().isoformat()
 
-    from dateutil.parser import parse
-    from dateutil.relativedelta import relativedelta
+###Creates txt file for latency evaluation###
 
-#Creates txt file for latency evaluation
     file_object = open('MilestoneTimes.txt', "a+")
-    file_object.write("GCN Alert" +repr(AlertTime) +'\n' +"Trigger Time" +repr(eventtime) +'\n' +"End Time" +repr(endtime))
+    file_object.write('\n' +"Trigger Time=" +repr(eventtime) +'\n' +"GCN Alert=" +repr(AlertTime) +'\n'  +"End Time=" +repr(endtime) +'\n')
     file_object.close()
 
     file_object = open('GWLatency.txt', "a+")
@@ -102,14 +123,35 @@ def process_gcn(payload, root):
     delta_Ice = relativedelta(time_3, time_2)
     delta_total = relativedelta(time_3, time_1)
 
-    file_object.write("Ligo Latency:" +repr(delta_Ligo) +'\n' +"IceCube Latency:" +repr(delta_Ice) +'\n' + "Total Latency:" +repr(delta_total))
+    file_object.write('\n' +"Ligo Latency=" +repr(delta_Ligo) +'\n' +"IceCube Latency=" +repr(delta_Ice) +'\n'
+                         + "Total Latency=" +repr(delta_total) +'\n' +"We had to wait..." +repr(FiveHundred_delay) +"seconds." +'\n')
     file_object.close()
 
+###Pickle dictionary of times and latency###
+
+    #event_mjd = defined earlier
+    alert_mjd = Time(AlertTime, format='isot').mjd
+    end_mjd = Time(endtime, format='isot').mjd
+
+    #find latencies wrt to mjd time  
+    Ligo_late_sec = (alert_mjd - event_mjd)*86400
+    Ice_late_sec = (end_mjd - alert_mjd)*86400
+    Total_late_sec = Ligo_late_sec + Ice_late_sec
+
+    gw_latency = {'Trigger_Time': event_mjd, 'GCN_Alert': alert_mjd, 'End_Time': end_mjd,
+                        'Ligo_Latency': Ligo_late_sec, 'IceCube_Latency': Ice_late_sec, 'Total_Latency': Total_late_sec,
+                            'We_had_to_wait:': FiveHundred_delay}
+
+    with open(os.environ.get('FAST_RESPONSE_OUTPUT')+f'/PickledMocks/gw_latency_dict_{name}.pickle', 'wb') as file:
+        pickle.dump(gw_latency, file, protocol=pickle.HIGHEST_PROTOCOL)
+
+###End text file and dictionary###
 
     for directory in os.listdir(analysis_path+'../../output'):
         if name in directory: 
+            import pwd
             skymap_filename=skymap.split('/')[-1]
-            if 'MS22' in name:
+            if ('MS22' in name) and (pwd.getpwuid(os.getuid())[0]=='jthwaites'):
                 #import glob
                 et = lxml.etree.ElementTree(root)
                 et.write(analysis_path+'../../output/'+directory+'/{}-{}-{}.xml'.format(params['GraceID'], 
@@ -143,14 +185,14 @@ if __name__ == '__main__':
                         help='Run on live GCNs')
     parser.add_argument('--log_path', default=output_path, type=str,
                         help='Redirect output to a log file with this path')
+    parser.add_argument('--test_path', default='/data/user/jthwaites/o3-gw-skymaps/S190728q-5-Update.xml', type=str,
+                        help='Skymap to test the listener.')
     args = parser.parse_args()
     logfile=args.log_path
     original_stdout=sys.stdout
     log_file = open(logfile, "a+")
     sys.stdout=log_file
     sys.stderr=log_file
-
-    print("Wowza!!!")
     log_file.flush()
           
 
@@ -159,7 +201,7 @@ if __name__ == '__main__':
         log_file.flush()
         gcn.listen(handler=process_gcn)
     else: 
-        print("Listening for GCNs . . . ")
+        print("Offline testing . . . ")
         log_file.flush()
         ### FOR OFFLINE TESTING
         try:
@@ -169,7 +211,7 @@ if __name__ == '__main__':
         except Exception as e:
             sample_skymap_path='/data/user/jthwaites/o3-gw-skymaps/'
         
-        payload = open(sample_skymap_path + 'S190728q-5-Update.xml', 'rb').read()
+        payload = open(args.test_path, 'rb').read()
         root = lxml.etree.fromstring(payload) 
 
         #test runs on scrambles, observation runs on unblinded data
