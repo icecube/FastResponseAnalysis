@@ -53,8 +53,12 @@ class GWFollowup(PriorFollowup):
                 interp[interp<0] = 0.
                 ts_prior = pre_ts_array[i]['ts'] + 2*(np.log(interp) - ts_norm)
                 max_ts.append(ts_prior.max())
-
+        
         max_ts = np.array(max_ts)
+        #if not self._allow_neg:
+        #    max_ts[max_ts < 0.] = 0.
+        #    max_ts[np.isinf(max_ts)]= 0.
+
         self.tsd = max_ts
         return max_ts
 

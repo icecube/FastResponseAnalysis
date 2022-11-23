@@ -40,13 +40,18 @@ stop = stop_time.iso
 name = args.name
 name = name.replace('_', ' ')
 
+#import time
+#start_counter = time.perf_counter()
 f = GWFollowup(name, args.skymap, start, stop)
 f._allow_neg = args.allow_neg_ts
-f._dataset = 'GFUOnline_v001p03'
 
+#print('\n Time to initialize: %.2f'%(time.perf_counter()-start_counter))
 f.unblind_TS()
 f.plot_ontime()
+#start_bg_dist = time.perf_counter()-start_counter
 f.calc_pvalue()
+#print('\n time for bg dist and p-val calc: %.2f'%(time.perf_counter()-start_bg_dist))
+
 f.make_dNdE()
 f.plot_tsd(allow_neg=f._allow_neg)
 f.upper_limit()
@@ -56,3 +61,5 @@ results = f.save_results()
 f.generate_report()
 
 f.write_circular() 
+
+#print('\n Total time: %.2f'%(time.perf_counter()-start_counter))
