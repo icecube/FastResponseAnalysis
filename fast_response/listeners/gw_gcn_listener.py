@@ -20,7 +20,11 @@ from dateutil.relativedelta import relativedelta
 
 def process_gcn(payload, root):
 
+<<<<<<< HEAD
     print('\n' +'INCOMING ALERT FOUND: ',datetime.utcnow())
+=======
+    print('INCOMING ALERT FOUND: ',datetime.utcnow())
+>>>>>>> a4fae0e069f2bab66aee1463b9a03152fc97daf9
     AlertTime=datetime.utcnow().isoformat()
     log_file.flush()
     analysis_path = os.environ.get('FAST_RESPONSE_SCRIPTS')
