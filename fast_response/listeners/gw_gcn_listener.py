@@ -77,6 +77,19 @@ def process_gcn(payload, root):
 
     skymap = params['skymap_fits']
     name = root.attrib['ivorn'].split('#')[1]
+    if 'multiorder' in skymap:
+        try:
+            bayestar_map=skymap.replace('multiorder.','').split(',')
+            if len(bayestar_map)==1:
+                new_map=bayestar_map[0]+'.gz'
+            else: 
+                new_map=bayestar_map[0]+'.gz,'+ bayestar_map[1]
+            import requests
+            ret = requests.head(new_map)
+            assert ret.status_code == 200
+            skymap=new_map
+        except:
+            print('Failed to download skymap in correct format')
 
     if 'multiorder' in skymap:
         try:
@@ -108,10 +121,9 @@ def process_gcn(payload, root):
         )
     endtime=datetime.utcnow().isoformat()
 
-###Creates txt file for latency evaluation###
-
+    ###Creates txt file for latency evaluation###
     file_object = open('MilestoneTimes.txt', "a+")
-    file_object.write('\n' +"Trigger Time=" +repr(eventtime) +'\n' +"GCN Alert=" +repr(AlertTime) +'\n'  +"End Time=" +repr(endtime) +'\n')
+    file_object.write('\n' +"Trigger Time=" +repr(eventtime) +'\n' +"GCN Alert=" +repr(AlertTime) +'\n'  +"End Time=" +repr(endtime))
     file_object.close()
 
     file_object = open('GWLatency.txt', "a+")
@@ -119,9 +131,10 @@ def process_gcn(payload, root):
     time_2 = parse(AlertTime)
     time_3 = parse(endtime)
 
-    delta_Ligo = relativedelta(time_2, time_1)
+    delta_Ligo = relativedelta(time_2, time_1)#.strftime('%Y-%m-%dT%H:%M:%S.%f%z')
     delta_Ice = relativedelta(time_3, time_2)
     delta_total = relativedelta(time_3, time_1)
+    print(delta_Ligo)
 
     file_object.write('\n' +"Ligo Latency=" +repr(delta_Ligo) +'\n' +"IceCube Latency=" +repr(delta_Ice) +'\n'
                          + "Total Latency=" +repr(delta_total) +'\n' +"We had to wait..." +repr(FiveHundred_delay) +"seconds." +'\n')
@@ -151,7 +164,7 @@ def process_gcn(payload, root):
         if name in directory: 
             import pwd
             skymap_filename=skymap.split('/')[-1]
-            if ('MS22' in name) and (pwd.getpwuid(os.getuid())[0]=='jthwaites'):
+            if ('MS22' in name) and (pwd.getpwuid(os.getuid())[0] =='jthwaites'):
                 #import glob
                 et = lxml.etree.ElementTree(root)
                 et.write(analysis_path+'../../output/'+directory+'/{}-{}-{}.xml'.format(params['GraceID'], 
@@ -186,15 +199,14 @@ if __name__ == '__main__':
     parser.add_argument('--log_path', default=output_path, type=str,
                         help='Redirect output to a log file with this path')
     parser.add_argument('--test_path', default='/data/user/jthwaites/o3-gw-skymaps/S190728q-5-Update.xml', type=str,
-                        help='Skymap to test the listener.')
+                        help='Skymap to test the listener')
     args = parser.parse_args()
+
     logfile=args.log_path
     original_stdout=sys.stdout
     log_file = open(logfile, "a+")
     sys.stdout=log_file
     sys.stderr=log_file
-    log_file.flush()
-          
 
     if args.run_live:
         print("Listening for GCNs . . . ")
