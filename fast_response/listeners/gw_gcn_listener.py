@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 ''' Script to automatically receive GCN alerts and get LIGO skymaps 
     to run realtime neutrino follow-up
 
@@ -7,9 +9,9 @@
 
 import gcn
 import sys
+import pickle
 from dateutil.parser import parse
 from dateutil.relativedelta import relativedelta
-import pickle
 
 @gcn.handlers.include_notice_types(
     gcn.notice_types.LVC_PRELIMINARY,
@@ -18,7 +20,7 @@ import pickle
 
 def process_gcn(payload, root):
 
-    print('INCOMING ALERT FOUND: ',datetime.utcnow())
+    print('\n' +'INCOMING ALERT FOUND: ',datetime.utcnow())
     AlertTime=datetime.utcnow().isoformat()
     log_file.flush()
     analysis_path = os.environ.get('FAST_RESPONSE_SCRIPTS')
@@ -60,6 +62,10 @@ def process_gcn(payload, root):
     current_mjd = Time(datetime.utcnow(), scale='utc').mjd
     needed_delay = 1000./84600./2.
     current_delay = current_mjd - event_mjd
+
+    #checking how long we have to wait for the five hundred seconds of data
+    FiveHundred_delay = (needed_delay - current_delay)*86400.
+
     while current_delay < needed_delay:
         print("Need to wait another {:.1f} seconds before running".format(
             (needed_delay - current_delay)*86400.)
@@ -71,6 +77,20 @@ def process_gcn(payload, root):
 
     skymap = params['skymap_fits']
     name = root.attrib['ivorn'].split('#')[1]
+    if 'multiorder' in skymap:
+        try:
+            bayestar_map=skymap.replace('multiorder.','').split(',')
+            if len(bayestar_map)==1:
+                new_map=bayestar_map[0]+'.gz'
+            else: 
+                new_map=bayestar_map[0]+'.gz,'+ bayestar_map[1]
+            import requests
+            ret = requests.head(new_map)
+            assert ret.status_code == 200
+            skymap=new_map
+        except:
+            print('Failed to download skymap in correct format')
+
     if 'multiorder' in skymap:
         try:
             bayestar_map=skymap.replace('multiorder.','').split(',')
@@ -102,7 +122,6 @@ def process_gcn(payload, root):
     endtime=datetime.utcnow().isoformat()
 
     ###Creates txt file for latency evaluation###
-
     file_object = open('MilestoneTimes.txt', "a+")
     file_object.write('\n' +"Trigger Time=" +repr(eventtime) +'\n' +"GCN Alert=" +repr(AlertTime) +'\n'  +"End Time=" +repr(endtime))
     file_object.close()
@@ -117,23 +136,29 @@ def process_gcn(payload, root):
     delta_total = relativedelta(time_3, time_1)
     print(delta_Ligo)
 
-    file_object.write('\n' +"Ligo Latency=" +repr(delta_Ligo) +'\n' +"IceCube Latency=" +repr(delta_Ice) +'\n' + "Total Latency=" +repr(delta_total))
+    file_object.write('\n' +"Ligo Latency=" +repr(delta_Ligo) +'\n' +"IceCube Latency=" +repr(delta_Ice) +'\n'
+                         + "Total Latency=" +repr(delta_total) +'\n' +"We had to wait..." +repr(FiveHundred_delay) +"seconds." +'\n')
     file_object.close()
 
 ###Pickle dictionary of times and latency###
 
-    #event_mjd = Time(eventtime, format='iso').mjd
+    #event_mjd = defined earlier
     alert_mjd = Time(AlertTime, format='isot').mjd
     end_mjd = Time(endtime, format='isot').mjd
-    Ligo_mjd = Time(delta_Ligo, format='isot').mjd
-    Ice_mjd = Time(delta_Ice, format='isot').mjd
-    Total_mjd = Time(delta_total, format='isot').mjd
 
-    gw_latency = {'Trigger Time': event_mjd, 'GCN Alert': alert_mjd, 'End Time': end_mjd,
-                  'Ligo Latency': Ligo_mjd, 'IceCube Latency': Ice_mjd, 'Total Latency': Total_mjd}
+    #find latencies wrt to mjd time  
+    Ligo_late_sec = (alert_mjd - event_mjd)*86400
+    Ice_late_sec = (end_mjd - alert_mjd)*86400
+    Total_late_sec = Ligo_late_sec + Ice_late_sec
 
-    with open(analysis_path+'../listeners/gw_latency_dict.pickle', 'wb') as file:
+    gw_latency = {'Trigger_Time': event_mjd, 'GCN_Alert': alert_mjd, 'End_Time': end_mjd,
+                        'Ligo_Latency': Ligo_late_sec, 'IceCube_Latency': Ice_late_sec, 'Total_Latency': Total_late_sec,
+                            'We_had_to_wait:': FiveHundred_delay}
+
+    with open(os.environ.get('FAST_RESPONSE_OUTPUT')+f'/PickledMocks/gw_latency_dict_{name}.pickle', 'wb') as file:
         pickle.dump(gw_latency, file, protocol=pickle.HIGHEST_PROTOCOL)
+
+###End text file and dictionary###
 
     for directory in os.listdir(analysis_path+'../../output'):
         if name in directory: 
