@@ -3,8 +3,8 @@
 r'''Script to run followup in response to 
 gravitational wave events from LVC
 
-Author: Raamis Hussain, updated by Jessie Thwaites
-April 2022'''
+Author: adapted from run_gw_followup.py
+December 2022'''
 
 import argparse, subprocess
 from astropy.time import Time
@@ -13,7 +13,7 @@ import pyfiglet
 from fast_response.GWFollowup import GWFollowup
 #import fast_response.web_utils as web_utils
 
-parser = argparse.ArgumentParser(description='GW Followup')
+parser = argparse.ArgumentParser(description='GW Followup NS 2week')
 parser.add_argument('--skymap', type=str, default=None,
                     help='path to skymap (can be a web link for GraceDB (LVK) or a path')
 parser.add_argument('--time', type=float, default=None,
@@ -26,14 +26,15 @@ args = parser.parse_args()
 
 #GW message header
 message = '*'*80
-message += '\n' + str(pyfiglet.figlet_format("GW Followup")) + '\n'
+message += '\n' + str(pyfiglet.figlet_format("GW Followup NS")) + '\n'
 message += '*'*80
 print(message)
 
-delta_t = 1000.
+#delta_t = 1000.
+#2 week followup: [-1day, +14 days]
 gw_time = Time(args.time, format='mjd')
-start_time = gw_time - (delta_t / 86400. / 2.)
-stop_time = gw_time + (delta_t / 86400. / 2.)
+start_time = gw_time - 1.
+stop_time = gw_time + 14.
 start = start_time.iso
 stop = stop_time.iso
 
@@ -45,10 +46,6 @@ f._allow_neg = args.allow_neg_ts
 
 f.unblind_TS()
 f.plot_ontime()
-if f.ts > 0.0:
-    #reload background 30,000 precomputed trials, 
-    #in case where TS<0 (when bg trials needed)
-    f.reload_background_trials()
 
 f.calc_pvalue()
 f.make_dNdE()
