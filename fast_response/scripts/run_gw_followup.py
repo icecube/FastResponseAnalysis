@@ -45,10 +45,6 @@ f._allow_neg = args.allow_neg_ts
 
 f.unblind_TS()
 f.plot_ontime()
-if f.ts > 0.0:
-    #reload background 30,000 precomputed trials, 
-    #in case where TS<0 (when bg trials needed)
-    f.reload_background_trials()
 
 f.calc_pvalue()
 f.make_dNdE()

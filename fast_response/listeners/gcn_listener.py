@@ -117,7 +117,7 @@ def process_gcn(payload, root):
             if parse(shifters[0][i])<datetime.utcnow()<parse(shifters[1][i]): 
                 on_shift=[shifters[2][i],shifters[3][i]]
                 break
-        bot.send_message(f'TESTING \nDone running FRA for {alert_type} alert, {event_name}. \n'+
+        bot.send_message(f'Done running FRA for {alert_type} alert, {event_name}. \n'+
                          f'{on_shift[0]} (<@{on_shift[1]}>) on shift',
                          'blanket_blob')
         print(' - slack message sent \n')
