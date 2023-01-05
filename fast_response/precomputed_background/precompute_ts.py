@@ -37,7 +37,7 @@ if args.outdir == None:
         outdir = './'
 if not os.path.exists(outdir+'/trials/'):
     os.mkdir(outdir+'/trials/')
-    outdir=outdir+'/trials/'
+outdir=outdir+'/trials/'
 #skymap_files = glob('/data/ana/realtime/alert_catalog_v2/2yr_prelim/fits_files/Run13*.fits.gz')
 
 start_mjd = 58484.0 #Jan 1, 2019
@@ -52,7 +52,7 @@ seed_counter = args.seed
 #skymap required for either initialization, but not used here
 if args.type=='gw':
     f = GWFollowup('Precompute_trials_test', '/data/user/jthwaites/o3-gw-skymaps/S191216ap.fits.gz',
-               start, stop, save=False)
+                start, stop, save=False)
 else: 
     f = AlertFollowup('Precompute_trials_test', 
                 '/data/user/jthwaites/cascade_skymaps/hese_59546_run00135946.evt000006354173.fits',
