@@ -32,7 +32,7 @@ submit = f'/scratch/{username}/gw/condor/submit'
 ### Create Dagman to submit jobs to cluster    
 job = pycondor.Job(
     'gw_precomp_trials',
-    './precompute_ts.py',
+    '/data/user/jthwaites/FastResponseAnalysis/fast_response/precomputed_background/precompute_ts.py',
     error=error,
     output=output,
     log=log,
@@ -65,7 +65,7 @@ job = pycondor.Job(
 #    )
 
 prev_trials = glob.glob('/data/user/jthwaites/FastResponseAnalysis/output/trials/*.npz')
-for bg_rate in [6.0, 6.2, 6.4, 6.6, 6.8, 7.0]:
+for bg_rate in [7.2]:#[6.0, 6.2, 6.4, 6.6, 6.8, 7.0, 7.2]:
     for seed in range(int(args.ntrials/100)):
         seed = seed*100
         if f'/data/user/jthwaites/FastResponseAnalysis/output/trials/gw_{bg_rate}_mHz_seed_{seed}_delta_t_1.2e+06.npz' not in prev_trials:
