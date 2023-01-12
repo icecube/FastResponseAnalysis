@@ -259,7 +259,7 @@ def updateFastResponsePlots(gw=False):
     plt.gca().invert_xaxis()
     plt.grid(which = 'both', alpha = 0.2)
     plt.xlim(1.1e0,1e-3)
-    plt.ylim(1e-2, 1e0)
+    plt.ylim(3e-3, 1e0)
     plt.xlabel('p-value', fontsize = 18)
     plt.ylabel('Fraction of Analyses', fontsize = 18)
     plt.tick_params(labelsize = 18)
