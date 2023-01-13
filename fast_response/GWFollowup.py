@@ -11,6 +11,10 @@ import matplotlib.pyplot as plt
 
 from .FastResponseAnalysis import PriorFollowup
 from .reports import GravitationalWaveReport
+from skylab.llh_models      import EnergyLLH
+from skylab.spectral_models import PowerLaw 
+from skylab.temporal_models import BoxProfile, TemporalModel
+from skylab.ps_llh          import PointSourceLLH
 import fast_response
 
 class GWFollowup(PriorFollowup):
@@ -61,6 +65,87 @@ class GWFollowup(PriorFollowup):
 
         self.tsd = max_ts
         return max_ts
+
+    def initialize_llh(self, skipped=None, scramble=False):
+        '''
+        Grab data and format it all into a skylab llh object
+        This function is very similar to the one in FastResponseAnalysis.py, 
+        with the main difference being that these are low-latency enough that we may
+        have to wait for the last min of data to reach i3live.
+        Initialize LLH, load ontime data, then add temporal info and ontime data to llh
+        '''
+        t0 = Time(datetime.datetime.utcnow()).mjd
+
+        if self.stop > t0 + 60./86400.:
+            self.get_data(livestream_start=self.start-6., livestream_stop=self.start)
+            print('Loading off-time data')
+        elif self.exp is None:
+            self.get_data()
+
+        if self._verbose:
+            print("Initializing Point Source LLH in Skylab")
+
+        assert self._fix_index != self._float_index,\
+            'Must choose to either float or fix the index'
+
+        if self._fix_index:
+            llh_model = EnergyLLH(
+                twodim_bins=[self.energy_bins, self.sinDec_bins],
+                allow_empty=True,
+                spectrum=PowerLaw(A=1, gamma=self.index, E0=1000.),
+                ncpu=self._ncpu) 
+        elif self._float_index:
+            llh_model = EnergyLLH(
+                twodim_bins=[self.energy_bins, self.sinDec_bins],
+                allow_empty=True,
+                bounds=self._index_range,
+                seed = self.index,
+                ncpu=self._ncpu)
+        
+        if skipped is not None:
+            self.exp = self.remove_event(self.exp, self.dset, skipped)
+
+        if self.extension is not None:
+            src_extension = float(self.extension)
+            self.save_items['extension'] = src_extension
+        else:
+            src_extension = None
+
+        llh = PointSourceLLH(
+            self.exp,                      # array with data events
+            self.mc,                       # array with Monte Carlo events
+            self.livetime,                 # total livetime of the data events
+            ncpu=self._ncpu,               # use 10 CPUs when computing trials
+            scramble=scramble,             # set to False for unblinding
+            #timescramble=True,             # not just RA scrambling
+            llh_model=llh_model,           # likelihood model
+            nsource_bounds=(0., 1e3),      # bounds on fitted ns
+            src_extension = src_extension, # Model symmetric extended source
+            nsource=1.,                    # seed for nsignal fit
+            seed=self.llh_seed)           
+
+        if self.stop > t0 + 60./86400.:
+            exp_on, livetime_on, grl_on = self.dset.livestream(
+                self.start, 
+                self.stop+60./86400.,
+                load_mc=False, 
+                floor=self._floor,
+                wait_until_stop=True)
+
+            llh.append_exp(exp_on,livetime_on)
+            self.grl = np.concatenate([self.grl, grl_on])
+            self.exp = np.concatenate([self.exp,exp_on])
+            self.livetime = self.grl['livetime'].sum()
+
+        box = TemporalModel(
+            grl=self.grl,
+            poisson_llh=True,
+            days=self._nb_days,
+            signal=BoxProfile(self.start, self.stop))
+
+        llh.set_temporal_model(box)
+
+        return llh
 
     def plot_ontime(self, with_contour=True, contour_files=None):
         return super().plot_ontime(with_contour=True, contour_files=contour_files)
