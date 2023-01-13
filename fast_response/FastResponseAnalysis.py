@@ -138,9 +138,12 @@ class FastResponseAnalysis(object):
     def llh_seed(self, x):
         self._llh_seed = x
 
-    def get_data(self):
+    def get_data(self, livestream_start=None, livestream_stop=None):
         '''
         Gets the skylab data and MC from querying the i3live livestream
+        arguments:
+        livestream_start and livestream_stop - when to start and stop grabbing data
+        (needed due to low latency in GW followups)
         '''
         if self._verbose:
             print("Grabbing data")
@@ -177,8 +180,11 @@ class FastResponseAnalysis(object):
         else:
             if self._verbose:
                 print("Recent time: querying the i3live database")
+            if livestream_start is None or livestream_stop is None:
+                livestream_start = self.start - 6.
+                livestream_stop = self.stop
             exp, mc, livetime, grl = dset.livestream(
-                self.start - 6., self.stop,
+                livestream_start, livestream_stop,
                 append=self._season_names, 
                 floor=self._floor)
         exp.sort(order='time')
