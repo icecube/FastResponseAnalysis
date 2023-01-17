@@ -212,7 +212,19 @@ class ReportGenerator(object):
                         'In 90\% Contour')]
                 for event in self.analysis.coincident_events:
                     if with_p:
-                        event_table+=[
+                        if len(self.analysis.coincident_events)>100:
+                            if event['in_contour']:
+                                event_table+=[
+                                ('{:.0f}'.format((event['time']-self.source['trigger_mjd'])*86400.),
+                                "{:3.2f}\degree".format(np.rad2deg(event['ra'])),
+                                '{:3.2f}\degree'.format(np.rad2deg(event['dec'])),
+                                "{:3.2f}\degree".format(np.rad2deg(event["sigma"]*self.analysis._angScale)),
+                                "{:.2E}".format(10**event['logE']),
+                                '{:.4f}'.format(event['pvalue']),
+                                str(bool(event['in_contour']))
+                                )]
+                        else: 
+                            event_table+=[
                             ('{:.0f}'.format((event['time']-self.source['trigger_mjd'])*86400.),
                             "{:3.2f}\degree".format(np.rad2deg(event['ra'])),
                             '{:3.2f}\degree'.format(np.rad2deg(event['dec'])),
@@ -222,7 +234,18 @@ class ReportGenerator(object):
                             str(bool(event['in_contour']))
                             )]
                     else:
-                        event_table+=[
+                        if len(self.analysis.coincident_events)>100:
+                            if event['in_contour']:
+                                event_table+=[
+                                ('{:.0f}'.format((event['time']-self.source['trigger_mjd'])*86400.),
+                                "{:3.2f}\degree".format(np.rad2deg(event['ra'])),
+                                '{:3.2f}\degree'.format(np.rad2deg(event['dec'])),
+                                "{:3.2f}\degree".format(np.rad2deg(event["sigma"]*self.analysis._angScale)),
+                                "{:.2E}".format(10**event['logE']),
+                                str(bool(event['in_contour']))
+                                )]
+                        else: 
+                            event_table+=[
                             ('{:.0f}'.format((event['time']-self.source['trigger_mjd'])*86400.),
                             "{:3.2f}\degree".format(np.rad2deg(event['ra'])),
                             '{:3.2f}\degree'.format(np.rad2deg(event['dec'])),
