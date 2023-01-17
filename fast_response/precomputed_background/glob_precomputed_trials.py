@@ -29,7 +29,7 @@ def glob_allsky_scans(delta_t, rate, dir, low_stats=False):
     #print len(files)
     #return None
     print('Starting to load at {}'.format(time.ctime()))
-    final_ind = -1 if not low_stats else 20
+    final_ind = -1 if not low_stats else 10
     for f in files[:final_ind]:
         scan = sparse.load_npz(f)
         maps = sparse.vstack((maps, scan))
@@ -50,11 +50,12 @@ def glob_allsky_scans(delta_t, rate, dir, low_stats=False):
     
     return maps
 
-for rate in [6.0, 6.2, 6.4, 6.6, 6.8, 7.0, 7.2]:
-    print("Rate: {} mHz".format(rate))
-    maps = glob_allsky_scans(args.delta_t, rate, args.outdir)
-    del maps
-    print("Done globbing rate {} mHz trials".format(rate))
+for rate in [6.0, 6.2, 6.4, 6.8, 7.0]: # 6.6, 7.2
+    for low_stats in [True]:#, False]:
+        print("Rate: {} mHz, low stats: {}".format(rate, low_stats))
+        maps = glob_allsky_scans(args.deltaT, rate, args.outdir, low_stats=low_stats)
+        del maps
+        print ('done')
 
 
 #for rate in [6.2, 6.4, 6.6, 6.8, 7.0, 7.2]:
