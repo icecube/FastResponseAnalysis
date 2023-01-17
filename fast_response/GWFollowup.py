@@ -11,7 +11,12 @@ import matplotlib.pyplot as plt
 
 from .FastResponseAnalysis import PriorFollowup
 from .reports import GravitationalWaveReport
+from skylab.llh_models      import EnergyLLH
+from skylab.spectral_models import PowerLaw 
+from skylab.temporal_models import BoxProfile, TemporalModel
+from skylab.ps_llh          import PointSourceLLH
 import fast_response
+from . import sensitivity_utils
 
 class GWFollowup(PriorFollowup):
     _dataset = 'GFUOnline_v001p02'
@@ -27,36 +32,162 @@ class GWFollowup(PriorFollowup):
     _ncpu = 10
     
     def run_background_trials(self, month=None, ntrials=1000):
-        if month is None:
-            # month = datetime.datetime.utcnow().month
-            month = Time(self.centertime, format='mjd').datetime.month
+        '''For GW followup, 2 possible time windows:
+        1000s: for all (default)
+        [-0.1, +14]: NS included (run manually)
+        Returns:
+        --------
+            tsd: array-like
+                test-statistic distribution with weighting 
+                from alert event spatial prior
+        '''
+        if self.duration > 1.:
+            #self.duration is in days, so this is to load 2 week precomputed trials
+            #This is an exact copy of AlertFollowup.py, as it was run with the same script
+            from scipy import sparse
+            current_rate = self.llh.nbackground / (self.duration * 86400.) * 1000.
 
-        bg_trial_dir = '/data/ana/analyses/NuSources/' \
-            + '2021_v2_alert_stacking_FRA/fast_response/gw_precomputed_trials/'
-        pre_ts_array = np.load(
-            f'{bg_trial_dir}ts_map_{month:02d}.npy',
-            allow_pickle=True,
-            encoding='latin1'
-        )
+            #TODO: replace here once done
+            #closest_rate = sensitivity_utils.find_nearest(np.linspace(6.0, 7.2, 7), current_rate)
+            rates = [6.0,6.2,6.4,6.8,7.0]
+            closest_rate = sensitivity_utils.find_nearest(rates, current_rate)
+            print(f'Loading 2 week bg trials, rate: {closest_rate}')
 
-        # Create spatial prior weighting
-        max_ts = []
-        ts_norm = np.log(np.amax(self.skymap))
-        for i in range(pre_ts_array.size):
-            # If a particular scramble in the pre-computed ts_array is empty,
-            #that means that sky scan had no events in the sky, so max_ts=0
-            if pre_ts_array[i]['ts'].size == 0:
-                max_ts.append(-1*np.inf)
-            else:
-                theta, ra = hp.pix2ang(512, pre_ts_array[i]['pixel'])
-                interp = hp.get_interp_val(self.skymap, theta, ra)
-                interp[interp<0] = 0.
-                ts_prior = pre_ts_array[i]['ts'] + 2*(np.log(interp) - ts_norm)
-                max_ts.append(ts_prior.max())
+            #bg_trial_dir = '/data/ana/analyses/NuSources/' \
+            #    + '2023_realtime_gw_analysis/fast_response/' \
+            #    + 'precomputed_background/'
+            #TODO: change to permanent storage once assigned
+            bg_trial_dir = '/data/user/jthwaites/FastResponseAnalysis/output/trials/glob_trials/'
+            pre_ts_array = sparse.load_npz(
+                bg_trial_dir
+                + 'gw_precomputed_trials_delta_t_'
+                + '{:.2e}_trials_rate_{:.1f}_low_stats.npz'.format(
+                self.duration * 86400., closest_rate, self.duration * 86400.))
+            ts_norm = np.log(np.amax(self.skymap))
+            ts_prior = pre_ts_array.copy()
+            ts_prior.data += 2.*(np.log(self.skymap[pre_ts_array.indices]) - ts_norm)
+            ts_prior.data[~np.isfinite(ts_prior.data)] = 0.
+            ts_prior.data[ts_prior.data < 0] = 0.
+            tsd = ts_prior.max(axis=1).A
+            tsd = np.array(tsd)
+            self.tsd = tsd
+            return tsd
 
-        max_ts = np.array(max_ts)
-        self.tsd = max_ts
-        return max_ts
+        else: 
+            #Case: load 1000s precomputed trials (run by Raamis in O3)
+            print('Loading bg trials for 1000s follow-up')
+            if month is None:
+                # month = datetime.datetime.utcnow().month
+                month = Time(self.centertime, format='mjd').datetime.month
+
+            bg_trial_dir = '/data/ana/analyses/NuSources/' \
+                + '2021_v2_alert_stacking_FRA/fast_response/gw_precomputed_trials/'
+            pre_ts_array = np.load(
+                f'{bg_trial_dir}ts_map_{month:02d}.npy',
+                allow_pickle=True,
+                encoding='latin1'
+            )
+
+            # Create spatial prior weighting
+            max_ts = []
+            ts_norm = np.log(np.amax(self.skymap))
+            for i in range(pre_ts_array.size):
+                # If a particular scramble in the pre-computed ts_array is empty,
+                #that means that sky scan had no events in the sky, so max_ts=0
+                if pre_ts_array[i]['ts'].size == 0:
+                    max_ts.append(-1*np.inf)
+                else:
+                    theta, ra = hp.pix2ang(512, pre_ts_array[i]['pixel'])
+                    interp = hp.get_interp_val(self.skymap, theta, ra)
+                    interp[interp<0] = 0.
+                    ts_prior = pre_ts_array[i]['ts'] + 2*(np.log(interp) - ts_norm)
+                    max_ts.append(ts_prior.max())
+        
+            max_ts = np.array(max_ts)
+
+            self.tsd = max_ts
+            return max_ts
+
+    def initialize_llh(self, skipped=None, scramble=False):
+        '''
+        Grab data and format it all into a skylab llh object
+        This function is very similar to the one in FastResponseAnalysis.py, 
+        with the main difference being that these are low-latency enough that we may
+        have to wait for the last min of data to reach i3live.
+        Initialize LLH, load ontime data, then add temporal info and ontime data to llh
+        '''
+        t0 = Time(datetime.datetime.utcnow()).mjd
+
+        if self.stop > t0 + 60./86400.:
+            self.get_data(livestream_start=self.start-6., livestream_stop=self.start)
+            print('Loading off-time data')
+        elif self.exp is None:
+            self.get_data()
+
+        if self._verbose:
+            print("Initializing Point Source LLH in Skylab")
+
+        assert self._fix_index != self._float_index,\
+            'Must choose to either float or fix the index'
+
+        if self._fix_index:
+            llh_model = EnergyLLH(
+                twodim_bins=[self.energy_bins, self.sinDec_bins],
+                allow_empty=True,
+                spectrum=PowerLaw(A=1, gamma=self.index, E0=1000.),
+                ncpu=self._ncpu) 
+        elif self._float_index:
+            llh_model = EnergyLLH(
+                twodim_bins=[self.energy_bins, self.sinDec_bins],
+                allow_empty=True,
+                bounds=self._index_range,
+                seed = self.index,
+                ncpu=self._ncpu)
+        
+        if skipped is not None:
+            self.exp = self.remove_event(self.exp, self.dset, skipped)
+
+        if self.extension is not None:
+            src_extension = float(self.extension)
+            self.save_items['extension'] = src_extension
+        else:
+            src_extension = None
+
+        llh = PointSourceLLH(
+            self.exp,                      # array with data events
+            self.mc,                       # array with Monte Carlo events
+            self.livetime,                 # total livetime of the data events
+            ncpu=self._ncpu,               # use 10 CPUs when computing trials
+            scramble=scramble,             # set to False for unblinding
+            #timescramble=True,             # not just RA scrambling
+            llh_model=llh_model,           # likelihood model
+            nsource_bounds=(0., 1e3),      # bounds on fitted ns
+            src_extension = src_extension, # Model symmetric extended source
+            nsource=1.,                    # seed for nsignal fit
+            seed=self.llh_seed)           
+
+        if self.stop > t0 + 60./86400.:
+            exp_on, livetime_on, grl_on = self.dset.livestream(
+                self.start, 
+                self.stop+60./86400.,
+                load_mc=False, 
+                floor=self._floor,
+                wait_until_stop=True)
+
+            llh.append_exp(exp_on,livetime_on)
+            self.grl = np.concatenate([self.grl, grl_on])
+            self.exp = np.concatenate([self.exp,exp_on])
+            self.livetime = self.grl['livetime'].sum()
+
+        box = TemporalModel(
+            grl=self.grl,
+            poisson_llh=True,
+            days=self._nb_days,
+            signal=BoxProfile(self.start, self.stop))
+
+        llh.set_temporal_model(box)
+
+        return llh
 
     def plot_ontime(self, with_contour=True, contour_files=None):
         return super().plot_ontime(with_contour=True, contour_files=contour_files)

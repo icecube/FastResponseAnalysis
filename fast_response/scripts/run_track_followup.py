@@ -17,7 +17,8 @@ parser.add_argument('--skymap', type=str, default=None,
                     help='path to skymap')
 parser.add_argument('--time', type=float, default=None,
                     help='Time of the alert event (mjd)')
-parser.add_argument('--gcn_notice_num', default=0, type=int)
+parser.add_argument('--gcn_notice_num', default=0, type=int,
+                    help="GCN Circular NUMBER for updated circular (not Bacodine/Notice)")
 parser.add_argument('--alert_id', default=None,
                     type= lambda z:[ tuple(int(y) for y in x.split(':')) for x in z.split(',')],
                     help="list of events to exclude from this analysis. "

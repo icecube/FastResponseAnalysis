@@ -53,17 +53,24 @@ def process_gcn(payload, root):
               for elem in root.iterfind('.//Param')}
 
     # Read trigger time of event
-    eventtime = root.find('.//ISOTime').text
-    event_mjd = Time(eventtime, format='isot').mjd
+    if root.attrib['role'] == 'observation':
+        eventtime = root.find('.//ISOTime').text
+        event_mjd = Time(eventtime, format='isot').mjd
+    else:
+        #if testing, want to query livestream rather than load archival, so use recent time
+        eventtime = '2023-01-13T21:51:25.506'
+        event_mjd = Time(eventtime, format='isot').mjd - 400./86400.
+        eventtime = Time(event_mjd, format = 'mjd').isot
 
-    print('GW trigger time: %s \n' % Time(eventtime, format='isot').iso)
+    print('GW merger time: %s \n' % Time(eventtime, format='isot').iso)
     log_file.flush()
 
     current_mjd = Time(datetime.utcnow(), scale='utc').mjd
     needed_delay = 1000./84600./2.
     current_delay = current_mjd - event_mjd
 
-    #checking how long we have to wait for the five hundred seconds of data
+    # We need to make sure all the data has been collected before we can run.
+    # Check to see if we need to wait for the +500 sec of data to arrive
     FiveHundred_delay = (needed_delay - current_delay)*86400.
 
     while current_delay < needed_delay:
@@ -77,20 +84,9 @@ def process_gcn(payload, root):
 
     skymap = params['skymap_fits']
     name = root.attrib['ivorn'].split('#')[1]
-    if 'multiorder' in skymap:
-        try:
-            bayestar_map=skymap.replace('multiorder.','').split(',')
-            if len(bayestar_map)==1:
-                new_map=bayestar_map[0]+'.gz'
-            else: 
-                new_map=bayestar_map[0]+'.gz,'+ bayestar_map[1]
-            import requests
-            ret = requests.head(new_map)
-            assert ret.status_code == 200
-            skymap=new_map
-        except:
-            print('Failed to download skymap in correct format')
 
+    # Skymap distributed is a different format than previous, but previous is available.
+    # Download correct format from GraceDB
     if 'multiorder' in skymap:
         try:
             bayestar_map=skymap.replace('multiorder.','').split(',')
@@ -104,6 +100,7 @@ def process_gcn(payload, root):
             skymap=new_map
         except:
             print('Failed to download skymap in correct format')
+            #TODO: add make_call to me here if this fails
 
     if root.attrib['role'] != 'observation':
         name=name+'_test'
@@ -119,52 +116,30 @@ def process_gcn(payload, root):
         '--name={}'.format(name)]
         #'--allow_neg_ts=True']
         )
+
     endtime=datetime.utcnow().isoformat()
-
-    ###Creates txt file for latency evaluation###
-    file_object = open('MilestoneTimes.txt', "a+")
-    file_object.write('\n' +"Trigger Time=" +repr(eventtime) +'\n' +"GCN Alert=" +repr(AlertTime) +'\n'  +"End Time=" +repr(endtime))
-    file_object.close()
-
-    file_object = open('GWLatency.txt', "a+")
-    time_1 = parse(eventtime)
-    time_2 = parse(AlertTime)
-    time_3 = parse(endtime)
-
-    delta_Ligo = relativedelta(time_2, time_1)#.strftime('%Y-%m-%dT%H:%M:%S.%f%z')
-    delta_Ice = relativedelta(time_3, time_2)
-    delta_total = relativedelta(time_3, time_1)
-    print(delta_Ligo)
-
-    file_object.write('\n' +"Ligo Latency=" +repr(delta_Ligo) +'\n' +"IceCube Latency=" +repr(delta_Ice) +'\n'
-                         + "Total Latency=" +repr(delta_total) +'\n' +"We had to wait..." +repr(FiveHundred_delay) +"seconds." +'\n')
-    file_object.close()
-
-###Pickle dictionary of times and latency###
-
-    #event_mjd = defined earlier
     alert_mjd = Time(AlertTime, format='isot').mjd
     end_mjd = Time(endtime, format='isot').mjd
 
-    #find latencies wrt to mjd time  
+    # Calculate latency benchmarks and save in a pickle file
     Ligo_late_sec = (alert_mjd - event_mjd)*86400
     Ice_late_sec = (end_mjd - alert_mjd)*86400
     Total_late_sec = Ligo_late_sec + Ice_late_sec
 
     gw_latency = {'Trigger_Time': event_mjd, 'GCN_Alert': alert_mjd, 'End_Time': end_mjd,
-                        'Ligo_Latency': Ligo_late_sec, 'IceCube_Latency': Ice_late_sec, 'Total_Latency': Total_late_sec,
-                            'We_had_to_wait:': FiveHundred_delay}
+                    'Ligo_Latency': Ligo_late_sec, 'IceCube_Latency': Ice_late_sec, 'Total_Latency': Total_late_sec,
+                    'We_had_to_wait:': FiveHundred_delay}
 
     with open(os.environ.get('FAST_RESPONSE_OUTPUT')+f'/PickledMocks/gw_latency_dict_{name}.pickle', 'wb') as file:
         pickle.dump(gw_latency, file, protocol=pickle.HIGHEST_PROTOCOL)
 
-###End text file and dictionary###
-
+    # Move mocks to a seperate folder to avoid swamping FRA output folder
+    # All mocks from LVK have a name starting with MS
     for directory in os.listdir(analysis_path+'../../output'):
         if name in directory: 
             import pwd
             skymap_filename=skymap.split('/')[-1]
-            if ('MS22' in name) and (pwd.getpwuid(os.getuid())[0] =='jthwaites'):
+            if ('MS22' in name or 'MS23' in name) and (pwd.getpwuid(os.getuid())[0] =='jthwaites'):
                 #import glob
                 et = lxml.etree.ElementTree(root)
                 et.write(analysis_path+'../../output/'+directory+'/{}-{}-{}.xml'.format(params['GraceID'], 
@@ -198,11 +173,13 @@ if __name__ == '__main__':
                         help='Run on live GCNs')
     parser.add_argument('--log_path', default=output_path, type=str,
                         help='Redirect output to a log file with this path')
-    parser.add_argument('--test_path', default='/data/user/jthwaites/o3-gw-skymaps/S190728q-5-Update.xml', type=str,
-                        help='Skymap to test the listener')
+    parser.add_argument('--test_path', default='S191216ap_update.xml', type=str,
+                        help='Skymap for use in testing listener')
+    parser.add_argument('--test_o3', default=False, action='store_true',
+                        help='bool to decide if we should run an already unblinded skymap with unblinded data')
     args = parser.parse_args()
 
-    logfile=args.log_path
+    logfile=args.log_path +'log.log'
     original_stdout=sys.stdout
     log_file = open(logfile, "a+")
     sys.stdout=log_file
@@ -218,14 +195,15 @@ if __name__ == '__main__':
         ### FOR OFFLINE TESTING
         try:
             import fast_response
-            sample_skymap_path='/data/user/jthwaites/o3-gw-skymaps/'
-            #sample_skymap_path=os.path.dirname(fast_response.__file__) +'/sample_skymaps/'
+            #sample_skymap_path='/data/user/jthwaites/o3-gw-skymaps/'
+            sample_skymap_path=os.path.dirname(fast_response.__file__) +'/sample_skymaps/'
         except Exception as e:
             sample_skymap_path='/data/user/jthwaites/o3-gw-skymaps/'
         
-        payload = open(args.test_path, 'rb').read()
+        payload = open(sample_skymap_path+args.test_path, 'rb').read()
         root = lxml.etree.fromstring(payload) 
 
         #test runs on scrambles, observation runs on unblinded data
-        #root.attrib['role']='test'
+        if not args.test_o3:
+            root.attrib['role']='test'
         process_gcn(payload, root)
