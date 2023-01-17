@@ -16,6 +16,7 @@ from skylab.spectral_models import PowerLaw
 from skylab.temporal_models import BoxProfile, TemporalModel
 from skylab.ps_llh          import PointSourceLLH
 import fast_response
+from . import sensitivity_utils
 
 class GWFollowup(PriorFollowup):
     _dataset = 'GFUOnline_v001p02'
@@ -31,40 +32,81 @@ class GWFollowup(PriorFollowup):
     _ncpu = 10
     
     def run_background_trials(self, month=None, ntrials=1000):
-        if month is None:
-            # month = datetime.datetime.utcnow().month
-            month = Time(self.centertime, format='mjd').datetime.month
+        '''For GW followup, 2 possible time windows:
+        1000s: for all (default)
+        [-0.1, +14]: NS included (run manually)
+        Returns:
+        --------
+            tsd: array-like
+                test-statistic distribution with weighting 
+                from alert event spatial prior
+        '''
+        if self.duration > 1.:
+            #self.duration is in days, so this is to load 2 week precomputed trials
+            #This is an exact copy of AlertFollowup.py, as it was run with the same script
+            from scipy import sparse
+            current_rate = self.llh.nbackground / (self.duration * 86400.) * 1000.
 
-        bg_trial_dir = '/data/ana/analyses/NuSources/' \
-            + '2021_v2_alert_stacking_FRA/fast_response/gw_precomputed_trials/'
-        pre_ts_array = np.load(
-            f'{bg_trial_dir}ts_map_{month:02d}.npy',
-            allow_pickle=True,
-            encoding='latin1'
-        )
+            #TODO: replace here once done
+            #closest_rate = sensitivity_utils.find_nearest(np.linspace(6.0, 7.2, 7), current_rate)
+            rates = [6.0,6.2,6.4,6.8,7.0]
+            closest_rate = sensitivity_utils.find_nearest(rates, current_rate)
+            print(f'Loading 2 week bg trials, rate: {closest_rate}')
 
-        # Create spatial prior weighting
-        max_ts = []
-        ts_norm = np.log(np.amax(self.skymap))
-        for i in range(pre_ts_array.size):
-            # If a particular scramble in the pre-computed ts_array is empty,
-            #that means that sky scan had no events in the sky, so max_ts=0
-            if pre_ts_array[i]['ts'].size == 0:
-                max_ts.append(-1*np.inf)
-            else:
-                theta, ra = hp.pix2ang(512, pre_ts_array[i]['pixel'])
-                interp = hp.get_interp_val(self.skymap, theta, ra)
-                interp[interp<0] = 0.
-                ts_prior = pre_ts_array[i]['ts'] + 2*(np.log(interp) - ts_norm)
-                max_ts.append(ts_prior.max())
+            #bg_trial_dir = '/data/ana/analyses/NuSources/' \
+            #    + '2023_realtime_gw_analysis/fast_response/' \
+            #    + 'precomputed_background/'
+            #TODO: change to permanent storage once assigned
+            bg_trial_dir = '/data/user/jthwaites/FastResponseAnalysis/output/trials/glob_trials/'
+            pre_ts_array = sparse.load_npz(
+                bg_trial_dir
+                + 'gw_precomputed_trials_delta_t_'
+                + '{:.2e}_trials_rate_{:.1f}_low_stats.npz'.format(
+                self.duration * 86400., closest_rate, self.duration * 86400.))
+            ts_norm = np.log(np.amax(self.skymap))
+            ts_prior = pre_ts_array.copy()
+            ts_prior.data += 2.*(np.log(self.skymap[pre_ts_array.indices]) - ts_norm)
+            ts_prior.data[~np.isfinite(ts_prior.data)] = 0.
+            ts_prior.data[ts_prior.data < 0] = 0.
+            tsd = ts_prior.max(axis=1).A
+            tsd = np.array(tsd)
+            self.tsd = tsd
+            return tsd
+
+        else: 
+            #Case: load 1000s precomputed trials (run by Raamis in O3)
+            print('Loading bg trials for 1000s follow-up')
+            if month is None:
+                # month = datetime.datetime.utcnow().month
+                month = Time(self.centertime, format='mjd').datetime.month
+
+            bg_trial_dir = '/data/ana/analyses/NuSources/' \
+                + '2021_v2_alert_stacking_FRA/fast_response/gw_precomputed_trials/'
+            pre_ts_array = np.load(
+                f'{bg_trial_dir}ts_map_{month:02d}.npy',
+                allow_pickle=True,
+                encoding='latin1'
+            )
+
+            # Create spatial prior weighting
+            max_ts = []
+            ts_norm = np.log(np.amax(self.skymap))
+            for i in range(pre_ts_array.size):
+                # If a particular scramble in the pre-computed ts_array is empty,
+                #that means that sky scan had no events in the sky, so max_ts=0
+                if pre_ts_array[i]['ts'].size == 0:
+                    max_ts.append(-1*np.inf)
+                else:
+                    theta, ra = hp.pix2ang(512, pre_ts_array[i]['pixel'])
+                    interp = hp.get_interp_val(self.skymap, theta, ra)
+                    interp[interp<0] = 0.
+                    ts_prior = pre_ts_array[i]['ts'] + 2*(np.log(interp) - ts_norm)
+                    max_ts.append(ts_prior.max())
         
-        max_ts = np.array(max_ts)
-        #if not self._allow_neg:
-        #    max_ts[max_ts < 0.] = 0.
-        #    max_ts[np.isinf(max_ts)]= 0.
+            max_ts = np.array(max_ts)
 
-        self.tsd = max_ts
-        return max_ts
+            self.tsd = max_ts
+            return max_ts
 
     def initialize_llh(self, skipped=None, scramble=False):
         '''
