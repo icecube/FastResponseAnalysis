@@ -299,6 +299,7 @@ class FastResponseAnalysis(object):
             if self._verbose:
                 print("TS=0, no need to run background trials")
             p = 1.0
+            sigma = 0.0
             self.tsd = None
         else:
             self.run_background_trials(ntrials=ntrials)
@@ -309,7 +310,8 @@ class FastResponseAnalysis(object):
                 print("Significance: {:.3f}sigma\n\n".format(sigma))
         self.p = p
         self.save_items['p'] = p
-        return p
+        #return p
+        return p, sigma	
 
     @abstractmethod
     def find_coincident_events(self):
@@ -797,17 +799,18 @@ class PriorFollowup(FastResponseAnalysis):
             self.skymap, containment = self._containment,
             allow_neg=self._allow_neg)
         pixels = np.arange(len(self.skymap))
-        t1 = time.time()
-        print("Starting scan")
-        val = self.llh.scan(
-            0.0,0.0, scramble = False, spatial_prior=spatial_prior,
-            time_mask = [self.duration/2., self.centertime],
-            pixel_scan=[self.nside, self._pixel_scan_nsigma]
-        )
-        self.ts_scan = val
-        t2 = time.time()
-        print("finished scan, took {} s".format(t2-t1))
         try:
+            t1 = time.time()
+            print("Starting scan")
+            val = self.llh.scan(
+            	0.0,0.0, scramble = False, spatial_prior=spatial_prior,
+            	time_mask = [self.duration/2., self.centertime],
+            	pixel_scan=[self.nside, self._pixel_scan_nsigma]
+            )
+            self.ts_scan = val
+            t2 = time.time()
+            print("finished scan, took {} s".format(t2-t1))
+  
             ts = val['TS_spatial_prior_0'].max()
             max_prior = np.argmax(val['TS_spatial_prior_0'])
             ns = val['nsignal'][max_prior]
@@ -830,6 +833,7 @@ class PriorFollowup(FastResponseAnalysis):
         except Exception as e:
             print(e)
             ts, ns = 0., 0.
+            self.ts_scan = 0
             if self._float_index:
                 gamma_fit = 2.0
             else:
