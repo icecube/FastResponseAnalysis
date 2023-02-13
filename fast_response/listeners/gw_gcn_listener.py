@@ -53,14 +53,17 @@ def process_gcn(payload, root):
               for elem in root.iterfind('.//Param')}
 
     # Read trigger time of event
-    if root.attrib['role'] == 'observation':
-        eventtime = root.find('.//ISOTime').text
-        event_mjd = Time(eventtime, format='isot').mjd
-    else:
+    eventtime = root.find('.//ISOTime').text
+    event_mjd = Time(eventtime, format='isot').mjd
+    
+    if root.attrib['role'] == 'test':
         #if testing, want to query livestream rather than load archival, so use recent time
         eventtime = '2023-01-13T21:51:25.506'
         event_mjd = Time(eventtime, format='isot').mjd - 400./86400.
         eventtime = Time(event_mjd, format = 'mjd').isot
+    else:
+        eventtime = root.find('.//ISOTime').text
+        event_mjd = Time(eventtime, format='isot').mjd
 
     print('GW merger time: %s \n' % Time(eventtime, format='isot').iso)
     log_file.flush()
@@ -179,7 +182,8 @@ if __name__ == '__main__':
                         help='bool to decide if we should run an already unblinded skymap with unblinded data')
     args = parser.parse_args()
 
-    logfile=args.log_path +'log.log'
+    logfile=args.log_path +'/log.log'
+    print(f'Logging to file: {logfile}')
     original_stdout=sys.stdout
     log_file = open(logfile, "a+")
     sys.stdout=log_file
@@ -198,6 +202,7 @@ if __name__ == '__main__':
             #sample_skymap_path='/data/user/jthwaites/o3-gw-skymaps/'
             sample_skymap_path=os.path.dirname(fast_response.__file__) +'/sample_skymaps/'
         except Exception as e:
+            print(e)
             sample_skymap_path='/data/user/jthwaites/o3-gw-skymaps/'
         
         payload = open(sample_skymap_path+args.test_path, 'rb').read()
