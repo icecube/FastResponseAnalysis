@@ -8,6 +8,7 @@ from astropy.time import Time
 import matplotlib as mpl
 mpl.use('agg')
 import matplotlib.pyplot as plt
+import pickle
 
 from .FastResponseAnalysis import PriorFollowup
 from .reports import GravitationalWaveReport
@@ -47,17 +48,12 @@ class GWFollowup(PriorFollowup):
             from scipy import sparse
             current_rate = self.llh.nbackground / (self.duration * 86400.) * 1000.
 
-            #TODO: replace here once done
-            #closest_rate = sensitivity_utils.find_nearest(np.linspace(6.0, 7.2, 7), current_rate)
-            rates = [6.0,6.2,6.4,6.8,7.0]
-            closest_rate = sensitivity_utils.find_nearest(rates, current_rate)
+            closest_rate = sensitivity_utils.find_nearest(np.linspace(6.0, 7.2, 7), current_rate)
             print(f'Loading 2 week bg trials, rate: {closest_rate}')
 
-            #bg_trial_dir = '/data/ana/analyses/NuSources/' \
-            #    + '2023_realtime_gw_analysis/fast_response/' \
-            #    + 'precomputed_background/'
-            #TODO: change to permanent storage once assigned
-            bg_trial_dir = '/data/user/jthwaites/FastResponseAnalysis/output/trials/glob_trials/'
+            bg_trial_dir = '/data/ana/analyses/NuSources/' \
+                + '2023_realtime_gw_analysis/fast_response/' \
+                + 'precomputed_background/'
             pre_ts_array = sparse.load_npz(
                 bg_trial_dir
                 + 'gw_precomputed_trials_delta_t_'
@@ -188,6 +184,27 @@ class GWFollowup(PriorFollowup):
         llh.set_temporal_model(box)
 
         return llh
+    
+    def get_best_fit_contour(self, levels=[0.5,0.9]):
+        '''Get a contour for the error around the best-fit point
+        levels = contour levels to calculate
+        '''
+        from . import plotting_utils
+        import meander
+
+        pix_scan = np.array((np.pi/2 - self.ts_scan['dec'], self.ts_scan['ra'])).T
+        print(pix_scan)
+        #TS_List = np.zeros(hp.nside2npix(self.nside))
+        #for i in range(len(pix_scan)):
+        #    TS_List[pix_scan[i]]=self.ts_scan['TS_spatial_prior_0'][i]
+        #theta_list, phi_list = plotting_utils.plot_contours(levels, TS_List)
+        contours_by_level = meander.spherical_contours(pix_scan, self.ts_scan['TS_spatial_prior_0'], levels)
+        #for thetas in theta_list:
+        #    decs = np.pi/2. - thetas
+        #ras = phi_list
+        for level in levels:
+            print(level)
+            print(contours_by_level)
 
     def plot_ontime(self, with_contour=True, contour_files=None):
         return super().plot_ontime(with_contour=True, contour_files=contour_files)
@@ -410,15 +427,22 @@ class GWFollowup(PriorFollowup):
         --------
         low: float
             lowest sensitivity within dec range
-        high: floaot
+        high: float
             highest sensitivity wihtin dec range
         '''
-        dec_range = np.linspace(-85,85,35)
-        sens = [1.15, 1.06, .997, .917, .867, .802, .745, .662,
-                .629, .573, .481, .403, .332, .250, .183, .101,
-                .035, .0286, .0311, .0341, .0361, .0394, .0418,
-                .0439, .0459, .0499, .0520, .0553, .0567, .0632,
-                .0679, .0732, .0788, .083, .0866]
+        sens_dir = '/data/ana/analyses/NuSources/2023_realtime_gw_analysis/' \
+                +  'fast_response/ps_sensitivities'
+
+        with open(f'{sens_dir}/ps_sensitivities_deltaT_{self.duration*86400.:.2e}s.pkl','rb') as f:
+            saved_sens=pickle.load(f)
+            dec_range=saved_sens['dec']
+            sens=saved_sens['sens_flux']
+        #dec_range = np.linspace(-85,85,35)
+        #sens = [1.15, 1.06, .997, .917, .867, .802, .745, .662,
+        #        .629, .573, .481, .403, .332, .250, .183, .101,
+        #        .035, .0286, .0311, .0341, .0361, .0394, .0418,
+        #        .0439, .0459, .0499, .0520, .0553, .0567, .0632,
+        #        .0679, .0732, .0788, .083, .0866]
 
         src_theta, src_phi = hp.pix2ang(self.nside, self.ipix_90)
         src_dec = np.pi/2. - src_theta
@@ -477,13 +501,19 @@ class GWFollowup(PriorFollowup):
 
         sinDec_bins = np.linspace(-1,1,30)
         bin_centers = (sinDec_bins[:-1] + sinDec_bins[1:]) / 2
+        sens_dir = '/data/ana/analyses/NuSources/2023_realtime_gw_analysis/' \
+                +  'fast_response/ps_sensitivities'
+        with open(f'{sens_dir}/ps_sensitivities_deltaT_{self.duration*86400.:.2e}s.pkl','rb') as f:
+            saved_sens=pickle.load(f)
+            dec_range=np.sin(saved_sens['dec']*np.pi/180)
+            sens=saved_sens['sens_flux']
 
-        dec_range = np.linspace(-1,1,35)
-        sens = [1.15, 1.06, .997, .917, .867, .802, .745, .662,
-                .629, .573, .481, .403, .332, .250, .183, .101,
-                .035, .0286, .0311, .0341, .0361, .0394, .0418,
-                .0439, .0459, .0499, .0520, .0553, .0567, .0632,
-                .0679, .0732, .0788, .083, .0866]
+        #dec_range = np.linspace(-1,1,35)
+        #sens = [1.15, 1.06, .997, .917, .867, .802, .745, .662,
+        #        .629, .573, .481, .403, .332, .250, .183, .101,
+        #        .035, .0286, .0311, .0341, .0361, .0394, .0418,
+        #        .0439, .0459, .0499, .0520, .0553, .0567, .0632,
+        #        .0679, .0732, .0788, .083, .0866]
         sens = np.array(sens)
 
         pixels = np.arange(len(self.skymap))

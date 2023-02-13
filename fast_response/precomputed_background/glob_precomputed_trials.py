@@ -50,7 +50,7 @@ def glob_allsky_scans(delta_t, rate, dir, low_stats=False):
     
     return maps
 
-for rate in [6.0, 6.2, 6.4, 6.8, 7.0]: # 6.6, 7.2
+for rate in [6.0, 6.2, 6.4, 6.6, 6.8, 7.0, 7.2]:
     for low_stats in [True]:#, False]:
         print("Rate: {} mHz, low stats: {}".format(rate, low_stats))
         maps = glob_allsky_scans(args.deltaT, rate, args.outdir, low_stats=low_stats)
