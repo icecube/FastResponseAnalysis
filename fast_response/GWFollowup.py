@@ -185,27 +185,61 @@ class GWFollowup(PriorFollowup):
 
         return llh
     
-    def get_best_fit_contour(self, levels=[0.5,0.9]):
+    def get_best_fit_contour(self, proportions=[0.5,0.9]):
         '''Get a contour for the error around the best-fit point
-        levels = contour levels to calculate
+        proportions = confidence levels to calculate
+        -------
+        Makes a zoomed skymap of the ts-space with contours
         '''
+        if self.tsd is None: return
+
         from . import plotting_utils
         import meander
+        import seaborn as sns
+        
+        print('Calculating contour around best-fit TS')
 
-        pix_scan = np.array((np.pi/2 - self.ts_scan['dec'], self.ts_scan['ra'])).T
-        print(pix_scan)
-        #TS_List = np.zeros(hp.nside2npix(self.nside))
-        #for i in range(len(pix_scan)):
-        #    TS_List[pix_scan[i]]=self.ts_scan['TS_spatial_prior_0'][i]
-        #theta_list, phi_list = plotting_utils.plot_contours(levels, TS_List)
+        #get threshold TS value for that level in the bg distribution
+        levels = [np.percentile(self.tsd, 100-proportion) for proportion in proportions]
+
+        pix_scan = np.array((np.pi/2 - self.ts_scan['dec'], self.ts_scan['ra'])).T #sample points
         contours_by_level = meander.spherical_contours(pix_scan, self.ts_scan['TS_spatial_prior_0'], levels)
-        #for thetas in theta_list:
-        #    decs = np.pi/2. - thetas
-        #ras = phi_list
-        for level in levels:
-            print(level)
-            print(contours_by_level)
 
+        thetas = []; phis=[]
+        for contours in contours_by_level:
+            for contour in contours:
+                theta, phi = contour.T
+                phi[phi<0] += 2.0*np.pi
+                thetas.append(theta)
+                phis.append(phi)
+
+        #make the plot
+        pdf_palette = sns.color_palette("Blues", 500)
+        cmap = mpl.colors.ListedColormap(pdf_palette)
+
+        ipix=hp.ang2pix(self.nside, pix_scan[0] - np.pi/2, pix_scan[1])
+        TS_List = np.zeros(hp.nside2npix(self.nside))
+        for i in range(len(ipix)):
+            TS_List[ipix[i]]=self.ts_scan['TS_spatial_prior_0'][i]
+        plotting_utils.plot_zoom(TS_List, self.skymap_fit_ra, self.skymap_fit_dec,
+                                 "", range = [0,10], reso=3., cmap = cmap)
+        #plotting_utils.plot_zoom(self.skymap, self.skymap_fit_ra, self.skymap_fit_dec,
+        #                         "", range = [0,10], reso=3., cmap = cmap)
+        plotting_utils.plot_color_bar(range=[0,6], cmap=cmap, col_label=r"TS",offset=-50)
+        cont_ls = ['solid', 'dashed']*(len(thetas)/2)
+        cont_labels=[f'{proportion*100:i}/% CL' for proportion in proportions]
+
+        hp.projplot(thetas[0], phis[0], linewidth=2., ls=cont_ls[0], c='k', label=cont_labels[0])
+        for i in range(1, len(thetas)):
+            hp.projplot(thetas[i], phis[i], linewidth=2., c='k', ls=cont_ls[i], label=cont_labels[i])
+
+        plt.scatter(0,0, marker='*', c = 'k', s = 130, label = "Scan Hot Spot") 
+        plt.legend(loc = 2, ncol=1, fontsize = 16, framealpha = 0.95)
+
+        plt.savefig(self.analysispath + '/' + self.analysisid + 'ts_contours.png',bbox_inches='tight')
+        plt.savefig(self.analysispath + '/' + self.analysisid + 'ts_contours.pdf',bbox_inches='tight', dpi=300)
+        plt.close()
+        
     def plot_ontime(self, with_contour=True, contour_files=None):
         return super().plot_ontime(with_contour=True, contour_files=contour_files)
 
@@ -560,5 +594,8 @@ class GWFollowup(PriorFollowup):
         r'''Generates report using class attributes
         and the ReportGenerator Class'''
         report = GravitationalWaveReport(self)
+        if self.duration > 1.:
+            report._figure_list = [('decPDF', 'decPDF.png'),('ts_contours', 'ts_contours.png')]
+
         report.generate_report()
         report.make_pdf()
