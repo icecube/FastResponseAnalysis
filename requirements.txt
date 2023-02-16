@@ -11,7 +11,7 @@ kiwisolver==1.1.0
 matplotlib==2.2.5
 meander==0.0.3
 more-itertools==5.0.0
-numpy>=1.21.5
+numpy==1.21.5
 numexpr==2.8.1
 pandas>=1.2.2
 pluggy==0.7.1
@@ -28,4 +28,4 @@ six==1.14.0
 subprocess32==3.5.4
 zmq==0.0.0
 py27hash==1.0.2
-pygcn>=1.1.2
+pygcn==1.1.2
