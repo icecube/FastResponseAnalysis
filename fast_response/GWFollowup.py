@@ -194,16 +194,17 @@ class GWFollowup(PriorFollowup):
         if self.tsd is None: return
 
         from . import plotting_utils
-        import meander
+        #import meander
         import seaborn as sns
         
         print('Calculating contour around best-fit TS')
 
         #get threshold TS value for that level in the bg distribution
-        levels = [np.percentile(self.tsd, 100-proportion) for proportion in proportions]
-
-        pix_scan = np.array((np.pi/2 - self.ts_scan['dec'], self.ts_scan['ra'])).T #sample points
-        contours_by_level = meander.spherical_contours(pix_scan, self.ts_scan['TS_spatial_prior_0'], levels)
+        levels = [np.percentile(self.tsd, 100*(1-proportion)) for proportion in proportions]
+        sample_points = np.array(hp.pix2ang(self.nside, np.arange(len(self.skymap)))).T
+        loc=np.array((np.pi/2 - self.ts_scan['dec'], self.ts_scan['ra'])).T
+        contours_by_level = meander.spherical_contours(loc, self.ts_scan['TS_spatial_prior_0'], levels)
+        #print(contours_by_level)
 
         thetas = []; phis=[]
         for contours in contours_by_level:
@@ -213,25 +214,22 @@ class GWFollowup(PriorFollowup):
                 thetas.append(theta)
                 phis.append(phi)
 
+        #norm_ts = self.ts_scan['TS_spatial_prior_0'] / sum(self.ts_scan['TS_spatial_prior_0'])
+        #thetas, phis = plotting_utils.plot_contours(proportions, norm_ts)
+        
         #make the plot
         pdf_palette = sns.color_palette("Blues", 500)
         cmap = mpl.colors.ListedColormap(pdf_palette)
 
-        ipix=hp.ang2pix(self.nside, pix_scan[0] - np.pi/2, pix_scan[1])
-        TS_List = np.zeros(hp.nside2npix(self.nside))
-        for i in range(len(ipix)):
-            TS_List[ipix[i]]=self.ts_scan['TS_spatial_prior_0'][i]
-        plotting_utils.plot_zoom(TS_List, self.skymap_fit_ra, self.skymap_fit_dec,
+        plotting_utils.plot_zoom(self.ts_scan['TS_spatial_prior_0'], self.skymap_fit_ra, self.skymap_fit_dec,
                                  "", range = [0,10], reso=3., cmap = cmap)
-        #plotting_utils.plot_zoom(self.skymap, self.skymap_fit_ra, self.skymap_fit_dec,
-        #                         "", range = [0,10], reso=3., cmap = cmap)
+        
         plotting_utils.plot_color_bar(range=[0,6], cmap=cmap, col_label=r"TS",offset=-50)
-        cont_ls = ['solid', 'dashed']*(len(thetas)/2)
-        cont_labels=[f'{proportion*100:i}/% CL' for proportion in proportions]
+        cont_ls = ['solid', 'dashed']*(int(len(proportions)/2))
+        cont_labels=[f'{proportion*100:.0f}/% CL' for proportion in proportions]
 
-        hp.projplot(thetas[0], phis[0], linewidth=2., ls=cont_ls[0], c='k', label=cont_labels[0])
-        for i in range(1, len(thetas)):
-            hp.projplot(thetas[i], phis[i], linewidth=2., c='k', ls=cont_ls[i], label=cont_labels[i])
+        for i in range(len(thetas)):
+            hp.projplot(thetas[i], phis[i], linewidth=2., c='k')#, ls=cont_ls[i], label=cont_labels[i])
 
         plt.scatter(0,0, marker='*', c = 'k', s = 130, label = "Scan Hot Spot") 
         plt.legend(loc = 2, ncol=1, fontsize = 16, framealpha = 0.95)

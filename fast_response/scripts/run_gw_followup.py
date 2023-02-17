@@ -56,8 +56,8 @@ f.plot_ontime()
 f.calc_pvalue()
 f.make_dNdE()
 f.plot_tsd(allow_neg=f._allow_neg)
-if delta_t/86400. > 1.:
-    f.get_best_fit_contour()
+#if delta_t/86400. > 1.:
+#    f.get_best_fit_contour()
 
 f.upper_limit()
 f.find_coincident_events()
