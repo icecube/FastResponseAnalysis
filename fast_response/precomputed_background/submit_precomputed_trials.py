@@ -79,6 +79,7 @@ for bg_rate in [6.6]:#[6.0, 6.2, 6.4, 6.6, 6.8, 7.0, 7.2]:
             job.add_arg('--deltaT %s --ntrials %i --seed %i --bkg %s'
                     %(args.tw, args.n_per_batch, seed, bg_rate))
 
+
 #job.add_child(glob_jobs)
 
 job.build_submit()

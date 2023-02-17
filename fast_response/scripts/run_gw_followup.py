@@ -41,7 +41,7 @@ else: #2 week followup
     print('Beginning 2 week NS followup')
     start_time = gw_time - 0.1
     stop_time = gw_time + 14.
-    
+
 start = start_time.iso
 stop = stop_time.iso
 
@@ -53,6 +53,7 @@ f._allow_neg = args.allow_neg_ts
 
 f.unblind_TS()
 f.plot_ontime()
+
 f.calc_pvalue()
 f.make_dNdE()
 f.plot_tsd(allow_neg=f._allow_neg)
