@@ -14,6 +14,12 @@ parser.add_argument(
 parser.add_argument(
     '--ntrials', type=int, default=30000,
     help='Number of precomputed trials to run, default 30,000')
+parser.add_argument(
+    '--seed_start', type=int,default=0,
+    help='Seed to start with when running trials')
+parser.add_argument(
+    '--n_per_batch', default=100, type=int,
+    help='Number of trials to run in each set (default: 100)')
 args = parser.parse_args()
 
 username = pwd.getpwuid(os.getuid())[0]
@@ -65,13 +71,14 @@ job = pycondor.Job(
 #    )
 
 prev_trials = glob.glob('/data/user/jthwaites/FastResponseAnalysis/output/trials/*.npz')
-for bg_rate in [7.2]:#[6.0, 6.2, 6.4, 6.6, 6.8, 7.0, 7.2]:
-    for seed in range(int(args.ntrials/100)):
+for bg_rate in [6.6]:#[6.0, 6.2, 6.4, 6.6, 6.8, 7.0, 7.2]:
+    for seed in range(args.seed_start, int(args.ntrials/args.n_per_batch)):
         seed = seed*100
         if f'/data/user/jthwaites/FastResponseAnalysis/output/trials/gw_{bg_rate}_mHz_seed_{seed}_delta_t_1.2e+06.npz' not in prev_trials:
             #deltaT {args.tw} --ntrials 100 --seed {seed} --bkg {bg}
             job.add_arg('--deltaT %s --ntrials %i --seed %i --bkg %s'
-                    %(args.tw, 100, seed, bg_rate))
+                    %(args.tw, args.n_per_batch, seed, bg_rate))
+
 
 #job.add_child(glob_jobs)
 

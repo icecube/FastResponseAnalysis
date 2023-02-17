@@ -8,6 +8,7 @@ from astropy.time import Time
 import matplotlib as mpl
 mpl.use('agg')
 import matplotlib.pyplot as plt
+import pickle
 
 from .FastResponseAnalysis import PriorFollowup
 from .reports import GravitationalWaveReport
@@ -47,17 +48,13 @@ class GWFollowup(PriorFollowup):
             from scipy import sparse
             current_rate = self.llh.nbackground / (self.duration * 86400.) * 1000.
 
-            #TODO: replace here once done
-            #closest_rate = sensitivity_utils.find_nearest(np.linspace(6.0, 7.2, 7), current_rate)
-            rates = [6.0,6.2,6.4,6.8,7.0]
-            closest_rate = sensitivity_utils.find_nearest(rates, current_rate)
+            closest_rate = sensitivity_utils.find_nearest(np.linspace(6.0, 7.2, 7), current_rate)
             print(f'Loading 2 week bg trials, rate: {closest_rate}')
 
-            #bg_trial_dir = '/data/ana/analyses/NuSources/' \
-            #    + '2023_realtime_gw_analysis/fast_response/' \
-            #    + 'precomputed_background/'
-            #TODO: change to permanent storage once assigned
-            bg_trial_dir = '/data/user/jthwaites/FastResponseAnalysis/output/trials/glob_trials/'
+            bg_trial_dir = '/data/ana/analyses/NuSources/' \
+                + '2023_realtime_gw_analysis/fast_response/' \
+                + 'precomputed_background/'
+
             pre_ts_array = sparse.load_npz(
                 bg_trial_dir
                 + 'gw_precomputed_trials_delta_t_'
@@ -188,7 +185,60 @@ class GWFollowup(PriorFollowup):
         llh.set_temporal_model(box)
 
         return llh
+    
+    def get_best_fit_contour(self, proportions=[0.5,0.9]):
+        '''Get a contour for the error around the best-fit point
+        proportions = confidence levels to calculate
+        -------
+        Makes a zoomed skymap of the ts-space with contours
+        '''
+        if self.tsd is None: return
 
+        from . import plotting_utils
+        #import meander
+        import seaborn as sns
+        
+        print('Calculating contour around best-fit TS')
+
+        #get threshold TS value for that level in the bg distribution
+        levels = [np.percentile(self.tsd, 100*(1-proportion)) for proportion in proportions]
+        sample_points = np.array(hp.pix2ang(self.nside, np.arange(len(self.skymap)))).T
+        loc=np.array((np.pi/2 - self.ts_scan['dec'], self.ts_scan['ra'])).T
+        contours_by_level = meander.spherical_contours(loc, self.ts_scan['TS_spatial_prior_0'], levels)
+        #print(contours_by_level)
+
+        thetas = []; phis=[]
+        for contours in contours_by_level:
+            for contour in contours:
+                theta, phi = contour.T
+                phi[phi<0] += 2.0*np.pi
+                thetas.append(theta)
+                phis.append(phi)
+
+        #norm_ts = self.ts_scan['TS_spatial_prior_0'] / sum(self.ts_scan['TS_spatial_prior_0'])
+        #thetas, phis = plotting_utils.plot_contours(proportions, norm_ts)
+        
+        #make the plot
+        pdf_palette = sns.color_palette("Blues", 500)
+        cmap = mpl.colors.ListedColormap(pdf_palette)
+
+        plotting_utils.plot_zoom(self.ts_scan['TS_spatial_prior_0'], self.skymap_fit_ra, self.skymap_fit_dec,
+                                 "", range = [0,10], reso=3., cmap = cmap)
+        
+        plotting_utils.plot_color_bar(range=[0,6], cmap=cmap, col_label=r"TS",offset=-50)
+        cont_ls = ['solid', 'dashed']*(int(len(proportions)/2))
+        cont_labels=[f'{proportion*100:.0f}/% CL' for proportion in proportions]
+
+        for i in range(len(thetas)):
+            hp.projplot(thetas[i], phis[i], linewidth=2., c='k')#, ls=cont_ls[i], label=cont_labels[i])
+
+        plt.scatter(0,0, marker='*', c = 'k', s = 130, label = "Scan Hot Spot") 
+        plt.legend(loc = 2, ncol=1, fontsize = 16, framealpha = 0.95)
+
+        plt.savefig(self.analysispath + '/' + self.analysisid + 'ts_contours.png',bbox_inches='tight')
+        plt.savefig(self.analysispath + '/' + self.analysisid + 'ts_contours.pdf',bbox_inches='tight', dpi=300)
+        plt.close()
+        
     def plot_ontime(self, with_contour=True, contour_files=None):
         return super().plot_ontime(with_contour=True, contour_files=contour_files)
 
@@ -410,15 +460,22 @@ class GWFollowup(PriorFollowup):
         --------
         low: float
             lowest sensitivity within dec range
-        high: floaot
+        high: float
             highest sensitivity wihtin dec range
         '''
-        dec_range = np.linspace(-85,85,35)
-        sens = [1.15, 1.06, .997, .917, .867, .802, .745, .662,
-                .629, .573, .481, .403, .332, .250, .183, .101,
-                .035, .0286, .0311, .0341, .0361, .0394, .0418,
-                .0439, .0459, .0499, .0520, .0553, .0567, .0632,
-                .0679, .0732, .0788, .083, .0866]
+        sens_dir = '/data/ana/analyses/NuSources/2023_realtime_gw_analysis/' \
+                +  'fast_response/ps_sensitivities'
+
+        with open(f'{sens_dir}/ps_sensitivities_deltaT_{self.duration*86400.:.2e}s.pkl','rb') as f:
+            saved_sens=pickle.load(f)
+            dec_range=saved_sens['dec']
+            sens=saved_sens['sens_flux']
+        #dec_range = np.linspace(-85,85,35)
+        #sens = [1.15, 1.06, .997, .917, .867, .802, .745, .662,
+        #        .629, .573, .481, .403, .332, .250, .183, .101,
+        #        .035, .0286, .0311, .0341, .0361, .0394, .0418,
+        #        .0439, .0459, .0499, .0520, .0553, .0567, .0632,
+        #        .0679, .0732, .0788, .083, .0866]
 
         src_theta, src_phi = hp.pix2ang(self.nside, self.ipix_90)
         src_dec = np.pi/2. - src_theta
@@ -477,13 +534,19 @@ class GWFollowup(PriorFollowup):
 
         sinDec_bins = np.linspace(-1,1,30)
         bin_centers = (sinDec_bins[:-1] + sinDec_bins[1:]) / 2
+        sens_dir = '/data/ana/analyses/NuSources/2023_realtime_gw_analysis/' \
+                +  'fast_response/ps_sensitivities'
+        with open(f'{sens_dir}/ps_sensitivities_deltaT_{self.duration*86400.:.2e}s.pkl','rb') as f:
+            saved_sens=pickle.load(f)
+            dec_range=np.sin(saved_sens['dec']*np.pi/180)
+            sens=saved_sens['sens_flux']
 
-        dec_range = np.linspace(-1,1,35)
-        sens = [1.15, 1.06, .997, .917, .867, .802, .745, .662,
-                .629, .573, .481, .403, .332, .250, .183, .101,
-                .035, .0286, .0311, .0341, .0361, .0394, .0418,
-                .0439, .0459, .0499, .0520, .0553, .0567, .0632,
-                .0679, .0732, .0788, .083, .0866]
+        #dec_range = np.linspace(-1,1,35)
+        #sens = [1.15, 1.06, .997, .917, .867, .802, .745, .662,
+        #        .629, .573, .481, .403, .332, .250, .183, .101,
+        #        .035, .0286, .0311, .0341, .0361, .0394, .0418,
+        #        .0439, .0459, .0499, .0520, .0553, .0567, .0632,
+        #        .0679, .0732, .0788, .083, .0866]
         sens = np.array(sens)
 
         pixels = np.arange(len(self.skymap))
@@ -530,5 +593,8 @@ class GWFollowup(PriorFollowup):
         r'''Generates report using class attributes
         and the ReportGenerator Class'''
         report = GravitationalWaveReport(self)
+        if self.duration > 1.:
+            report._figure_list = [('decPDF', 'decPDF.png'),('ts_contours', 'ts_contours.png')]
+
         report.generate_report()
         report.make_pdf()

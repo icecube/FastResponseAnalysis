@@ -44,7 +44,7 @@ def run_analysis(args):
     f.calc_pvalue(ntrials = args.ntrials)
     f.make_dNdE()
     f.plot_tsd()
-    f.upper_limit()
+    f.upper_limit(n_per_sig = args.n_per_sig)
     results = f.save_results()
 
     print("Beginning to make the report")
@@ -80,6 +80,8 @@ if __name__ == "__main__":
                         "Example --skip-events=127853:67093193")
     parser.add_argument('--ntrials', default=100, type=int,
                         help="Number of background trials to perform")
+    parser.add_argument('--n_per_sig', default=100, type=int,
+                        help="Number of signal trials per injected ns to perform")
     parser.add_argument('--document', default=False, action='store_true')
     args = parser.parse_args()
 
