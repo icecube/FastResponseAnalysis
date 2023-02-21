@@ -34,6 +34,7 @@ print(message)
 
 gw_time = Time(args.time, format='mjd')
 delta_t = float(args.tw)
+
 if args.tw==1000:
     start_time = gw_time - (delta_t / 86400. / 2.)
     stop_time = gw_time + (delta_t / 86400. / 2.)
