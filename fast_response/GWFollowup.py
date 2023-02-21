@@ -193,18 +193,21 @@ class GWFollowup(PriorFollowup):
         '''
         if self.tsd is None: return
 
+        from scipy import special
         from . import plotting_utils
-        #import meander
+        import meander
         import seaborn as sns
         
         print('Calculating contour around best-fit TS')
 
         #get threshold TS value for that level in the bg distribution
-        levels = [np.percentile(self.tsd, 100*(1-proportion)) for proportion in proportions]
-        sample_points = np.array(hp.pix2ang(self.nside, np.arange(len(self.skymap)))).T
+        dof = 2
+        delta_llh_levels = special.gammaincinv(dof/2.0, np.array([(1-prop) for prop in proportions]))
+        levels=2*delta_llh_levels
+
+        #sample_points = np.array(hp.pix2ang(self.nside, np.arange(len(self.skymap)))).T
         loc=np.array((np.pi/2 - self.ts_scan['dec'], self.ts_scan['ra'])).T
         contours_by_level = meander.spherical_contours(loc, self.ts_scan['TS_spatial_prior_0'], levels)
-        #print(contours_by_level)
 
         thetas = []; phis=[]
         for contours in contours_by_level:
@@ -213,9 +216,6 @@ class GWFollowup(PriorFollowup):
                 phi[phi<0] += 2.0*np.pi
                 thetas.append(theta)
                 phis.append(phi)
-
-        #norm_ts = self.ts_scan['TS_spatial_prior_0'] / sum(self.ts_scan['TS_spatial_prior_0'])
-        #thetas, phis = plotting_utils.plot_contours(proportions, norm_ts)
         
         #make the plot
         pdf_palette = sns.color_palette("Blues", 500)
@@ -224,7 +224,7 @@ class GWFollowup(PriorFollowup):
         plotting_utils.plot_zoom(self.ts_scan['TS_spatial_prior_0'], self.skymap_fit_ra, self.skymap_fit_dec,
                                  "", range = [0,10], reso=3., cmap = cmap)
         
-        plotting_utils.plot_color_bar(range=[0,6], cmap=cmap, col_label=r"TS",offset=-50)
+        plotting_utils.plot_color_bar(labels=[0,round(max(self.ts_scan['TS_spatial_prior_0']))], cmap=cmap, col_label=r"TS",offset=-150)
         cont_ls = ['solid', 'dashed']*(int(len(proportions)/2))
         cont_labels=[f'{proportion*100:.0f}/% CL' for proportion in proportions]
 
