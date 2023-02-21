@@ -54,6 +54,7 @@ class GWFollowup(PriorFollowup):
             bg_trial_dir = '/data/ana/analyses/NuSources/' \
                 + '2023_realtime_gw_analysis/fast_response/' \
                 + 'precomputed_background/'
+
             pre_ts_array = sparse.load_npz(
                 bg_trial_dir
                 + 'gw_precomputed_trials_delta_t_'
