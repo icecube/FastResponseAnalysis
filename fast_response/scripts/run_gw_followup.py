@@ -42,7 +42,7 @@ else: #2 week followup
     print('Beginning 2 week NS followup')
     start_time = gw_time - 0.1
     stop_time = gw_time + 14.
-    
+
 start = start_time.iso
 stop = stop_time.iso
 
