@@ -54,9 +54,9 @@ class FastResponseAnalysis(object):
     _llh_seed = 1
     _season_names = [f"IC86, 201{y}" for y in range(1, 10)]
     _nb_days = 10
-    _ncpu = 5
+    _ncpu = 1
 
-    def __init__(self, name, tstart, tstop, skipped=None, seed=None,
+    def __init__(self, name, tstart, tstop, tw,  skipped=None, seed=None,
                  outdir=None, save=True, extension=None):
         self.name = name
         
@@ -77,14 +77,18 @@ class FastResponseAnalysis(object):
         
         self.start = start
         self.stop = stop
+        self.tw = str(tw)
         self.duration = stop - start
         self.centertime = (start + stop) / 2.
         
         self.analysisid = start_str + '_' + self.name.replace(' ', '_') 
-        self.analysispath = self.outdir + '/' + self.analysisid
+        self.analysispath = self.outdir + '/' + self.analysisid + self.tw
+        #self.analysispath = self.outdir + '/' + self.analysisid
+        #self.analysispath = self.outdir + '/' + self.analysisid + '/' + self.analysisid + self.tw
         self.save_output = save
 
         if os.path.isdir(self.analysispath) and self.save_output:
+
             print("Directory {} already exists. Deleting it ...".format(
                 self.analysispath))
             subprocess.call(['rm', '-r', self.analysispath])
@@ -377,8 +381,9 @@ class FastResponseAnalysis(object):
                 plt.xlabel("TS")
             plt.ylabel("Probability Density")
             plt.yscale('log')
+            print('TS_distribution{}.png'.format(self.tw))
             plt.savefig(
-                self.analysispath + '/TS_distribution.png',
+                self.analysispath + '/TS_distribution{}.png'.format(self.tw),
                 bbox_inches='tight')
 
     def __str__(self):
@@ -423,7 +428,7 @@ class FastResponseAnalysis(object):
         '''
         if alt_path is None:
             print("Saving results to directory:\n\t{}".format(self.analysispath))
-            with open(self.analysispath + '/' + self.analysisid + '_' + 'results.pickle', 'wb') as f:
+            with open(self.analysispath + '/' + self.analysisid + self.tw + '_' + 'results.pickle', 'wb') as f:
                 pickle.dump(self.save_items, f, protocol=pickle.HIGHEST_PROTOCOL)
             print("Results successfully saved")
             return self.save_items       
@@ -655,10 +660,10 @@ class PriorFollowup(FastResponseAnalysis):
     _allow_neg = False
     _nside = 256
 
-    def __init__(self, name, skymap_path, tstart, tstop, skipped=None, seed=None,
+    def __init__(self, name, skymap_path, tstart, tstop, tw, skipped=None, seed=None,
                  outdir=None, save=True, extension=None):
 
-        super().__init__(name, tstart, tstop, skipped=skipped, seed=seed,
+        super().__init__(name, tstart, tstop, tw, skipped=skipped, seed=seed,
                        outdir=outdir, save=save, extension=extension)
 
         self.skymap_path = skymap_path
@@ -1120,7 +1125,15 @@ class PointSourceFollowup(FastResponseAnalysis):
         self.save_items['ns_scan'] = xs, delta_llh
         return xs, delta_llh
 
-    def upper_limit(self, n_per_sig=100, p0=None):
+    def differential_limit(self, energy_bins, n_per_sig=100, p0=None):
+        differential_limits = []
+        for bin in zip(energy_bins[:-1], energy_bins[1:]):
+            limit = upperlimit(n_per_sig=n_per_sig, p0=p0, erange=bin, plot=False)
+            differential_limits.append(limit)
+        return differential_limits
+
+
+    def upper_limit(self, n_per_sig=100, p0=None, erange=[0, np.inf],plot=True):
         r'''After calculating TS, find upper limit
         Assuming an E^-2 spectrum
         Returns:
@@ -1128,7 +1141,7 @@ class PointSourceFollowup(FastResponseAnalysis):
         Value of E^2 dN / dE in units of TeV / cm^2 
         '''
         if self.inj is None:
-            self.initialize_injector()
+            self.initialize_injector(erange)
         ninj = np.array([1., 1.5, 2., 2.5, 3., 4., 5., 6.])
         passing = []
         for n in ninj:
@@ -1138,7 +1151,6 @@ class PointSourceFollowup(FastResponseAnalysis):
             msk = results['TS'] > self.ts
             npass = len(results['TS'][msk])
             passing.append((n, npass, n_per_sig))
-            
         signal_fluxes, passing, number = list(zip(*passing))
         signal_fluxes = np.array(signal_fluxes)
         passing = np.array(passing, dtype=float)
@@ -1160,6 +1172,10 @@ class PointSourceFollowup(FastResponseAnalysis):
         plist = np.array(plist)
         best_fit_ind = np.argmax(plist)
         fits[best_fit_ind]['ls'] = '-'
+
+        if not plot:
+            return self.inj.mu2flux(fits[best_fit_ind]['sens'])
+
         self.upperlimit = self.inj.mu2flux(fits[best_fit_ind]['sens'])
         self.upperlimit_ninj = fits[best_fit_ind]['sens']
 

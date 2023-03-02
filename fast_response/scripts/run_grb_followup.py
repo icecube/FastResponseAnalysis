@@ -15,8 +15,16 @@ import pandas
 import sys
 import numpy as np
 import healpy as hp
+from mdutils.mdutils import MdUtils
+from mdutils import Html
+import datetime
 
-from fast_response.GWFollowup import GWFollowup
+import skylab
+from skylab.datasets import Datasets
+from icecube import icetray
+from os.path import expanduser
+
+from fast_response.GRBFollowup import GRBFollowup
 #import fast_response.web_utils as web_utils
 
 parser = argparse.ArgumentParser(description='GW Followup')
@@ -60,7 +68,10 @@ if GBM_truth == 1:
 	skymap = f'/data/user/rpmurphy/realtime/healpix/glg_healpix_all_bn{GBM_number}_v00.fit'
 	#print(skymap)
 
-elif GBM_truth == 0:
+elif os.path.exists(f'/data/user/rpmurphy/healpix/{args.name}.fits'):
+	skymap = f'/data/user/rpmurphy/healpix/{args.name}.fits'
+	
+else:
 	dec_1 = str(test_grb.decl)[1:-1]
 	print('this is the dec', dec_1)
 	dec = np.radians(float(dec_1))
@@ -89,12 +100,18 @@ elif GBM_truth == 0:
 	#if not os.path.exists:
 	hp.fitsfunc.write_map(skymap,probs)	
 
-else:
-	print('Skymap error')
+#else:
+#	print('Skymap error')
 
 t90_start = test_grb.mjd + test_grb.T90_start/86400 - test_grb.T0/86400
 
-print('this is the t90 start', t90_start)
+t0_start = test_grb.mjd + test_grb.T0/86400
+
+t0 = Time(t0_start, format='mjd')
+
+print(t0.mjd, t0.isot, t0.iso)
+
+print('this is the t0 start', test_grb.T0)
 
 print('half t90', test_grb.T90/86400/2)
 
@@ -125,18 +142,31 @@ message += '\n' + str(pyfiglet.figlet_format("GRB Followup")) + '\n'
 message += '*'*80
 print(message)
 
-tw_list = [10., 25., 50., 100., 250., 500., 1000., 5000., 172800., 1296000.]
+tw_list = [10] #, 25, 50, 100]#, 250., 500., 1000., 5000., 172800., 1296000.]
+ts_list = []
+ns_list = []
 p_vals = []
 sigmas = []
+now = Time(datetime.datetime.now()+datetime.timedelta(hours=6),scale='utc',precision=0)
+dataset= Datasets['GFUOnline_v001p02']
 
-for t in tw_list:
-	delta_t = t
-	print('Running the',t,'s time window')
+mdFile = MdUtils(file_name='{}_report'.format(args.name), title='IceCube Fast-Response Report for {}'.format(args.name))
+mdFile.new_header(level=1, title='Overview')
+mdFile.new_header(level=2, title = 'On-Time Data')
+mdFile.new_table(columns=2, rows=4, text=["","","Access Method", "database", "Stream", "neutrino", "Query Time", str(now.strftime('%Y-%m-%d %H:%M:%S'))])
+#Add start and stop time to On-time data?
+mdFile.new_header(level=2, title='Skylab Analysis Information')
+mdFile.new_table(columns = 2, rows=6, text =["","","Skylab Verson", skylab.__version__, "IceTray Path", str(icetray.__path__).replace('_', '\_'), "Created by", expanduser('~')[6:], "Dataset Used", str(dataset.subdir).replace('_',' '), "Dataset Details", str(dataset.name)])
+
+
+for tw in tw_list:
+	delta_t = tw
+	print('Running the',tw,'s time window')
 	#gw_time = Time(args.time, format='mjd')
 	#start_time = gw_time - (delta_t / 86400. / 2.)
 	#stop_time = gw_time + (delta_t / 86400. / 2.)
 
-	if t == 1296000.:
+	if tw == 1296000.:
 		t90_center_time = Time(t90_center, format='mjd')
 		start_time = t90_center_time - 1
 		stop_time = t90_center_time + 14
@@ -155,11 +185,20 @@ for t in tw_list:
 	stop = str(stop_ndarray)[2:-2]
 	name = args.name
 	name = name.replace('_', ' ')
+	tw = tw
+	print(name, skymap, start, stop, tw)
+	
+	if tw == 172800:
+		tw_1 = '2 day'
+	elif tw == 1296000:
+		tw_1 = '15 day'
+	else:
+		tw_1 = str(tw) + 'second'
+	mdFile.new_header(level=1, title='{} Time Window'.format(tw_1))
+	mdFile.new_header(level=2, title='Source Information')
+	mdFile.new_table(columns = 2, rows=5, text= ["Source Name", "{}".format(args.name), "Skymap","{}".format(skymap),"Trigger Time","{} (MJD={})".format(t0.iso, t0.mjd), "Start Time", "{} (Trigger-{}s)".format(Time(t0.mjd+tw/2, format= 'mjd').iso,tw/2), "Stop Time", "{} (Trigger+{}s)".format(Time(t0.mjd-tw/2, format='mjd').iso,tw/2) ] )	
 
-	print(name, skymap, start, stop)
-
-
-	f = GWFollowup(name, skymap, start, stop)
+	f = GRBFollowup(name, skymap, start, stop, tw)
 	f._allow_neg = args.allow_neg_ts
 	f._dataset = 'GFUOnline_v001p02'
 	f._fix_index = True
@@ -167,7 +206,9 @@ for t in tw_list:
 	f._season_names = ['IC86, 2017', 'IC86, 2018', 'IC86, 2019']
 	
 	print('unblind TS')
-	f.unblind_TS()
+	ts, ns = f.unblind_TS()
+	ts_list.append(ts)
+	ns_list.append(ns)
 	print('plot ontime')
 	f.plot_ontime()
 	print('calc_pvalue')
@@ -191,8 +232,12 @@ for t in tw_list:
 	print('per event pvalue')
 	f.per_event_pvalue()
 	results = f.save_results()
+	f.generate_report()
 
-
+'''
 f = GWFollowup(name, args.skymap, start, stop)
 f.generate_report()
-f.write_circular() 
+f.write_circular()''' 
+
+mdFile.create_md_file()
+

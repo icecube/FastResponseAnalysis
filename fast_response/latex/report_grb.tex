@@ -45,8 +45,8 @@
 \end{titlepage}
 
 \section{Inputs}
-\subsection{Source Information}
-\sourcetable
+%\subsection{Source Information}
+%\sourcetable
 \subsection{On-Time Data}
 \ontimetable
 \subsection{Skylab Analysis Information}
@@ -54,7 +54,10 @@
 % Information about skylab stable release, path to skylab, etc.
 
 \pagebreak
-\section{Detector Operations}
+\section{10s Time Window}
+
+\subsection{Source Information}
+\sourcetable
 
 \subsection{Run Times}
 \runtimetable
@@ -102,11 +105,11 @@ Badness $>10$s may indicate a problem.
 %    }
 
 \pagebreak
-\section{Results}
+\subsection{Skymap}
 
 {
   \centering
-  {\Large All Sky On-time Events}
+  {\Large All Sky On-time Events for 10s Time Window}
 
   \includegraphics[width=0.9\textwidth]{\skymap}
 
@@ -155,5 +158,957 @@ For point sources, any events from the relevant time window with a spatial times
 %{\color{red}If this had been an actual analysis,
 %  the attention signal you just heard would have been
 %  followed by official information, news, or instructions.}
+
+\pagebreak
+\section{25s Time Window}
+
+\subsection{Source Information}
+\sourcetable
+
+\subsection{Run Times}
+\runtimetable
+
+Total Livetime = \livetime\,s
+
+\subsection{Run Status}
+\runstatustable
+
+\pagebreak
+\subsection{Event Rates}
+Plots for key trigger and filter rates for the data period
+and the neighboring runs.  Blue indicates selected time window.
+Badness $>10$s may indicate a problem.
+
+\vspace{1em}
+{
+ \centering
+ \includegraphics[width=1.0\textwidth]{\multiplicity}
+ \includegraphics[width=1.0\textwidth]{\badnessplot}
+ \includegraphics[width=1.0\textwidth]{\muonfilter}
+ \includegraphics[width=1.0\textwidth]{\Lfilter}
+ \includegraphics[width=1.0\textwidth]{\gfurate}
+ % \includegraphics[width=1.0\textwidth]{"/home/rhussain/icecube/dump/badness_plot.png"}
+}
+
+
+%\pagebreak
+%\section{Energy PDF}
+%Ratio of Energy PDFs from the selected Zenith band.
+%
+%\energytable
+%
+%{
+%  \centering
+%
+%    {\Large Energy PDF Fit}
+%
+%    \includegraphics[width=0.8\textwidth]{\analysisid_EnergyPDFRatio}
+%
+%    {\Large Energy of Observed Events}
+%
+%    \includegraphics[width=0.8\textwidth]{\analysisid_energy_events}
+%
+%    }
+
+\pagebreak
+\subsection{Skymap}
+
+{
+  \centering
+  {\Large All Sky On-time Events for 25s Time Window}
+
+  \includegraphics[width=0.9\textwidth]{\skymap}
+
+  \includegraphics[width=0.9\textwidth]{\skymapzoom}
+
+}
+\pagebreak
+
+
+\subsection{Coincident Events}
+For point sources, any events from the relevant time window with a spatial times energy weight greater than 10 is included in this table. For skymaps, any event reconstructed within the 90\% contour is included (for longer timescale cascades we skip this because of the large localization).
+\event
+
+\subsection{Likelihood Analysis}
+\results
+\pagebreak
+
+\backgroundpdfplot
+
+\survivialfunctionplot
+
+\pagebreak
+{
+  \centering
+
+  {\Large Limit $dN/dE$}
+
+  \includegraphics[width=0.9\textwidth]{\limitdNdE}
+  \\
+  \\
+
+  \tsd
+
+  \\
+  \\
+  \upperlim
+
+  \\
+  \\
+  \nsscan
+
+  These plots are meant as validations of the minimizer, and cannot be interpreted directly using Wilk's assuming one degree of freedom because the low statistics invalidates the asymptotic condition for Wilk's theorem.
+}
+
+\vfill
+%{\color{red}If this had been an actual analysis,
+%  the attention signal you just heard would have been
+%  followed by official information, news, or instructions.}
+
+\pagebreak
+\section{50s Time Window}
+
+\subsection{Source Information}
+\sourcetable
+
+\subsection{Run Times}
+\runtimetable
+
+Total Livetime = \livetime\,s
+
+\subsection{Run Status}
+\runstatustable
+
+\pagebreak
+\subsection{Event Rates}
+Plots for key trigger and filter rates for the data period
+and the neighboring runs.  Blue indicates selected time window.
+Badness $>10$s may indicate a problem.
+
+\vspace{1em}
+{
+ \centering
+ \includegraphics[width=1.0\textwidth]{\multiplicity}
+ \includegraphics[width=1.0\textwidth]{\badnessplot}
+ \includegraphics[width=1.0\textwidth]{\muonfilter}
+ \includegraphics[width=1.0\textwidth]{\Lfilter}
+ \includegraphics[width=1.0\textwidth]{\gfurate}
+ % \includegraphics[width=1.0\textwidth]{"/home/rhussain/icecube/dump/badness_plot.png"}
+}
+
+
+%\pagebreak
+%\section{Energy PDF}
+%Ratio of Energy PDFs from the selected Zenith band.
+%
+%\energytable
+%
+%{
+%  \centering
+%
+%    {\Large Energy PDF Fit}
+%
+%    \includegraphics[width=0.8\textwidth]{\analysisid_EnergyPDFRatio}
+%
+%    {\Large Energy of Observed Events}
+%
+%    \includegraphics[width=0.8\textwidth]{\analysisid_energy_events}
+%
+%    }
+
+\pagebreak
+\subsection{Skymap}
+
+{
+  \centering
+  {\Large All Sky On-time Events for 50s Time Window}
+
+  \includegraphics[width=0.9\textwidth]{\skymap}
+
+  \includegraphics[width=0.9\textwidth]{\skymapzoom}
+
+}
+\pagebreak
+
+
+\subsection{Coincident Events}
+For point sources, any events from the relevant time window with a spatial times energy weight greater than 10 is included in this table. For skymaps, any event reconstructed within the 90\% contour is included (for longer timescale cascades we skip this because of the large localization).
+\event
+
+\subsection{Likelihood Analysis}
+\results
+\pagebreak
+
+\backgroundpdfplot
+
+\survivialfunctionplot
+
+\pagebreak
+{
+  \centering
+
+  {\Large Limit $dN/dE$}
+
+  \includegraphics[width=0.9\textwidth]{\limitdNdE}
+  \\
+  \\
+
+  \tsd
+
+  \\
+  \\
+  \upperlim
+
+  \\
+  \\
+  \nsscan
+
+  These plots are meant as validations of the minimizer, and cannot be interpreted directly using Wilk's assuming one degree of freedom because the low statistics invalidates the asymptotic condition for Wilk's theorem.
+}
+
+\vfill
+%{\color{red}If this had been an actual analysis,
+%  the attention signal you just heard would have been
+%  followed by official information, news, or instructions.}
+
+\pagebreak
+\section{100s Time Window}
+
+\subsection{Source Information}
+\sourcetable
+
+\subsection{Run Times}
+\runtimetable
+
+Total Livetime = \livetime\,s
+
+\subsection{Run Status}
+\runstatustable
+
+\pagebreak
+\subsection{Event Rates}
+Plots for key trigger and filter rates for the data period
+and the neighboring runs.  Blue indicates selected time window.
+Badness $>10$s may indicate a problem.
+
+\vspace{1em}
+{
+ \centering
+ \includegraphics[width=1.0\textwidth]{\multiplicity}
+ \includegraphics[width=1.0\textwidth]{\badnessplot}
+ \includegraphics[width=1.0\textwidth]{\muonfilter}
+ \includegraphics[width=1.0\textwidth]{\Lfilter}
+ \includegraphics[width=1.0\textwidth]{\gfurate}
+ % \includegraphics[width=1.0\textwidth]{"/home/rhussain/icecube/dump/badness_plot.png"}
+}
+
+
+%\pagebreak
+%\section{Energy PDF}
+%Ratio of Energy PDFs from the selected Zenith band.
+%
+%\energytable
+%
+%{
+%  \centering
+%
+%    {\Large Energy PDF Fit}
+%
+%    \includegraphics[width=0.8\textwidth]{\analysisid_EnergyPDFRatio}
+%
+%    {\Large Energy of Observed Events}
+%
+%    \includegraphics[width=0.8\textwidth]{\analysisid_energy_events}
+%
+%    }
+
+\pagebreak
+\subsection{Skymap}
+
+{
+  \centering
+  {\Large All Sky On-time Events for 100s Time Window}
+
+  \includegraphics[width=0.9\textwidth]{\skymap}
+
+  \includegraphics[width=0.9\textwidth]{\skymapzoom}
+
+}
+\pagebreak
+
+
+\subsection{Coincident Events}
+For point sources, any events from the relevant time window with a spatial times energy weight greater than 10 is included in this table. For skymaps, any event reconstructed within the 90\% contour is included (for longer timescale cascades we skip this because of the large localization).
+\event
+
+\subsection{Likelihood Analysis}
+\results
+\pagebreak
+
+\backgroundpdfplot
+
+\survivialfunctionplot
+
+\pagebreak
+{
+  \centering
+
+  {\Large Limit $dN/dE$}
+
+  \includegraphics[width=0.9\textwidth]{\limitdNdE}
+  \\
+  \\
+
+  \tsd
+
+  \\
+  \\
+  \upperlim
+
+  \\
+  \\
+  \nsscan
+
+  These plots are meant as validations of the minimizer, and cannot be interpreted directly using Wilk's assuming one degree of freedom because the low statistics invalidates the asymptotic condition for Wilk's theorem.
+}
+
+\vfill
+%{\color{red}If this had been an actual analysis,
+%  the attention signal you just heard would have been
+%  followed by official information, news, or instructions.}
+
+\pagebreak
+\section{250s Time Window}
+
+\subsection{Source Information}
+\sourcetable
+
+\subsection{Run Times}
+\runtimetable
+
+Total Livetime = \livetime\,s
+
+\subsection{Run Status}
+\runstatustable
+
+\pagebreak
+\subsection{Event Rates}
+Plots for key trigger and filter rates for the data period
+and the neighboring runs.  Blue indicates selected time window.
+Badness $>10$s may indicate a problem.
+
+\vspace{1em}
+{
+ \centering
+ \includegraphics[width=1.0\textwidth]{\multiplicity}
+ \includegraphics[width=1.0\textwidth]{\badnessplot}
+ \includegraphics[width=1.0\textwidth]{\muonfilter}
+ \includegraphics[width=1.0\textwidth]{\Lfilter}
+ \includegraphics[width=1.0\textwidth]{\gfurate}
+ % \includegraphics[width=1.0\textwidth]{"/home/rhussain/icecube/dump/badness_plot.png"}
+}
+
+
+%\pagebreak
+%\section{Energy PDF}
+%Ratio of Energy PDFs from the selected Zenith band.
+%
+%\energytable
+%
+%{
+%  \centering
+%
+%    {\Large Energy PDF Fit}
+%
+%    \includegraphics[width=0.8\textwidth]{\analysisid_EnergyPDFRatio}
+%
+%    {\Large Energy of Observed Events}
+%
+%    \includegraphics[width=0.8\textwidth]{\analysisid_energy_events}
+%
+%    }
+
+\pagebreak
+\subsection{Skymap}
+
+{
+  \centering
+  {\Large All Sky On-time Events for 250s Time Window}
+
+  \includegraphics[width=0.9\textwidth]{\skymap}
+
+  \includegraphics[width=0.9\textwidth]{\skymapzoom}
+
+}
+\pagebreak
+
+
+\subsection{Coincident Events}
+For point sources, any events from the relevant time window with a spatial times energy weight greater than 10 is included in this table. For skymaps, any event reconstructed within the 90\% contour is included (for longer timescale cascades we skip this because of the large localization).
+\event
+
+\subsection{Likelihood Analysis}
+\results
+\pagebreak
+
+\backgroundpdfplot
+
+\survivialfunctionplot
+
+\pagebreak
+{
+  \centering
+
+  {\Large Limit $dN/dE$}
+
+  \includegraphics[width=0.9\textwidth]{\limitdNdE}
+  \\
+  \\
+
+  \tsd
+
+  \\
+  \\
+  \upperlim
+
+  \\
+  \\
+  \nsscan
+
+  These plots are meant as validations of the minimizer, and cannot be interpreted directly using Wilk's assuming one degree of freedom because the low statistics invalidates the asymptotic condition for Wilk's theorem.
+}
+
+\vfill
+%{\color{red}If this had been an actual analysis,
+%  the attention signal you just heard would have been
+%  followed by official information, news, or instructions.}
+
+\pagebreak
+\section{500s Time Window}
+
+\subsection{Source Information}
+\sourcetable
+
+\subsection{Run Times}
+\runtimetable
+
+Total Livetime = \livetime\,s
+
+\subsection{Run Status}
+\runstatustable
+
+\pagebreak
+\subsection{Event Rates}
+Plots for key trigger and filter rates for the data period
+and the neighboring runs.  Blue indicates selected time window.
+Badness $>10$s may indicate a problem.
+
+\vspace{1em}
+{
+ \centering
+ \includegraphics[width=1.0\textwidth]{\multiplicity}
+ \includegraphics[width=1.0\textwidth]{\badnessplot}
+ \includegraphics[width=1.0\textwidth]{\muonfilter}
+ \includegraphics[width=1.0\textwidth]{\Lfilter}
+ \includegraphics[width=1.0\textwidth]{\gfurate}
+ % \includegraphics[width=1.0\textwidth]{"/home/rhussain/icecube/dump/badness_plot.png"}
+}
+
+
+%\pagebreak
+%\section{Energy PDF}
+%Ratio of Energy PDFs from the selected Zenith band.
+%
+%\energytable
+%
+%{
+%  \centering
+%
+%    {\Large Energy PDF Fit}
+%
+%    \includegraphics[width=0.8\textwidth]{\analysisid_EnergyPDFRatio}
+%
+%    {\Large Energy of Observed Events}
+%
+%    \includegraphics[width=0.8\textwidth]{\analysisid_energy_events}
+%
+%    }
+
+\pagebreak
+\subsection{Skymap}
+
+{
+  \centering
+  {\Large All Sky On-time Events for 500s Time Window}
+
+  \includegraphics[width=0.9\textwidth]{\skymap}
+
+  \includegraphics[width=0.9\textwidth]{\skymapzoom}
+
+}
+\pagebreak
+
+
+\subsection{Coincident Events}
+For point sources, any events from the relevant time window with a spatial times energy weight greater than 10 is included in this table. For skymaps, any event reconstructed within the 90\% contour is included (for longer timescale cascades we skip this because of the large localization).
+\event
+
+\subsection{Likelihood Analysis}
+\results
+\pagebreak
+
+\backgroundpdfplot
+
+\survivialfunctionplot
+
+\pagebreak
+{
+  \centering
+
+  {\Large Limit $dN/dE$}
+
+  \includegraphics[width=0.9\textwidth]{\limitdNdE}
+  \\
+  \\
+
+  \tsd
+
+  \\
+  \\
+  \upperlim
+
+  \\
+  \\
+  \nsscan
+
+  These plots are meant as validations of the minimizer, and cannot be interpreted directly using Wilk's assuming one degree of freedom because the low statistics invalidates the asymptotic condition for Wilk's theorem.
+}
+
+\vfill
+%{\color{red}If this had been an actual analysis,
+%  the attention signal you just heard would have been
+%  followed by official information, news, or instructions.}
+
+\pagebreak
+\section{1000s Time Window}
+
+\subsection{Source Information}
+\sourcetable
+
+\subsection{Run Times}
+\runtimetable
+
+Total Livetime = \livetime\,s
+
+\subsection{Run Status}
+\runstatustable
+
+\pagebreak
+\subsection{Event Rates}
+Plots for key trigger and filter rates for the data period
+and the neighboring runs.  Blue indicates selected time window.
+Badness $>10$s may indicate a problem.
+
+\vspace{1em}
+{
+ \centering
+ \includegraphics[width=1.0\textwidth]{\multiplicity}
+ \includegraphics[width=1.0\textwidth]{\badnessplot}
+ \includegraphics[width=1.0\textwidth]{\muonfilter}
+ \includegraphics[width=1.0\textwidth]{\Lfilter}
+ \includegraphics[width=1.0\textwidth]{\gfurate}
+ % \includegraphics[width=1.0\textwidth]{"/home/rhussain/icecube/dump/badness_plot.png"}
+}
+
+
+%\pagebreak
+%\section{Energy PDF}
+%Ratio of Energy PDFs from the selected Zenith band.
+%
+%\energytable
+%
+%{
+%  \centering
+%
+%    {\Large Energy PDF Fit}
+%
+%    \includegraphics[width=0.8\textwidth]{\analysisid_EnergyPDFRatio}
+%
+%    {\Large Energy of Observed Events}
+%
+%    \includegraphics[width=0.8\textwidth]{\analysisid_energy_events}
+%
+%    }
+
+\pagebreak
+\subsection{Skymap}
+
+{
+  \centering
+  {\Large All Sky On-time Events for 1000s Time Window}
+
+  \includegraphics[width=0.9\textwidth]{\skymap}
+
+  \includegraphics[width=0.9\textwidth]{\skymapzoom}
+
+}
+\pagebreak
+
+\subsection{Coincident Events}
+For point sources, any events from the relevant time window with a spatial times energy weight greater than 10 is included in this table. For skymaps, any event reconstructed within the 90\% contour is included (for longer timescale cascades we skip this because of the large localization).
+\event
+
+\subsection{Likelihood Analysis}
+\results
+\pagebreak
+
+\backgroundpdfplot
+
+\survivialfunctionplot
+
+\pagebreak
+{
+  \centering
+
+  {\Large Limit $dN/dE$}
+
+  \includegraphics[width=0.9\textwidth]{\limitdNdE}
+  \\
+  \\
+
+  \tsd
+
+  \\
+  \\
+  \upperlim
+
+  \\
+  \\
+  \nsscan
+
+  These plots are meant as validations of the minimizer, and cannot be interpreted directly using Wilk's assuming one degree of freedom because the low statistics invalidates the asymptotic condition for Wilk's theorem.
+}
+
+\vfill
+%{\color{red}If this had been an actual analysis,
+%  the attention signal you just heard would have been
+%  followed by official information, news, or instructions.}
+
+\pagebreak
+\section{5000s Time Window}
+
+\subsection{Source Information}
+\sourcetable
+
+\subsection{Run Times}
+\runtimetable
+
+Total Livetime = \livetime\,s
+
+\subsection{Run Status}
+\runstatustable
+
+\pagebreak
+\subsection{Event Rates}
+Plots for key trigger and filter rates for the data period
+and the neighboring runs.  Blue indicates selected time window.
+Badness $>10$s may indicate a problem.
+
+\vspace{1em}
+{
+ \centering
+ \includegraphics[width=1.0\textwidth]{\multiplicity}
+ \includegraphics[width=1.0\textwidth]{\badnessplot}
+ \includegraphics[width=1.0\textwidth]{\muonfilter}
+ \includegraphics[width=1.0\textwidth]{\Lfilter}
+ \includegraphics[width=1.0\textwidth]{\gfurate}
+ % \includegraphics[width=1.0\textwidth]{"/home/rhussain/icecube/dump/badness_plot.png"}
+}
+
+
+%\pagebreak
+%\section{Energy PDF}
+%Ratio of Energy PDFs from the selected Zenith band.
+%
+%\energytable
+%
+%{
+%  \centering
+%
+%    {\Large Energy PDF Fit}
+%
+%    \includegraphics[width=0.8\textwidth]{\analysisid_EnergyPDFRatio}
+%
+%    {\Large Energy of Observed Events}
+%
+%    \includegraphics[width=0.8\textwidth]{\analysisid_energy_events}
+%
+%    }
+
+\pagebreak
+\subsection{Skymap}
+
+{
+  \centering
+  {\Large All Sky On-time Events for 5000s Time Window}
+
+  \includegraphics[width=0.9\textwidth]{\skymap}
+
+  \includegraphics[width=0.9\textwidth]{\skymapzoom}
+
+}
+\pagebreak
+
+\subsection{Coincident Events}
+For point sources, any events from the relevant time window with a spatial times energy weight greater than 10 is included in this table. For skymaps, any event reconstructed within the 90\% contour is included (for longer timescale cascades we skip this because of the large localization).
+\event
+
+\subsection{Likelihood Analysis}
+\results
+\pagebreak
+
+\backgroundpdfplot
+
+\survivialfunctionplot
+
+\pagebreak
+{
+  \centering
+
+  {\Large Limit $dN/dE$}
+
+  \includegraphics[width=0.9\textwidth]{\limitdNdE}
+  \\
+  \\
+
+  \tsd
+
+  \\
+  \\
+  \upperlim
+
+  \\
+  \\
+  \nsscan
+
+  These plots are meant as validations of the minimizer, and cannot be interpreted directly using Wilk's assuming one degree of freedom because the low statistics invalidates the asymptotic condition for Wilk's theorem.
+}
+
+\vfill
+%{\color{red}If this had been an actual analysis,
+%  the attention signal you just heard would have been
+%  followed by official information, news, or instructions.}
+
+\pagebreak
+\section{172800s Time Window}
+
+\subsection{Source Information}
+\sourcetable
+
+\subsection{Run Times}
+\runtimetable
+
+Total Livetime = \livetime\,s
+
+\subsection{Run Status}
+\runstatustable
+
+\pagebreak
+\subsection{Event Rates}
+Plots for key trigger and filter rates for the data period
+and the neighboring runs.  Blue indicates selected time window.
+Badness $>10$s may indicate a problem.
+
+\vspace{1em}
+{
+ \centering
+ \includegraphics[width=1.0\textwidth]{\multiplicity}
+ \includegraphics[width=1.0\textwidth]{\badnessplot}
+ \includegraphics[width=1.0\textwidth]{\muonfilter}
+ \includegraphics[width=1.0\textwidth]{\Lfilter}
+ \includegraphics[width=1.0\textwidth]{\gfurate}
+ % \includegraphics[width=1.0\textwidth]{"/home/rhussain/icecube/dump/badness_plot.png"}
+}
+
+
+%\pagebreak
+%\section{Energy PDF}
+%Ratio of Energy PDFs from the selected Zenith band.
+%
+%\energytable
+%
+%{
+%  \centering
+%
+%    {\Large Energy PDF Fit}
+%
+%    \includegraphics[width=0.8\textwidth]{\analysisid_EnergyPDFRatio}
+%
+%    {\Large Energy of Observed Events}
+%
+%    \includegraphics[width=0.8\textwidth]{\analysisid_energy_events}
+%
+%    }
+
+\pagebreak
+\subsection{Skymap}
+
+{
+  \centering
+  {\Large All Sky On-time Events for 172800s Time Window}
+
+  \includegraphics[width=0.9\textwidth]{\skymap}
+
+  \includegraphics[width=0.9\textwidth]{\skymapzoom}
+
+}
+\pagebreak
+
+\subsection{Coincident Events}
+For point sources, any events from the relevant time window with a spatial times energy weight greater than 10 is included in this table. For skymaps, any event reconstructed within the 90\% contour is included (for longer timescale cascades we skip this because of the large localization).
+\event
+
+\subsection{Likelihood Analysis}
+\results
+\pagebreak
+
+\backgroundpdfplot
+
+\survivialfunctionplot
+
+\pagebreak
+{
+  \centering
+
+  {\Large Limit $dN/dE$}
+
+  \includegraphics[width=0.9\textwidth]{\limitdNdE}
+  \\
+  \\
+
+  \tsd
+
+  \\
+  \\
+  \upperlim
+
+  \\
+  \\
+  \nsscan
+
+  These plots are meant as validations of the minimizer, and cannot be interpreted directly using Wilk's assuming one degree of freedom because the low statistics invalidates the asymptotic condition for Wilk's theorem.
+}
+
+\vfill
+%{\color{red}If this had been an actual analysis,
+%  the attention signal you just heard would have been
+%  followed by official information, news, or instructions.}
+
+
+\pagebreak
+\section{1296000s Time Window}
+
+\subsection{Source Information}
+\sourcetable
+
+\subsection{Run Times}
+\runtimetable
+
+Total Livetime = \livetime\,s
+
+\subsection{Run Status}
+\runstatustable
+
+\pagebreak
+\subsection{Event Rates}
+Plots for key trigger and filter rates for the data period
+and the neighboring runs.  Blue indicates selected time window.
+Badness $>10$s may indicate a problem.
+
+\vspace{1em}
+{
+ \centering
+ \includegraphics[width=1.0\textwidth]{\multiplicity}
+ \includegraphics[width=1.0\textwidth]{\badnessplot}
+ \includegraphics[width=1.0\textwidth]{\muonfilter}
+ \includegraphics[width=1.0\textwidth]{\Lfilter}
+ \includegraphics[width=1.0\textwidth]{\gfurate}
+ % \includegraphics[width=1.0\textwidth]{"/home/rhussain/icecube/dump/badness_plot.png"}
+}
+
+
+%\pagebreak
+%\section{Energy PDF}
+%Ratio of Energy PDFs from the selected Zenith band.
+%
+%\energytable
+%
+%{
+%  \centering
+%
+%    {\Large Energy PDF Fit}
+%
+%    \includegraphics[width=0.8\textwidth]{\analysisid_EnergyPDFRatio}
+%
+%    {\Large Energy of Observed Events}
+%
+%    \includegraphics[width=0.8\textwidth]{\analysisid_energy_events}
+%
+%    }
+
+\pagebreak
+\subsection{Skymap}
+
+{
+  \centering
+  {\Large All Sky On-time Events for 1296000s Time Window}
+
+  \includegraphics[width=0.9\textwidth]{\skymap}
+
+  \includegraphics[width=0.9\textwidth]{\skymapzoom}
+
+}
+\pagebreak
+
+\subsection{Coincident Events}
+For point sources, any events from the relevant time window with a spatial times energy weight greater than 10 is included in this table. For skymaps, any event reconstructed within the 90\% contour is included (for longer timescale cascades we skip this because of the large localization).
+\event
+
+\subsection{Likelihood Analysis}
+\results
+\pagebreak
+
+\backgroundpdfplot
+
+\survivialfunctionplot
+
+\pagebreak
+{
+  \centering
+
+  {\Large Limit $dN/dE$}
+
+  \includegraphics[width=0.9\textwidth]{\limitdNdE}
+  \\
+  \\
+
+  \tsd
+
+  \\
+  \\
+  \upperlim
+
+  \\
+  \\
+  \nsscan
+
+  These plots are meant as validations of the minimizer, and cannot be interpreted directly using Wilk's assuming one degree of freedom because the low statistics invalidates the asymptotic condition for Wilk's theorem.
+}
+
+\vfill
+%{\color{red}If this had been an actual analysis,
+%  the attention signal you just heard would have been
+%  followed by official information, news, or instructions.}
+
 
 \end{document}
