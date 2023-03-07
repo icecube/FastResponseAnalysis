@@ -5,7 +5,7 @@ r''' General Fast Response Analysis Class.
     '''
 
 from abc import abstractmethod
-import os, sys, time, subprocess
+import os, sys, time, subprocess, socket
 import pickle, dateutil.parser, logging, warnings
 
 import h5py
@@ -66,7 +66,9 @@ class FastResponseAnalysis(object):
             outdir = os.environ.get('FAST_RESPONSE_OUTPUT')
             if outdir is None:
                 outdir = os.getcwd()
-        self.outdir = outdir        
+        self.outdir = outdir    
+
+        self.on_cobalt=False if 'followup' in socket.gethostname() else True  
 
         start = Time(dateutil.parser.parse(tstart)).mjd
         stop = Time(dateutil.parser.parse(tstop)).mjd
