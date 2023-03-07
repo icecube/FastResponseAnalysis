@@ -4,7 +4,7 @@
     to run realtime neutrino follow-up
 
     Author: Raamis Hussain, updated by Jessie Thwaites, MJ Romfoe
-    Date:   October 2022
+    Date:   March 2023
 '''
 
 import gcn
@@ -27,7 +27,7 @@ def process_gcn(payload, root):
     if analysis_path is None:
         try:
             import fast_response
-            analysis_path = os.path.dirname(fast_response.__file__) + '/scripts/'
+            analysis_path = os.path.join(os.path.dirname(fast_response.__file__),'scripts/')
         except Exception as e:
             print(e)
             print('###########################################################################')
@@ -109,7 +109,7 @@ def process_gcn(payload, root):
         name=name+'_test'
         print('Running on scrambled data')
         log_file.flush()
-    command = analysis_path + 'run_gw_followup.py'
+    command = os.path.join(analysis_path, 'run_gw_followup.py')
 
     print('Running {}'.format(command))
     log_file.flush()
@@ -132,28 +132,35 @@ def process_gcn(payload, root):
     gw_latency = {'Trigger_Time': event_mjd, 'GCN_Alert': alert_mjd, 'End_Time': end_mjd,
                     'Ligo_Latency': Ligo_late_sec, 'IceCube_Latency': Ice_late_sec, 'Total_Latency': Total_late_sec,
                     'We_had_to_wait:': FiveHundred_delay}
+    
+    #check for directory to save pickle files and create if needed 
+    if not os.path.exists(os.path.join(os.environ.get('FAST_RESPONSE_OUTPUT'),'PickledMocks/')):
+        os.mkdir(os.path.join(os.environ.get('FAST_RESPONSE_OUTPUT'),'PickledMocks/'))
 
-    with open(os.environ.get('FAST_RESPONSE_OUTPUT')+f'/PickledMocks/gw_latency_dict_{name}.pickle', 'wb') as file:
+    latency_dict_path=os.path.join(os.environ.get('FAST_RESPONSE_OUTPUT'), f'PickledMocks/gw_latency_dict_{name}.pickle')
+
+    with open(latency_dict_path, 'wb') as file:
         pickle.dump(gw_latency, file, protocol=pickle.HIGHEST_PROTOCOL)
 
     # Move mocks to a seperate folder to avoid swamping FRA output folder
     # All mocks from LVK have a name starting with MS
-    for directory in os.listdir(analysis_path+'../../output'):
+    for directory in os.listdir(os.environ.get('FAST_RESPONSE_OUTPUT')):
         if name in directory: 
             import pwd
             skymap_filename=skymap.split('/')[-1]
             if ('MS22' in name or 'MS23' in name) and (pwd.getpwuid(os.getuid())[0] =='jthwaites'):
                 #import glob
                 et = lxml.etree.ElementTree(root)
-                et.write(analysis_path+'../../output/'+directory+'/{}-{}-{}.xml'.format(params['GraceID'], 
-                         params['Pkt_Ser_Num'], params['AlertType']), pretty_print=True)
+                mock_dir = os.path.join(os.environ.get('FAST_RESPONSE_OUTPUT'), directory)
+                et.write(os.path.join(mock_dir, '/{}-{}-{}.xml'.format(params['GraceID'], 
+                         params['Pkt_Ser_Num'], params['AlertType'])), pretty_print=True)
                 subprocess.call(['wget', skymap])
-                subprocess.call(['mv', skymap_filename, analysis_path+'../../output/'+directory])
-                subprocess.call(['mv',analysis_path+'../../output/'+directory, '/data/user/jthwaites/o4-mocks/'])
+                subprocess.call(['mv', skymap_filename, mock_dir])
+                subprocess.call(['mv',mock_dir, '/data/user/jthwaites/o4-mocks/'])
                 print('Output directory: ','/data/user/jthwaites/o4-mocks/'+directory)
                 log_file.flush()
             else:
-                print('Output directory: ',analysis_path+'../../output/'+directory)
+                print('Output directory: ',mock_dir)
                 log_file.flush()
             break
 
@@ -182,7 +189,7 @@ if __name__ == '__main__':
                         help='bool to decide if we should run an already unblinded skymap with unblinded data')
     args = parser.parse_args()
 
-    logfile=args.log_path +'/log.log'
+    logfile=os.path.join(args.log_path,'log.log')
     print(f'Logging to file: {logfile}')
     original_stdout=sys.stdout
     log_file = open(logfile, "a+")
@@ -200,12 +207,12 @@ if __name__ == '__main__':
         try:
             import fast_response
             #sample_skymap_path='/data/user/jthwaites/o3-gw-skymaps/'
-            sample_skymap_path=os.path.dirname(fast_response.__file__) +'/sample_skymaps/'
+            sample_skymap_path=os.path.join(os.path.dirname(fast_response.__file__),'sample_skymaps/')
         except Exception as e:
             print(e)
             sample_skymap_path='/data/user/jthwaites/o3-gw-skymaps/'
         
-        payload = open(sample_skymap_path+args.test_path, 'rb').read()
+        payload = open(os.path.join(sample_skymap_path,args.test_path), 'rb').read()
         root = lxml.etree.fromstring(payload) 
 
         #test runs on scrambles, observation runs on unblinded data
