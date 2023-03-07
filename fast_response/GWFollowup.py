@@ -203,7 +203,7 @@ class GWFollowup(PriorFollowup):
         Makes a zoomed skymap of the ts-space with contours
         '''
         if self.tsd is None: return
-
+        
         from scipy import special
         from . import plotting_utils
         import meander
@@ -232,6 +232,9 @@ class GWFollowup(PriorFollowup):
                 phi[phi<0] += 2.0*np.pi
                 thetas.append(theta)
                 phis.append(phi)
+
+        #norm_ts = self.ts_scan['TS_spatial_prior_0'] / sum(self.ts_scan['TS_spatial_prior_0'])
+        #thetas, phis = plotting_utils.plot_contours(proportions, norm_ts)
         
         #make the plot
         pdf_palette = sns.color_palette("Blues", 500)
