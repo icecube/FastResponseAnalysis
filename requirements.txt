@@ -29,4 +29,3 @@ subprocess32==3.5.4
 zmq==0.0.0
 py27hash==1.0.2
 pygcn==1.1.2
-wheel==0.37.1
