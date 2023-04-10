@@ -28,23 +28,43 @@ from icecube import realtime_tools
 
 def process_gcn(payload, root):
     logger = logging.getLogger()
+    logger.setLevel(logging.INFO)
     logger.info("lvc_slack_forwarder processing GCN")
-    # VERY IMPORTANT! Replace with the following code
-    # to respond to only real 'observation' events.
-    #if root.attrib['role'] != 'observation':
-    #    return
-    #if root.attrib['role'] != 'test':
-    #    return
+
+    # Where to post:
+    # If real and not testing, post to #alerts-heartbeat
+    if not realtime_tools.config.TESTING and root.attrib['role'] == 'observation':
+        #slack_channel = '#alerts-heartbeat'
+        slack_channel = '#gw-mock-heartbeat'
+        print('why here?')
+        heartbeat = False
+    else:
+        slack_channel = '#gw-mock-heartbeat'
+        heartbeat = True
+
+    # If has an ns: duplicate post to #alerts
 
     # Read all of the VOEvent parameters from the "What" section.
     params = {elem.attrib['name']:
               elem.attrib['value']
               for elem in root.iterfind('.//Param')}
 
+    #If retracted - most parameters will be missing. Post link to GraceDB and event name only
+    if params['AlertType'] =='Retraction':
+        slack_message = {
+            "icon_emoji": ":gw:",
+            "text" : "Event {0} Retracted. See URL: {1}.".format(params['GraceID'], params['EventPage']),
+        } 
+        realtime_tools.messaging.to_slack(channel=slack_channel,
+                                      username="lvc-gcn-bot",
+                                      content=slack_message["text"],
+                                      **slack_message)
+        return
+    
     # Respond only to 'CBC' events. Change 'CBC' to "Burst'
     # to respond to only unmodeled burst events.
-    #if params['Group'] != 'CBC':
-    #    return
+    if params['Group'] != 'CBC':
+        return
 
     lvc_params = {}
     lvc_params["Alert Time"] = root.find("./WhereWhen//ISOTime").text
@@ -131,9 +151,14 @@ def process_gcn(payload, root):
             slack_fields_start.append(entry)
     slack_fields = slack_fields_start + slack_fields_end
     obs_type = params['AlertType']
+
+    if heartbeat:
+        text = "Mock LVK alert received: Type: {0}".format(obs_type)
+    else: 
+        "LVK alert received: Type: {0}".format(obs_type)
     slack_message = {
         "icon_emoji": ":gw:",
-        "text" : "TEST LVC alert received: Type: {0}".format(obs_type),
+        "text" : text,
         "color":"danger"
     }
     epoch = datetime.utcfromtimestamp(0)
@@ -150,17 +175,17 @@ def process_gcn(payload, root):
     ]
     slack_message["attachments"] = slack_attach
     
-    slack_channel = '#test_messaging' if realtime_tools.config.TESTING else '#alerts-heartbeat'
+    #slack_channel = '#test_messaging' if realtime_tools.config.TESTING else '#alerts-heartbeat'
 
     # if not Preliminary, just a brief post (was also for Initial):
     if obs_type !='Preliminary': #and obs_type != 'Initial':
         slack_message = {
             "icon_emoji": ":gw:",
-            "text" : "LVC alert info received: Type: {0}. See URL: {1}.".format(obs_type,
+            "text" : "LVK alert info received: Type: {0}. See URL: {1}.".format(obs_type,
                                                                                 lvc_params["GraceDB URL"]),
         } 
 #CHANGE CHANNEL here
-    realtime_tools.messaging.to_slack(channel='#test_messaging',
+    realtime_tools.messaging.to_slack(channel=slack_channel,
                                       username="lvc-gcn-bot",
                                       content=slack_message["text"],
                                       **slack_message)
@@ -176,7 +201,8 @@ def process_gcn(payload, root):
         elif lvc_params['HasNS Prob'] > 0.5:
             has_ns=True
     
-    if has_ns == True and not realtime_tools.config.TESTING:
+    #if has_ns == True and not realtime_tools.config.TESTING and root.attrib['role'] == 'observation':
+    if has_ns == True and not heartbeat:
         if obs_type == 'Initial' or obs_type =='Preliminary':
 #CHANGE CHANNEL here
             #realtime_tools.messaging.to_slack(channel='#test_messaging',
@@ -217,13 +243,13 @@ def process_gcn(payload, root):
             response = requests.post('https://slack.com/api/files.upload',
                                      timeout=60,
                                      params={'token': my_key},
-                                     data={'filename':'lvc_skymap.png',
-                                           'title': 'LVC GraceDB Skymap',
-                                           'channels': '#test_messaging'},
+                                     data={'filename':'lvK_skymap.png',
+                                           'title': 'LVK GraceDB Skymap',
+                                           'channels': slack_channel},
                                      files={'file': memfile}
                                      )
             if response.ok is True:
-                logger.info("LVC skymap posted OK")
+                logger.info("LVK skymap posted OK")
             else:
                 logger.error("Error posting skymap!")
             '''
@@ -269,7 +295,8 @@ if __name__ == '__main__':
         import lxml.etree
         import os, time
         
-        files = ['/data/user/jthwaites/FastResponseAnalysis/fast_response/sample_skymaps/MS181101ab-1-Preliminary.xml']
+        files = [#'/data/user/jthwaites/FastResponseAnalysis/fast_response/sample_skymaps/MS181101ab-1-Preliminary.xml',
+                 '/data/user/jthwaites/FastResponseAnalysis/fast_response/sample_skymaps/S200308e-3-Retraction.xml']
    
         # excerise prelim, initial, update alerts:
         for file in files:
