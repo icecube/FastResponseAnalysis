@@ -210,7 +210,6 @@ def process_gcn(payload, root):
             #                                  content=slack_message["text"],
             #                                  **slack_message)
             print('Prob of having NS > 50%')
-    
 
     # Make skymap, save to memfile
     # only post if Preliminary (or initial)
@@ -238,12 +237,14 @@ def process_gcn(payload, root):
             plt.savefig(memfile, format = 'png', dpi = 150)
             memfile.seek(0)
         
-            my_key = 'xoxb-2661557430-605522902900-c0HcckLHRsvZUjfoFlLtO65l'
+            with open('gw_token.txt') as f:
+                my_key = f.readline()
+
             #post to slack
             response = requests.post('https://slack.com/api/files.upload',
                                      timeout=60,
                                      params={'token': my_key},
-                                     data={'filename':'lvK_skymap.png',
+                                     data={'filename':'lvk_skymap.png',
                                            'title': 'LVK GraceDB Skymap',
                                            'channels': slack_channel},
                                      files={'file': memfile}
