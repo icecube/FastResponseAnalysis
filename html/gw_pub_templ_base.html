@@ -1,0 +1,47 @@
+<html><head><link rel='stylesheet' href='https://icecube.wisc.edu/~santander/alerts/css/styles.css'>
+    <link href="https://fonts.googleapis.com/css?family=Oswald|Raleway|Playfair+Display|Quicksand&display=swap" rel="stylesheet">
+    <!-- you can skip the following line if your page already integrates the jQuery library -->
+    <script type="text/javascript" src="//code.jquery.com/jquery-1.12.1.min.js" charset="utf-8"></script>
+    </head><body><div class='content'>
+    <h1> IceCube Fast Response Analysis: <span> ANALYSISNAME </span></h1>
+
+    <table class='timeTable'>
+    <tr><td class='time'><i>Page generated (UTC):</i></td><td class='time'>ANALYSISCREATIONTIME</td></tr>
+    </table>
+    <hr/>
+    <a href="https://user-web.icecube.wisc.edu/~jthwaites/public_FRA/gw-webpage/">Home</a>
+    <hr/>
+
+    <h2>Analysis Results</h2>
+    Note: These p-values measure the consistency of the observed track-like events with the known atmospheric backgrounds for this single map (not trials corrected for multiple GW events).
+
+    <table class='event'>
+    <tr><td>Name:</td><td>ANALYSISNAME</td></tr>
+    <tr><td>Start time (UTC):</td><td>ANALYSISSTART</td></tr>
+    <tr><td>Stop time (UTC):</td><td>ANALYSISSTOP</td></tr>
+    <tr><td>N Coincident Events</td><td>NEVENTS</td></tr>
+    <tr><td>p-value (generic transient):</td><td>UMLPVAL</td></tr>
+    <tr><td>significance (generic transient):</td><td>UMLSIG sigma</td></tr>
+    <tr><td>p-value (Bayesian):</td><td>LLAMAPVAL</td></tr>
+    <tr><td>significance (Bayesian):</td><td>LLAMASIG sigma</td></tr>
+    </table>    
+
+    <h2>Coincident Events</h2>
+    <ul>
+        <li>dt = Time offset (sec) of track event with respect to GW event merger time (t_nu - t_merger).</li>
+        <li>RA (J2000) (deg) = Right ascension of the event (in degrees).</li>
+        <li>Dec (J2000) (deg) = Declination of the event (in degrees)</li>
+        <li>Angular unc = Angular uncertainty of track event: the radius of a circle representing 90% CL containment by area.</li>
+        <li>Event p-value (generic transient) = the pvalue for this specific track event with respect to a background only hypothesis in the generic transient search</li>
+        <li>Event p-value (Bayesian) = the pvalue for this specific track event with respect to a background only hypothesis in the Bayesian search</li>
+    </ul>
+
+    
+    </div></div>
+    <div class="content">
+    <a href="ANALYSISID/ANALYSISIDunblinded_skymap_zoom.png"><img src="ANALYSISID/ANALYSISIDunblinded_skymap_zoom.png" width="500"/></a>
+        
+</div><hr/>
+<script type='text/javascript' src='https://icecube.wisc.edu/~ANALYZER/FastResponse/js/utils.js'></script>
+</body></html>
+                                
