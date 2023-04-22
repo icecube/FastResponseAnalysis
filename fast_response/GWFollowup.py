@@ -206,6 +206,7 @@ class GWFollowup(PriorFollowup):
         dof = 2
         delta_llh_levels = special.gammaincinv(dof/2.0, np.array([(1-prop) for prop in proportions]))
         levels=2*delta_llh_levels
+
         #for level in levels:
         #    print(level)
         #    print(len(self.ts_scan['TS_spatial_prior_0'][self.ts_scan['TS_spatial_prior_0']>level]))
