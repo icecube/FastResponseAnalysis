@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 r'''Take already run analysis and document it
 
     Author: Alex Pizzuto
@@ -14,7 +16,7 @@ import fast_response.web_utils as web_utils
 parser = argparse.ArgumentParser(description='Document for FRA')
 parser.add_argument('--path', type=str,default=None,
                     help='Path to analysis')
-parser.add_argument('--gw', type=bool, default=False,
+parser.add_argument('--gw', action = 'store_true', default=False,
                     help='save GW ')
 args = parser.parse_args()
 
