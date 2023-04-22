@@ -34,12 +34,11 @@ def process_gcn(payload, root):
     # Where to post:
     # If real and not testing, post to #alerts-heartbeat
     if not realtime_tools.config.TESTING and root.attrib['role'] == 'observation':
-        #slack_channel = '#alerts-heartbeat'
-        slack_channel = '#gw-mock-heartbeat'
-        print('why here?')
+        slack_channel = ['#alerts-heartbeat', '#fra-shifting']
+        #slack_channel = '#gw-mock-heartbeat'
         heartbeat = False
     else:
-        slack_channel = '#gw-mock-heartbeat'
+        slack_channel = ['#gw-mock-heartbeat']
         heartbeat = True
 
     # If has an ns: duplicate post to #alerts
@@ -55,7 +54,8 @@ def process_gcn(payload, root):
             "icon_emoji": ":gw:",
             "text" : "Event {0} Retracted. See URL: {1}.".format(params['GraceID'], params['EventPage']),
         } 
-        realtime_tools.messaging.to_slack(channel=slack_channel,
+        for channel in slack_channel:
+            realtime_tools.messaging.to_slack(channel=channel,
                                       username="lvc-gcn-bot",
                                       content=slack_message["text"],
                                       **slack_message)
@@ -174,8 +174,6 @@ def process_gcn(payload, root):
         },
     ]
     slack_message["attachments"] = slack_attach
-    
-    #slack_channel = '#test_messaging' if realtime_tools.config.TESTING else '#alerts-heartbeat'
 
     # if not Preliminary, just a brief post (was also for Initial):
     if obs_type !='Preliminary': #and obs_type != 'Initial':
@@ -184,8 +182,9 @@ def process_gcn(payload, root):
             "text" : "LVK alert info received: Type: {0}. See URL: {1}.".format(obs_type,
                                                                                 lvc_params["GraceDB URL"]),
         } 
-#CHANGE CHANNEL here
-    realtime_tools.messaging.to_slack(channel=slack_channel,
+
+    for channel in slack_channel:
+        realtime_tools.messaging.to_slack(channel=channel,
                                       username="lvc-gcn-bot",
                                       content=slack_message["text"],
                                       **slack_message)
@@ -205,7 +204,7 @@ def process_gcn(payload, root):
     if has_ns == True and not heartbeat:
         if obs_type == 'Initial' or obs_type =='Preliminary':
 #CHANGE CHANNEL here
-            #realtime_tools.messaging.to_slack(channel='#test_messaging',
+            #realtime_tools.messaging.to_slack(channel='#alerts',
             #                                  username="lvc-gcn-bot",
             #                                  content=slack_message["text"],
             #                                  **slack_message)
@@ -213,7 +212,7 @@ def process_gcn(payload, root):
 
     # Make skymap, save to memfile
     # only post if Preliminary (or initial)
-    if obs_type == 'Preliminary': #or obs_type == 'Initial':
+    if obs_type == 'Preliminary' or obs_type == 'Initial':
         if skymap is not None:
             cmap = plt.cm.YlOrBr
             cmap.set_under('w')
@@ -235,28 +234,30 @@ def process_gcn(payload, root):
             #plt.savefig('./test_map.png', format='png', dpi=150)
             memfile = io.BytesIO()
             plt.savefig(memfile, format = 'png', dpi = 150)
-            memfile.seek(0)
         
             with open('gw_token.txt') as f:
                 my_key = f.readline()
 
             #post to slack
-            response = requests.post('https://slack.com/api/files.upload',
+            for channel in slack_channel:
+                memfile.seek(0)
+                response = requests.post('https://slack.com/api/files.upload',
                                      timeout=60,
                                      params={'token': my_key},
                                      data={'filename':'lvk_skymap.png',
                                            'title': 'LVK GraceDB Skymap',
-                                           'channels': slack_channel},
+                                           'channels': channel},
                                      files={'file': memfile}
                                      )
             if response.ok is True:
                 logger.info("LVK skymap posted OK")
             else:
                 logger.error("Error posting skymap!")
+
             '''
 
             ## if this is a prelim/Initial alert and we're NOT testing....dup post to #alerts
-            if not realtime_tools.config.TESTING:
+            if has_ns == True and not heartbeat:
                 ## rewind the memfile so you can re-read.
                 memfile.seek(0)
                 response = requests.post('https://slack.com/api/files.upload',
@@ -264,7 +265,7 @@ def process_gcn(payload, root):
                                          params={'token': my_key},
                                          data={'filename':'lvc_skymap.png',
                                                'title': 'LVC GraceDB Skymap',
-                                               'channels': '#test_messaging'},
+                                               'channels': '#alerts'},
                                          files={'file': memfile}
                                          )
                 if response.ok is True:
@@ -296,8 +297,8 @@ if __name__ == '__main__':
         import lxml.etree
         import os, time
         
-        files = [#'/data/user/jthwaites/FastResponseAnalysis/fast_response/sample_skymaps/MS181101ab-1-Preliminary.xml',
-                 '/data/user/jthwaites/FastResponseAnalysis/fast_response/sample_skymaps/S200308e-3-Retraction.xml']
+        files = ['/data/user/jthwaites/FastResponseAnalysis/fast_response/sample_skymaps/MS181101ab-1-Preliminary.xml']#,
+                 #'/data/user/jthwaites/FastResponseAnalysis/fast_response/sample_skymaps/S200308e-3-Retraction.xml']
    
         # excerise prelim, initial, update alerts:
         for file in files:
