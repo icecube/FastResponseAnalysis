@@ -66,7 +66,7 @@ class FastResponseAnalysis(object):
             outdir = os.environ.get('FAST_RESPONSE_OUTPUT')
             if outdir is None:
                 outdir = os.getcwd()
-        self.outdir = outdir        
+        self.outdir = outdir
 
         start = Time(dateutil.parser.parse(tstart)).mjd
         stop = Time(dateutil.parser.parse(tstop)).mjd
@@ -81,7 +81,7 @@ class FastResponseAnalysis(object):
         self.centertime = (start + stop) / 2.
         
         self.analysisid = start_str + '_' + self.name.replace(' ', '_') 
-        self.analysispath = self.outdir + '/' + self.analysisid
+        self.analysispath = os.path.join(self.outdir, self.analysisid)
         self.save_output = save
 
         if os.path.isdir(self.analysispath) and self.save_output:

@@ -79,6 +79,7 @@ class GWFollowup(PriorFollowup):
 
             bg_trial_dir = '/data/ana/analyses/NuSources/' \
                 + '2021_v2_alert_stacking_FRA/fast_response/gw_precomputed_trials/'
+
             pre_ts_array = np.load(
                 f'{bg_trial_dir}ts_map_{month:02d}.npy',
                 allow_pickle=True,
@@ -205,6 +206,12 @@ class GWFollowup(PriorFollowup):
         dof = 2
         delta_llh_levels = special.gammaincinv(dof/2.0, np.array([(1-prop) for prop in proportions]))
         levels=2*delta_llh_levels
+
+        #for level in levels:
+        #    print(level)
+        #    print(len(self.ts_scan['TS_spatial_prior_0'][self.ts_scan['TS_spatial_prior_0']>level]))
+        with open(self.analysispath + '/fit_ts_map.pkl','wb') as f:
+            pickle.dump(self.ts_scan,f)
 
         #sample_points = np.array(hp.pix2ang(self.nside, np.arange(len(self.skymap)))).T
         loc=np.array((np.pi/2 - self.ts_scan['dec'], self.ts_scan['ra'])).T
@@ -466,6 +473,7 @@ class GWFollowup(PriorFollowup):
         high: float
             highest sensitivity wihtin dec range
         '''
+        
         sens_dir = '/data/ana/analyses/NuSources/2023_realtime_gw_analysis/' \
                 +  'fast_response/ps_sensitivities'
 
@@ -537,8 +545,10 @@ class GWFollowup(PriorFollowup):
 
         sinDec_bins = np.linspace(-1,1,30)
         bin_centers = (sinDec_bins[:-1] + sinDec_bins[1:]) / 2
+        
         sens_dir = '/data/ana/analyses/NuSources/2023_realtime_gw_analysis/' \
                 +  'fast_response/ps_sensitivities'
+        
         with open(f'{sens_dir}/ps_sensitivities_deltaT_{self.duration*86400.:.2e}s.pkl','rb') as f:
             saved_sens=pickle.load(f)
             dec_range=np.sin(saved_sens['dec']*np.pi/180)

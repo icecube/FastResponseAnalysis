@@ -1,40 +1,58 @@
 '''Script to check for results from UML and LLAMA 
 and write a gcn notice for a gw followup
-written by Jessie Thwaites, Jan 2023
+written by Jessie Thwaites, March 2023
 '''
 
-import gcn
-import logging
-import os
+import gcn, logging 
 from astropy.time import Time
-from datetime import datetime
-import time
+import time, os
 import dateutil.parser
+from datetime import datetime
 import numpy as np
+import pickle, json
 from scipy.special import erfinv
+import numpy as np
+import fast_response.web_utils as web_utils
+import json
+
+fra_results_location = '/home/jthwaites/FastResponse/'
+llama_results_location = '/home/jthwaites/FastResponse/' #fix here, also ln 80
+max_wait = 15 #minutes
+save_location = '/home/jthwaites/FastResponse/' #where to save final json
 
 @gcn.handlers.include_notice_types(
-    #gcn.notice_types.LVC_EarlyWarning,
     gcn.notice_types.LVC_PRELIMINARY,
     gcn.notice_types.LVC_INITIAL,
-    gcn.notice_types.LVC_UPDATE,
-    gcn.notice_types.LVC_RETRACTION)
+    gcn.notice_types.LVC_UPDATE)
 
 def process_gcn(payload, root):
     logger = logging.getLogger()
     logger.info("alert found, processing GCN")
 
+    collected_results = {}
+    ### GENERAL PARAMETERS ###
     #read event information
     params = {elem.attrib['name']:
               elem.attrib['value']
               for elem in root.iterfind('.//Param')}
 
-    # Read trigger time of event
     eventtime = root.find('.//ISOTime').text
     event_mjd = Time(eventtime, format='isot').mjd
+    name = root.attrib['ivorn'].split('#')[1] 
+    if root.attrib['role'] != 'observation':
+        name=name+'_test'
 
+    collected_results['gw_event_name'] = name.split('-')[0]
+    collected_results['gw_map_num'] = int(name.split('-')[1])
+
+    collected_results['t_merger'] = Time(eventtime, format='isot').iso
+    collected_results['t_start'] = Time(event_mjd - 500./86400., format = 'mjd').iso
+    collected_results['t_stop'] = Time(event_mjd + 500./86400., format = 'mjd').iso
+
+    ### WAIT ###
+    # wait until the 500s has elapsed for data
     current_mjd = Time(datetime.utcnow(), scale='utc').mjd
-    needed_delay = 1000./84600./2.
+    needed_delay = 500./84600. 
     current_delay = current_mjd - event_mjd
 
     while current_delay < needed_delay:
@@ -44,175 +62,158 @@ def process_gcn(payload, root):
         time.sleep((needed_delay - current_delay)*86400.)
         current_mjd = Time(datetime.utcnow(), scale='utc').mjd
         current_delay = current_mjd - event_mjd
-
-    #check for final results from uml, llama
-    #uml_base_path = os.environ.get('FAST_RESPONSE_SCRIPTS') +'/'
-    uml_base_path='/home/jthwaites/FastResponse/'
-    if uml_base_path is None: 
-        logger.info('env variable FAST_RESPONSE_SCRIPTS not set')
-        logger.info('checking in /home/jthwaites/FastResponse/')
-        uml_base_path='/home/jthwaites/FastResponse/'
     
-    start_date = Time(dateutil.parser.parse(eventtime)).datetime
-    start_str = f'{start_date.year:02d}_' \
-            + f'{start_date.month:02d}_{start_date.day:02d}'
-    name = root.attrib['ivorn'].split('#')[1] 
+    # start checking for results
+    results_done = False
+    start_check_mjd = Time(datetime.utcnow(), scale='utc').mjd
+    max_delay = max_wait/60./24. #mins to days
 
-    if root.attrib['role'] != 'observation':
-        name=name+'_test'
+    while results_done == False:
+        logger.info("Waiting for results (max {:.0f} mins)".format(
+            max_wait)
+            )
+        start_date = Time(dateutil.parser.parse(eventtime)).datetime
+        start_str = f'{start_date.year:02d}_{start_date.month:02d}_{start_date.day:02d}'
 
-    uml_results = uml_base_path + start_str + '_' + name.replace(' ', '_') \
-        + '/' + start_str + '_' + name.replace(' ', '_')+'_results.pickle'
-    uml_results_finished = os.path.exists(uml_results)
+        uml_results_path = os.path.join(fra_results_location, start_str + '_' + name.replace(' ', '_') \
+                                   + '/' + start_str + '_' + name.replace(' ', '_')+'_results.pickle')
+        uml_results_finished = os.path.exists(uml_results_path)
 
-    #change with correct path
-    llama_base_path=uml_base_path
-    llama_results = llama_base_path+'sample_llama_highsig.json'
-    llama_results_finished = os.path.exists(llama_results)
+        #FIX HERE FOR LLAMA
+        llama_results_path = os.path.join(llama_results_location,'significance_opa_lvc-i3_high.json')
+        llama_results_finished = os.path.exists(llama_results_path)
 
-    max_allowed_time = 15*60. #allowed 15 minutes to finish running
-    lapsed_time = 0
-    while (not (uml_results_finished and llama_results_finished) and (lapsed_time < max_allowed_time)):
-        time.sleep(10)
-        uml_results_finished = os.path.exists(uml_results)
-        llama_results_finished = os.path.exists(llama_results)
-
-    #if neither finished: something went wrong
-    if not uml_results_finished and not llama_results_finished:
-        logger.warning('error: both analyses not finished after 15 min wait')
-        return
+        if uml_results_finished and llama_results_finished:
+            results_done=True
+        else:
+            current_mjd = Time(datetime.utcnow(), scale='utc').mjd
+            if current_mjd - start_check_mjd < max_delay:
+                time.sleep(10.)
+            else:
+                if (uml_results_finished or llama_results_finished):
+                    if uml_results_finished:
+                        logger.warning('LLAMA results not finished in {:.0f} mins. Sending UML only'.format(max_wait))
+                        results_done=True
+                    if llama_results_finished:
+                        logger.warning('UML results not finished in {:.0f} mins. Sending LLAMA only'.format(max_wait))
+                        results_done=True
+                else:
+                    logger.warning('Both analyses not finished after {:.0f} min wait.'.format(max_wait))
+                    logger.warning('Not sending GCN.')
+                    return
     
-    #start writing gcn
-    gcn_fields = [
-        # name         description                                   ucd                 unit        dataType  value
-        ('stream',            'Stream number',                      'meta.number',      ' ',        'float',   0),
-        ('gw_event',          'GW event name from LVK',             'meta.number',      ' ',        'float',   0),
-        ('gw_gcn_notice num', 'GW event notice num',                'meta.number',      ' ',        'float',   0),
-        ('t_merger',          'trigger time from LVK',              'time',             'UTC',      'string',  Time(eventtime, format='isot').iso),
-        ('start_time',        'start time of search (trigger-500s)','time',             'UTC',      'string',  Time(event_mjd-500./86400.,format='mjd').iso),
-        ('stop_time',         'stop time of search (trigger+500s)', 'time',             'UTC',      'string',  Time(event_mjd+500./86400.,format='mjd').iso),
-    ]
-
-    #pulling saved values from both analyses
-    uml_saved = {}
+    ### COLLECT RESULTS ###
+    additional_website_params = {}
     if uml_results_finished:
-        import pickle
-        with open(uml_results, 'rb') as f:
+        with open(uml_results_path, 'rb') as f:
             results = pickle.load(f)
-        uml_saved['pval'] = results['p']
-        uml_saved['sens_range'] = results['sens_range']
-
-        n_coincident_events=0
-        if uml_saved['pval']<0.1:
-            #from FRA, calculate nsigma
-            uml_saved['sigma'] = np.sqrt(2)*erfinv(1-2*results['p'])
-
-            uml_saved['coincident_events'] =[]
-            for event in results['coincident_events']:
-                if event['pvalue']<=0.1:
-                    ra = '{:.2f}'.format(np.rad2deg(event['ra']))
-                    dec = '{:.2f}'.format(np.rad2deg(event['dec']))
-                    sigma = '{:.2f}'.format(np.rad2deg(event['sigma']*2.145966))
-                    dt = '{:.2f}'.format((event['time']-event_mjd)*86400.)
-                    event_p = event['pvalue']
-                    uml_saved['coincident_events'].append(
-                        {'ra':ra,'dec':dec,'ang_unc':sigma,'dt':dt,'event_p':event_p}
-                    )
-                    n_coincident_events+=1
-        uml_saved['n_coinc_events']=n_coincident_events
-
-    llama_saved={}
-    if llama_results_finished:
-        import json
-        with open(llama_results, 'r') as f:
-            results = json.load(f)
-        llama_saved['pval'] = results['p']
-        llama_saved['sens_range'] = results['sens_range']
-
-        n_coincident_events=0
-        if llama_saved['pval']<0.1:
-            #from FRA, calculate nsigma
-            llama_saved['sigma'] = np.sqrt(2)*erfinv(1-2*results['p'])
-
-            llama_saved['coincident_events'] =[]
-            for event in results['coincident_events']:
-                if event['pvalue']<=0.1:
-                    ra = '{:.2f}'.format(np.rad2deg(event['ra']))
-                    dec = '{:.2f}'.format(np.rad2deg(event['dec']))
-                    sigma = '{:.2f}'.format(np.rad2deg(event['sigma']*2.145966))
-                    dt = '{:.2f}'.format((event['time']-event_mjd)*86400.)
-                    event_p = event['pvalue']
-                    llama_saved['coincident_events'].append(
-                        {'ra':ra,'dec':dec,'ang_unc':sigma,'dt':dt,'event_p':event_p}
-                    )
-                    n_coincident_events+=1
-        llama_saved['n_coinc_events']=n_coincident_events
-    
-    #appending gcn fields
-    if llama_results_finished and uml_results_finished:
-        highest_p = uml_saved['pval'] if uml_saved['pval'] > llama_saved['pval'] else llama_saved['pval']
-        highest_p_ana =uml_saved if uml_saved['pval'] > llama_saved['pval'] else uml_saved
-    elif llama_results_finished:
-        highest_p = llama_saved['pval']
-        highest_p_ana = llama_saved
-    elif uml_results_finished:
-        highest_p = uml_saved['pval']
-        highest_p_ana = uml_saved
-    
-    if highest_p > 0.1:
-        logger.info('p>0.1, no significant p found')
-        addl_fields = [
-            # name             description                                      ucd              unit        dataType  value
-            ('n_events_coinc', 'number of coincdent events',                    'meta.number',   ' ',        'float',   0),
-            ('high_sens',      'highest sensitivity (E2dN/dE) at map locations','meta.number',   'GeV cm^-2','float', highest_p_ana['sens_range'][1]),
-            ('low_sens',       'lowest sensitivity (E2dN/dE) at map locations', 'meta.number',   'GeV cm^-2','float', highest_p_ana['sens_range'][0]),
-        ]
-    else:
-        logger.info('p<0.1, significant followup found')
-        if llama_results_finished and uml_results_finished:
-            addl_fields = [
-                 # name                       description                                           ucd              unit  dataType  value
-                ('n_events_coinc',            'number of coincdent events',                         'meta.number',   ' ',  'float', highest_p_ana['n_coinc_events']),
-                ('overall_p_gen_transient',   'overall p for generic transient followup',           'meta.number',   ' ',  'float', uml_saved['pval']),
-                ('overall_p_bayesian',        'overall p for Bayesian followup',                    'meta.number',   ' ',  'float', llama_saved['pval']),
-                ('overall_sig_gen_transient', 'overall significance for generic transient followup','meta.number',   ' ',  'float', uml_saved['sigma']),
-                ('overall_sig_bayesian',      'overall significance for Bayesian followup',         'meta.number',   ' ',  'float', llama_saved['sigma']),
-            ]
-        elif llama_results_finished:
-            addl_fields = [
-                 # name                       description                                           ucd              unit  dataType  value
-                ('n_events_coinc',            'number of coincdent events',                         'meta.number',   ' ',  'float', highest_p_ana['n_coinc_events']),
-                ('overall_p_bayesian',        'overall p for Bayesian followup',                    'meta.number',   ' ',  'float', llama_saved['pval']),
-                ('overall_sig_bayesian',      'overall significance for Bayesian followup',         'meta.number',   ' ',  'float', llama_saved['sigma']),
-            ]
-        elif uml_results_finished:
-            addl_fields = [
-                 # name                       description                                           ucd              unit  dataType  value
-                ('n_events_coinc',            'number of coincdent events',                         'meta.number',   ' ',  'float', highest_p_ana['n_coinc_events']),
-                ('overall_p_gen_transient',   'overall p for generic transient followup',           'meta.number',   ' ',  'float', uml_saved['pval']),
-                ('overall_sig_gen_transient', 'overall significance for generic transient followup','meta.number',   ' ',  'float', uml_saved['sigma']),
-            ]
         
-        #event_num=1
-        #for event in highest_p_ana['coincident_events']:
-            ##TODO: table of coinc neutrinos
+        overall_p_gen_transient = results['p']
+        collected_results['sens_low'] = round(results['sens_range'][0],3)
+        collected_results['sens_high'] = round(results['sens_range'][1],3)
+        overall_sig_gen_transient = round(np.sqrt(2)*erfinv(1-2*overall_p_gen_transient),4)
+        
+        uml_coinc_nu = results['coincident_events']
 
-        addl_fields.append(
-                ('high_sens',      'highest sensitivity (E2dN/dE) at map locations','meta.number',   'GeV cm^-2','float', highest_p_ana['sens_range'][1]),
-        )
-        addl_fields.append(
-                ('low_sens',       'lowest sensitivity (E2dN/dE) at map locations', 'meta.number',   'GeV cm^-2','float', highest_p_ana['sens_range'][0]),
-        )
+        for key in ['skymap_path', 'analysisid']:
+            if key in results.keys():
+                additional_website_params[key] = results[key]
+        
+    if llama_results_finished:
+        with open(llama_results_path, 'r') as f:
+            results = json.load(f)
+
+        overall_p_bayesian = results['p_value_total']
+        overall_sig_bayesian = round(np.sqrt(2)*erfinv(1-2*overall_p_bayesian),4)
+
+        llama_coinc_nu = results['single_neutrino']
+
+    ### COINCIDENT NEUTRINOS ###
+    #if p<10% in either analysis, include coincident neutrino information
+    if uml_results_finished and llama_results_finished:
+        if (overall_p_gen_transient < 0.1) or (overall_p_bayesian < 0.1):
+            collected_results['overall_p_bayesian'] = round(overall_p_bayesian,4)
+            collected_results['overall_sig_bayesian'] = overall_sig_bayesian
+            collected_results['overall_p_gen_transient'] = round(overall_p_gen_transient,4)
+            collected_results['overall_sig_gen_transient'] = overall_sig_gen_transient
+
+            ontime_events={}
+            for event in uml_coinc_nu:
+                ontime_events[event['event']]={
+                    'dt' : round((event['time']-event_mjd)*86400., 2),
+                    'ra' : round(np.rad2deg(event['ra']), 2),
+                    'dec' : round(np.rad2deg(event['dec']), 2),
+                    'ang_unc' : round(np.rad2deg(event['sigma']*2.145966),2),
+                    'p_gen_transient': round(event['pvalue'],4)
+                }
+            for event in llama_coinc_nu:
+                ontime_events[event['i3event']]['p_bayesian'] = round(event['p_value'],4)
+            
+            coinc_events=[]
+            for eventid in ontime_events.keys():
+                if (ontime_events[eventid]['p_gen_transient'] < 0.1) or (ontime_events[eventid]['p_bayesian'] < 0.1):
+                    coinc_events.append(ontime_events[eventid])
+            
+            collected_results['n_events_coinc'] = len(coinc_events)
+            collected_results['coinc_events'] = coinc_events
+
+    elif uml_results_finished:
+        if overall_p_gen_transient < 0.1:
+            collected_results['overall_p_gen_transient'] = round(overall_p_gen_transient,4)
+            collected_results['overall_sig_gen_transient'] = overall_sig_gen_transient
+
+            coinc_events=[]
+            for event in uml_coinc_nu:
+                if event['pvalue'] < 0.1:
+                    coinc_events.append({
+                    'dt' : round((event['time']-event_mjd)*86400.,2),
+                    'ra' : round(np.rad2deg(event['ra']),2),
+                    'dec' : round(np.rad2deg(event['dec']),2),
+                    'ang_unc' : round(np.rad2deg(event['sigma']*2.145966),2),
+                    'p_gen_transient': round(event['pvalue'],4),
+                    'p_bayesian': None
+                    })
+
+            collected_results['n_events_coinc'] = len(coinc_events)
+            collected_results['coinc_events'] = coinc_events
     
-    #add together all fields to form final notice  
-    what = gcn_fields+addl_fields
+    else:
+        if overall_p_bayesian < 0.1:
+            collected_results['overall_p_bayesian'] = round(overall_p_bayesian,4)
+            collected_results['overall_sig_bayesian'] = overall_sig_bayesian
+
+            coinc_events=[]
+            for event in llama_coinc_nu:
+                if event['p_value'] < 0.1:
+                    coinc_events.append({
+                    'dt' : round(event['dt'],2),
+                    'ra' : round(event['ra'],2),
+                    'dec' : round(event['dec'],2),
+                    'ang_unc' : round(event['sigma']*2.145966,2),
+                    'p_gen_transient': None,
+                    'p_bayesian': round(event['p_value'],4)
+                    })
+
+            collected_results['n_events_coinc'] = len(coinc_events)         
+            collected_results['coinc_events'] = coinc_events
     
-    print(what)
-    #then....? TODO: next
+    # if this key is not present, then both analyses found p>0.1, do not send coincident events
+    if 'n_events_coinc' not in collected_results.keys():
+        collected_results['n_events_coinc'] = 0
+
+    ### SAVE RESULTS ###
+    with open(os.path.join(save_location, f'{name}_collected_results.json'),'w') as f:
+        json.dump(collected_results, f, indent = 6)
+    
+    # Adding a few extra keys needed to create public webpage
+    for key in additional_website_params.keys():
+        collected_results[key] = additional_website_params[key]
+    
+    #web_utils.updateGW_public(collected_results)
 
 import lxml.etree
 import argparse
-parser = argparse.ArgumentParser(description='Fast Response Analysis')
+parser = argparse.ArgumentParser(description='Combine GW-Nu results')
 parser.add_argument('--run_live', action='store_true', default=False,
                         help='Run on live GCNs')
 args = parser.parse_args()
@@ -228,6 +229,6 @@ else:
     logger.info('testing on mocks')
     import glob
     paths=glob.glob('/home/jthwaites/FastResponse/*/*xml')
-    payload = open(paths[0], 'rb').read()
+    payload = open(paths[1], 'rb').read()
     root = lxml.etree.fromstring(payload)
     process_gcn(payload, root)
