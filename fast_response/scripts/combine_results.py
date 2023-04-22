@@ -12,10 +12,12 @@ import numpy as np
 import pickle, json
 from scipy.special import erfinv
 import numpy as np
+import fast_response.web_utils as web_utils
+import json
 
 fra_results_location = '/home/jthwaites/FastResponse/'
 llama_results_location = '/home/jthwaites/FastResponse/' #fix here, also ln 80
-max_wait = 10 #minutes
+max_wait = 15 #minutes
 save_location = '/home/jthwaites/FastResponse/' #where to save final json
 
 @gcn.handlers.include_notice_types(
@@ -37,6 +39,8 @@ def process_gcn(payload, root):
     eventtime = root.find('.//ISOTime').text
     event_mjd = Time(eventtime, format='isot').mjd
     name = root.attrib['ivorn'].split('#')[1] 
+    if root.attrib['role'] != 'observation':
+        name=name+'_test'
 
     collected_results['gw_event_name'] = name.split('-')[0]
     collected_results['gw_map_num'] = int(name.split('-')[1])
@@ -71,9 +75,6 @@ def process_gcn(payload, root):
         start_date = Time(dateutil.parser.parse(eventtime)).datetime
         start_str = f'{start_date.year:02d}_{start_date.month:02d}_{start_date.day:02d}'
 
-        if root.attrib['role'] != 'observation':
-            name=name+'_test'
-
         uml_results_path = os.path.join(fra_results_location, start_str + '_' + name.replace(' ', '_') \
                                    + '/' + start_str + '_' + name.replace(' ', '_')+'_results.pickle')
         uml_results_finished = os.path.exists(uml_results_path)
@@ -89,7 +90,7 @@ def process_gcn(payload, root):
             if current_mjd - start_check_mjd < max_delay:
                 time.sleep(10.)
             else:
-                if uml_results_finished or llama_results_finished:
+                if (uml_results_finished or llama_results_finished):
                     if uml_results_finished:
                         logger.warning('LLAMA results not finished in {:.0f} mins. Sending UML only'.format(max_wait))
                         results_done=True
@@ -102,19 +103,23 @@ def process_gcn(payload, root):
                     return
     
     ### COLLECT RESULTS ###
+    additional_website_params = {}
     if uml_results_finished:
         with open(uml_results_path, 'rb') as f:
             results = pickle.load(f)
         
         overall_p_gen_transient = results['p']
         collected_results['sens_low'] = round(results['sens_range'][0],3)
-        collected_results['sens_high'] =round(results['sens_range'][1],3)
+        collected_results['sens_high'] = round(results['sens_range'][1],3)
         overall_sig_gen_transient = round(np.sqrt(2)*erfinv(1-2*overall_p_gen_transient),4)
         
         uml_coinc_nu = results['coincident_events']
+
+        for key in ['skymap_path', 'analysisid']:
+            if key in results.keys():
+                additional_website_params[key] = results[key]
         
     if llama_results_finished:
-        import json
         with open(llama_results_path, 'r') as f:
             results = json.load(f)
 
@@ -191,11 +196,20 @@ def process_gcn(payload, root):
 
             collected_results['n_events_coinc'] = len(coinc_events)         
             collected_results['coinc_events'] = coinc_events
+    
+    # if this key is not present, then both analyses found p>0.1, do not send coincident events
+    if 'n_events_coinc' not in collected_results.keys():
+        collected_results['n_events_coinc'] = 0
 
     ### SAVE RESULTS ###
     with open(os.path.join(save_location, f'{name}_collected_results.json'),'w') as f:
         json.dump(collected_results, f, indent = 6)
     
+    # Adding a few extra keys needed to create public webpage
+    for key in additional_website_params.keys():
+        collected_results[key] = additional_website_params[key]
+    
+    #web_utils.updateGW_public(collected_results)
 
 import lxml.etree
 import argparse
