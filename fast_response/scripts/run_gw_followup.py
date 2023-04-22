@@ -51,6 +51,8 @@ name = name.replace('_', ' ')
 
 f = GWFollowup(name, args.skymap, start, stop)
 f._allow_neg = args.allow_neg_ts
+f.save_items['merger_time'] = Time(gw_time, format='mjd').iso
+f.save_items['skymap_link'] = args.skymap
 
 f.unblind_TS()
 f.plot_ontime()
