@@ -55,16 +55,13 @@ def process_gcn(payload, root):
     # Read trigger time of event
     eventtime = root.find('.//ISOTime').text
     event_mjd = Time(eventtime, format='isot').mjd
-    
+    '''
     if root.attrib['role'] == 'test':
         #if testing, want to query livestream rather than load archival, so use recent time
         eventtime = '2023-01-13T21:51:25.506'
         event_mjd = Time(eventtime, format='isot').mjd - 400./86400.
         eventtime = Time(event_mjd, format = 'mjd').isot
-    else:
-        eventtime = root.find('.//ISOTime').text
-        event_mjd = Time(eventtime, format='isot').mjd
-
+    '''
     print('GW merger time: %s \n' % Time(eventtime, format='isot').iso)
     log_file.flush()
 
@@ -120,6 +117,16 @@ def process_gcn(payload, root):
         #'--allow_neg_ts=True']
         )
 
+    output = os.path.join(os.environ.get('FAST_RESPONSE_OUTPUT'),eventtime[0:10].replace('-','_')+'_'+name)
+    #update webpages
+    webpage_update = os.path.join(analysis_path,'document.py')
+    if not mock:
+        try:
+            subprocess.call([webpage_update,  '--gw', f'--path={output}'])
+        except Exception as e:
+            print(e)
+            log_file.flush()
+
     endtime=datetime.utcnow().isoformat()
     alert_mjd = Time(AlertTime, format='isot').mjd
     end_mjd = Time(endtime, format='isot').mjd
@@ -133,36 +140,31 @@ def process_gcn(payload, root):
                     'Ligo_Latency': Ligo_late_sec, 'IceCube_Latency': Ice_late_sec, 'Total_Latency': Total_late_sec,
                     'We_had_to_wait:': FiveHundred_delay}
     
+    save_dir = 'latency_o4' if root.attrib['role']=='observation' else 'PickledMocks'
+
     #check for directory to save pickle files and create if needed 
-    if not os.path.exists(os.path.join(os.environ.get('FAST_RESPONSE_OUTPUT'),'PickledMocks/')):
-        os.mkdir(os.path.join(os.environ.get('FAST_RESPONSE_OUTPUT'),'PickledMocks/'))
+    if not os.path.exists(os.path.join(os.environ.get('FAST_RESPONSE_OUTPUT'),save_dir)):
+        os.mkdir(os.path.join(os.environ.get('FAST_RESPONSE_OUTPUT'),save_dir))
 
-    latency_dict_path=os.path.join(os.environ.get('FAST_RESPONSE_OUTPUT'), f'PickledMocks/gw_latency_dict_{name}.pickle')
-
-    with open(latency_dict_path, 'wb') as file:
+    with open(os.path.join(os.environ.get('FAST_RESPONSE_OUTPUT'), f'{save_dir}/gw_latency_dict_{name}.pickle'), 'wb') as file:
         pickle.dump(gw_latency, file, protocol=pickle.HIGHEST_PROTOCOL)
+    
+    #save xml and skymap, for later
+    et = lxml.etree.ElementTree(root)
+    et.write(os.path.join(output, '{}-{}-{}.xml'.format(params['GraceID'], 
+                        params['Pkt_Ser_Num'], params['AlertType'])), pretty_print=True)
+    
+    skymap_filename=skymap.split('/')[-1]
+    subprocess.call(['wget', skymap])
+    subprocess.call(['mv', skymap_filename, output])
 
-    # Move mocks to a seperate folder to avoid swamping FRA output folder
-    # All mocks from LVK have a name starting with MS
-    for directory in os.listdir(os.environ.get('FAST_RESPONSE_OUTPUT')):
-        if name in directory: 
-            import pwd
-            skymap_filename=skymap.split('/')[-1]
-            if ('MS22' in name or 'MS23' in name) and (pwd.getpwuid(os.getuid())[0] =='jthwaites'):
-                #import glob
-                et = lxml.etree.ElementTree(root)
-                mock_dir = os.path.join(os.environ.get('FAST_RESPONSE_OUTPUT'), directory)
-                et.write(os.path.join(mock_dir, '/{}-{}-{}.xml'.format(params['GraceID'], 
-                         params['Pkt_Ser_Num'], params['AlertType'])), pretty_print=True)
-                subprocess.call(['wget', skymap])
-                subprocess.call(['mv', skymap_filename, mock_dir])
-                subprocess.call(['mv',mock_dir, '/data/user/jthwaites/o4-mocks/'])
-                print('Output directory: ','/data/user/jthwaites/o4-mocks/'+directory)
-                log_file.flush()
-            else:
-                print('Output directory: ',mock_dir)
-                log_file.flush()
-            break
+    if mock:
+        # Move mocks to a seperate folder to avoid swamping FRA output folder
+        subprocess.call(['mv',output, '/data/user/jthwaites/o4-mocks/'])
+        output = '/data/user/jthwaites/o4-mocks/' + eventtime[0:10].replace('-','_')+'_'+name
+    
+    print('Output directory: ',output)
+    log_file.flush()
 
 if __name__ == '__main__':
     import os, subprocess
@@ -181,6 +183,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='FRA GW followup')
     parser.add_argument('--run_live', action='store_true', default=False,
                         help='Run on live GCNs')
+    parser.add_argument('--heartbeat', action = 'store_true', default=False,
+                        help='Run the listener as a heartbeat, running on mock LVK events only (default=False)')
     parser.add_argument('--log_path', default=output_path, type=str,
                         help='Redirect output to a log file with this path')
     parser.add_argument('--test_path', default='S191216ap_update.xml', type=str,
@@ -199,10 +203,24 @@ if __name__ == '__main__':
     if args.run_live:
         print("Listening for GCNs . . . ")
         log_file.flush()
-        gcn.listen(handler=process_gcn)
+        
+        if args.heartbeat:
+            print('Starting heartbeat listener')
+            log_file.flush()
+            mock = True
+            gcn.listen(handler=process_gcn)
+        else:
+            print('Running on REAL events only')
+            log_file.flush()
+            mock = False
+            gcn.listen(handler=process_gcn)
+        #mock=True
+        #gcn.listen(handler=process_gcn)
+
     else: 
         print("Offline testing . . . ")
         log_file.flush()
+        
         ### FOR OFFLINE TESTING
         try:
             import fast_response
@@ -218,4 +236,6 @@ if __name__ == '__main__':
         #test runs on scrambles, observation runs on unblinded data
         if not args.test_o3:
             root.attrib['role']='test'
+        mock = True
+
         process_gcn(payload, root)
