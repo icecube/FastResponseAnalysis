@@ -9,7 +9,7 @@ import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 
 ############################# Plotting Parameters #############################
-mpl.use('agg')
+'''mpl.use('agg')
 mpl.rcParams['text.usetex'] = True
 try:
     mpl.rcParams['text.latex.unicode'] = True
@@ -27,6 +27,7 @@ mpl.rcParams['xtick.major.size'] = 5
 mpl.rcParams['ytick.major.size'] = 5
 
 current_palette = sns.color_palette('colorblind', 10)
+'''
 ############################# Plotting Parameters #############################
 
 
@@ -66,12 +67,12 @@ def time_series(ax, run_table, time_window, t1, t2, n,
     
     ax.errorbar(tmid.plot_date, r,
                     xerr=tdiff.jd/2, yerr=rerr, capsize = 4,
-                    ls='', c = current_palette[1], **kwargs)
+                    ls='', **kwargs) #c = current_palette[1], **kwargs)
     
     Ymax = max(max(r[m])*1.5,ymax)
     ax.set_ylim(-0.5,Ymax)
 
-def make_rate_plots(time_window, run_table, query_events, dirname, season='neutrino'):
+def make_rate_plots(time_window, run_table, query_events, dirname, grb_name, tw, report_path, season='neutrino'):
     ########## MAKE GFU RATE PLOT ##########
     fig, ax = plt.subplots(figsize = (12,4))
 
@@ -89,7 +90,8 @@ def make_rate_plots(time_window, run_table, query_events, dirname, season='neutr
     fig.autofmt_xdate()
     plt.locator_params(axis='x', nbins = 8)
     plt.grid(b = True, axis = 'y', alpha = 0.3)
-    plt.savefig('{}/GFU_rate_plot.png'.format(dirname))
+    plt.savefig('{}/GFU_rate_plot_{}.png'.format(dirname, tw))
+    plt.savefig(report_path + '/GFU_rate_plot_{}.png'.format(grb_name,tw))
 
     try:
         badness = icecube.realtime_tools.live.get_badness(run_table[0]['start'], run_table[-1]['stop'])
@@ -110,8 +112,9 @@ def make_rate_plots(time_window, run_table, query_events, dirname, season='neutr
     fig.autofmt_xdate()
     plt.locator_params(axis='x', nbins = 8)
     plt.grid(b = True, axis = 'y', alpha = 0.3)
-    plt.savefig('{}/badness_plot.png'.format(dirname))
-     
+    plt.savefig('{}/badness_plot_{}.png'.format(dirname, tw))
+    plt.savefig(report_path +'/badness_plot_{}.png'.format(tw))    
+ 
     try:
         rates = icecube.realtime_tools.live.get_rates(run_table[0]['start'], run_table[-1]['stop'])
     except Exception as e:
@@ -141,5 +144,5 @@ def make_rate_plots(time_window, run_table, query_events, dirname, season='neutr
         fig.autofmt_xdate()
         plt.locator_params(axis='x', nbins = 8)
         plt.grid(b = True, axis = 'y', alpha = 0.3)
-        plt.savefig('{}/{}_plot.png'.format(dirname, rate))
-        
+        plt.savefig('{}/{}_plot_{}.png'.format(dirname, rate, tw))
+        plt.savefig(report_path + '/{}_plot_{}.png'.format(rate, tw))

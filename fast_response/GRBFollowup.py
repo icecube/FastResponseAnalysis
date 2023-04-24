@@ -158,7 +158,7 @@ class GRBFollowup(PriorFollowup):
                     gcn_file.write(line)
                 gcn_file.close()
 
-    def inject_scan(self, ra, dec, ns, poisson=True):
+    def inject_scan(self, ns, poisson=True, e_range=[0., np.inf]):
         r''' Run All sky scan using event localization as 
         spatial prior, while also injecting events according
         to event localization
@@ -183,12 +183,14 @@ class GRBFollowup(PriorFollowup):
         pixels = np.arange(len(self.skymap))
 
         ## Perform all sky scan
-        inj = PointSourceInjector(gamma=2, E0=1000.)
-        inj.fill(dec, self.llh.exp, self.llh.mc, self.llh.livetime,
-                 temporal_model=self.llh.temporal_model)
-        ni, sample = inj.sample(ra,ns,poisson=poisson)
-        print('injected neutrino at:')
-        print(np.rad2deg(sample['ra']),np.rad2deg(sample['dec']))
+        #inj = PointSourceInjector(gamma=2, E0=1000.)
+        #inj.fill(dec, self.llh.exp, self.llh.mc, self.llh.livetime,
+        #         temporal_model=self.llh.temporal_model)
+        if (not hasattr(self, "inj")) or (not isinstance(self.inj, PointSourceInjector)):
+            self.initialize_injector(e_range)
+        ni, sample = self.inj.sample(ns,poisson=poisson)
+        #print('injected neutrino at:')
+        #print(np.rad2deg(sample['ra']),np.rad2deg(sample['dec']))
 
         val = self.llh.scan(0.0, 0.0, scramble = False, spatial_prior=spatial_prior,
                             time_mask = [self.duration/2., self.centertime],
@@ -235,6 +237,7 @@ class GRBFollowup(PriorFollowup):
         return (results, events)
 
     def find_coincident_events(self):
+        print('running this section')
         if self.ts_scan is None:
             raise ValueError("Need to unblind TS before finding events")
         exp_theta = 0.5*np.pi - self.llh.exp['dec']
@@ -244,7 +247,7 @@ class GRBFollowup(PriorFollowup):
 
         t_mask=(self.llh.exp['time'] <= self.stop) & (self.llh.exp['time'] >= self.start)
         events = self.llh.exp[t_mask]
-
+        print('this is the events length', len(self.llh.exp['time']), self.stop, self.start)
         events = append_fields(
             events, names=['in_contour', 'ts', 'ns', 'gamma', 'B'],
             data=np.empty((5, events['ra'].size)),
@@ -253,10 +256,12 @@ class GRBFollowup(PriorFollowup):
         for i in range(events['ra'].size):
             events['in_contour'][i]=overlap[i]
             events['B'][i] = self.llh.llh_model.background(events[i])
-
+        print('running this section')
+	
         val_pix = self.scanned_pixels
         for i in range(events['ra'].size):
             idx, = np.where(val_pix == exp_pix[t_mask][i])
+            print(idx, 'running this section')
             events['ts'][i] = self.ts_scan['TS_spatial_prior_0'][idx[0]]
             events['ns'][i] = self.ts_scan['nsignal'][idx[0]]
             events['gamma'][i] = self.ts_scan['gamma'][idx[0]]
@@ -265,11 +270,13 @@ class GRBFollowup(PriorFollowup):
         self.coincident_events = [dict(zip(events.dtype.names, x)) for x  in events]
         self.save_items['coincident_events'] = self.coincident_events
 
-    def upper_limit(self):
+    def upper_limit(self,n_per_sig=100, p0=None, erange=[0, np.inf],plot=True):
         sens_range = self.ps_sens_range()
         self.sens_range = sens_range
         self.save_items['sens_range'] = sens_range
         self.make_dec_pdf()
+        return super().upper_limit(n_per_sig, p0, erange,plot)
+         
 
     def ps_sens_range(self):
         r''' Compute minimum and maximum sensitivities within
@@ -401,3 +408,9 @@ class GRBFollowup(PriorFollowup):
         report = GammaRayBurstReport(self)
         report.generate_report()
         report.make_pdf()
+
+    def run_table(self, time_window):
+        r'''Gets run time information'''
+        runtable = GammaRayBurstReport(self)
+        runs = runtable.query_db_runs(time_window)
+        return runs

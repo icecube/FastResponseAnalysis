@@ -70,6 +70,8 @@ def plot_events(dec, ra, sigmas, src_ra, src_dec, reso, sigma_scale=5., col = 'k
     tmp = np.cos(src_ra - ra) * np.cos(src_dec) * cos_ev + np.sin(src_dec) * np.sin(dec)
     dist = np.arccos(tmp)
 
+    print(mpl.rcParams)
+
     if sigma_scale is not None:
         sigma = np.degrees(sigmas)/sigma_scale
         sizes = 5200*sigma**2
@@ -88,12 +90,12 @@ def plot_events(dec, ra, sigmas, src_ra, src_dec, reso, sigma_scale=5., col = 'k
 
 def load_plotting_settings():
     mpl.use('agg')
-    mpl.rcParams['text.usetex'] = True
-    try:
+    mpl.rcParams['text.usetex'] = False #True
+    ''''try:
         mpl.rcParams['text.latex.unicode'] = True
     except:
         # new mpl doesn't like this rcParam
-        pass
+        pass'''
     mpl.rcParams['mathtext.rm'] = 'Times New Roman'
     mpl.rcParams['mathtext.it'] = 'Times New Roman:italic'
     mpl.rcParams['mathtext.bf'] = 'Times New Roman:bold'
@@ -103,6 +105,7 @@ def load_plotting_settings():
     mpl.rcParams['ytick.labelsize'] = 16
     mpl.rcParams['xtick.major.size'] = 5
     mpl.rcParams['ytick.major.size'] = 5
+    
 
 def contour(ra, dec, sigma, nside):
     r''' Function for plotting contours on skymaps

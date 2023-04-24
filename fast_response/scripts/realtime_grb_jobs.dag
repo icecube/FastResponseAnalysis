@@ -1,0 +1,2 @@
+JOB GRB180721A_job.npz /data/user/rpmurphy/realtime/fast_response/FastResponseAnalysis/fast_response/scripts/submit.sub
+VARS GRB180721A_job.npz  job_name="GRB180721A_job.npz"  log_dir="/data/user/rpmurphy/realtime/fast_response/FastResponseAnalysis/fast_response/scripts/scans/log/"  cmd="/data/user/rpmurphy/realtime/fast_response/FastResponseAnalysis/fast_response/scripts/run_grb_followup.py --name GRB180721A " 

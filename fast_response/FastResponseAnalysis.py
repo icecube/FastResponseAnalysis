@@ -33,6 +33,7 @@ from . import plotting_utils
 from .reports import FastResponseReport
 
 mpl.use('agg')
+#mpl.use('pdf')
 current_palette = sns.color_palette('colorblind', 10)
 logging.getLogger().setLevel(logging.ERROR)
 warnings.simplefilter("ignore", UserWarning)
@@ -68,13 +69,18 @@ class FastResponseAnalysis(object):
                 outdir = os.getcwd()
         self.outdir = outdir        
 
-        start = Time(dateutil.parser.parse(tstart)).mjd
-        stop = Time(dateutil.parser.parse(tstop)).mjd
+        if type(tstart)==str:
+            start = Time(dateutil.parser.parse(tstart)).mjd
+            stop = Time(dateutil.parser.parse(tstop)).mjd
 
-        start_date = Time(dateutil.parser.parse(tstart)).datetime
-        start_str = f'{start_date.year:02d}_' \
-            + f'{start_date.month:02d}_{start_date.day:02d}'
-        
+            start_date = Time(dateutil.parser.parse(tstart)).datetime
+            start_str = f'{start_date.year:02d}_' \
+                + f'{start_date.month:02d}_{start_date.day:02d}'
+        else:
+            start = Time(tstart, format='mjd', scale = 'utc').mjd
+            stop = Time(tstop, format='mjd', scale = 'utc').mjd
+            start_str = 'test'
+
         self.start = start
         self.stop = stop
         self.tw = str(tw)
@@ -86,6 +92,7 @@ class FastResponseAnalysis(object):
         #self.analysispath = self.outdir + '/' + self.analysisid
         #self.analysispath = self.outdir + '/' + self.analysisid + '/' + self.analysisid + self.tw
         self.save_output = save
+	
 
         if os.path.isdir(self.analysispath) and self.save_output:
 
@@ -200,7 +207,7 @@ class FastResponseAnalysis(object):
         self.sinDec_bins = sinDec_bins
         self.energy_bins = energy_bins
         
-    def initialize_llh(self, skipped=None, scramble=False):
+    def initialize_llh(self, skipped=None, scramble=True):
         '''
         Grab data and format it all into a skylab llh object
         '''
@@ -383,8 +390,10 @@ class FastResponseAnalysis(object):
             plt.yscale('log')
             print('TS_distribution{}.png'.format(self.tw))
             plt.savefig(
-                self.analysispath + '/TS_distribution{}.png'.format(self.tw),
+                self.analysispath + '/TS_distribution_{}.png'.format(self.tw),
                 bbox_inches='tight')
+            
+            #plt.savefig(report_path + '/TS_distribution_{}.png'.format(self.tw))
 
     def __str__(self):
         r'''Print a message with info about the source once
@@ -529,6 +538,9 @@ class FastResponseAnalysis(object):
                     offset=-50, labels = [r'-$\Delta T \Bigg/ 2$', r'+$\Delta T \Bigg/ 2$'])
         plt.savefig(self.analysispath + '/' + self.analysisid + 'unblinded_skymap_zoom.png',bbox_inches='tight')
         plt.savefig(self.analysispath + '/' + self.analysisid + 'unblinded_skymap_zoom.pdf',bbox_inches='tight', dpi=300)
+        #report_path = '/home/rpmurphy/public_html/{}'.format(self.name)
+        #plt.savefig(report_path + '/unblinded_skymap_zoom.png',bbox_inches='tight')
+
         plt.close()
 
     def plot_skymap(self, with_contour=False, contour_files=None):
@@ -622,6 +634,8 @@ class FastResponseAnalysis(object):
         plt.title(self.name.replace('_', ' '))
         plt.legend(loc=1)
         plt.savefig(self.analysispath + '/' + self.analysisid + 'unblinded_skymap.png',bbox_inches='tight')
+        #report_path = '/home/rpmurphy/public_html/{}'.format(self.name)
+        #plt.savefig(report_path + '/unblinded_skymap.png')
         plt.close()
 
     def generate_report(self):
@@ -721,7 +735,7 @@ class PriorFollowup(FastResponseAnalysis):
             E0=1000., 
             seed = self.llh_seed)
         inj.fill(
-            self.llh.exp,
+            self.exp,
             self.llh.mc,
             self.llh.livetime,
             temporal_model=self.llh.temporal_model)
@@ -815,7 +829,6 @@ class PriorFollowup(FastResponseAnalysis):
             self.ts_scan = val
             t2 = time.time()
             print("finished scan, took {} s".format(t2-t1))
-  
             ts = val['TS_spatial_prior_0'].max()
             max_prior = np.argmax(val['TS_spatial_prior_0'])
             ns = val['nsignal'][max_prior]
@@ -866,9 +879,93 @@ class PriorFollowup(FastResponseAnalysis):
         else:
             return ts, ns
 
-    def upper_limit(self):
+    '''def upper_limit(self):
         print("Upper limit with spatial prior not yet implemented")
         pass
+    '''
+    def differential_limit(self, energy_bins, n_per_sig=100, p0=None):
+        differential_limits = []
+        for bin in zip(energy_bins[:-1], energy_bins[1:]):
+            limit = upperlimit(n_per_sig=n_per_sig, p0=p0, erange=bin, plot=False)
+            differential_limits.append(limit)
+        return differential_limits
+
+
+
+    def upper_limit(self, n_per_sig=100, p0=None, erange=[0, np.inf],plot=True):
+        r'''After calculating TS, find upper limit
+        Assuming an E^-2 spectrum
+        Returns:
+        --------
+        Value of E^2 dN / dE in units of TeV / cm^2 
+        '''
+        print("Running upper limit")
+        if self.inj is None:
+            self.initialize_injector(erange)
+        ninj = np.array([1., 1.5, 2., 2.5, 3., 4., 5., 6.])
+        passing = []
+        for n in ninj:
+            results = self.llh.do_allsky_trials(
+                n_per_sig, src_ra=self.ra, src_dec=self.dec,
+                injector=self.inj, mean_signal=n, poisson=True)
+            import IPython
+            IPython.embed()
+            msk = results['TS'] > self.ts
+            npass = len(results['TS'][msk])
+            passing.append((n, npass, n_per_sig))
+        signal_fluxes, passing, number = list(zip(*passing))
+        signal_fluxes = np.array(signal_fluxes)
+        passing = np.array(passing, dtype=float)
+        number = np.array(number, dtype=float)
+        passing /= number
+        errs = sensitivity_utils.binomial_error(passing, number)
+        fits, plist = [], []
+        for func, func_name in [(sensitivity_utils.chi2cdf, 'chi2'),
+                                (sensitivity_utils.erfunc, 'Error function'),
+                                (sensitivity_utils.incomplete_gamma,
+                                'Incomplete gamma')]:
+            try:
+                fits.append(sensitivity_utils.sensitivity_fit(
+                    signal_fluxes, passing, errs, func, p0=p0))
+                plist.append(fits[-1]['pval'])
+            except:
+                print(f"{func_name} fit failed in upper limit calculation")
+        #Find best fit of the three, make it look different in plot
+        plist = np.array(plist)
+        best_fit_ind = np.argmax(plist)
+        fits[best_fit_ind]['ls'] = '-'
+
+        if not plot:
+            return self.inj.mu2flux(fits[best_fit_ind]['sens'])
+
+        self.upperlimit = self.inj.mu2flux(fits[best_fit_ind]['sens'])
+        self.upperlimit_ninj = fits[best_fit_ind]['sens']
+
+        fig, ax = plt.subplots()
+        for fit_dict in fits:
+            lw = 1. if fit_dict['ls'] == '-' else 1.5
+            ax.plot(
+                fit_dict['xfit'], fit_dict['yfit'],
+                label = r'{}: $\chi^2$ = {:.2f}, d.o.f. = {}'.format(
+                    fit_dict['name'], fit_dict['chi2'], fit_dict['dof']),
+                ls = fit_dict['ls'],
+                lw=lw)
+            if fit_dict['ls'] == '-':
+                ax.axhline(0.9, color = 'm', linewidth = 0.3, linestyle = '-.')
+                ax.axvline(fit_dict['sens'], color = 'm', linewidth = 0.3, linestyle = '-.')
+                ax.text(3.5, 0.8, r'Sens. = {:.2f} events'.format(fit_dict['sens']), fontsize = 16)
+                ax.text(3.5, 0.7, r' = {:.1e}'.format(self.upperlimit * self.duration * 86400. * 1e6) + r' GeV cm$^{-2}$', fontsize = 16)
+                #ax.text(5, 0.5, r'Sens. = {:.2e}'.format(self.inj.mu2flux(fit_dict['sens'])) + ' GeV^-1 cm^-2 s^-1')
+        ax.errorbar(signal_fluxes, passing, yerr=errs, capsize = 3, linestyle='', marker = 's', markersize = 2)
+        ax.legend(loc=4, fontsize = 14)
+        ax.set_xlabel(r'$\langle n_{inj} \rangle$', fontsize = 14)
+        ax.set_ylabel(r'Fraction TS $>$ unblinded TS', fontsize = 14)
+        if self.save_output:
+            plt.savefig(self.analysispath + '/upper_limit_distribution.png', bbox_inches='tight', dpi=200)
+        print("Found upper limit of {:.2f} events".format(self.upperlimit_ninj))
+        self.save_items['upper_limit'] = self.upperlimit
+        self.save_items['upper_limit_ninj'] = self.upperlimit_ninj
+        return self.upperlimit
 
     def ipixs_in_percentage(self, percentage):
         """Finding ipix indices confined in a given percentage.
@@ -970,7 +1067,9 @@ class PriorFollowup(FastResponseAnalysis):
         plt.axvline(median_max_dec, c = sns.xkcd_rgb['dark navy blue'], alpha = 0.75, label = "Median (max dec.)", ls = '--')
         plt.xlim(1e1, 1e8)
         plt.legend(loc=4, fontsize=18)
-        plt.savefig(self.analysispath + '/central_90_dNdE.png',bbox_inches='tight')
+        plt.savefig(self.analysispath + '/central_90_dNdE_{}.png'.format(self.tw),bbox_inches='tight')
+        #report_path ='/home/rpmurphy/public_html/{}'.format(self.name)
+        #plt.savefig(report_path + '/central_90_dNdE_{}.png'.format(self.tw), bbox_inches='tight')
 
         self.energy_range = (np.min([low_5_min_dec, low_5_max_dec]),
                              np.max([high_5_min_dec, high_5_max_dec]))
@@ -1235,7 +1334,6 @@ class PointSourceFollowup(FastResponseAnalysis):
         plt.xlim(1e1, 1e8)
         plt.legend(loc=4, fontsize=18)
         plt.savefig(self.analysispath + '/central_90_dNdE.png',bbox_inches='tight')
-
         self.save_items['energy_range'] = (self.low5, self.high5)
 
     def write_circular(self):
