@@ -20,7 +20,6 @@ from dateutil.relativedelta import relativedelta
 
 def process_gcn(payload, root):
 
-    print('\n' +'INCOMING ALERT FOUND: ',datetime.utcnow())
     AlertTime=datetime.utcnow().isoformat()
     log_file.flush()
     analysis_path = os.environ.get('FAST_RESPONSE_SCRIPTS')
@@ -38,20 +37,44 @@ def process_gcn(payload, root):
             log_file.flush()
             exit()
 
-    # Respond only to 'test' events.
-    # VERY IMPORTANT! Replace 'test' with
-    # 'observation' to repond to real events.
-    #if root.attrib['role']=='observation':
-        ## Call everyone because it's a real event
-    #    call_command = analysis_path + '/make_call.py'
-    #    call_args = ['--raamis','--justin','--alex']
-    #    subprocess.call([call_command,call_args[0],'True',call_args[1],'True',call_args[2],'True'])
-
     # Read all of the VOEvent parameters from the "What" section.
     params = {elem.attrib['name']:
               elem.attrib['value']
               for elem in root.iterfind('.//Param')}
+    name = root.attrib['ivorn'].split('#')[1]
+    
+    # if this is the listener for real events and it gets a mock, skip running on it
+    if not mock and root.attrib['role']!='observation':
+        return
+    # only run on significant events
+    if 'Significant' in params.keys():
+        if int(params['Significant'])==0: 
+            #not significant, do not run
+            print(f'Found a subthreshold event {name}')
+            log_file.flush()
+            return
+    else:
+        # O3 does not have this parameter, this should only happen for testing
+        print('No significance parameter found in LVK GCN.')
+        log_file.flush()
+    
+    print('\n' +'INCOMING ALERT FOUND: ',datetime.utcnow())
 
+    if root.attrib['role']=='observation':
+        ## Call everyone because it's a real event!
+        call_command = [os.path.join(analysis_path, 'make_call.py')]
+    
+        call_args = ['--jessie']
+        for arg in call_args:
+            call_command.append(arg+'=True')
+        try:
+            subprocess.call(call_command)
+            #print('Call here.')
+        except Exception as e:
+            print('Call failed.')
+            print(e)
+            log_file.flush()
+    
     # Read trigger time of event
     eventtime = root.find('.//ISOTime').text
     event_mjd = Time(eventtime, format='isot').mjd
@@ -83,7 +106,6 @@ def process_gcn(payload, root):
         current_delay = current_mjd - event_mjd
 
     skymap = params['skymap_fits']
-    name = root.attrib['ivorn'].split('#')[1]
 
     # Skymap distributed is a different format than previous, but previous is available.
     # Download correct format from GraceDB
@@ -116,14 +138,15 @@ def process_gcn(payload, root):
         '--name={}'.format(name)]
         #'--allow_neg_ts=True']
         )
-
+    
     output = os.path.join(os.environ.get('FAST_RESPONSE_OUTPUT'),eventtime[0:10].replace('-','_')+'_'+name)
     #update webpages
     webpage_update = os.path.join(analysis_path,'document.py')
-    if not mock:
+    if not mock and root.attrib['role'] == 'observation':
         try:
             subprocess.call([webpage_update,  '--gw', f'--path={output}'])
         except Exception as e:
+            print('Failed to push to (private) webpage.')
             print(e)
             log_file.flush()
 
@@ -158,7 +181,7 @@ def process_gcn(payload, root):
     subprocess.call(['wget', skymap])
     subprocess.call(['mv', skymap_filename, output])
 
-    if mock:
+    if root.attrib['role'] != 'observation':
         # Move mocks to a seperate folder to avoid swamping FRA output folder
         subprocess.call(['mv',output, '/data/user/jthwaites/o4-mocks/'])
         output = '/data/user/jthwaites/o4-mocks/' + eventtime[0:10].replace('-','_')+'_'+name
@@ -176,9 +199,10 @@ if __name__ == '__main__':
     from astropy.time import Time
     from datetime import datetime
 
-    output_path=os.environ.get('FAST_RESPONSE_OUTPUT')
-    if output_path==None:
-        output_path=os.getcwd()
+    output_path = '/home/jthwaites/public_html/FastResponse/'
+    #output_path=os.environ.get('FAST_RESPONSE_OUTPUT')
+    #if output_path==None:
+    #    output_path=os.getcwd()
 
     parser = argparse.ArgumentParser(description='FRA GW followup')
     parser.add_argument('--run_live', action='store_true', default=False,
@@ -193,7 +217,11 @@ if __name__ == '__main__':
                         help='bool to decide if we should run an already unblinded skymap with unblinded data')
     args = parser.parse_args()
 
-    logfile=os.path.join(args.log_path,'log.log')
+    if args.heartbeat:
+        logfile=os.path.join(args.log_path,'mock_log.log')
+    else:
+        logfile=os.path.join(args.log_path,'log.log')
+
     print(f'Logging to file: {logfile}')
     original_stdout=sys.stdout
     log_file = open(logfile, "a+")
@@ -203,19 +231,12 @@ if __name__ == '__main__':
     if args.run_live:
         print("Listening for GCNs . . . ")
         log_file.flush()
+
+        mock=args.heartbeat
+        print('Starting heartbeat listener') if mock else print('Running on REAL events only')
+        log_file.flush()
         
-        if args.heartbeat:
-            print('Starting heartbeat listener')
-            log_file.flush()
-            mock = True
-            gcn.listen(handler=process_gcn)
-        else:
-            print('Running on REAL events only')
-            log_file.flush()
-            mock = False
-            gcn.listen(handler=process_gcn)
-        #mock=True
-        #gcn.listen(handler=process_gcn)
+        gcn.listen(handler=process_gcn)
 
     else: 
         print("Offline testing . . . ")
@@ -233,9 +254,10 @@ if __name__ == '__main__':
         payload = open(os.path.join(sample_skymap_path,args.test_path), 'rb').read()
         root = lxml.etree.fromstring(payload) 
 
+        mock=args.heartbeat
         #test runs on scrambles, observation runs on unblinded data
         if not args.test_o3:
             root.attrib['role']='test'
-        mock = True
+            mock=True
 
         process_gcn(payload, root)
