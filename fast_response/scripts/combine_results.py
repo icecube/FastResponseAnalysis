@@ -27,14 +27,25 @@ save_location = '/home/jthwaites/FastResponse/' #where to save final json
 
 def process_gcn(payload, root):
     logger = logging.getLogger()
-    logger.info("alert found, processing GCN")
 
-    collected_results = {}
+    #ignore mocks
+    if root.attrib['role']!='observation':
+        return
+    
     ### GENERAL PARAMETERS ###
     #read event information
     params = {elem.attrib['name']:
               elem.attrib['value']
               for elem in root.iterfind('.//Param')}
+    
+    # ignore subthreshold, only run on significant events
+    if 'Significant' in params.keys():
+        if int(params['Significant'])==0: 
+            return
+
+    logger.info("alert found, processing GCN")
+
+    collected_results = {}
 
     eventtime = root.find('.//ISOTime').text
     event_mjd = Time(eventtime, format='isot').mjd
