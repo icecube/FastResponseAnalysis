@@ -150,6 +150,16 @@ def process_gcn(payload, root):
             print(e)
             log_file.flush()
 
+    output = os.path.join(os.environ.get('FAST_RESPONSE_OUTPUT'),eventtime[0:10].replace('-','_')+'_'+name)
+    #update webpages
+    webpage_update = os.path.join(analysis_path,'document.py')
+    if not mock:
+        try:
+            subprocess.call([webpage_update,  '--gw', f'--path={output}'])
+        except Exception as e:
+            print(e)
+            log_file.flush()
+
     endtime=datetime.utcnow().isoformat()
     alert_mjd = Time(AlertTime, format='isot').mjd
     end_mjd = Time(endtime, format='isot').mjd
