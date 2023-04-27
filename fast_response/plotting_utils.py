@@ -187,3 +187,31 @@ def plot_contours(proportions, samples):
             phi_list.append(phi)
 
     return theta_list, phi_list
+
+def make_public_zoom_skymap(skymap, events, ra, dec, with_contour=True, name='test'):
+
+    pdf_palette = sns.color_palette("Blues", 500)
+    cmap = mpl.colors.ListedColormap(pdf_palette)
+
+    plot_zoom(skymap, ra, dec, "", range = [0,10], reso=3., cmap = cmap)
+
+    plot_events(events['dec'], events['ra'], events['sigma'], ra, dec, 2*6, sigma_scale=1.0,
+                constant_sigma=False, same_marker=True, energy_size=True, col = 'black')
+    
+    if with_contour:
+        probs = hp.pixelfunc.ud_grade(skymap, 64)
+        probs = probs/np.sum(probs)
+        ### plot 90% containment contour of PDF
+        levels = [0.9]
+        theta, phi = plot_contours(levels, probs)
+        hp.projplot(theta[0], phi[0], linewidth=2., c='k')
+        for i in range(1, len(theta)):
+            hp.projplot(theta[i], phi[i], linewidth=2., c='k', label=None)
+
+    #plt.scatter(0,0, marker='*', c = 'k', s = 130, label = label_str) 
+    #plt.legend(loc = 2, ncol=1, mode = 'expand', fontsize = 18.5, framealpha = 0.95)
+    plot_color_bar(range=[0,6], cmap=cmap, col_label='GW Map Probability', offset = -10,
+                   labels=[f'{min(skymap):.1e}',f'{max(skymap):.1e}'])
+
+    plt.savefig(f'./{name}_skymap_zoom_public.png', bbox_inches='tight', dpi=300)
+    plt.close()
