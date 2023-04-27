@@ -111,14 +111,12 @@ def process_gcn(payload, root):
         )
     
     try: 
-        shifters = pd.read_csv(analysis_path+'../slack_posters/fra_shifters.csv', header=None)
+        shifters = pd.read_csv(analysis_path+'../slack_posters/fra_shifters.csv', parse_dates=[0,1])
         on_shift=''
-        for i in range(len(shifters[0])):
-            if parse(shifters[0][i])<datetime.utcnow()<parse(shifters[1][i]): 
-                on_shift=[shifters[2][i],shifters[3][i]]
-                break
-        bot.send_message(f'Done running FRA for {alert_type} alert, {event_name}. \n'+
-                         f'{on_shift[0]} (<@{on_shift[1]}>) on shift',
+        for i in shifters.index:
+            if shifters['start'][i]<datetime.utcnow()<shifters['stop'][i]:
+                on_shift+='<@{}> '.format(shifters['slack_id'][i])
+        bot.send_message(f'Done running FRA for {alert_type} alert, {event_name}.\n'+ on_shift +' on shift',
                          'blanket_blob')
         print(' - slack message sent \n')
     except:
