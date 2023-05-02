@@ -97,6 +97,8 @@ def process_gcn(payload, root):
         lvc_params['Terrestrial Prob'] = round(float(params['Noise']),4)
     if 'Terrestrial' in params:
         lvc_params["Terrestrial Prob"] = round(float(params['Terrestrial']),4)
+    if 'Significant' in params:
+        lvc_params['Significant']=bool(int(params['Significant']))
     
     #properties to tell if there is a neutron star
     if 'HasRemnant' in params:
@@ -140,8 +142,6 @@ def process_gcn(payload, root):
         except Exception as e: #urllib.error.HTTPError:
             #logger.error("skymap_fits file not found in GraceDB!")
             logger.error("error opening skymap FITS file")
-            #lvc_params["Src Distance"] = 'No FITS file'
-            #lvc_params["Instruments"] = 'No FITS file'
             skymap = None
             header = None
 
