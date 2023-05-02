@@ -9,10 +9,9 @@ import healpy as hp
 import matplotlib as mpl
 mpl.use('agg')
 import matplotlib.pyplot as plt
-import io
+import io, time
 import urllib.request, urllib.error, urllib.parse
 import argparse
-
 
 from icecube import realtime_tools
 
@@ -33,21 +32,19 @@ def process_gcn(payload, root):
 
     # Where to post:
     # If real and not testing, post to #alerts-heartbeat
-    if not realtime_tools.config.TESTING and root.attrib['role'] == 'observation':
+    if root.attrib['role'] == 'observation':
         slack_channel = ['#alerts-heartbeat', '#fra-shifting']
-        #slack_channel = '#gw-mock-heartbeat'
+        #slack_channel = ['#gw-mock-heartbeat','#fra-shifting']
         heartbeat = False
     else:
         slack_channel = ['#gw-mock-heartbeat']
         heartbeat = True
 
-    # If has an ns: duplicate post to #alerts
-
     # Read all of the VOEvent parameters from the "What" section.
     params = {elem.attrib['name']:
               elem.attrib['value']
               for elem in root.iterfind('.//Param')}
-
+    
     #If retracted - most parameters will be missing. Post link to GraceDB and event name only
     if params['AlertType'] =='Retraction':
         slack_message = {
@@ -65,6 +62,19 @@ def process_gcn(payload, root):
     # to respond to only unmodeled burst events.
     if params['Group'] != 'CBC':
         return
+    
+    if 'Significant' in params.keys():
+        if int(params['Significant'])==0: 
+            #not significant, do not run and post only to heartbeat
+            slack_message = {
+                "icon_emoji": ":gw:",
+                "text" : "Found subthreshold LVK event {0}. See URL: {1}.".format(params['GraceID'], params['EventPage']),
+            } 
+            realtime_tools.messaging.to_slack(channel='#gw-mock-heartbeat',
+                                      username="lvc-gcn-bot",
+                                      content=slack_message["text"],
+                                      **slack_message)
+            return
 
     lvc_params = {}
     lvc_params["Alert Time"] = root.find("./WhereWhen//ISOTime").text
@@ -87,6 +97,8 @@ def process_gcn(payload, root):
         lvc_params['Terrestrial Prob'] = round(float(params['Noise']),4)
     if 'Terrestrial' in params:
         lvc_params["Terrestrial Prob"] = round(float(params['Terrestrial']),4)
+    if 'Significant' in params:
+        lvc_params['Significant']=bool(int(params['Significant']))
     
     #properties to tell if there is a neutron star
     if 'HasRemnant' in params:
@@ -104,6 +116,8 @@ def process_gcn(payload, root):
     if 'skymap_fits' in params:
         # Read the HEALPix sky map and the FITS header.
         skymap_link = params['skymap_fits']
+        #if we don't wait, the old format isn't uploaded
+        time.sleep(6.)
         if 'multiorder' in skymap_link:
             try:
                 bayestar_map=skymap_link.replace('multiorder.','').split(',')
@@ -125,10 +139,9 @@ def process_gcn(payload, root):
                                              '+/-' + str(round(float(header['DISTSTD']),3))
                 if 'INSTRUME' in header:
                     lvc_params["Instruments"] = header['INSTRUME']
-        except urllib.error.HTTPError:
-            logger.error("skymap_fits file not found in GraceDB!")
-            lvc_params["Src Distance"] = 'No FITS file'
-            lvc_params["Instruments"] = 'No FITS file'
+        except Exception as e: #urllib.error.HTTPError:
+            #logger.error("skymap_fits file not found in GraceDB!")
+            logger.error("error opening skymap FITS file")
             skymap = None
             header = None
 
@@ -309,6 +322,7 @@ if __name__ == '__main__':
 
             payload = open(test_file, 'rb').read()
             root = lxml.etree.fromstring(payload)
+            root.attrib['role'] == 'test'
             process_gcn(payload, root)
 
 

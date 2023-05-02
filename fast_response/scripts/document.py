@@ -25,6 +25,7 @@ with open(glob(analysis_path + '*_results.pickle')[0], 'rb') as f:
     results = pickle.load(f)
 
 username = pwd.getpwuid(os.getuid())[0]
+if username == 'realtime': username='jthwaites'
 
 if args.gw:
     subprocess.call(['cp','-r', results['analysispath'],

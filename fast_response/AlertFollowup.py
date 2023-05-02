@@ -148,8 +148,9 @@ class AlertFollowup(PriorFollowup):
                 coinc_and_p = 'We find that this additional event is well described by atmospheric\n' \
                     + 'background expectations, with a p-value of {:.2f}. '.format(analysis_1000['p'])
             else:
-                coinc_and_p = 'We find that these additional {} events are well described by atmospheric\n' \
-                    + 'background expectations, with a p-value of {:.2f}. '.format(len(analysis_1000['coincident_events']), analysis_1000['p'])
+                coinc_and_p = 'We find that these additional {} events '.format(len(analysis_1000['coincident_events'])) \
+                    + 'are well described by atmospheric\n background expectations, with a ' \
+                    + 'p-value of {:.2f}. '.format(analysis_1000['p'])
             long_p_and_lim = 'In this case, we report a p-value of {:.2f},'.format(analysis_2day['p']) \
                     + ' consistent with no significant \nexcess of track events.' 
         else:

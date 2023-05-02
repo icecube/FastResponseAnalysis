@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 ###For text files of timestamps & latencies from gw pipeline, go to end of script and call function
-from ast import increment_lineno
 import matplotlib
 matplotlib.use("agg")
 matplotlib.rcParams['axes.titlesize'] = 18
@@ -9,24 +8,22 @@ matplotlib.rcParams['xtick.labelsize'] = 16
 matplotlib.rcParams['ytick.labelsize'] = 16
 import matplotlib.pyplot as plt
 import numpy as np
-import pickle
-import glob
-import os
-import datetime
+import pickle, glob, os, datetime
 from datetime import date
 from statistics import median
-from statistics import mode
-from matplotlib.dates import DateFormatter, drange
+#from statistics import mode
+from matplotlib.dates import DateFormatter
 from astropy.time import Time
 import pandas as pd
-from IPython.display import HTML
-from IPython.display import display
+#from IPython.display import HTML
+#from IPython.display import display
 import subprocess
 
 def dial_up(who="jessie"):
-        cell_tower = "/data/user/jthwaites/gw_o4/"
-        halp = "https://icecube.wisc.edu/~jthwaites/FastResponse/error_call.xml"
-        subprocess.call([cell_tower+"make_call.py", f"--{who}", "True", "--call_file", halp])
+    cell_tower = "/cvmfs/icecube.opensciencegrid.org/users/jthwaites/"
+    #halp = "https://icecube.wisc.edu/~jthwaites/FastResponse/error_call.xml"
+    subprocess.call([cell_tower+"make_call.py", f"--{who}=True", '--troubleshoot=True'])#, "--call_file", halp])
+    #print([cell_tower+"make_call.py", f"--{who}=True", '--troubleshoot=True'])
 
 #path = "/data/user/mromfoe/software/fastresponse/output/"
 path = "/data/user/jthwaites/FastResponseAnalysis/output/"
@@ -57,12 +54,13 @@ for file in all_dictionary["Name"]:
         c_timestamp = os.path.getctime(file)
         c_datestamp = datetime.datetime.utcfromtimestamp(c_timestamp)
         all_dictionary['Time_Stamp'].append(c_datestamp)
+print('Finished loading all latencies.')
 
 #Setting conditions for call to be made if script fails. Condition: if more than 2 hours pass between alerts
 if (Time(datetime.datetime.utcnow()).mjd - max(Time(all_dictionary["Time_Stamp"]).mjd)) > 3600.*2/86400:
-        print(datetime.datetime.utcnow())
-        print(max(all_dictionary["Time_Stamp"]))
-        #dial_up()
+        #print(datetime.datetime.utcnow())
+        #print(max(all_dictionary["Time_Stamp"]))
+        dial_up()
         x = (Time(datetime.datetime.utcnow()).mjd - max(Time(all_dictionary["Time_Stamp"]).mjd))*24
         print("It has been " +str(x) +" hours since last update to gw mocks.")
 #        print("Uh oh... spaghetti-o's")
@@ -103,6 +101,7 @@ for file in First_Batch["Name"]:
         c_timestamp = os.path.getctime(file)
         c_datestamp = datetime.datetime.fromtimestamp(c_timestamp)
         First_Batch['Time_Stamp'].append(c_datestamp)
+print('Finished loading 1st map latencies.')
 
 #Breakdown full name of files created so only necessary parts are saved (i.e., the code for the event and number of the map)
 pieces = [string.split('-') for string in Quality_Pickles]
@@ -147,6 +146,7 @@ for file in Last_Batch["Name"]:
         c_timestamp = os.path.getctime(file)
         c_datestamp = datetime.datetime.fromtimestamp(c_timestamp)
         Last_Batch['Time_Stamp'].append(c_datestamp)
+print('Finished loading last map latencies')
 
 First_TS = []
 Last_TS = []

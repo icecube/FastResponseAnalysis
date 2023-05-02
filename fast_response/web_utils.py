@@ -13,6 +13,9 @@ import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 import fast_response
 
+username = pwd.getpwuid(os.getuid())[0]
+if username == 'realtime': username='jthwaites'
+
 ############################# Plotting Parameters #############################
 mpl.rcParams['text.usetex'] = True
 try:
@@ -113,7 +116,7 @@ def createFastResponsePage(analysis, gw=False):
     keypairs = [('ANALYSISTS', 'ts'), ('ANALYSISNS', 'ns'), ('ANALYSISP', 'p')]
     base_path = os.path.dirname(fast_response.__file__)
     html_base = f'{base_path}/../html/'
-    username = pwd.getpwuid(os.getuid())[0]
+    
     with open(f'{html_base}analysis_base.html', 'r') as f:
         for line in f.readlines():
             for k, r in keypairs:
@@ -142,7 +145,7 @@ def createFastResponsePage(analysis, gw=False):
             if 'ANALYSISID' in new_f[i]:
                 new_f[i] = new_f[i].replace('ANALYSISID', analysis['analysisid'])  
             if 'ANALYZER' in new_f[i]:
-                new_f[i] = new_f[i].replace('ANALYZER', username)
+                new_f[i] = new_f[i].replace('ANALYZER', pwd.getpwuid(os.getuid())[0])
             if gw:
                 if 'webpage' in new_f[i]:
                     new_f[i] = new_f[i].replace('webpage', 'gw-webpage')
@@ -178,7 +181,7 @@ def updateFastResponseTable(analysis, gw=False):
     '''.format(analysis['analysisid'], analysis['name'], analysis['start'],
                 (analysis['stop'] - analysis['start']) * 86400., 
                     ra, dec, analysis['p'])
-    username = pwd.getpwuid(os.getuid())[0]
+    
     with open(f"/home/{username}/public_html/FastResponse/webpage/index.html", "r") as f:    
         lines = f.readlines()
     ind = None
@@ -221,7 +224,7 @@ def updateGWTable(analysis):
                 analysis['start'], ra, dec, ts,
                 analysis['ns'], analysis['gamma'], 
                 analysis['p'])
-    username = pwd.getpwuid(os.getuid())[0]
+    
     with open(f"/home/{username}/public_html/FastResponse/gw-webpage/index.html", "r") as f:    
         lines = f.readlines()
     ind = None
@@ -242,7 +245,6 @@ def updateFastResponsePlots(gw=False):
     p-value distribution, etc.)
     '''
     base_path = os.path.dirname(fast_response.__file__)
-    username = pwd.getpwuid(os.getuid())[0]
 
     if gw: 
         df = pd.read_pickle(f'{base_path}/results_dataframe_gw.pkl')
@@ -322,7 +324,6 @@ def updateGW_public(analysis):
                 duration, str(analysis['n_events_coinc']), analysis['sens_low'],
                 analysis['sens_high'], extra_info)
     
-    username = pwd.getpwuid(os.getuid())[0]
     with open(f"/home/{username}/public_html/public_FRA/gw-webpage/index.html", "r") as f:    
         lines = f.readlines()
     ind = None
@@ -347,7 +348,6 @@ def createGWEventPage(analysis):
     new_f = []
     base_path = os.path.dirname(fast_response.__file__)
     html_base = f'{base_path}/../html/'
-    username = pwd.getpwuid(os.getuid())[0]
 
     with open(f'{html_base}gw_pub_templ_base.html', 'r') as f:
         for line in f.readlines():
@@ -406,7 +406,6 @@ def createGWEventPage(analysis):
 def sync_to_roc():
     #subprocess.Popen('rsync -a /home/apizzuto/public_html/FastResponse/webpage/ apizzuto@roc.icecube.wisc.edu:/mnt/roc/www/internal/fast_response')
     env = dict(os.environ)
-    username = pwd.getpwuid(os.getuid())[0]
     subprocess.call(['rsync', '-a', f'/home/{username}/public_html/FastResponse/webpage/',
                         '{username}@roc.icecube.wisc.edu:/mnt/roc/www/internal/fast_response'],
                         env = env
