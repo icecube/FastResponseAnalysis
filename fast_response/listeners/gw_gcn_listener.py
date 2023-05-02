@@ -62,9 +62,13 @@ def process_gcn(payload, root):
 
     if root.attrib['role']=='observation':
         ## Call everyone because it's a real event!
-        call_command = [os.path.join(analysis_path, 'make_call.py')]
+        username = pwd.getpwuid(os.getuid())[0]
+        if username == 'realtime':
+            call_command = [os.path.join(analysis_path, 'make_call.py')]
+        else:
+            call_command=['/cvmfs/icecube.opensciencegrid.org/users/jthwaites/make_call.py']
     
-        call_args = ['--jessie']
+        call_args = []#['--jessie']
         for arg in call_args:
             call_command.append(arg+'=True')
         try:
@@ -200,7 +204,7 @@ def process_gcn(payload, root):
     log_file.flush()
 
 if __name__ == '__main__':
-    import os, subprocess
+    import os, subprocess, pwd
     import healpy as hp
     import numpy as np
     import lxml.etree
