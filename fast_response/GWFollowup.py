@@ -292,7 +292,8 @@ class GWFollowup(PriorFollowup):
         else:
             significance = '{:1.2f}'.format(self.significance(pvalue))
 
-            info = ' <dt>   <ra>       <dec>          <angErr>                    <p_gwava>                 <p_llama>\n'
+            #info = ' <dt>   <ra>       <dec>          <angErr>                    <p_gwava>                 <p_llama>\n'
+            info = '  <dt>\t\t <ra>\t\t <dec>\t\t <angErr>\t\t\t\t <p_gwava>\t\t\t\t\t <p_llama>\n'
             table = ''
             n_coincident_events=0
             for event in events:
