@@ -60,15 +60,16 @@ def process_gcn(payload, root):
     
     print('\n' +'INCOMING ALERT FOUND: ',datetime.utcnow())
 
-    if root.attrib['role']=='observation':
+    if root.attrib['role']=='observation' and not mock:
         ## Call everyone because it's a real event!
         username = pwd.getpwuid(os.getuid())[0]
-        if username == 'realtime':
-            call_command = [os.path.join(analysis_path, 'make_call.py')]
-        else:
-            call_command=['/cvmfs/icecube.opensciencegrid.org/users/jthwaites/make_call.py']
+        #if username == 'realtime':
+        #    call_command = [os.path.join(analysis_path, 'make_call.py')]
+        #else:
+        #    call_command=['/cvmfs/icecube.opensciencegrid.org/users/jthwaites/make_call.py']
+        call_command=['/cvmfs/icecube.opensciencegrid.org/users/jthwaites/make_call.py']
     
-        call_args = []#['--jessie']
+        call_args = ['--justin']
         for arg in call_args:
             call_command.append(arg+'=True')
         try:
@@ -82,13 +83,7 @@ def process_gcn(payload, root):
     # Read trigger time of event
     eventtime = root.find('.//ISOTime').text
     event_mjd = Time(eventtime, format='isot').mjd
-    '''
-    if root.attrib['role'] == 'test':
-        #if testing, want to query livestream rather than load archival, so use recent time
-        eventtime = '2023-01-13T21:51:25.506'
-        event_mjd = Time(eventtime, format='isot').mjd - 400./86400.
-        eventtime = Time(event_mjd, format = 'mjd').isot
-    '''
+    print(f'Alert MJD: {event_mjd}')
     print('GW merger time: %s \n' % Time(eventtime, format='isot').iso)
     log_file.flush()
 
@@ -114,18 +109,23 @@ def process_gcn(payload, root):
     # Skymap distributed is a different format than previous, but previous is available.
     # Download correct format from GraceDB
     if 'multiorder' in skymap:
+        time.sleep(6.) #if we don't wait, the old format isn't uploaded
         try:
+            #HERE: added .fits but not impl yet. need to keep baystar/bilby naming?
             bayestar_map=skymap.replace('multiorder.','').split(',')
             if len(bayestar_map)==1:
-                new_map=bayestar_map[0]+'.gz'
+                suffix='.gz'
             else: 
-                new_map=bayestar_map[0]+'.gz,'+ bayestar_map[1]
-            import requests
-            ret = requests.head(new_map)
-            assert ret.status_code == 200
-            skymap=new_map
+                suffix = '.gz,'+ bayestar_map[1]
+            new_map = bayestar_map[0]+suffix
+            map_type= bayestar_map[0].split('/')[-1]
+            
+            wget.download(new_map, out=os.environ.get('FAST_RESPONSE_OUTPUT')+f'skymaps/{name}_{map_type}{suffix}')
+            skymap=os.environ.get('FAST_RESPONSE_OUTPUT')+f'skymaps/{name}_{map_type}{suffix}'
         except:
-            print('Failed to download skymap in correct format')
+            print('Failed to download skymap in correct format! \nDownload skymap and then re-run script with')
+            print(f'args:  --time {event_mjd} --name {name} --skymap PATH_TO_SKYMAP')
+            return
             #TODO: add make_call to me here if this fails
 
     if root.attrib['role'] != 'observation':
@@ -151,16 +151,6 @@ def process_gcn(payload, root):
             subprocess.call([webpage_update,  '--gw', f'--path={output}'])
         except Exception as e:
             print('Failed to push to (private) webpage.')
-            print(e)
-            log_file.flush()
-
-    output = os.path.join(os.environ.get('FAST_RESPONSE_OUTPUT'),eventtime[0:10].replace('-','_')+'_'+name)
-    #update webpages
-    webpage_update = os.path.join(analysis_path,'document.py')
-    if not mock:
-        try:
-            subprocess.call([webpage_update,  '--gw', f'--path={output}'])
-        except Exception as e:
             print(e)
             log_file.flush()
 
@@ -191,9 +181,9 @@ def process_gcn(payload, root):
     et.write(os.path.join(output, '{}-{}-{}.xml'.format(params['GraceID'], 
                         params['Pkt_Ser_Num'], params['AlertType'])), pretty_print=True)
     
-    skymap_filename=skymap.split('/')[-1]
-    subprocess.call(['wget', skymap])
-    subprocess.call(['mv', skymap_filename, output])
+    #skymap_filename=skymap.split('/')[-1]
+    #subprocess.call(['wget', skymap])
+    #subprocess.call(['mv', skymap_filename, output])
 
     if root.attrib['role'] != 'observation':
         # Move mocks to a seperate folder to avoid swamping FRA output folder
@@ -212,6 +202,7 @@ if __name__ == '__main__':
     import time
     from astropy.time import Time
     from datetime import datetime
+    import wget
 
     output_path = '/home/jthwaites/public_html/FastResponse/'
     #output_path=os.environ.get('FAST_RESPONSE_OUTPUT')
