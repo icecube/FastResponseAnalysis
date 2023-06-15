@@ -658,6 +658,7 @@ plt.legend(["Total", "Preliminary", "Initial", "Update"], loc = "upper left")
 plt.title("Reports per Day")
 plt.xlabel("Date")
 plt.ylabel("Number of Reports")
+plt.ylim([0,70])
 
 save_path='/home/mromfoe/public_html/O4_followup_monitoring/ReportsPerDay_liveupdate.png'
 
