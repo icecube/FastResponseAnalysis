@@ -19,7 +19,7 @@ from icecube import realtime_tools
 # Run only for notices of type
 # LVC_PRELIMINARY, LVC_INITIAL, or LVC_UPDATE.
 @gcn.handlers.include_notice_types(
-    #gcn.notice_types.LVC_EarlyWarning,
+    gcn.notice_types.LVC_EARLY_WARNING,
     gcn.notice_types.LVC_PRELIMINARY,
     gcn.notice_types.LVC_INITIAL,
     gcn.notice_types.LVC_UPDATE,
@@ -30,21 +30,27 @@ def process_gcn(payload, root):
     logger.setLevel(logging.INFO)
     logger.info("lvc_slack_forwarder processing GCN")
 
-    # Where to post:
-    # If real and not testing, post to #alerts-heartbeat
-    if root.attrib['role'] == 'observation':
-        slack_channel = ['#alerts-heartbeat', '#fra-shifting']
-        #slack_channel = ['#gw-mock-heartbeat','#fra-shifting']
-        heartbeat = False
-    else:
-        slack_channel = ['#gw-mock-heartbeat']
-        heartbeat = True
-
     # Read all of the VOEvent parameters from the "What" section.
     params = {elem.attrib['name']:
               elem.attrib['value']
               for elem in root.iterfind('.//Param')}
     
+    # Where to post:
+    heartbeat=False
+    if 'Significant' in params.keys():
+        if int(params['Significant'])==0:
+            #subthreshold alerts
+            heartbeat=True
+
+    if realtime_tools.config.TESTING:
+        slack_channel = ['#test_messaging']
+    elif root.attrib['role'] == 'observation' and not heartbeat:
+        slack_channel = ['#alerts', '#alerts-heartbeat', '#gwnu-heartbeat','#fra-shifting']
+    elif root.attrib['role'] == 'observation':
+        slack_channel = ['#alerts-heartbeat', '#gwnu-heartbeat']
+    else:
+        slack_channel = ['#gw-mock-heartbeat']
+
     #If retracted - most parameters will be missing. Post link to GraceDB and event name only
     if params['AlertType'] =='Retraction':
         slack_message = {
@@ -60,21 +66,8 @@ def process_gcn(payload, root):
     
     # Respond only to 'CBC' events. Change 'CBC' to "Burst'
     # to respond to only unmodeled burst events.
-    if params['Group'] != 'CBC':
-        return
-    
-    if 'Significant' in params.keys():
-        if int(params['Significant'])==0: 
-            #not significant, do not run and post only to heartbeat
-            slack_message = {
-                "icon_emoji": ":gw:",
-                "text" : "Found subthreshold LVK event {0}. See URL: {1}.".format(params['GraceID'], params['EventPage']),
-            } 
-            realtime_tools.messaging.to_slack(channel='#gw-mock-heartbeat',
-                                      username="lvc-gcn-bot",
-                                      content=slack_message["text"],
-                                      **slack_message)
-            return
+    #if params['Group'] != 'CBC':
+    #    return
 
     lvc_params = {}
     lvc_params["Alert Time"] = root.find("./WhereWhen//ISOTime").text
@@ -90,15 +83,12 @@ def process_gcn(payload, root):
         lvc_params["BNS Prob"] = round(float(params['BNS']),4)
     if 'NSBH' in params:
         lvc_params["NSBH Prob"] = round(float(params['NSBH']),4)
-    #if 'MassGap' in params:
-    #    lvc_params["MassGap Prob"] = round(float(params['MassGap']),4)
-    #could be called Noise in new format
     if 'Noise' in params:
         lvc_params['Terrestrial Prob'] = round(float(params['Noise']),4)
     if 'Terrestrial' in params:
         lvc_params["Terrestrial Prob"] = round(float(params['Terrestrial']),4)
     if 'Significant' in params:
-        lvc_params['Significant']=bool(int(params['Significant']))
+        lvc_params['Significant'] = 'True' if int(params['Significant'])==1 else 'False'
     
     #properties to tell if there is a neutron star
     if 'HasRemnant' in params:
@@ -129,7 +119,7 @@ def process_gcn(payload, root):
                 assert ret.status_code == 200
                 skymap_link=new_map
             except:
-                print('Failed to download skymap in correct format')
+                logger.warning('Failed to download skymap in correct format')
 
         try:
             skymap, header = hp.read_map(skymap_link, h=True, verbose=False)
@@ -165,10 +155,10 @@ def process_gcn(payload, root):
     slack_fields = slack_fields_start + slack_fields_end
     obs_type = params['AlertType']
 
-    if heartbeat:
+    if root.attrib['role'] != 'observation':
         text = "Mock LVK alert received: Type: {0}".format(obs_type)
     else: 
-        "LVK alert received: Type: {0}".format(obs_type)
+        text = "LVK alert received: Type: {0}".format(obs_type)
     slack_message = {
         "icon_emoji": ":gw:",
         "text" : text,
@@ -188,8 +178,8 @@ def process_gcn(payload, root):
     ]
     slack_message["attachments"] = slack_attach
 
-    # if not Preliminary, just a brief post (was also for Initial):
-    if obs_type !='Preliminary': #and obs_type != 'Initial':
+    # # if not Initial or Preliminary, just a brief post:
+    if obs_type !='Preliminary' and obs_type != 'Initial' and obs_type != 'EarlyWarning':
         slack_message = {
             "icon_emoji": ":gw:",
             "text" : "LVK alert info received: Type: {0}. See URL: {1}.".format(obs_type,
@@ -202,7 +192,7 @@ def process_gcn(payload, root):
                                       content=slack_message["text"],
                                       **slack_message)
     
-    #if there is an NS: dup post to alerts
+    '''#if there is an NS
     has_ns=False
     if ('BNS Prob' and 'NSBH Prob') in lvc_params.keys():
         if lvc_params["BNS Prob"]+lvc_params["NSBH Prob"]>0.5:
@@ -213,19 +203,18 @@ def process_gcn(payload, root):
         elif lvc_params['HasNS Prob'] > 0.5:
             has_ns=True
     
-    #if has_ns == True and not realtime_tools.config.TESTING and root.attrib['role'] == 'observation':
     if has_ns == True and not heartbeat:
         if obs_type == 'Initial' or obs_type =='Preliminary':
-#CHANGE CHANNEL here
-            #realtime_tools.messaging.to_slack(channel='#alerts',
-            #                                  username="lvc-gcn-bot",
-            #                                  content=slack_message["text"],
-            #                                  **slack_message)
-            print('Prob of having NS > 50%')
+            realtime_tools.messaging.to_slack(channel='#alerts',
+                                              username="lvc-gcn-bot",
+                                              content=slack_message["text"],
+                                              **slack_message)
+            #print('Prob of having NS > 50%')
+    '''
 
     # Make skymap, save to memfile
     # only post if Preliminary (or initial)
-    if obs_type == 'Preliminary' or obs_type == 'Initial':
+    if obs_type == 'Preliminary' or obs_type == 'Initial' or obs_type=='EarlyWarning':
         if skymap is not None:
             cmap = plt.cm.YlOrBr
             cmap.set_under('w')
@@ -248,7 +237,7 @@ def process_gcn(payload, root):
             memfile = io.BytesIO()
             plt.savefig(memfile, format = 'png', dpi = 150)
         
-            with open('gw_token.txt') as f:
+            with open('/cvmfs/icecube.opensciencegrid.org/users/jthwaites/tokens/gw_token.txt') as f:
                 my_key = f.readline()
 
             #post to slack
@@ -262,41 +251,21 @@ def process_gcn(payload, root):
                                            'channels': channel},
                                      files={'file': memfile}
                                      )
-            if response.ok is True:
-                logger.info("LVK skymap posted OK")
-            else:
-                logger.error("Error posting skymap!")
-
-            '''
-
-            ## if this is a prelim/Initial alert and we're NOT testing....dup post to #alerts
-            if has_ns == True and not heartbeat:
-                ## rewind the memfile so you can re-read.
-                memfile.seek(0)
-                response = requests.post('https://slack.com/api/files.upload',
-                                         timeout=60,
-                                         params={'token': my_key},
-                                         data={'filename':'lvc_skymap.png',
-                                               'title': 'LVC GraceDB Skymap',
-                                               'channels': '#alerts'},
-                                         files={'file': memfile}
-                                         )
                 if response.ok is True:
-                    logger.info("LVC skymap posted to alerts channel OK")
+                    logger.info("LVK skymap posted OK to {}".format(channel))
                 else:
-                    logger.error("Error posting skymap to alerts channel!")
-    '''
+                    logger.error("Error posting skymap to {}!".format(channel))
                 
         
 # create the daemon functionality, this one listens to EVERYTHING
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='FRA GW followup')
-    parser.add_argument('--run_live', action='store_true', default=False,
+    parser.add_argument('--testing', action='store_true', default=False,
                         help='Run on live GCNs')
     args = parser.parse_args()
 
-    if args.run_live:
+    if not args.testing:
         # Listen for GCNs until the program is interrupted
         # (killed or interrupted with control-C).
         logger = logging.getLogger()
@@ -310,19 +279,21 @@ if __name__ == '__main__':
         import lxml.etree
         import os, time
         
-        files = ['/data/user/jthwaites/FastResponseAnalysis/fast_response/sample_skymaps/MS181101ab-1-Preliminary.xml']#,
-                 #'/data/user/jthwaites/FastResponseAnalysis/fast_response/sample_skymaps/S200308e-3-Retraction.xml']
+        #example files for all types live in /realtime_scripts/resources/test/
+        files = ['S230524x-1-EarlyWarning.xml,0']
+                 #'MS181101ab-1-Preliminary.xml',
+                 #'S200308e-3-Retraction.xml']
    
         # excerise prelim, initial, update alerts:
         for file in files:
             src_path = os.environ['I3_SRC']
-            #test_file = src_path+'/realtime_scripts/resources/test/'+file
-            #print(test_file)
-            test_file=file
+            src_path = '/data/user/jthwaites/realtime_updated'
+            test_file = src_path+'/realtime_scripts/resources/test/'+file
 
             payload = open(test_file, 'rb').read()
             root = lxml.etree.fromstring(payload)
-            root.attrib['role'] == 'test'
+            root.attrib['role'] = 'test'
+
             process_gcn(payload, root)
 
 
