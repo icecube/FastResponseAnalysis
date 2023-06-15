@@ -16,6 +16,7 @@ import matplotlib           as mpl
 import matplotlib.pyplot    as plt
 from astropy.time           import Time
 from scipy.special          import erfinv
+from matplotlib.lines       import Line2D
 
 from skylab.datasets        import Datasets
 from skylab.llh_models      import EnergyLLH
@@ -443,8 +444,11 @@ class FastResponseAnalysis(object):
         prior or a zoomed in version like traditional fast response
         followups
         '''
-        self.plot_skymap_zoom(with_contour=with_contour, contour_files=contour_files)
-        self.plot_skymap(with_contour=with_contour, contour_files=contour_files)  
+        try:
+            self.plot_skymap_zoom(with_contour=with_contour, contour_files=contour_files)
+        except:
+            print('Failed to make skymap zoom plot')
+        self.plot_skymap(with_contour=with_contour, contour_files=contour_files) 
 
     def plot_skymap_zoom(self, with_contour=False, contour_files=None):
         r'''Make a zoomed in portion of a skymap with
@@ -557,8 +561,20 @@ class FastResponseAnalysis(object):
         else:
             skymap = self.skymap
             max_val = max(skymap)
+            min_val = min(skymap)
         moll_cbar = True if self.skymap is not None else None
-        hp.mollview(skymap, coord='C', cmap=cmap, rot=180, cbar=moll_cbar)
+
+        try:
+            hp.mollview(skymap, coord='C', cmap=cmap, rot=180, cbar=moll_cbar)
+        except Exception as e:
+            if min_val<1.0e-16:
+                #for some reason, sometimes have an underflow issue here
+                skymap[skymap<1.0e-16] = 0.
+            else: 
+                print(e)
+                print('Failed to make all-sky unblinded skymap. Retry making full skymap! ')
+                return
+
         plt.text(2.0,0., r"$0^\circ$", ha="left", va="center")
         plt.text(1.9,0.45, r"$30^\circ$", ha="left", va="center")
         plt.text(1.4,0.8, r"$60^\circ$", ha="left", va="center")
@@ -581,7 +597,9 @@ class FastResponseAnalysis(object):
         sigma_90 = events['sigma']*self._angScale
 
         # plot events on sky with error contours
+        handles=[]
         hp.projscatter(theta,phi,c=cols,marker='x',label='GFU Event',coord='C', zorder=5)
+        handles.append(Line2D([0], [0], marker='x', ls='None', label='GFU Event'))
 
         if (self.stop - self.start) <= 0.5:        #Only plot contours if less than 2 days
             for i in range(events['ra'].size):
@@ -595,6 +613,7 @@ class FastResponseAnalysis(object):
             src_phi = self.ra
             hp.projscatter(src_theta, src_phi, c = 'k', marker = '*',
                                 label = self.name, coord='C', s=350)
+            handles.append(Line2D([0], [0], marker='*', c='k', ls='None', label=self.name))
 
         if contour_files is not None:
             cont_ls = ['solid', 'dashed']
@@ -614,12 +633,13 @@ class FastResponseAnalysis(object):
             levels = [0.9]
             theta, phi = plotting_utils.plot_contours(levels, probs)
             hp.projplot(theta[0], phi[0], linewidth=2., c='k', label='Skymap (90\% cont.)')
+            handles.append(Line2D([0], [0], lw=2, c='k', label=r"Skymap (90\% cont.)"))
             for i in range(1, len(theta)):
                 hp.projplot(theta[i], phi[i], linewidth=2., c='k')
 
         # plt.title('Fast Response Skymap')
         plt.title(self.name.replace('_', ' '))
-        plt.legend(loc=1)
+        plt.legend(loc=1, handles=handles)
         plt.savefig(self.analysispath + '/' + self.analysisid + 'unblinded_skymap.png',bbox_inches='tight')
         plt.close()
 
