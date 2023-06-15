@@ -21,3 +21,4 @@ fast_response/results_dataframe_bkup.pkl
 fast_response/scripts/make_call.py
 cascade_skymaps/
 *.png
+fast_response/test_plotting*

@@ -81,8 +81,10 @@ def updateDataFrame(analysis, gw=False, make_df=False):
     ra = np.nan if 'ra' not in analysis.keys() else analysis['ra'] * 180. / np.pi
     ext = 0.0 if 'extension' not in analysis.keys() else analysis['extension'] * 180. / np.pi
     upper_lim = np.nan if 'upper_limit' not in analysis.keys() else analysis['upper_limit']
-    low_en = np.nan if 'low_en' not in analysis.keys() else analysis['low_en']
-    high_en = np.nan if 'high_en' not in analysis.keys() else analysis['high_en']
+    #note that this upper_lim will be np.nan for any skymap followup, because then we send out a sens_range
+    
+    #low_en = np.nan if 'low_en' not in analysis.keys() else analysis['low_en']
+    #high_en = np.nan if 'high_en' not in analysis.keys() else analysis['high_en']
 
     if gw:
         new_list = [analysis['p'], pd.Timestamp(Time(analysis['start'], format='mjd').iso),
@@ -93,7 +95,7 @@ def updateDataFrame(analysis, gw=False, make_df=False):
         new_list = [ra, dec, analysis['p'],
                 analysis['ns'], pd.Timestamp(Time(analysis['start'], format='mjd').iso), 
                 pd.Timedelta(analysis['stop'] - analysis['start'], unit='day'),
-                ext, None, analysis['ts'], evid, upper_lim, (low_en, high_en)]
+                ext, None, analysis['ts'], evid, upper_lim, analysis['energy_range']]
     if analysis['name'] in df.index:
         num = np.count_nonzero(df.index == analysis['name'])
         analysis['name'] += '_{}'.format(num)
@@ -145,12 +147,16 @@ def createFastResponsePage(analysis, gw=False):
             if 'ANALYSISID' in new_f[i]:
                 new_f[i] = new_f[i].replace('ANALYSISID', analysis['analysisid'])  
             if 'ANALYZER' in new_f[i]:
-                new_f[i] = new_f[i].replace('ANALYZER', pwd.getpwuid(os.getuid())[0])
+                new_f[i] = new_f[i].replace('ANALYZER', username)
             if gw:
                 if 'webpage' in new_f[i]:
                     new_f[i] = new_f[i].replace('webpage', 'gw-webpage')
+                if '<tr><td>p-value:</td><td>' in new_f[i]:
+                    ind=i
 
     if gw: 
+        gracedb_link = 'https://gracedb.ligo.org/superevents/{}/view'.format(analysis['name'].split('-')[0])
+        new_f[ind+1:ind+1] = '    <tr><td>GraceDB link:</td><td><a href={}>link</a></td></tr>\n'.format(gracedb_link)
         webpage_path='/home/{}/public_html/FastResponse/gw-webpage/output/{}.html'.format(username, analysis['analysisid'])
     else: 
         webpage_path='/home/{}/public_html/FastResponse/webpage/output/{}.html'.format(username, analysis['analysisid'])
@@ -395,10 +401,18 @@ def createGWEventPage(analysis):
         </table>
         '''.format(e, event['dt'], event['ra'], event['dec'], event['ang_unc'], 
                    event['p_gen_transient'], event['p_bayesian'])
-        
+        e+=1
+    
+    # Add skymap zoom of events
+    tag += '''
+    </div>
+    <div class="content">
+    <a href="./output/{}_skymap_zoom_public.png"><img src="./output/{}_skymap_zoom_public.png" width="500"/></a>    
+    '''.format(analysis['name'], analysis['name'])
+
     new_f[ind-1:ind-1] = [t + '\n' for t in tag.split('\n')]
 
-    webpage_path='/home/{}/public_html/public_FRA/gw-webpage/{}.html'.format(username, analysis['analysisid'])
+    webpage_path='/home/{}/public_html/public_FRA/gw-webpage/output/{}.html'.format(username, analysis['analysisid'])
     with open(webpage_path, 'w') as f:
         for line in new_f:
             f.write(line)

@@ -1,12 +1,12 @@
 ********************************
-SUBJECT: LIGO/Virgo <name>: Upper limits from IceCube neutrino searches
+SUBJECT: LIGO/Virgo/KAGRA <name>: Upper limits from IceCube neutrino searches
 
 IceCube Collaboration (http://icecube.wisc.edu/) reports:
 
-Searches [1,2] for track-like muon neutrino events detected by IceCube
+Searches for track-like muon neutrino events detected by IceCube
 consistent with the sky localization of gravitational-wave candidate <name>
- in a time range of 1000 seconds [3] centered on the alert event time
-(<tstart> UTC to <tstop> UTC) have been performed. 
+ in a time range of 1000 seconds centered on the alert event time
+(<tstart> UTC to <tstop> UTC) have been performed [1,2]. 
 
 During this time period IceCube was collecting good quality data. 
 No significant track-like events are found in spatial coincidence of
@@ -22,8 +22,7 @@ operating at the geographic South Pole, Antarctica. The IceCube realtime
 alert point of contact can be reached at roc@icecube.wisc.edu
 
 
-[1] Bartos et al. arXiv:1810.11467 (2018) and Countryman et al.arXiv:1901.05486 (2019)
-[2] PoS(ICRC2019)918 and Braun et al., Astroparticle Physics 29, 299 (2008)
-[3] Baret et al., Astroparticle Physics 35, 1 (2011)
+[1] M. G. Aartsen et al 2020 ApJL 898 L10
+[2] Abbasi et al. Astrophys.J. 944 (2023) 1, 80
 
 ********************************

@@ -8,7 +8,7 @@ matplotlib.rcParams['xtick.labelsize'] = 16
 matplotlib.rcParams['ytick.labelsize'] = 16
 import matplotlib.pyplot as plt
 import numpy as np
-import pickle, glob, os, datetime
+import pickle, glob, os, datetime, pwd
 from datetime import date
 from statistics import median
 #from statistics import mode
@@ -18,6 +18,8 @@ import pandas as pd
 #from IPython.display import HTML
 #from IPython.display import display
 import subprocess
+import warnings
+warnings.filterwarnings('ignore', module='astropy._erfa')
 
 def dial_up(who="jessie"):
     cell_tower = "/cvmfs/icecube.opensciencegrid.org/users/jthwaites/"
@@ -25,13 +27,16 @@ def dial_up(who="jessie"):
     subprocess.call([cell_tower+"make_call.py", f"--{who}=True", '--troubleshoot=True'])#, "--call_file", halp])
     #print([cell_tower+"make_call.py", f"--{who}=True", '--troubleshoot=True'])
 
-#path = "/data/user/mromfoe/software/fastresponse/output/"
-path = "/data/user/jthwaites/FastResponseAnalysis/output/"
-
+#path = "/data/user/jthwaites/FastResponseAnalysis/output/"
+path=os.environ.get('FAST_RESPONSE_OUTPUT')
 out_put = '/data/user/jthwaites/o4-mocks/'
 
 #Creating readable (and callable) files from ALL pickle files previously created in gw_gcn_listener
-Pickle_to_text = sorted(glob.glob(path+'PickledMocks/*MS*.pickle'))
+if pwd.getpwuid(os.getuid())[0] == 'realtime':
+    Pickle_to_text = sorted(glob.glob(path+'PickledMocks/*MS*.pickle')+
+                            glob.glob('/data/user/jthwaites/FastResponseAnalysis/output/PickledMocks/*MS*.pickle'))
+else:
+    Pickle_to_text = sorted(glob.glob(path+'PickledMocks/*MS*.pickle'))
 
 all_dictionary = {'Trigger_Time': [], 'GCN_Alert': [], 'End_Time': [],
                         'LVK_Latency': [], 'IceCube_Latency': [], 'Total_Latency': [],
@@ -66,7 +71,12 @@ if (Time(datetime.datetime.utcnow()).mjd - max(Time(all_dictionary["Time_Stamp"]
 #        print("Uh oh... spaghetti-o's")
 
 #Sorting pickle files by date created and by most correct version
-Pickle_Files = sorted(glob.glob(path+'PickledMocks/*.pickle'))
+if pwd.getpwuid(os.getuid())[0] == 'realtime':
+    Pickle_Files = sorted(glob.glob(path+'PickledMocks/*.pickle')+
+                            glob.glob('/data/user/jthwaites/FastResponseAnalysis/output/PickledMocks/*.pickle'))
+else:
+    Pickle_Files = sorted(glob.glob(path+'PickledMocks/*.pickle'))
+#Pickle_Files = sorted(glob.glob(path+'PickledMocks/*.pickle'))
 
 date_format = "%Y-%m-%d"
 
@@ -81,8 +91,13 @@ for file in Pickle_Files:
 #Collecting the first maps created for each event for analysis
 First_Batch={'Trigger_Time': [], 'GCN_Alert': [], 'End_Time': [],
                 'LVK_Latency': [], 'IceCube_Latency': [], 'Total_Latency': [],
-                'We_had_to_wait:': [], 'Name': [], 'Time_Stamp': []}        
-First_Runs= sorted(glob.glob((path+'PickledMocks/*MS*-1-*.pickle')))
+                'We_had_to_wait:': [], 'Name': [], 'Time_Stamp': []}     
+if pwd.getpwuid(os.getuid())[0] == 'realtime':
+    First_Runs = sorted(glob.glob(path+'PickledMocks/*MS*-1-*.pickle')+
+                        glob.glob('/data/user/jthwaites/FastResponseAnalysis/output/PickledMocks/*MS*-1-*.pickle'))
+else:
+    First_Runs = sorted(glob.glob(path+'PickledMocks/*MS*-1-*.pickle'))
+#First_Runs= sorted(glob.glob((path+'PickledMocks/*MS*-1-*.pickle')))
 
 for file in First_Runs:
         if os.path.exists(file):
@@ -356,27 +371,27 @@ fig.savefig(save_path)
 fig.savefig("LVK_Latency.png")
 plt.close()
 
-from PIL import Image, ImageDraw, ImageFont
-
-img = Image.new('RGB', (370, 20), "white")
-
-d1 = ImageDraw.Draw(img)
-
-#fontname = "/data/user/mromfoe/software/fastresponse/fast_response/MonitoringAndMocks/A101HLVN.ttf"
-fontname = "/home/mromfoe/public_html/O4_followup_monitoring/A101HLVN.ttf"
-fontsize = 16
-
-MyFont = ImageFont.truetype(fontname, fontsize)
-
+#changing to matplotlib, to avoid more imports
+#from PIL import Image, ImageDraw, ImageFont
+#img = Image.new('RGB', (370, 20), "white")
+#d1 = ImageDraw.Draw(img)
+#fontname = "/home/mromfoe/public_html/O4_followup_monitoring/A101HLVN.ttf"
+#fontsize = 16
+#MyFont = ImageFont.truetype(fontname, fontsize)
 now = Time(datetime.datetime.utcnow()).iso
 
-d1.text((2, 0), "Page Last Updated: {} UTC".format(now), 
-        fill = (0, 0, 0), font = MyFont)
-
+#d1.text((2, 0), "Page Last Updated: {} UTC".format(now), 
+#        fill = (0, 0, 0), font = MyFont)
 save_path='/home/mromfoe/public_html/O4_followup_monitoring/Update_Time.png'
+#img.save(save_path)
+#img.save("Update_Time.png")
 
-img.save(save_path)
-img.save("Update_Time.png")
+fig = plt.figure(figsize=(3.70, .20))
+ax = fig.add_axes([0, 0, 1, 1])
+plt.plot([0,5],[0,100],color='white')
+ax.text(-0.1, 15, "Page Last Updated: {} UTC".format(now))
+plt.savefig(save_path)
+
 ###
 fig, axs = plt.subplots(figsize = (10, 7))
 plt.xlabel("Latency in Seconds")
@@ -643,6 +658,7 @@ plt.legend(["Total", "Preliminary", "Initial", "Update"], loc = "upper left")
 plt.title("Reports per Day")
 plt.xlabel("Date")
 plt.ylabel("Number of Reports")
+plt.ylim([0,70])
 
 save_path='/home/mromfoe/public_html/O4_followup_monitoring/ReportsPerDay_liveupdate.png'
 

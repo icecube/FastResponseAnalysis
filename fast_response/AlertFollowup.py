@@ -134,9 +134,9 @@ class AlertFollowup(PriorFollowup):
         analysis_1000['gcn_num']=str(analysis_1000['gcn_num'])
 
         if len(analysis_1000['gcn_num'])>6:
-            gcn_link='notices_amon_icecube_cascade/'+analysis_1000['gcn_num']+'.amon'
+            gcn_link='https://gcn.gsfc.nasa.gov/notices_amon_icecube_cascade/'+analysis_1000['gcn_num']+'.amon'
         else:
-            gcn_link= 'gcn3/'+ analysis_1000['gcn_num'] +'.gcn3'
+            gcn_link= 'https://gcn.nasa.gov/circulars/'+ analysis_1000['gcn_num']
         
         if 'coincident_events' not in analysis_1000.keys():
             analysis_1000['coincident_events'] = []

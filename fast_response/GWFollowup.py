@@ -12,6 +12,7 @@ import pickle
 
 from .FastResponseAnalysis import PriorFollowup
 from .reports import GravitationalWaveReport
+from skylab.datasets        import Datasets
 from skylab.llh_models      import EnergyLLH
 from skylab.spectral_models import PowerLaw 
 from skylab.temporal_models import BoxProfile, TemporalModel
@@ -106,13 +107,40 @@ class GWFollowup(PriorFollowup):
             self.tsd = max_ts
             return max_ts
 
+    def check_events_after(self):
+        '''check for events after the on-time window. 
+        This is to make sure we have all data from i3Live before running.
+        Returns a bool: 
+         check_passed = True if there is at least 1 event after tw
+         check_passed = False if there are no events after (should re-load!) '''
+
+        t1 = Time(datetime.datetime.utcnow()).mjd
+        if ((t1-self.stop)*86400.)>1000.:
+            #if it's been long enough, only load 1000s
+            print('Loading 1000s of data after the time window')
+            t1 = self.stop + 1000./86400. 
+        exp_long, livetime_long, grl_long = self.dset.livestream(
+            self.start,
+            t1,
+            load_mc=False,
+            floor=self._floor
+            )
+        
+        mask = (exp_long['time']>self.stop)
+        
+        check_passed = False
+        if exp_long[mask].size > 0:
+            check_passed = True
+            print('Found {} events after end of time window'.format(exp_long[mask].size))
+        return check_passed
+
     def initialize_llh(self, skipped=None, scramble=False):
         '''
         Grab data and format it all into a skylab llh object
         This function is very similar to the one in FastResponseAnalysis.py, 
         with the main difference being that these are low-latency enough that we may
         have to wait for the last min of data to reach i3live.
-        Initialize LLH, load ontime data, then add temporal info and ontime data to llh
+        if so, initialize LLH, load ontime data, then add temporal info and ontime data to llh
         '''
         t0 = Time(datetime.datetime.utcnow()).mjd
 
@@ -120,6 +148,13 @@ class GWFollowup(PriorFollowup):
             self.get_data(livestream_start=self.start-6., livestream_stop=self.start)
             print('Loading off-time data')
         elif self.exp is None:
+            dset = Datasets[self.dataset]
+            self.dset = dset
+            check_passed = False
+            print('Checking for events after time window')
+            while not check_passed:
+                check_passed = self.check_events_after()
+
             self.get_data()
 
         if self._verbose:
@@ -165,9 +200,14 @@ class GWFollowup(PriorFollowup):
             seed=self.llh_seed)           
 
         if self.stop > t0 + 60./86400.:
+            check_passed = False
+            print('Checking for events after time window')
+            while not check_passed:
+                check_passed = self.check_events_after()
+
             exp_on, livetime_on, grl_on = self.dset.livestream(
                 self.start, 
-                self.stop+60./86400.,
+                self.stop,
                 load_mc=False, 
                 floor=self._floor,
                 wait_until_stop=True)
@@ -292,7 +332,8 @@ class GWFollowup(PriorFollowup):
         else:
             significance = '{:1.2f}'.format(self.significance(pvalue))
 
-            info = ' <dt>   <ra>       <dec>          <angErr>                    <p_gwava>                 <p_llama>\n'
+            #info = ' <dt>   <ra>       <dec>          <angErr>                    <p_gwava>                 <p_llama>\n'
+            info = '  <dt>\t\t <ra>\t\t <dec>\t\t <angErr>\t\t\t\t <p_gwava>\t\t\t\t\t <p_llama>\n'
             table = ''
             n_coincident_events=0
             for event in events:
@@ -431,10 +472,11 @@ class GWFollowup(PriorFollowup):
         exp_theta = 0.5*np.pi - self.llh.exp['dec']
         exp_phi   = self.llh.exp['ra']
         exp_pix   = hp.ang2pix(self.nside, exp_theta, exp_phi)
-        overlap   = np.isin(exp_pix, self.ipix_90)
 
         t_mask=(self.llh.exp['time'] <= self.stop) & (self.llh.exp['time'] >= self.start)
         events = self.llh.exp[t_mask]
+        ontime_pix = hp.ang2pix(self.nside, 0.5*np.pi - events['dec'], events['ra'])
+        overlap    = np.isin(ontime_pix, self.ipix_90)
 
         events = append_fields(
             events, names=['in_contour', 'ts', 'ns', 'gamma', 'B'],
@@ -606,8 +648,8 @@ class GWFollowup(PriorFollowup):
         r'''Generates report using class attributes
         and the ReportGenerator Class'''
         report = GravitationalWaveReport(self)
-        if self.duration > 1.:
-            report._figure_list = [('decPDF', 'decPDF.png'),('ts_contours', 'ts_contours.png')]
+        #if self.duration > 1.:
+        #    report._figure_list = [('decPDF', 'decPDF.png'),('ts_contours', 'ts_contours.png')]
 
         report.generate_report()
         report.make_pdf()

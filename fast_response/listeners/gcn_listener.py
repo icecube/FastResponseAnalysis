@@ -90,9 +90,12 @@ def process_gcn(payload, root):
             return
     
     #checking for events on the same day: looks for existing output files from previous runs
-    event_name='IceCube-{}{}{}'.format(eventtime[2:4],eventtime[5:7],eventtime[8:10])
+    if alert_type=='track':
+        event_name='IceCube-{}{}{}'.format(eventtime[2:4],eventtime[5:7],eventtime[8:10]) 
+    else:
+        event_name='IceCube-Cascade_{}{}{}'.format(eventtime[2:4],eventtime[5:7],eventtime[8:10])
     count_dir=0
-    for directory in os.listdir(analysis_path+'../../output'):
+    for directory in os.listdir(os.environ.get('FAST_RESPONSE_OUTPUT')):
         if event_name in directory: count_dir+=1
     if count_dir==0: suffix='A'
     elif count_dir==2: suffix='B'
@@ -124,6 +127,13 @@ def process_gcn(payload, root):
         print(e)
         print('No slack message sent.')
 
+    #if args.document:
+    #    dir_1000 = glob.glob(os.path.join(os.environ.get('FAST_RESPONSE_OUTPUT'),
+    #                                      '*{}_1.0e+03_s').format(event_name))
+    #    subprocess.call([analysis_path+'document.py', '--path', dir_1000])
+    #    dir_2d = glob.glob(os.path.join(os.environ.get('FAST_RESPONSE_OUTPUT'),
+    #                                      '*{}_1.7e+05_s').format(event_name))
+    #    subprocess.call([analysis_path+'document.py', '--path', dir_2d])
 
 if __name__ == '__main__':
     import os, subprocess
@@ -138,12 +148,22 @@ if __name__ == '__main__':
     from glob import glob
     from fast_response.slack_posters.slack import slackbot
     import pandas as pd
+    import pwd
+
+    username = pwd.getpwuid(os.getuid())[0]
+    #default for if to document or not: only way to check reports on realtime 
+    if username == 'realtime': 
+        document = True
+    else: 
+        document = False
 
     parser = argparse.ArgumentParser(description='Fast Response Analysis')
     parser.add_argument('--run_live', action='store_true', default=False,
                         help='Run on live GCNs')
     parser.add_argument('--test_cascade', default=False, action='store_true',
                         help='When testing, raise to run a cascade, else track')
+    parser.add_argument('--document', action='store_true', default=document,
+                        help='flag to raise to push results to internal webpage')
     args = parser.parse_args()
 
     #for now, testing

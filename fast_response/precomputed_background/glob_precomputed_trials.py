@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 from glob import glob
 import healpy as hp
 from scipy import sparse
@@ -10,8 +12,8 @@ import os
 parser = argparse.ArgumentParser(description='Glob precomp trials')
 parser.add_argument('--deltaT', type=float, default=None,
                     help='Time Window in seconds')
-parser.add_argument('--outdir',type=str, default='./',
-                    help='Output directory to save npz')
+parser.add_argument('--dir',type=str, default='./',
+                    help='directory for where trials are, will save npz to dir+/glob_trials/')
 args = parser.parse_args()
 
 def glob_allsky_scans(delta_t, rate, dir, low_stats=False):
@@ -42,18 +44,18 @@ def glob_allsky_scans(delta_t, rate, dir, low_stats=False):
     # Save the sparse array
     stats_str = '' if not low_stats else '_low_stats'
     outfilename = 'gw_precomputed_trials_delta_t_{:.2e}_trials_rate_{:.1f}{}.npz'.format(delta_t, rate, stats_str)
-    if not os.path.exists(dir+'/glob_trials/'):
-        os.mkdir(dir+'/glob_trials/')
-    scan_path=dir+'/glob_trials/'
+    save_dir = os.path.join(dir, 'glob_trials')
+    if not os.path.exists(save_dir):
+        os.mkdir(save_dir)
     #scan_path = '/data/user/apizzuto/fast_response_skylab/fast-response/fast_response/precomputed_background/glob_trials/'
-    sparse.save_npz(scan_path+outfilename, scans)
+    sparse.save_npz(os.path.join(save_dir,outfilename), scans)
     
     return maps
 
-for rate in [6.0, 6.2, 6.4, 6.6, 6.8, 7.0, 7.2]:
-    for low_stats in [True]:#, False]:
+for rate in [6.0]:#, 6.2, 6.4, 6.6, 6.8, 7.0, 7.2]:
+    for low_stats in [False]:#[True, False]:
         print("Rate: {} mHz, low stats: {}".format(rate, low_stats))
-        maps = glob_allsky_scans(args.deltaT, rate, args.outdir, low_stats=low_stats)
+        maps = glob_allsky_scans(args.deltaT, rate, args.dir, low_stats=low_stats)
         del maps
         print ('done')
 
