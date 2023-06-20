@@ -132,7 +132,7 @@ def createFastResponsePage(analysis, gw=False):
                 new_f[i] = new_f[i].replace('ANALYSISSTART', Time(analysis['start'], format='mjd').iso)
             if 'ANALYSISDURATION' in new_f[i]:
                 dur = (analysis['stop'] - analysis['start']) * 86400.
-                new_f[i] = new_f[i].replace('ANALYSISDURATION', str(dur))
+                new_f[i] = new_f[i].replace('ANALYSISDURATION', str(round(dur,2)))
             if 'ANALYSISDEC' in new_f[i]:
                 dec = '-' if 'dec' not in analysis.keys() else '{:+.2f}'.format(analysis['dec'] * 180. / np.pi)
                 new_f[i] = new_f[i].replace('ANALYSISDEC', dec)
