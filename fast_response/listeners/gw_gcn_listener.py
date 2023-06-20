@@ -149,6 +149,20 @@ def process_gcn(payload, root):
     if not mock and root.attrib['role'] == 'observation':
         try:
             subprocess.call([webpage_update,  '--gw', f'--path={output}'])
+
+            wp_link = 'https://user-web.icecube.wisc.edu/~jthwaites/FastResponse/gw-webpage/output/{}.html'.format(eventtime[0:10].replace('-','_')+'_'+name)
+            slack_message = {
+                "icon_emoji": ":gw:",
+                "text" : "UML GW analysis finished running for event {}: <{}|link>.".format(name, wp_link),
+            } 
+            with open('../slack_posters/internal_alert_slackbot.txt') as f:
+                channel = f.readline().rstrip('\n')
+                webhook = f.readline().rstrip('\n')
+                bot_name = f.readline().rstrip('\n')
+
+            bot = slackbot(channel, bot_name, webhook)
+            bot.send_message(slack_message['text'],slack_message['icon_emoji'])
+            
         except Exception as e:
             print('Failed to push to (private) webpage.')
             print(e)
@@ -202,6 +216,7 @@ if __name__ == '__main__':
     import time
     from astropy.time import Time
     from datetime import datetime
+    from fast_response.slack_posters.slack import slackbot
     import wget
 
     output_path = '/home/jthwaites/public_html/FastResponse/'
