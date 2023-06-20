@@ -439,16 +439,17 @@ class FastResponseAnalysis(object):
             print("Results successfully saved")
             return self.save_items
 
-    def plot_ontime(self, with_contour=False, contour_files=None):
+    def plot_ontime(self, with_contour=False, contour_files=None, label_events=False):
         r'''Plots ontime events with either the full sky spatial
         prior or a zoomed in version like traditional fast response
         followups
+        label_events: adds a number label to events on skymap
         '''
         try:
             self.plot_skymap_zoom(with_contour=with_contour, contour_files=contour_files)
         except:
             print('Failed to make skymap zoom plot')
-        self.plot_skymap(with_contour=with_contour, contour_files=contour_files) 
+        self.plot_skymap(with_contour=with_contour, contour_files=contour_files, label_events=label_events) 
 
     def plot_skymap_zoom(self, with_contour=False, contour_files=None):
         r'''Make a zoomed in portion of a skymap with
@@ -534,7 +535,7 @@ class FastResponseAnalysis(object):
         plt.savefig(self.analysispath + '/' + self.analysisid + 'unblinded_skymap_zoom.pdf',bbox_inches='tight', dpi=300)
         plt.close()
 
-    def plot_skymap(self, with_contour=False, contour_files=None):
+    def plot_skymap(self, with_contour=False, contour_files=None, label_events=False):
         r''' Make skymap with event localization and all
         neutrino events on the sky within the given time window
         '''
@@ -599,6 +600,9 @@ class FastResponseAnalysis(object):
         # plot events on sky with error contours
         handles=[]
         hp.projscatter(theta,phi,c=cols,marker='x',label='GFU Event',coord='C', zorder=5)
+        if label_events:
+            for j in range(len(theta)):
+                hp.projtext(theta[j], phi[j]-0.11, '{}'.format(j), color='red', fontsize=18, zorder=6)
         handles.append(Line2D([0], [0], marker='x', ls='None', label='GFU Event'))
 
         if (self.stop - self.start) <= 0.5:        #Only plot contours if less than 2 days

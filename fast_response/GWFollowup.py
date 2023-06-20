@@ -289,8 +289,8 @@ class GWFollowup(PriorFollowup):
         plt.savefig(self.analysispath + '/' + self.analysisid + 'ts_contours.pdf',bbox_inches='tight', dpi=300)
         plt.close()
         
-    def plot_ontime(self, with_contour=True, contour_files=None):
-        return super().plot_ontime(with_contour=True, contour_files=contour_files)
+    def plot_ontime(self, with_contour=True, contour_files=None, label_events=True):
+        return super().plot_ontime(with_contour=True, contour_files=contour_files, label_events=label_events)
 
     def write_circular(self):
         base = os.path.dirname(fast_response.__file__)
