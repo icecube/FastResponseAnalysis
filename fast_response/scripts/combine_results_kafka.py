@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-#rm ln 103/4!!!
 import logging
 from datetime import datetime
 import socket
@@ -167,10 +166,12 @@ def parse_notice(record, wait_for_llama=False, heartbeat=False):
     logger = logging.getLogger()
 
     if record.attrib['role']!='observation':
-        logger.warning('found test event')
         fra_results_location = '/data/user/jthwaites/o4-mocks/'
         if not heartbeat:
+            logger.warning('found test event - not in mock mode. returning')
             return
+        else:
+            logger.warning('found test event')
     else:
         logger.warning('ALERT FOUND')
         fra_results_location = os.environ.get('FAST_RESPONSE_OUTPUT')
@@ -412,12 +413,51 @@ def parse_notice(record, wait_for_llama=False, heartbeat=False):
         st = 'sent' if status == 0 else 'error!'
         logger.info('status: {}'.format(status))
         logger.info('{}'.format(st))
+
+        if status ==0:
+            #send the notice to slack (#gwnu-heartbeat for now)
+            with open('/cvmfs/icecube.opensciencegrid.org/users/jthwaites/tokens/gw_token.txt') as f:
+                my_key = f.readline()
+                
+            channel = '#gwnu-heartbeat'
+            with open(os.path.join(save_location, f'{name}_collected_results.json'),'r') as fi:
+                response = requests.post('https://slack.com/api/files.upload',
+                                        timeout=60,
+                                        params={'token': my_key},
+                                        data={'filename':'gcn.json',
+                                            'title': f'GCN Notice for {name}',
+                                            'channels': channel},
+                                        files={'file': fi}
+                                        )
+            if response.ok is True:
+                logger.info("GCN posted OK to {}".format(channel))
+            else:
+                logger.info("Error posting skymap to {}!".format(channel))
         
     else:
         with open(os.path.join(save_location, f'mocks/{name}_collected_results.json'),'w') as f:
             json.dump(collected_results, f, indent = 6)
         #status = SendTestAlert(results = collected_results)
         #logger.info('status: {}'.format(status))
+
+        #send the notice to slack (#gw-mock-heartbeat)
+        with open('/cvmfs/icecube.opensciencegrid.org/users/jthwaites/tokens/gw_token.txt') as f:
+            my_key = f.readline()
+                
+        channel = '#gw-mock-heartbeat'
+        with open(os.path.join(save_location, f'mocks/{name}_collected_results.json'),'r') as fi:
+            response = requests.post('https://slack.com/api/files.upload',
+                                    timeout=60,
+                                    params={'token': my_key},
+                                    data={'filename':'gcn.json',
+                                          'title': f'GCN Notice for {name}',
+                                          'channels': channel},
+                                    files={'file': fi}
+                                    )
+        if response.ok is True:
+            logger.info("GCN posted OK to {}".format(channel))
+        else:
+            logger.info("Error posting skymap to {}!".format(channel))
 
     # Adding a few extra keys needed to create public webpage
     for key in additional_website_params.keys():
