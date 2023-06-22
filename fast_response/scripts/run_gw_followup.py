@@ -20,7 +20,7 @@ parser.add_argument('--time', type=float, default=None,
                     help='Time of the GW (mjd)')
 parser.add_argument('--name', type=str,
                     default="name of GW event being followed up")
-parser.add_argument('--tw', default = 1000, type=int,
+parser.add_argument('--tw', default = 1000, type=int, #2 week: 1218240
                     help = 'Time window for the analysis (default = 1000)')
 parser.add_argument('--allow_neg_ts', type=bool, default=False,
                     help='bool to allow negative TS values in gw analysis.')

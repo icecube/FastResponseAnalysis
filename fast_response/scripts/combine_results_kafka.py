@@ -254,7 +254,8 @@ def parse_notice(record, wait_for_llama=False, heartbeat=False):
 
         if subthreshold and llama_results_finished:
             #no UML results in subthreshold case, only LLAMA
-            results_done=True
+            results_done = True
+            uml_results_finished = False
             logger.info('found results for LLAMA for subthreshold event, writing notice')
 
         if uml_results_finished and llama_results_finished:
@@ -418,10 +419,14 @@ def parse_notice(record, wait_for_llama=False, heartbeat=False):
             #send the notice to slack (#gwnu-heartbeat for now)
             with open('/cvmfs/icecube.opensciencegrid.org/users/jthwaites/tokens/gw_token.txt') as f:
                 my_key = f.readline()
-                
-            channel = '#gwnu-heartbeat'
-            with open(os.path.join(save_location, f'{name}_collected_results.json'),'r') as fi:
-                response = requests.post('https://slack.com/api/files.upload',
+            
+            if not subthreshold:
+                channels = ['#gwnu-heartbeat', '#gwnu','#alerts']
+            else:
+                channels = ['#gwnu-heartbeat']
+            for channel in channels:
+                with open(os.path.join(save_location, f'{name}_collected_results.json'),'r') as fi:
+                    response = requests.post('https://slack.com/api/files.upload',
                                         timeout=60,
                                         params={'token': my_key},
                                         data={'filename':'gcn.json',
@@ -429,10 +434,10 @@ def parse_notice(record, wait_for_llama=False, heartbeat=False):
                                             'channels': channel},
                                         files={'file': fi}
                                         )
-            if response.ok is True:
-                logger.info("GCN posted OK to {}".format(channel))
-            else:
-                logger.info("Error posting skymap to {}!".format(channel))
+                if response.ok is True:
+                    logger.info("GCN posted OK to {}".format(channel))
+                else:
+                    logger.info("Error posting skymap to {}!".format(channel))
         
     else:
         with open(os.path.join(save_location, f'mocks/{name}_collected_results.json'),'w') as f:
@@ -462,6 +467,7 @@ def parse_notice(record, wait_for_llama=False, heartbeat=False):
     # Adding a few extra keys needed to create public webpage
     for key in additional_website_params.keys():
         collected_results[key] = additional_website_params[key]
+        collected_results['subthreshold'] = subthreshold
     
     #web_utils.updateGW_public(collected_results)
 
