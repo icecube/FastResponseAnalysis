@@ -43,30 +43,27 @@ def process_gcn(payload, root):
               for elem in root.iterfind('.//Param')}
     name = root.attrib['ivorn'].split('#')[1]
     
-    # if this is the listener for real events and it gets a mock, skip running on it
-    if not mock and root.attrib['role']!='observation':
-        return
     # only run on significant events
     if 'Significant' in params.keys():
         if int(params['Significant'])==0: 
             #not significant, do not run
             print(f'Found a subthreshold event {name}')
+            root.attrib['role']='test'
             log_file.flush()
-            return
+            #return
     else:
         # O3 does not have this parameter, this should only happen for testing
         print('No significance parameter found in LVK GCN.')
         log_file.flush()
+    # if this is the listener for real events and it gets a mock (or low signficance), skip it
+    if not mock and root.attrib['role']!='observation':
+        return
     
     print('\n' +'INCOMING ALERT FOUND: ',datetime.utcnow())
-
+    log_file.flush()
+    
     if root.attrib['role']=='observation' and not mock:
         ## Call everyone because it's a real event!
-        username = pwd.getpwuid(os.getuid())[0]
-        #if username == 'realtime':
-        #    call_command = [os.path.join(analysis_path, 'make_call.py')]
-        #else:
-        #    call_command=['/cvmfs/icecube.opensciencegrid.org/users/jthwaites/make_call.py']
         call_command=['/cvmfs/icecube.opensciencegrid.org/users/jthwaites/make_call.py']
     
         call_args = ['--justin']
@@ -151,17 +148,15 @@ def process_gcn(payload, root):
             subprocess.call([webpage_update,  '--gw', f'--path={output}'])
 
             wp_link = 'https://user-web.icecube.wisc.edu/~jthwaites/FastResponse/gw-webpage/output/{}.html'.format(eventtime[0:10].replace('-','_')+'_'+name)
-            slack_message = {
-                "icon_emoji": ":gw:",
-                "text" : "UML GW analysis finished running for event {}: <{}|link>.".format(name, wp_link),
-            } 
+            slack_message = "UML GW analysis finished running for event {}: <{}|link>.".format(name, wp_link) 
             with open('../slack_posters/internal_alert_slackbot.txt') as f:
-                channel = f.readline().rstrip('\n')
+                chan = f.readline().rstrip('\n')
                 webhook = f.readline().rstrip('\n')
                 bot_name = f.readline().rstrip('\n')
 
-            bot = slackbot(channel, bot_name, webhook)
-            bot.send_message(slack_message['text'],slack_message['icon_emoji'])
+            for channel in ['#fra-shifting','#gwnu']:
+                bot = slackbot(channel, bot_name, webhook)
+                bot.send_message(slack_message,'gw')
             
         except Exception as e:
             print('Failed to push to (private) webpage.')
@@ -271,7 +266,8 @@ if __name__ == '__main__':
             print(e)
             sample_skymap_path='/data/user/jthwaites/o3-gw-skymaps/'
         
-        payload = open(os.path.join(sample_skymap_path,args.test_path), 'rb').read()
+        #payload = open(os.path.join(sample_skymap_path,args.test_path), 'rb').read()
+        payload = open(args.test_path,'rb').read()
         root = lxml.etree.fromstring(payload) 
 
         mock=args.heartbeat
