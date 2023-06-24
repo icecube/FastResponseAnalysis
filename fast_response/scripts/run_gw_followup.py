@@ -55,7 +55,10 @@ f.save_items['merger_time'] = Time(gw_time, format='mjd').iso
 f.save_items['skymap_link'] = args.skymap
 
 f.unblind_TS()
-f.plot_ontime()
+if args.tw>1000:
+    f.plot_ontime(label_events = False)
+else:
+    f.plot_ontime()
 
 f.calc_pvalue()
 f.make_dNdE()
