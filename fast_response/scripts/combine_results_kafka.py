@@ -219,8 +219,8 @@ def parse_notice(record, wait_for_llama=False, heartbeat=False):
     ### WAIT ###
     # wait until the 500s has elapsed for data
     current_mjd = Time(datetime.utcnow(), scale='utc').mjd
-    #needed_delay = 500./84600. 
-    needed_delay = 720./86400. #12 mins while lvk_dropbox is offline
+    needed_delay = 500./84600. 
+    #needed_delay = 720./86400. #12 mins while lvk_dropbox is offline
     current_delay = current_mjd - event_mjd
 
     while current_delay < needed_delay:
@@ -247,23 +247,23 @@ def parse_notice(record, wait_for_llama=False, heartbeat=False):
                                    + '/' + start_str + '_' + name.replace(' ', '_')+'_results.pickle')
         uml_results_finished = os.path.exists(uml_results_path)
 
-        #llama_name = '{}.significance_subthreshold_lvc-i3.json'.format(record.attrib['ivorn'].split('#')[1])
-        #llama_results_path = os.path.join(llama_results_location,llama_name)
-        #if wait_for_llama:
-        #    llama_results_finished = os.path.exists(llama_results_path)
-        #else: 
-        #    llama_results_finished = False
-        llama_name = '{}*-significance_subthreshold_lvc-i3.json'.format(record.attrib['ivorn'].split('#')[1])
+        llama_name = '{}.significance_subthreshold_lvc-i3.json'.format(record.attrib['ivorn'].split('#')[1])
         llama_results_path = os.path.join(llama_results_location,llama_name)
         if wait_for_llama:
-            llama_results_glob = sorted(glob.glob(llama_results_path))
-            if len(llama_results_glob)>0:
-                llama_results_path = llama_results_glob[-1]
-                llama_results_finished=True
-            else:
-                llama_results_finished=False
+            llama_results_finished = os.path.exists(llama_results_path)
         else: 
             llama_results_finished = False
+        #llama_name = '{}*-significance_subthreshold_lvc-i3.json'.format(record.attrib['ivorn'].split('#')[1])
+        #llama_results_path = os.path.join(llama_results_location,llama_name)
+        #if wait_for_llama:
+        #    llama_results_glob = sorted(glob.glob(llama_results_path))
+        #    if len(llama_results_glob)>0:
+        #        llama_results_path = llama_results_glob[-1]
+        #        llama_results_finished=True
+        #    else:
+        #        llama_results_finished=False
+        #else: 
+        #    llama_results_finished = False
 
         if subthreshold and llama_results_finished:
             #no UML results in subthreshold case, only LLAMA
@@ -503,8 +503,8 @@ logger.setLevel(logging.INFO)
 logger.warning("combine_results starting, connecting to GCN")
 
 #fra_results_location = os.environ.get('FAST_RESPONSE_OUTPUT')#'/data/user/jthwaites/o4-mocks/'
-#llama_results_location = '/home/followup/lvk_dropbox/'
-llama_results_location = '/home/azhang/public_html/llama/json/'
+llama_results_location = '/home/followup/lvk_dropbox/'
+#llama_results_location = '/home/azhang/public_html/llama/json/'
 #save_location = '/home/followup/lvk_followup_output/' #where to save final json
 save_location = args.save_dir
 
