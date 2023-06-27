@@ -122,6 +122,7 @@ def process_gcn(payload, root):
         except:
             print('Failed to download skymap in correct format! \nDownload skymap and then re-run script with')
             print(f'args:  --time {event_mjd} --name {name} --skymap PATH_TO_SKYMAP')
+            log_file.flush()
             return
             #TODO: add make_call to me here if this fails
 
