@@ -517,7 +517,7 @@ class FastResponseAnalysis(object):
                 contour_counter += 1
         
         if with_contour:
-            probs = hp.pixelfunc.ud_grade(self.skymap, 64)
+            probs = hp.pixelfunc.ud_grade(self.skymap, 64, power=-2)
             probs = probs/np.sum(probs)
             ### plot 90% containment contour of PDF
             levels = [0.9]
@@ -631,7 +631,7 @@ class FastResponseAnalysis(object):
                 contour_counter += 1
 
         if with_contour and self.skymap is not None:
-            probs = hp.pixelfunc.ud_grade(self.skymap, 64)
+            probs = hp.pixelfunc.ud_grade(self.skymap, 64, power=-2)
             probs = probs/np.sum(probs)
             ### plot 90% containment contour of PDF
             levels = [0.9]
@@ -688,7 +688,7 @@ class PriorFollowup(FastResponseAnalysis):
 
         super().__init__(name, tstart, tstop, skipped=skipped, seed=seed,
                        outdir=outdir, save=save, extension=extension)
-
+        
         self.skymap_path = skymap_path
         try:
             skymap, skymap_header = hp.read_map(skymap_path, h=True, verbose=False)
@@ -718,7 +718,7 @@ class PriorFollowup(FastResponseAnalysis):
 
     def format_skymap(self, skymap):
         if hp.pixelfunc.get_nside(skymap) != self._nside:
-            skymap = hp.pixelfunc.ud_grade(skymap, self._nside)
+            skymap = hp.pixelfunc.ud_grade(skymap, self._nside, power=-2)
             skymap = skymap/skymap.sum()
         return skymap
 
