@@ -10,6 +10,8 @@ import argparse
 parser = argparse.ArgumentParser(description='GW Followup')
 parser.add_argument('--skymap', type=str, default=None,
                     help='path to skymap (should be the *.multiorder.fits downloaded from GraceDB)')
+parser.add_argument('--nside', type=str, default=512,
+                    help='nside to be used with the skymap (default=512)')
 args = parser.parse_args()
 
 # Read skymap
@@ -20,8 +22,8 @@ s = [skymap[i]['PROBDENSITY'].to_value(u.deg**-2)*hp.nside2pixarea(mhp.uniq2nsid
 
 # put into mhealpy & get flattened map
 m = mhp.HealpixMap(data=s, uniq=skymap['UNIQ'])
-#returns an nside of 256 for new map
-new_map = m.rasterize(256, 'NESTED')
+#returns a new map
+new_map = m.rasterize(args.nside, 'NESTED')
 
 # save the new map
 new_map.write_map(args.skymap.replace('multiorder','converted'), overwrite=True)
