@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-#rm ln 103/4!!!
 import logging
 from datetime import datetime
 import socket
@@ -9,17 +8,18 @@ import healpy as hp
 import matplotlib as mpl
 mpl.use('agg')
 import matplotlib.pyplot as plt
-import io, time, os
+import io, time, os, glob
 import urllib.request, urllib.error, urllib.parse
 import argparse
 import json, pickle
 from gcn_kafka import Consumer
-from icecube import realtime_tools
+#from icecube import realtime_tools
 import numpy as np
 import lxml.etree
 from astropy.time import Time
 import dateutil.parser
 from datetime import datetime
+from fast_response.web_utils import updateGW_public
 
 with open('/cvmfs/icecube.opensciencegrid.org/users/jthwaites/tokens/kafka_token.txt') as f:
     client_id = f.readline().rstrip('\n')
@@ -167,10 +167,12 @@ def parse_notice(record, wait_for_llama=False, heartbeat=False):
     logger = logging.getLogger()
 
     if record.attrib['role']!='observation':
-        logger.warning('found test event')
         fra_results_location = '/data/user/jthwaites/o4-mocks/'
         if not heartbeat:
+            logger.warning('found test event - not in mock mode. returning')
             return
+        else:
+            logger.warning('found test event')
     else:
         logger.warning('ALERT FOUND')
         fra_results_location = os.environ.get('FAST_RESPONSE_OUTPUT')
@@ -218,6 +220,7 @@ def parse_notice(record, wait_for_llama=False, heartbeat=False):
     # wait until the 500s has elapsed for data
     current_mjd = Time(datetime.utcnow(), scale='utc').mjd
     needed_delay = 500./84600. 
+    #needed_delay = 720./86400. #12 mins while lvk_dropbox is offline
     current_delay = current_mjd - event_mjd
 
     while current_delay < needed_delay:
@@ -250,10 +253,22 @@ def parse_notice(record, wait_for_llama=False, heartbeat=False):
             llama_results_finished = os.path.exists(llama_results_path)
         else: 
             llama_results_finished = False
+        #llama_name = '{}*-significance_subthreshold_lvc-i3.json'.format(record.attrib['ivorn'].split('#')[1])
+        #llama_results_path = os.path.join(llama_results_location,llama_name)
+        #if wait_for_llama:
+        #    llama_results_glob = sorted(glob.glob(llama_results_path))
+        #    if len(llama_results_glob)>0:
+        #        llama_results_path = llama_results_glob[-1]
+        #        llama_results_finished=True
+        #    else:
+        #        llama_results_finished=False
+        #else: 
+        #    llama_results_finished = False
 
         if subthreshold and llama_results_finished:
             #no UML results in subthreshold case, only LLAMA
-            results_done=True
+            results_done = True
+            uml_results_finished = False
             logger.info('found results for LLAMA for subthreshold event, writing notice')
 
         if uml_results_finished and llama_results_finished:
@@ -286,14 +301,14 @@ def parse_notice(record, wait_for_llama=False, heartbeat=False):
     collected_results['observation_livetime'] = 1000
 
     ### COLLECT RESULTS ###
-    additional_website_params = {}
+    #additional_website_params = {}
     if uml_results_finished:
         with open(uml_results_path, 'rb') as f:
             uml_results = pickle.load(f)
 
-        for key in ['skymap_path', 'analysisid']:
-            if key in uml_results.keys():
-                additional_website_params[key] = uml_results[key]
+        #for key in ['skymap_path', 'analysisid']:
+        #    if key in uml_results.keys():
+        #        additional_website_params[key] = uml_results[key]
 
     if llama_results_finished:
         with open(llama_results_path, 'r') as f:
@@ -412,6 +427,36 @@ def parse_notice(record, wait_for_llama=False, heartbeat=False):
         st = 'sent' if status == 0 else 'error!'
         logger.info('status: {}'.format(status))
         logger.info('{}'.format(st))
+
+        if status ==0:
+            with open('/cvmfs/icecube.opensciencegrid.org/users/jthwaites/tokens/gw_token.txt') as f:
+                my_key = f.readline()
+            
+            if not subthreshold:
+                channels = ['#gwnu-heartbeat', '#gwnu','#alerts']
+            else:
+                channels = ['#gwnu-heartbeat']
+            for channel in channels:
+                with open(os.path.join(save_location, f'{name}_collected_results.json'),'r') as fi:
+                    response = requests.post('https://slack.com/api/files.upload',
+                                        timeout=60,
+                                        params={'token': my_key},
+                                        data={'filename':'gcn.json',
+                                            'title': f'GCN Notice for {name}',
+                                            'channels': channel},
+                                        files={'file': fi}
+                                        )
+                if response.ok is True:
+                    logger.info("GCN posted OK to {}".format(channel))
+                else:
+                    logger.info("Error posting skymap to {}!".format(channel))
+        
+            collected_results['subthreshold'] = subthreshold
+            try:
+                updateGW_public(collected_results)
+                logger.info('Updated webpage.')
+            except:
+                logger.warning('Failed to push to public webpage.')
         
     else:
         with open(os.path.join(save_location, f'mocks/{name}_collected_results.json'),'w') as f:
@@ -419,11 +464,24 @@ def parse_notice(record, wait_for_llama=False, heartbeat=False):
         #status = SendTestAlert(results = collected_results)
         #logger.info('status: {}'.format(status))
 
-    # Adding a few extra keys needed to create public webpage
-    for key in additional_website_params.keys():
-        collected_results[key] = additional_website_params[key]
-    
-    #web_utils.updateGW_public(collected_results)
+        #send the notice to slack (#gw-mock-heartbeat)
+        with open('/cvmfs/icecube.opensciencegrid.org/users/jthwaites/tokens/gw_token.txt') as f:
+            my_key = f.readline()
+                
+        channel = '#gw-mock-heartbeat'
+        with open(os.path.join(save_location, f'mocks/{name}_collected_results.json'),'r') as fi:
+            response = requests.post('https://slack.com/api/files.upload',
+                                    timeout=60,
+                                    params={'token': my_key},
+                                    data={'filename':'gcn.json',
+                                          'title': f'GCN Notice for {name}',
+                                          'channels': channel},
+                                    files={'file': fi}
+                                    )
+        if response.ok is True:
+            logger.info("GCN posted OK to {}".format(channel))
+        else:
+            logger.info("Error posting skymap to {}!".format(channel))
 
 parser = argparse.ArgumentParser(description='Combine GW-Nu results')
 parser.add_argument('--run_live', action='store_true', default=False,
@@ -446,6 +504,7 @@ logger.warning("combine_results starting, connecting to GCN")
 
 #fra_results_location = os.environ.get('FAST_RESPONSE_OUTPUT')#'/data/user/jthwaites/o4-mocks/'
 llama_results_location = '/home/followup/lvk_dropbox/'
+#llama_results_location = '/home/azhang/public_html/llama/json/'
 #save_location = '/home/followup/lvk_followup_output/' #where to save final json
 save_location = args.save_dir
 
@@ -467,7 +526,6 @@ if args.run_live:
 
 else:
     if args.test_path is None:
-        import glob
         paths=glob.glob('/home/jthwaites/FastResponse/*/*xml')
         path = paths[1]
         #path = '/home/jthwaites/FastResponse/S230522n-preliminary.json,1'

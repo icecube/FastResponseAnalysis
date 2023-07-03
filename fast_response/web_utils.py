@@ -12,6 +12,7 @@ mpl.use('agg')
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 import fast_response
+import dateutil.parser
 
 username = pwd.getpwuid(os.getuid())[0]
 if username == 'realtime': username='jthwaites'
@@ -132,7 +133,7 @@ def createFastResponsePage(analysis, gw=False):
                 new_f[i] = new_f[i].replace('ANALYSISSTART', Time(analysis['start'], format='mjd').iso)
             if 'ANALYSISDURATION' in new_f[i]:
                 dur = (analysis['stop'] - analysis['start']) * 86400.
-                new_f[i] = new_f[i].replace('ANALYSISDURATION', str(dur))
+                new_f[i] = new_f[i].replace('ANALYSISDURATION', str(round(dur,2)))
             if 'ANALYSISDEC' in new_f[i]:
                 dec = '-' if 'dec' not in analysis.keys() else '{:+.2f}'.format(analysis['dec'] * 180. / np.pi)
                 new_f[i] = new_f[i].replace('ANALYSISDEC', dec)
@@ -286,55 +287,80 @@ def updateFastResponsePlots(gw=False):
     plt.savefig(pval_dist_path, dpi=200, bbox_inches='tight')
     #plt.savefig(f'/home/{username}/public_html/FastResponse/webpage/output/pvalue_distribution_liveupdate.png', dpi=200, bbox_inches='tight')
 
-def updateGW_public(analysis):
+def updateGW_public(analysis, circular = None):
     r'''
     Push information from this analysis to summary tables 
     on GW PUBLIC followup webpage
     Parameters:
     -----------
     analysis: dictionary of results from UML and LLAMA analyses
+    circular: GCN circular number, to link to circular rather than notice
     '''
 
-    duration = (Time(analysis['t_stop'], format='iso').mjd - Time(analysis['t_start'],format = 'iso').mjd)*86400.
+    #duration = (Time(analysis['observation_stop'], format='iso').mjd - Time(analysis['observation_start'],format = 'iso').mjd)*86400.
+    duration = analysis['observation_livetime']
     if 'analysisid' not in analysis.keys():
-        analysis['analysisid'] = analysis['gw_event_name']+'-'+str(analysis['gw_map_num'])
+        start_date = Time(dateutil.parser.parse(analysis['observation_start'])).datetime
+        start_str = f'{start_date.year:02d}_' \
+            + f'{start_date.month:02d}_{start_date.day:02d}'
+        analysis['analysisid'] = start_str+'_'+analysis['ref_id']
 
+    analysis['name'] = analysis['ref_id']
     if 'test' in analysis['analysisid']:
-        analysis['name'] = analysis['analysisid'].split('_')[-2]+'_test'
-    else:
-        analysis['name'] = analysis['analysisid'].split('_')[-1]
+        analysis['name'] = analysis['name']+'_test'
 
-    if analysis['n_events_coinc'] == 0:
+    subprocess.call(['cp', 
+                     '/home/followup/lvk_followup_output/{}_collected_results.json'.format(analysis['name']),
+                     f'/home/{username}/public_html/public_FRA/gw-webpage/output/'])
+    
+    if analysis['n_events_coincident'] == 0:
         extra_info = '-'
     else:
+        outdir = os.path.join(os.environ.get('FAST_RESPONSE_OUTPUT'),analysis['analysisid'])
+        try:
+            if not analysis['subthreshold'] and analysis['pval_generic']<0.1:
+                subprocess.call(['cp', '{}/{}unblinded_skymap_zoom.png'.format(outdir,analysis['analysisid']),
+                             f'/home/{username}/public_html/public_FRA/gw-webpage/output/'])
+        except:
+            print('Failed to copy skymap and GCN Notice')
         createGWEventPage(analysis)
-        extra_info = '<a href=./{}.html>here</a>'.format(analysis['analysisid'])
+        extra_info = '<a href=./output/{}.html>here</a>'.format(analysis['analysisid'])
 
-    #### TODO: fix IceCube GCN line here
     if 'skymap_path' not in analysis.keys():
         analysis['skymap_path'] = ''
+    if 'subthreshold' not in analysis.keys():
+        analysis['subthreshold']=False
+    if circular is not None:
+        link = '<a href=https://gcn.nasa.gov/circulars/{}>GCN Circular</a>'.format(circular)
+    else:
+        link = '<a href=./output/{}_collected_results.json>GCN Notice</a>'.format(analysis['name'])
+
+    if analysis['subthreshold']:
+        row_start = '<tr bgcolor="#ddd" name="subthr">'
+    else:
+        row_start = '<tr name="sig">'
     tag = '''
-    <tr>
+    {}
         <td>{}</td>
         <td>{}</td>
         <td><a href=https://gcn.gsfc.nasa.gov/notices_l/{}.lvc>LVK GCN</a></td>
-        <td><a href={}>GW skymap</a></td>
-        <td><a href=https://gcn.gsfc.nasa.gov/gcn/gcn3/0.gcn3>IceCube GCN</a></td>
+        <td>{}</td>
         <td>{:.2e}</td>
         <td>{}</td>
         <td>[{:.3f}, {:.3f}]</td>        
         <td>{}</td>
     </tr>
-    '''.format(analysis['name'], analysis['t_merger'],
-                analysis['gw_event_name'].split('-')[0], analysis['skymap_path'],
-                duration, str(analysis['n_events_coinc']), analysis['sens_low'],
-                analysis['sens_high'], extra_info)
+    '''.format(row_start,analysis['name'], analysis['trigger_time'][:-1].replace('T',' '),
+               analysis['ref_id'].split('-')[0], link, duration, 
+               str(analysis['n_events_coincident']), 
+               analysis["neutrino_flux_sensitivity_range"]['flux_sensitivity'][0],
+               analysis["neutrino_flux_sensitivity_range"]['flux_sensitivity'][1], extra_info)
     
     with open(f"/home/{username}/public_html/public_FRA/gw-webpage/index.html", "r") as f:    
         lines = f.readlines()
     ind = None
     for i in range(len(lines)):
-        if '<tr> <th>Event Name</th> <th>Merger Time (ISO)</th>' in lines[i]:
+        if '</thead>' in lines[i]:
             ind = i
     lines[ind+1:ind+1] = [t + '\n' for t in tag.split('\n')]
     with open(f"/home/{username}/public_html/public_FRA/gw-webpage/index.html", 'w') as f:
@@ -363,30 +389,46 @@ def createGWEventPage(analysis):
             if 'ANALYSISCREATIONTIME' in new_f[i]:
                 new_f[i] = new_f[i].replace('ANALYSISCREATIONTIME', str(datetime.datetime.utcnow())[:-7])
             if 'ANALYSISSTART' in new_f[i]:
-                new_f[i] = new_f[i].replace('ANALYSISSTART', analysis['t_start'])
+                new_f[i] = new_f[i].replace('ANALYSISSTART', analysis['observation_start'])
             if 'ANALYSISSTOP' in new_f[i]:
-                new_f[i] = new_f[i].replace('ANALYSISSTOP', analysis['t_stop'])
+                new_f[i] = new_f[i].replace('ANALYSISSTOP', analysis['observation_stop'])
             if 'ANALYSISNAME' in new_f[i]:
                 new_f[i] = new_f[i].replace('ANALYSISNAME', analysis['name'])
             if 'ANALYSISID' in new_f[i]:
                 new_f[i] = new_f[i].replace('ANALYSISID', analysis['analysisid'])  
             if 'NEVENTS' in new_f[i]:
-                new_f[i] = new_f[i].replace('NEVENTS', str(analysis['n_events_coinc']))
+                new_f[i] = new_f[i].replace('NEVENTS', str(analysis['n_events_coincident']))
             if 'UMLPVAL' in new_f[i]:
-                new_f[i] = new_f[i].replace('UMLPVAL', '{:.2f}'.format(analysis['overall_p_gen_transient']))
-            if 'UMLSIG' in new_f[i]:
-                new_f[i] = new_f[i].replace('UMLSIG', '{:.2f}'.format(analysis['overall_sig_gen_transient']))
+                try:
+                    new_f[i] = new_f[i].replace('UMLPVAL', '{}'.format(analysis['pval_generic']))
+                except:
+                    new_f[i] = new_f[i].replace('UMLPVAL', 'nan')
+            #if 'UMLSIG' in new_f[i]:
+            #    new_f[i] = new_f[i].replace('UMLSIG', '{:.2f}'.format(analysis['overall_sig_gen_transient']))
             if 'LLAMAPVAL' in new_f[i]:
-                new_f[i] = new_f[i].replace('LLAMAPVAL', '{:.2f}'.format(analysis['overall_p_bayesian']))
-            if 'LLAMASIG' in new_f[i]:
-                new_f[i] = new_f[i].replace('LLAMASIG', '{:.2f}'.format(analysis['overall_sig_bayesian']))
-            
+                try: 
+                    new_f[i] = new_f[i].replace('LLAMAPVAL', '{}'.format(analysis['pval_bayesian']))
+                except:
+                    new_f[i] = new_f[i].replace('LLAMAPVAL', 'nan')
+            #if 'LLAMASIG' in new_f[i]:
+            #    new_f[i] = new_f[i].replace('LLAMASIG', '{:.2f}'.format(analysis['overall_sig_bayesian']))
+            if 'MOSTPROBDIR' in new_f[i]:
+                if 'most_likely_direction' in analysis.keys():
+                    new_f[i] = new_f[i].replace('MOSTPROBDIR', 'RA: {} deg, decl.: {} deg'.format(
+                                                analysis['most_likely_direction']['ra'], 
+                                                analysis['most_likely_direction']['dec']))
+                else: 
+                    new_f[i] = new_f[i].replace('MOSTPROBDIR', 'N/A')
             if '</div></div>' in new_f[i]:
                 ind = i
-
+    
     e=1
     tag=''
-    for event in analysis['coinc_events']:
+    for event in analysis['coincident_events']:
+        if 'event_pval_bayesian' not in event.keys():
+            event['event_pval_bayesian'] = 'nan'
+        if 'event_pval_generic' not in event.keys():
+            event['event_pval_generic'] = 'nan'
         tag += '''
         <h3>Event {}</h3>
         <table class="skymaps">
@@ -395,22 +437,23 @@ def createGWEventPage(analysis):
                 <tr><td>RA (J2000) (deg.):</td><td>{:.2f}</td></tr>
                 <tr><td>Dec (J2000) (deg.):</td><td>{:.2f}</td></tr>
                 <tr><td>Angular Unc (deg.):</td><td>{:.2f}</td></tr>
-                <tr><td>Event p-value (generic transient):</td><td>{:.2f}</td></tr>
-                <tr><td>Event p-value (Bayesian):</td><td>{:.2f}</td></tr>
+                <tr><td>Event p-value (generic transient):</td><td>{}</td></tr>
+                <tr><td>Event p-value (Bayesian):</td><td>{}</td></tr>
             </table>
         </table>
-        '''.format(e, event['dt'], event['ra'], event['dec'], event['ang_unc'], 
-                   event['p_gen_transient'], event['p_bayesian'])
+        '''.format(e, event['event_dt'], event['localization']['ra'], event['localization']['dec'], 
+                   event['localization']['ra_uncertainty'], 
+                   event['event_pval_generic'], event['event_pval_bayesian'])
         e+=1
     
-    # Add skymap zoom of events
-    tag += '''
-    </div>
-    <div class="content">
-    <a href="./output/{}_skymap_zoom_public.png"><img src="./output/{}_skymap_zoom_public.png" width="500"/></a>    
-    '''.format(analysis['name'], analysis['name'])
+    if not analysis['subthreshold'] and analysis['pval_generic']<0.1:
+        tag2 = '''
+        <div class="content">
+        <a href="./{}unblinded_skymap_zoom.png"><img src="./{}unblinded_skymap_zoom.png" width="500"/></a>
+        '''.format(analysis['analysisid'], analysis['analysisid'])
+        new_f[ind+1:ind+1] = [t + '\n' for t in tag2.split('\n')]
 
-    new_f[ind-1:ind-1] = [t + '\n' for t in tag.split('\n')]
+    new_f[ind:ind] = [t + '\n' for t in tag.split('\n')]
 
     webpage_path='/home/{}/public_html/public_FRA/gw-webpage/output/{}.html'.format(username, analysis['analysisid'])
     with open(webpage_path, 'w') as f:
@@ -421,7 +464,7 @@ def sync_to_roc():
     #subprocess.Popen('rsync -a /home/apizzuto/public_html/FastResponse/webpage/ apizzuto@roc.icecube.wisc.edu:/mnt/roc/www/internal/fast_response')
     env = dict(os.environ)
     subprocess.call(['rsync', '-a', f'/home/{username}/public_html/FastResponse/webpage/',
-                        '{username}@roc.icecube.wisc.edu:/mnt/roc/www/internal/fast_response'],
+                        f'{username}@roc.icecube.wisc.edu:/mnt/roc/www/internal/fast_response'],
                         env = env
                        )
 

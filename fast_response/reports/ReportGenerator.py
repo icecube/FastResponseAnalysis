@@ -200,16 +200,23 @@ class ReportGenerator(object):
             else:
                 if 'pvalue' in self.analysis.coincident_events[0].keys():
                     with_p = True
-                    event_table+=[
-                        ('$t_{\\nu}$-$t_{trigger}$ (s)','RA','Dec',
-                        '\sigma (90\%)','E_{reco} (GeV)',
-                        'p-value','In 90\% Contour')]
+                    if len(self.analysis.coincident_events)<100:
+                        event_table+=[
+                            ('Event','$t_{\\nu}$-$t_{trigger}$ (s)','RA','Dec',
+                            '\sigma (90\%)','E_{reco} (GeV)',
+                            'p-value','In 90\% Contour')]
+                    else:
+                        event_table+=[
+                            ('$t_{\\nu}$-$t_{trigger}$ (s)','RA','Dec',
+                            '\sigma (90\%)','E_{reco} (GeV)',
+                            'p-value','In 90\% Contour')]
                 else:
                     with_p = False
                     event_table+=[
                         ('$t_{\\nu}$-$t_{trigger}$ (s)','RA','Dec',
                         '\sigma (90\%)','E_{reco} (GeV)',
                         'In 90\% Contour')]
+                i = 0
                 for event in self.analysis.coincident_events:
                     if with_p:
                         if len(self.analysis.coincident_events)>100:
@@ -225,7 +232,8 @@ class ReportGenerator(object):
                                 )]
                         else: 
                             event_table+=[
-                            ('{:.0f}'.format((event['time']-self.source['trigger_mjd'])*86400.),
+                            ('{}'.format(i),
+                            '{:.0f}'.format((event['time']-self.source['trigger_mjd'])*86400.),
                             "{:3.2f}\degree".format(np.rad2deg(event['ra'])),
                             '{:3.2f}\degree'.format(np.rad2deg(event['dec'])),
                             "{:3.2f}\degree".format(np.rad2deg(event["sigma"]*self.analysis._angScale)),
@@ -233,6 +241,7 @@ class ReportGenerator(object):
                             '{:.4f}'.format(event['pvalue']),
                             str(bool(event['in_contour']))
                             )]
+                            i+=1
                     else:
                         if len(self.analysis.coincident_events)>100:
                             if event['in_contour']:

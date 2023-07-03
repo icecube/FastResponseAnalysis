@@ -11,7 +11,7 @@ were conducted. The first search is a maximum likelihood analysis which searches
 generic point-like neutrino source coincident with the given GW skymap.  The
 second uses a Bayesian approach to quantify the joint GW + neutrino event significance, which
 assumes a binary merger scenario and accounts for known astrophysical priors, such as GW source 
-distance, in the significance estimate.
+distance, in the significance estimate [3].
 
 <N> track-like event(s) are found in spatial and temporal coincidence with the gravitational-wave 
 candidate <name>  calculated from the map circulated <give notice ID here..>. This
@@ -25,6 +25,7 @@ The reported p-values can differ due to the estimated distance of the GW candida
 The distance is used as a prior in the Bayesian binary merger search, while it is not 
 taken into account in the generic transient point-like source search. The false alarm rate of these 
 coincidences can be obtained by multiplying the p-values with their corresponding GW trigger rates. 
+Further details are available at https://gcn.nasa.gov/missions/icecube.
 
 Properties of the coincident events are shown below.
 
@@ -46,5 +47,6 @@ reached at roc@icecube.wisc.edu
 
 [1] M. G. Aartsen et al 2020 ApJL 898 L10
 [2] Abbasi et al. Astrophys.J. 944 (2023) 1, 80
+[3] I. Bartos et al. 2019 Phys. Rev. D 100, 083017
 
 ********************************

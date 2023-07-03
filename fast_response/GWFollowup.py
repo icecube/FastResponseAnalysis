@@ -9,6 +9,7 @@ import matplotlib as mpl
 mpl.use('agg')
 import matplotlib.pyplot as plt
 import pickle
+from astropy.time import Time
 
 from .FastResponseAnalysis import PriorFollowup
 from .reports import GravitationalWaveReport
@@ -28,10 +29,21 @@ class GWFollowup(PriorFollowup):
     _pixel_scan_nsigma = 3.0
     _allow_neg = True
     _containment = None
-    _nside = 256
+    #_nside = 256
     _season_names = ['IC86, 2017', 'IC86, 2018', 'IC86, 2019']
     _nb_days = 5.
     _ncpu = 10
+
+    def __init__(self, name, skymap_path, tstart, tstop, skipped=None, seed=None,
+                 outdir=None, save=True, extension=None):
+        if (Time(tstop, format='iso').mjd - Time(tstart, format='iso').mjd) < (1001./86400.):
+            #Raamis uses 512 for bg trials
+            self._nside = 512
+        else: 
+            #use 256 for 2 week
+            self._nside = 256
+        super().__init__(name, skymap_path, tstart, tstop, skipped=skipped, seed=seed,
+                       outdir=outdir, save=save, extension=extension)
     
     def run_background_trials(self, month=None, ntrials=1000):
         '''For GW followup, 2 possible time windows:
@@ -61,6 +73,12 @@ class GWFollowup(PriorFollowup):
                 + 'gw_precomputed_trials_delta_t_'
                 + '{:.2e}_trials_rate_{:.1f}_low_stats.npz'.format(
                 self.duration * 86400., closest_rate, self.duration * 86400.))
+            
+            #check for nside mismatch
+            if hp.pixelfunc.get_nside(pre_ts_array.shape[1]) != self.nside:
+                print('Error! Analysis uses nside of %i '.format(self.nside)+
+                      'while precomputed BG is nside %i'.format(hp.pixelfunc.get_nside(pre_ts_array.shape[1])))
+
             ts_norm = np.log(np.amax(self.skymap))
             ts_prior = pre_ts_array.copy()
             ts_prior.data += 2.*(np.log(self.skymap[pre_ts_array.indices]) - ts_norm)
@@ -86,6 +104,9 @@ class GWFollowup(PriorFollowup):
                 allow_pickle=True,
                 encoding='latin1'
             )
+            if 512 != self.nside:
+                print('Error! Analysis uses nside of %i '.format(self.nside)+
+                      'while precomputed BG is nside 512')
 
             # Create spatial prior weighting
             max_ts = []
@@ -289,8 +310,8 @@ class GWFollowup(PriorFollowup):
         plt.savefig(self.analysispath + '/' + self.analysisid + 'ts_contours.pdf',bbox_inches='tight', dpi=300)
         plt.close()
         
-    def plot_ontime(self, with_contour=True, contour_files=None):
-        return super().plot_ontime(with_contour=True, contour_files=contour_files)
+    def plot_ontime(self, with_contour=True, contour_files=None, label_events=True):
+        return super().plot_ontime(with_contour=True, contour_files=contour_files, label_events=label_events)
 
     def write_circular(self):
         base = os.path.dirname(fast_response.__file__)

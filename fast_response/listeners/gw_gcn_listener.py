@@ -43,30 +43,27 @@ def process_gcn(payload, root):
               for elem in root.iterfind('.//Param')}
     name = root.attrib['ivorn'].split('#')[1]
     
-    # if this is the listener for real events and it gets a mock, skip running on it
-    if not mock and root.attrib['role']!='observation':
-        return
     # only run on significant events
     if 'Significant' in params.keys():
         if int(params['Significant'])==0: 
             #not significant, do not run
             print(f'Found a subthreshold event {name}')
+            root.attrib['role']='test'
             log_file.flush()
-            return
+            #return
     else:
         # O3 does not have this parameter, this should only happen for testing
         print('No significance parameter found in LVK GCN.')
         log_file.flush()
+    # if this is the listener for real events and it gets a mock (or low signficance), skip it
+    if not mock and root.attrib['role']!='observation':
+        return
     
     print('\n' +'INCOMING ALERT FOUND: ',datetime.utcnow())
-
+    log_file.flush()
+    
     if root.attrib['role']=='observation' and not mock:
         ## Call everyone because it's a real event!
-        username = pwd.getpwuid(os.getuid())[0]
-        #if username == 'realtime':
-        #    call_command = [os.path.join(analysis_path, 'make_call.py')]
-        #else:
-        #    call_command=['/cvmfs/icecube.opensciencegrid.org/users/jthwaites/make_call.py']
         call_command=['/cvmfs/icecube.opensciencegrid.org/users/jthwaites/make_call.py']
     
         call_args = ['--justin']
@@ -79,6 +76,12 @@ def process_gcn(payload, root):
             print('Call failed.')
             print(e)
             log_file.flush()
+            
+    # want heartbeat listener not to run on real events, otherwise it overwrites the main listener output
+    if mock and root.attrib['role']=='observation':
+        print('Listener in heartbeat mode found real event. Returning...')
+        log_file.flush()
+        return
     
     # Read trigger time of event
     eventtime = root.find('.//ISOTime').text
@@ -125,6 +128,7 @@ def process_gcn(payload, root):
         except:
             print('Failed to download skymap in correct format! \nDownload skymap and then re-run script with')
             print(f'args:  --time {event_mjd} --name {name} --skymap PATH_TO_SKYMAP')
+            log_file.flush()
             return
             #TODO: add make_call to me here if this fails
 
@@ -149,6 +153,18 @@ def process_gcn(payload, root):
     if not mock and root.attrib['role'] == 'observation':
         try:
             subprocess.call([webpage_update,  '--gw', f'--path={output}'])
+
+            wp_link = 'https://user-web.icecube.wisc.edu/~jthwaites/FastResponse/gw-webpage/output/{}.html'.format(eventtime[0:10].replace('-','_')+'_'+name)
+            slack_message = "UML GW analysis finished running for event {}: <{}|link>.".format(name, wp_link) 
+            with open('../slack_posters/internal_alert_slackbot.txt') as f:
+                chan = f.readline().rstrip('\n')
+                webhook = f.readline().rstrip('\n')
+                bot_name = f.readline().rstrip('\n')
+
+            for channel in ['#fra-shifting','#gwnu']:
+                bot = slackbot(channel, bot_name, webhook)
+                bot.send_message(slack_message,'gw')
+            
         except Exception as e:
             print('Failed to push to (private) webpage.')
             print(e)
@@ -202,6 +218,7 @@ if __name__ == '__main__':
     import time
     from astropy.time import Time
     from datetime import datetime
+    from fast_response.slack_posters.slack import slackbot
     import wget
 
     output_path = '/home/jthwaites/public_html/FastResponse/'
@@ -256,7 +273,8 @@ if __name__ == '__main__':
             print(e)
             sample_skymap_path='/data/user/jthwaites/o3-gw-skymaps/'
         
-        payload = open(os.path.join(sample_skymap_path,args.test_path), 'rb').read()
+        #payload = open(os.path.join(sample_skymap_path,args.test_path), 'rb').read()
+        payload = open(args.test_path,'rb').read()
         root = lxml.etree.fromstring(payload) 
 
         mock=args.heartbeat

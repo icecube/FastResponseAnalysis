@@ -38,22 +38,24 @@ def process_gcn(payload, root):
     if stream == '26':
         print("Detected cascade type alert, running cascade followup. . . ")
         alert_type='cascade'
+        event_name='IceCube-Cascade_{}{}{}'.format(eventtime[2:4],eventtime[5:7],eventtime[8:10])
+
         skymap = params['skymap_fits']
     else:
         print("Found track type alert, running track followup. . . ")
         alert_type='track'
+        event_name='IceCube-{}{}{}'.format(eventtime[2:4],eventtime[5:7],eventtime[8:10]) 
 
         # IceCube sends 2: a notice and a revision, only want to run once
         if int(params['Rev']) !=0:
-            return
+            return        
 
     event_id = params['event_id']
     run_id = params['run_id']
     eventtime = root.find('.//ISOTime').text
     event_mjd = Time(eventtime, format='isot').mjd
     try:
-        bot.send_message(f'Listener found {alert_type} type alert, '+
-                    f'IceCube-{eventtime[2:4]}{eventtime[5:7]}{eventtime[8:10]} \n'+
+        bot.send_message(f'Listener found {alert_type} type alert, {event_name} \n'+
                     'Waiting 1 day to run FRA', 'blanket_blob')
         print(' - slack message sent \n')
     except Exception as e:
@@ -90,10 +92,6 @@ def process_gcn(payload, root):
             return
     
     #checking for events on the same day: looks for existing output files from previous runs
-    if alert_type=='track':
-        event_name='IceCube-{}{}{}'.format(eventtime[2:4],eventtime[5:7],eventtime[8:10]) 
-    else:
-        event_name='IceCube-Cascade_{}{}{}'.format(eventtime[2:4],eventtime[5:7],eventtime[8:10])
     count_dir=0
     for directory in os.listdir(os.environ.get('FAST_RESPONSE_OUTPUT')):
         if event_name in directory: count_dir+=1
@@ -112,7 +110,18 @@ def process_gcn(payload, root):
         '--alert_id={}'.format(run_id+':'+event_id),
         '--suffix={}'.format(suffix)]
         )
-    
+
+    if args.document:
+        try:
+            dir_1000 = glob.glob(os.path.join(os.environ.get('FAST_RESPONSE_OUTPUT'),
+                                          '*{}_1.0e+03_s').format(event_name))
+            subprocess.call([analysis_path+'document.py', '--path', dir_1000[0]])
+            dir_2d = glob.glob(os.path.join(os.environ.get('FAST_RESPONSE_OUTPUT'),
+                                          '*{}_1.7e+05_s').format(event_name))
+            subprocess.call([analysis_path+'document.py', '--path', dir_2d[0]])
+        except:
+            print('Failed to document to private webpage')
+
     try: 
         shifters = pd.read_csv(os.path.join(analysis_path,'../slack_posters/fra_shifters.csv'), 
                                parse_dates=[0,1])
@@ -120,20 +129,18 @@ def process_gcn(payload, root):
         for i in shifters.index:
             if shifters['start'][i]<datetime.utcnow()<shifters['stop'][i]:
                 on_shift+='<@{}> '.format(shifters['slack_id'][i])
-        bot.send_message(f'Done running FRA for {alert_type} alert, {event_name}.\n '+ on_shift +'on shift',
+        link = 'https://user-web.icecube.wisc.edu/~jthwaites/FastResponse/webpage/output/'
+        wp_link_1000 = '{}{}_1.0e+03_s.html'.format(link, eventtime[0:10].replace('-','_')+'_'+event_name)
+        wp_link_2d   = '{}{}_1.7e+05_s.html'.format(link, eventtime[0:10].replace('-','_')+'_'+event_name)
+        bot.send_message(f'Done running FRA for {alert_type} alert, {event_name}.\n ' +
+                         "Results for 1000s: <{}|link>. \n ".format(wp_link_1000) +
+                         "Results for 2d: <{}|link>. \n".format(wp_link_2d) +
+                         + on_shift +'on shift',
                          'blanket_blob')
         print(' - slack message sent \n')
     except Exception as e:
         print(e)
         print('No slack message sent.')
-
-    #if args.document:
-    #    dir_1000 = glob.glob(os.path.join(os.environ.get('FAST_RESPONSE_OUTPUT'),
-    #                                      '*{}_1.0e+03_s').format(event_name))
-    #    subprocess.call([analysis_path+'document.py', '--path', dir_1000])
-    #    dir_2d = glob.glob(os.path.join(os.environ.get('FAST_RESPONSE_OUTPUT'),
-    #                                      '*{}_1.7e+05_s').format(event_name))
-    #    subprocess.call([analysis_path+'document.py', '--path', dir_2d])
 
 if __name__ == '__main__':
     import os, subprocess
