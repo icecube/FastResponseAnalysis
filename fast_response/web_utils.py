@@ -336,9 +336,9 @@ def updateGW_public(analysis, circular = None):
         link = '<a href=./output/{}_collected_results.json>GCN Notice</a>'.format(analysis['name'])
 
     if analysis['subthreshold']:
-        row_start = '<tr bgcolor="#ddd">'
+        row_start = '<tr bgcolor="#ddd" name="subthr">'
     else:
-        row_start = '<tr>'
+        row_start = '<tr name="sig">'
     tag = '''
     {}
         <td>{}</td>
@@ -360,7 +360,7 @@ def updateGW_public(analysis, circular = None):
         lines = f.readlines()
     ind = None
     for i in range(len(lines)):
-        if '<tr> <th>Event Name</th> <th>Merger Time (ISO)</th>' in lines[i]:
+        if '</thead>' in lines[i]:
             ind = i
     lines[ind+1:ind+1] = [t + '\n' for t in tag.split('\n')]
     with open(f"/home/{username}/public_html/public_FRA/gw-webpage/index.html", 'w') as f:
