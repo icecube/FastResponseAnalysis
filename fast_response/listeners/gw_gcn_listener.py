@@ -76,6 +76,12 @@ def process_gcn(payload, root):
             print('Call failed.')
             print(e)
             log_file.flush()
+            
+    # want heartbeat listener not to run on real events, otherwise it overwrites the main listener output
+    if mock and root.attrib['role']=='observation':
+        print('Listener in heartbeat mode found real event. Returning...')
+        log_file.flush()
+        return
     
     # Read trigger time of event
     eventtime = root.find('.//ISOTime').text
