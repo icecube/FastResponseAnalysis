@@ -35,6 +35,7 @@ def process_gcn(payload, root):
               for elem in root.iterfind('.//Param')}
 
     stream = params['Stream']
+    eventtime = root.find('.//ISOTime').text
     if stream == '26':
         print("Detected cascade type alert, running cascade followup. . . ")
         alert_type='cascade'
@@ -52,7 +53,6 @@ def process_gcn(payload, root):
 
     event_id = params['event_id']
     run_id = params['run_id']
-    eventtime = root.find('.//ISOTime').text
     event_mjd = Time(eventtime, format='isot').mjd
     try:
         bot.send_message(f'Listener found {alert_type} type alert, {event_name} \n'+
