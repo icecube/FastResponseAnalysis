@@ -109,28 +109,43 @@ def process_gcn(payload, root):
 
     skymap = params['skymap_fits']
 
-    # Skymap distributed is a different format than previous, but previous is available.
-    # Download correct format from GraceDB
+    # Multiorder Coverage (MOC) map links are distributed over the GCNs. 
+    # Download flattened (normal healpy) map from GraceDB
     if 'multiorder' in skymap:
         time.sleep(6.) #if we don't wait, the old format isn't uploaded
-        try:
-            #HERE: added .fits but not impl yet. need to keep baystar/bilby naming?
-            bayestar_map=skymap.replace('multiorder.','').split(',')
-            if len(bayestar_map)==1:
+        try: 
+            #Try to get flat-res healpy map
+            flat_map=skymap.replace('multiorder.','').split(',')
+            if len(flat_map)==1:
                 suffix='.gz'
             else: 
-                suffix = '.gz,'+ bayestar_map[1]
-            new_map = bayestar_map[0]+suffix
-            map_type= bayestar_map[0].split('/')[-1]
-            
-            wget.download(new_map, out=os.environ.get('FAST_RESPONSE_OUTPUT')+f'skymaps/{name}_{map_type}{suffix}')
-            skymap=os.environ.get('FAST_RESPONSE_OUTPUT')+f'skymaps/{name}_{map_type}{suffix}'
+                suffix = '.gz,'+ flat_map[1]
+            new_map = flat_map[0]+suffix
+            map_type= flat_map[0].split('/')[-1]
+
+            wget.download(new_map, out=os.path.join(os.environ.get('FAST_RESPONSE_OUTPUT'),f'skymaps/{name}_{map_type}{suffix}'))
+            skymap=os.path.join(os.environ.get('FAST_RESPONSE_OUTPUT'),f'skymaps/{name}_{map_type}{suffix}')
         except:
-            print('Failed to download skymap in correct format! \nDownload skymap and then re-run script with')
-            print(f'args:  --time {event_mjd} --name {name} --skymap PATH_TO_SKYMAP')
+            print('Failed to download flat-resolution skymap. Trying to convert MOC map')
             log_file.flush()
-            return
-            #TODO: add make_call to me here if this fails
+
+            try:
+                filename=skymap.split('/')[-1]
+                new_output = os.path.join(os.environ.get('FAST_RESPONSE_OUTPUT'),f'skymaps/{name}_{filename}')
+                wget.download(skymap, out=new_output)
+                subprocess.call([os.path.join(analysis_path, 'convert_moc_to_healpix.py'),
+                                '--skymap', new_output])
+                if os.path.exists(new_output.replace('multiorder','converted')):
+                    skymap = new_output.replace('multiorder','converted')
+                    print('Successfully converted map: {}'.format(skymap))
+                    log_file.flush()
+                else:
+                    raise Exception('Failed to convert map.')
+            except:
+                print('Failed to get skymap in correct format! \nDownload skymap and then re-run script with')
+                print(f'args:  --time {event_mjd} --name {name} --skymap PATH_TO_SKYMAP')
+                log_file.flush()
+                return
 
     if root.attrib['role'] != 'observation':
         name=name+'_test'
