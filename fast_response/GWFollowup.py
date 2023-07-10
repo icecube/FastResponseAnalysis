@@ -326,12 +326,12 @@ class GWFollowup(PriorFollowup):
         except:
             noticeID = 'NOTICEID'
 
-        if pvalue > 0.01:
+        if pvalue > 0.1:
             template_path = os.path.join(base, 'circular_templates/gw_gcn_template_low.txt')
         else:
             template_path = os.path.join(base, 'circular_templates/gw_gcn_template_high.txt')
 
-        if pvalue>0.01:
+        if pvalue>0.1:
             with open(template_path, 'r') as gcn_template:
 
                 gcn = gcn_template.read()
