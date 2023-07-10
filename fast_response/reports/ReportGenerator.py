@@ -232,7 +232,7 @@ class ReportGenerator(object):
                                 )]
                         else: 
                             event_table+=[
-                            ('{}'.format(i),
+                            ('{}'.format(i+1),
                             '{:.0f}'.format((event['time']-self.source['trigger_mjd'])*86400.),
                             "{:3.2f}\degree".format(np.rad2deg(event['ra'])),
                             '{:3.2f}\degree'.format(np.rad2deg(event['dec'])),
