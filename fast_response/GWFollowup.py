@@ -9,7 +9,6 @@ import matplotlib as mpl
 mpl.use('agg')
 import matplotlib.pyplot as plt
 import pickle
-from astropy.time import Time
 
 from .FastResponseAnalysis import PriorFollowup
 from .reports import GravitationalWaveReport
@@ -75,9 +74,9 @@ class GWFollowup(PriorFollowup):
                 self.duration * 86400., closest_rate, self.duration * 86400.))
             
             #check for nside mismatch
-            if hp.pixelfunc.get_nside(pre_ts_array.shape[1]) != self.nside:
-                print('Error! Analysis uses nside of %i '.format(self.nside)+
-                      'while precomputed BG is nside %i'.format(hp.pixelfunc.get_nside(pre_ts_array.shape[1])))
+            #if hp.pixelfunc.get_nside(pre_ts_array.shape[1]) != self.nside:
+            #    print('Error! Analysis uses nside of %i '.format(self.nside)+
+            #          'while precomputed BG is nside %i'.format(hp.pixelfunc.get_nside(pre_ts_array.shape[1])))
 
             ts_norm = np.log(np.amax(self.skymap))
             ts_prior = pre_ts_array.copy()
@@ -136,10 +135,10 @@ class GWFollowup(PriorFollowup):
          check_passed = False if there are no events after (should re-load!) '''
 
         t1 = Time(datetime.datetime.utcnow()).mjd
-        if ((t1-self.stop)*86400.)>1000.:
+        if ((t1-self.stop)*86400.)>5000.:
             #if it's been long enough, only load 1000s
-            print('Loading 1000s of data after the time window')
-            t1 = self.stop + 1000./86400. 
+            print('Loading 2000s of data after the time window')
+            t1 = self.stop + 2000./86400. 
         exp_long, livetime_long, grl_long = self.dset.livestream(
             self.start,
             t1,
