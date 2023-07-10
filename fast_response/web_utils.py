@@ -13,6 +13,7 @@ import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 import fast_response
 import dateutil.parser
+from astropy.time import Time
 
 username = pwd.getpwuid(os.getuid())[0]
 if username == 'realtime': username='jthwaites'
@@ -165,7 +166,7 @@ def createFastResponsePage(analysis, gw=False):
         for line in new_f:
             f.write(line)
 
-def updateFastResponseTable(analysis, gw=False):
+def updateFastResponseTable(analysis):
     r'''
     Push information from this analysis to overall
     tables, include new entries where applicable
@@ -460,13 +461,94 @@ def createGWEventPage(analysis):
         for line in new_f:
             f.write(line)
 
-def sync_to_roc():
-    #subprocess.Popen('rsync -a /home/apizzuto/public_html/FastResponse/webpage/ apizzuto@roc.icecube.wisc.edu:/mnt/roc/www/internal/fast_response')
-    env = dict(os.environ)
-    subprocess.call(['rsync', '-a', f'/home/{username}/public_html/FastResponse/webpage/',
-                        f'{username}@roc.icecube.wisc.edu:/mnt/roc/www/internal/fast_response'],
-                        env = env
-                       )
+def update_internal_public(analysis_1000, analysis_2d, alert_gcn=None, fra_circular=None):
+    r'''
+    Push information from this analysis to summary tables 
+    on PUBLIC FRA followup webpage
+    Parameters:
+    -----------
+    analysis: dictionary of results
+    alert_gcn: either a single int (Circular number) or tuple (run id, event id) if linking to notice
+    fra_circular: GCN circular number for FRA followup
+    '''
+    event_name = analysis_2d['name'].replace(' 1.7e+05 s','')
+    cascade=True if 'Cascade' in event_name else False
+
+    if type(alert_gcn) == int:
+        #link to circular for alert event
+        alert_link = 'href=https://gcn.nasa.gov/circulars/{}'.format(alert_gcn, event_name)
+    elif type(alert_gcn) == list or type(alert_gcn)==tuple:
+        if len(alert_gcn)!=2:
+            print('If linking to notice, need both run id and event id!')
+        if cascade:
+            alert_link = 'href=https://gcn.gsfc.nasa.gov/notices_amon_icecube_cascade/{}_{}.amon'.format(alert_gcn[0],alert_gcn[1])
+        else:
+            alert_link = 'href=https://gcn.gsfc.nasa.gov/notices_amon_g_b/{}_{}.amon'.format(alert_gcn[0],alert_gcn[1])
+    else:
+        alert_link=''
+        print('Link to alert GCN missing!')
+    event_link = '<a {}>{}</a>'.format(alert_link, event_name)
+
+    if fra_circular is not None:
+        fra_link = '<a href=https://gcn.nasa.gov/circulars/{}>{}</a>'.format(fra_circular,fra_circular)
+    else:
+        fra_link=' '
+    
+    if '{:.1e}'.format(analysis_1000['sens_range'][0]) == '{:.1e}'.format(analysis_1000['sens_range'][1]):
+        sens_range_1000 = f'{analysis_1000["sens_range"][0]:.1e}'
+    else:
+        sens_range_1000 = f'[{analysis_1000["sens_range"][0]:.1e},{analysis_1000["sens_range"][1]:.1e}]'
+
+    if '{:.1e}'.format(analysis_2d['sens_range'][0]) == '{:.1e}'.format(analysis_2d['sens_range'][1]):
+        sens_range_2d = f'{analysis_2d["sens_range"][0]:.1e}'
+    else:
+        sens_range_2d = f'[{analysis_2d["sens_range"][0]:.1e},{analysis_2d["sens_range"][1]:.1e}]'
+
+    tag = '''
+        <tbody>
+        {}
+            <td rowspan='2'>{}</td>
+            <td rowspan='2'>{}</td>
+            <td rowspan='2'>{}</td>
+            <td rowspan='2'>{}</td>
+            <td>1000 seconds</td>
+            <td>{}</td>
+            <td rowspan='2'>2.5</td>
+            <td rowspan='2'>{}</td>
+        </tr>
+        {}
+            <td>2 days</td>
+            <td>{}</td>
+        </tr>
+        </tbody>
+    '''.format('<tr name="casc">' if cascade else '<tr name="track">',
+               event_link, fra_link, Time(analysis_2d['start']+1, format='mjd').iso,
+               'Cascade' if cascade else 'Track', sens_range_1000, 
+               f'[{analysis_1000["energy_range"][0]:.0e}, {analysis_1000["energy_range"][1]:.0e}]',
+               '<tr name="casc">' if cascade else '<tr name="track">',
+               sens_range_2d)
+    
+    with open(f"/home/{username}/public_html/public_FRA/internal_alerts_webpage/index.html", "r") as f:    
+        lines = f.readlines()
+    ind = None
+    for i in range(len(lines)):
+        if '</thead>' in lines[i]:
+            ind = i
+    lines[ind+1:ind+1] = [t + '\n' for t in tag.split('\n')]
+    with open(f"/home/{username}/public_html/public_FRA/internal_alerts_webpage/index.html", 'w') as f:
+        for line in lines:
+            if line == '\n':
+                continue
+            else:
+                f.write(line)
+
+#def sync_to_roc():
+#    #subprocess.Popen('rsync -a /home/apizzuto/public_html/FastResponse/webpage/ apizzuto@roc.icecube.wisc.edu:/mnt/roc/www/internal/fast_response')
+#    env = dict(os.environ)
+#    subprocess.call(['rsync', '-a', f'/home/{username}/public_html/FastResponse/webpage/',
+#                        f'{username}@roc.icecube.wisc.edu:/mnt/roc/www/internal/fast_response'],
+#                        env = env
+#                       )
 
 def format_dec_str(dec):
     if dec < 0:
