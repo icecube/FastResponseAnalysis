@@ -497,12 +497,12 @@ def update_internal_public(analysis_1000, analysis_2d, alert_gcn=None, fra_circu
     if '{:.1e}'.format(analysis_1000['sens_range'][0]) == '{:.1e}'.format(analysis_1000['sens_range'][1]):
         sens_range_1000 = f'{analysis_1000["sens_range"][0]:.1e}'
     else:
-        sens_range_1000 = f'[{analysis_1000["sens_range"][0]:.1e},{analysis_1000["sens_range"][1]:.1e}]'
+        sens_range_1000 = f'[{analysis_1000["sens_range"][0]:.1e}, {analysis_1000["sens_range"][1]:.1e}]'
 
     if '{:.1e}'.format(analysis_2d['sens_range'][0]) == '{:.1e}'.format(analysis_2d['sens_range'][1]):
         sens_range_2d = f'{analysis_2d["sens_range"][0]:.1e}'
     else:
-        sens_range_2d = f'[{analysis_2d["sens_range"][0]:.1e},{analysis_2d["sens_range"][1]:.1e}]'
+        sens_range_2d = f'[{analysis_2d["sens_range"][0]:.1e}, {analysis_2d["sens_range"][1]:.1e}]'
 
     tag = '''
         <tbody>
