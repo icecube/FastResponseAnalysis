@@ -417,6 +417,9 @@ def parse_notice(record, wait_for_llama=False, heartbeat=False):
     if (collected_results['n_events_coincident'] == 0) and ('coincident_events' in collected_results.keys()):
         c = collected_results.pop('coincident_events')
     if ('most_likely_direction' in collected_results.keys()):
+        if (collected_results['n_events_coincident'] == 0):
+            c = collected_results.pop('most_likely_direction')
+    if ('most_likely_direction' in collected_results.keys()):
         try: 
             if (collected_results['pval_generic']>0.1):
                 c = collected_results.pop('most_likely_direction')
