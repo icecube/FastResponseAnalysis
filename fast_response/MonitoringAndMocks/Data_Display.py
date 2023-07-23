@@ -56,7 +56,7 @@ for file in Pickle_to_text:
                 all_dictionary['Name'].append(file)
 for file in all_dictionary["Name"]:
         date_format = "%Y-%m-%d"
-        c_timestamp = os.path.getctime(file)
+        c_timestamp = os.path.getmtime(file)
         c_datestamp = datetime.datetime.utcfromtimestamp(c_timestamp)
         all_dictionary['Time_Stamp'].append(c_datestamp)
 print('Finished loading all latencies.')
@@ -83,7 +83,7 @@ date_format = "%Y-%m-%d"
 Quality_Pickles = []
 
 for file in Pickle_Files:
-        c_timestamp = os.path.getctime(file)
+        c_timestamp = os.path.getmtime(file)
         c_datestamp = datetime.datetime.fromtimestamp(c_timestamp)
         if (c_datestamp >= datetime.datetime.strptime('2022-12-05', date_format)):
                 Quality_Pickles.append(file)
@@ -113,7 +113,7 @@ for file in First_Runs:
                 First_Batch['Name'].append(file)
 for file in First_Batch["Name"]:
         date_format = "%Y-%m-%d"
-        c_timestamp = os.path.getctime(file)
+        c_timestamp = os.path.getmtime(file)
         c_datestamp = datetime.datetime.fromtimestamp(c_timestamp)
         First_Batch['Time_Stamp'].append(c_datestamp)
 print('Finished loading 1st map latencies.')
@@ -158,7 +158,7 @@ for file in answer:
         Last_Batch['Name'].append(file)
 for file in Last_Batch["Name"]:
         date_format = "%Y-%m-%d"
-        c_timestamp = os.path.getctime(file)
+        c_timestamp = os.path.getmtime(file)
         c_datestamp = datetime.datetime.fromtimestamp(c_timestamp)
         Last_Batch['Time_Stamp'].append(c_datestamp)
 print('Finished loading last map latencies')
@@ -662,6 +662,7 @@ plt.ylim([0,70])
 
 save_path='/home/mromfoe/public_html/O4_followup_monitoring/ReportsPerDay_liveupdate.png'
 
+plt.tight_layout()
 fig.savefig(save_path)
 fig.savefig("ReportsPerDay.png")
 
