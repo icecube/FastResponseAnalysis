@@ -35,6 +35,8 @@ if args.outdir == None:
         outdir = os.environ.get('FAST_RESPONSE_OUTPUT')
     except:
         outdir = './'
+else:
+    outdir = args.outdir
 if not os.path.exists(outdir+'/trials/'):
     os.mkdir(outdir+'/trials/')
 outdir=outdir+'/trials/'
