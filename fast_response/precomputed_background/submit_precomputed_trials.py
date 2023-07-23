@@ -18,8 +18,8 @@ parser.add_argument(
     '--seed_start', type=int,default=0,
     help='Seed to start with when running trials')
 parser.add_argument(
-    '--n_per_batch', default=50, type=int,
-    help='Number of trials to run in each set (default: 50)')
+    '--n_per_batch', default=500, type=int,
+    help='Number of trials to run in each set (default: 500)')
 args = parser.parse_args()
 
 username = pwd.getpwuid(os.getuid())[0]
@@ -53,16 +53,19 @@ job = pycondor.Job(
         'when_to_transfer_output = ON_EXIT']
     )
 
-prev_trials = glob.glob('/data/user/jthwaites/FastResponseAnalysis/output/trials/*.npz')
+#prev_trials = glob.glob('/data/user/jthwaites/FastResponseAnalysis/output/trials/*.npz')
 for bg_rate in [6.0, 6.2, 6.4, 6.6, 6.8, 7.0, 7.2]:
-    for seed in range(args.seed_start, int(args.ntrials/100)):#int(args.ntrials/args.n_per_batch)):
+    for seed in range(args.seed_start, int(args.ntrials/args.n_per_batch)):
         seed = seed*100
-        if f'/data/user/jthwaites/FastResponseAnalysis/output/trials/gw_{bg_rate}_mHz_seed_{seed}_delta_t_1.2e+06.npz' not in prev_trials:
-            #deltaT {args.tw} --ntrials 100 --seed {seed} --bkg {bg}
-            job.add_arg('--deltaT %s --ntrials %i --seed %i --bkg %s'
-                    %(args.tw, args.n_per_batch, seed, bg_rate))
-            job.add_arg('--deltaT %s --ntrials %i --seed %i --bkg %s'
-                    %(args.tw, args.n_per_batch, seed+50, bg_rate))
+        job.add_arg('--deltaT %s --ntrials %i --seed %i --bkg %s --outdir %s --type gw'
+                    %(args.tw, args.n_per_batch, seed, bg_rate,
+                      '/data/user/jthwaites/new_processing/normal_1000/'))
 
+#dagman = pycondor.Dagman(
+#    'fra_1000s_precompbg',
+#    submit=submit, verbose=2)
+    
+#dagman.add_job(job)
+#dagman.build_submit()
 job.build_submit()
 

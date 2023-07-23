@@ -602,7 +602,7 @@ class FastResponseAnalysis(object):
         hp.projscatter(theta,phi,c=cols,marker='x',label='GFU Event',coord='C', zorder=5)
         if label_events:
             for j in range(len(theta)):
-                hp.projtext(theta[j], phi[j]-0.11, '{}'.format(j), color='red', fontsize=18, zorder=6)
+                hp.projtext(theta[j], phi[j]-0.11, '{}'.format(j+1), color='red', fontsize=18, zorder=6)
         handles.append(Line2D([0], [0], marker='x', ls='None', label='GFU Event'))
 
         if (self.stop - self.start) <= 0.5:        #Only plot contours if less than 2 days

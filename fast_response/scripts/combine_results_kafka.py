@@ -8,7 +8,7 @@ import healpy as hp
 import matplotlib as mpl
 mpl.use('agg')
 import matplotlib.pyplot as plt
-import io, time, os, glob
+import io, time, os, glob, subprocess
 import urllib.request, urllib.error, urllib.parse
 import argparse
 import json, pickle
@@ -301,14 +301,11 @@ def parse_notice(record, wait_for_llama=False, heartbeat=False):
     collected_results['observation_livetime'] = 1000
 
     ### COLLECT RESULTS ###
-    #additional_website_params = {}
+    send_notif = False
+
     if uml_results_finished:
         with open(uml_results_path, 'rb') as f:
             uml_results = pickle.load(f)
-
-        #for key in ['skymap_path', 'analysisid']:
-        #    if key in uml_results.keys():
-        #        additional_website_params[key] = uml_results[key]
 
     if llama_results_finished:
         with open(llama_results_path, 'r') as f:
@@ -323,6 +320,9 @@ def parse_notice(record, wait_for_llama=False, heartbeat=False):
     if uml_results_finished and llama_results_finished:
         collected_results['pval_generic'] = round(uml_results['p'],4)
         collected_results['pval_bayesian'] = round(llama_results['p_value'],4)
+        if (collected_results['pval_generic']<0.01) or (collected_results['pval_bayesian']<0.01):
+            send_notif=True
+
         if (collected_results['pval_generic']<0.1) or (collected_results['pval_bayesian']<0.1):
             uml_ontime = format_ontime_events_uml(uml_results['coincident_events'], event_mjd)
             llama_ontime = format_ontime_events_llama(llama_results['single_neutrino'])
@@ -351,6 +351,9 @@ def parse_notice(record, wait_for_llama=False, heartbeat=False):
     elif uml_results_finished:
         collected_results['pval_generic'] = round(uml_results['p'],4)
         collected_results['pval_bayesian'] = 'null'
+        if collected_results['pval_generic']<0.01:
+            send_notif=True
+
         if collected_results['pval_generic'] <0.1:
             uml_ontime = format_ontime_events_uml(uml_results['coincident_events'], event_mjd)
             coinc_events=[]
@@ -383,6 +386,9 @@ def parse_notice(record, wait_for_llama=False, heartbeat=False):
     elif llama_results_finished:
         collected_results['pval_generic'] = 'null'
         collected_results['pval_bayesian'] = round(llama_results['p_value'],4)
+        if collected_results['pval_bayesian']<0.01:
+            send_notif=True
+
         if collected_results['pval_bayesian']<0.1:
             llama_ontime = format_ontime_events_llama(llama_results['single_neutrino'])
             coinc_events=[]
@@ -410,6 +416,9 @@ def parse_notice(record, wait_for_llama=False, heartbeat=False):
 
     if (collected_results['n_events_coincident'] == 0) and ('coincident_events' in collected_results.keys()):
         c = collected_results.pop('coincident_events')
+    if ('most_likely_direction' in collected_results.keys()):
+        if (collected_results['n_events_coincident'] == 0):
+            c = collected_results.pop('most_likely_direction')
     if ('most_likely_direction' in collected_results.keys()):
         try: 
             if (collected_results['pval_generic']>0.1):
@@ -458,6 +467,17 @@ def parse_notice(record, wait_for_llama=False, heartbeat=False):
             except:
                 logger.warning('Failed to push to public webpage.')
         
+        if send_notif:
+            sender_script = os.path.join(os.environ.get('FAST_RESPONSE_SCRIPTS'),
+                                         '../slack_posters/lvk_email_sms_notif.py')
+            try: 
+                subprocess.call([sender_script, '--path_to_gcn', 
+                                 os.path.join(save_location, f'{name}_collected_results.json')])
+                logger.info('Sent alert to ROC for p<0.01')
+            except:
+                logger.warning('Failed to send email/SMS notification.')
+        else: 
+            logger.info('p>0.01: no email/sms sent')
     else:
         with open(os.path.join(save_location, f'mocks/{name}_collected_results.json'),'w') as f:
             json.dump(collected_results, f, indent = 6)
