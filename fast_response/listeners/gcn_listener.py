@@ -113,10 +113,10 @@ def process_gcn(payload, root):
 
     if args.document:
         try:
-            dir_1000 = glob.glob(os.path.join(os.environ.get('FAST_RESPONSE_OUTPUT'),
+            dir_1000 = glob(os.path.join(os.environ.get('FAST_RESPONSE_OUTPUT'),
                                           '*{}_1.0e+03_s').format(event_name))
             subprocess.call([analysis_path+'document.py', '--path', dir_1000[0]])
-            dir_2d = glob.glob(os.path.join(os.environ.get('FAST_RESPONSE_OUTPUT'),
+            dir_2d = glob(os.path.join(os.environ.get('FAST_RESPONSE_OUTPUT'),
                                           '*{}_1.7e+05_s').format(event_name))
             subprocess.call([analysis_path+'document.py', '--path', dir_2d[0]])
         except:
@@ -130,12 +130,12 @@ def process_gcn(payload, root):
             if shifters['start'][i]<datetime.utcnow()<shifters['stop'][i]:
                 on_shift+='<@{}> '.format(shifters['slack_id'][i])
         link = 'https://user-web.icecube.wisc.edu/~jthwaites/FastResponse/webpage/output/'
-        wp_link_1000 = '{}{}_1.0e+03_s.html'.format(link, eventtime[0:10].replace('-','_')+'_'+event_name)
-        wp_link_2d   = '{}{}_1.7e+05_s.html'.format(link, eventtime[0:10].replace('-','_')+'_'+event_name)
-        bot.send_message(f'Done running FRA for {alert_type} alert, {event_name}.\n ' +
-                         "Results for 1000s: <{}|link>. \n ".format(wp_link_1000) +
-                         "Results for 2d: <{}|link>. \n".format(wp_link_2d) +
-                         + on_shift +'on shift',
+        wp_link_1000 = '{}{}_{}_1.0e+03_s.html'.format(link, eventtime[0:10].replace('-','_'),event_name)
+        wp_link_2d   = '{}{}_{}_1.7e+05_s.html'.format(link, eventtime[0:10].replace('-','_'),event_name)
+        bot.send_message(f'Done running FRA for {alert_type} alert, {event_name}.\n '+ on_shift +'on shift',
+                         'blanket_blob')
+        bot.send_message("Results for 1000s: <{}|link> \n Results for 2d: <{}|link>".format(
+                          wp_link_1000, wp_link_2d),
                          'blanket_blob')
         print(' - slack message sent \n')
     except Exception as e:
