@@ -111,6 +111,8 @@ def process_gcn(payload, root):
         '--suffix={}'.format(suffix)]
         )
 
+    event_name=event_name+suffix
+    doc = False
     if args.document:
         try:
             dir_1000 = glob(os.path.join(os.environ.get('FAST_RESPONSE_OUTPUT'),
@@ -119,6 +121,7 @@ def process_gcn(payload, root):
             dir_2d = glob(os.path.join(os.environ.get('FAST_RESPONSE_OUTPUT'),
                                           '*{}_1.7e+05_s').format(event_name))
             subprocess.call([analysis_path+'document.py', '--path', dir_2d[0]])
+            doc=True
         except:
             print('Failed to document to private webpage')
 
@@ -134,9 +137,10 @@ def process_gcn(payload, root):
         wp_link_2d   = '{}{}_{}_1.7e+05_s.html'.format(link, eventtime[0:10].replace('-','_'),event_name)
         bot.send_message(f'Done running FRA for {alert_type} alert, {event_name}.\n '+ on_shift +'on shift',
                          'blanket_blob')
-        bot.send_message("Results for 1000s: <{}|link> \n Results for 2d: <{}|link>".format(
-                          wp_link_1000, wp_link_2d),
-                         'blanket_blob')
+        if doc:
+            bot.send_message("Results for 1000s: <{}|link> \nResults for 2d: <{}|link>".format(
+                              wp_link_1000, wp_link_2d),
+                             'blanket_blob')
         print(' - slack message sent \n')
     except Exception as e:
         print(e)
