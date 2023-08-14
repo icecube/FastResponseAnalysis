@@ -995,6 +995,7 @@ class PriorFollowup(FastResponseAnalysis):
 
         self.energy_range = (np.min([low_5_min_dec, low_5_max_dec]),
                              np.max([high_5_min_dec, high_5_max_dec]))
+        print('90% Central Energy Range: {}, {} GeV'.format(round(self.energy_range[0]), round(self.energy_range[1])))
         self.save_items['energy_range'] = self.energy_range
 
     def ns_scan(self):
@@ -1246,6 +1247,7 @@ class PointSourceFollowup(FastResponseAnalysis):
         plt.legend(loc=4, fontsize=18)
         plt.savefig(self.analysispath + '/central_90_dNdE.png',bbox_inches='tight')
 
+        print('90% Central Energy Range: {}, {} GeV'.format(round(low_5), round(high_5)))
         self.save_items['energy_range'] = (self.low5, self.high5)
 
     def write_circular(self):
