@@ -188,17 +188,19 @@ def parse_notice(record, wait_for_llama=False, heartbeat=False):
     if 'Significant' in params.keys():
         if int(params['Significant'])==0: 
             subthreshold=True
+            logger.warning('low-significance alert found. ')
     if params['Group'] == 'Burst':
         wait_for_llama = False
         m = 'Significant' if not subthreshold else 'Subthreshold'
         logger.warning('{} burst alert found. '.format(m))
+    if len(params['Instruments'].split(','))==1:
+        #wait_for_llama = False
+        logger.warning('One detector event found. ')
 
     if not wait_for_llama and subthreshold:
         #if llama isn't running, don't run on subthreshold
-        logger.warning('Not waiting for LLAMA, subthreshold alert. Returning...')
+        logger.warning('Not waiting for LLAMA. Returning...')
         return
-
-    logger.info("alert found, processing GCN")
 
     collected_results = {}
     collected_results["$schema"]= "https://gcn.nasa.gov/schema/gcn/notices/icecube/LvkNuTrackSearch.schema.json"
@@ -211,6 +213,7 @@ def parse_notice(record, wait_for_llama=False, heartbeat=False):
     if record.attrib['role'] != 'observation':
         name=name+'_test'
 
+    logger.info("{} alert found, processing GCN".format(name))
     collected_results['ref_id'] = name
 
     #collected_results['ref_id'] = name.split('-')[0]
@@ -236,10 +239,11 @@ def parse_notice(record, wait_for_llama=False, heartbeat=False):
     start_check_mjd = Time(datetime.utcnow(), scale='utc').mjd
     max_delay = max_wait/60./24. #mins to days
 
-    while results_done == False:
-        logger.info("Waiting for results (max {:.0f} mins)".format(
+    logger.info("Looking for results (max {:.0f} mins)".format(
             max_wait)
             )
+    
+    while results_done == False:
         start_date = Time(dateutil.parser.parse(eventtime)).datetime
         start_str = f'{start_date.year:02d}_{start_date.month:02d}_{start_date.day:02d}'
 
@@ -247,7 +251,10 @@ def parse_notice(record, wait_for_llama=False, heartbeat=False):
                                    + '/' + start_str + '_' + name.replace(' ', '_')+'_results.pickle')
         uml_results_finished = os.path.exists(uml_results_path)
 
-        llama_name = '{}.significance_subthreshold_lvc-i3.json'.format(record.attrib['ivorn'].split('#')[1])
+        if len(params['Instruments'].split(','))==1:
+            llama_name = '{}.significance_opa_lvc-i3.json'.format(record.attrib['ivorn'].split('#')[1])
+        else:
+            llama_name = '{}.significance_subthreshold_lvc-i3.json'.format(record.attrib['ivorn'].split('#')[1])
         llama_results_path = os.path.join(llama_results_location,llama_name)
         if wait_for_llama:
             llama_results_finished = os.path.exists(llama_results_path)
