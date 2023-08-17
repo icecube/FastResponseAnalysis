@@ -32,6 +32,7 @@ consumer = Consumer(client_id=client_id,
 consumer.subscribe(['gcn.classic.voevent.LVC_PRELIMINARY',
                     'gcn.classic.voevent.LVC_INITIAL',
                     'gcn.classic.voevent.LVC_UPDATE'])
+#consumer.subscribe(['igwn.gwalert'])
 
 def SendAlert(results=None):
         from gcn_kafka import Producer
@@ -43,7 +44,8 @@ def SendAlert(results=None):
             prod_id = f.readline().rstrip('\n')
             prod_secret = f.readline().rstrip('\n')
 
-        producer = Producer(client_id=prod_id,
+        producer = Producer(config={'bootstrap.servers': 'kafka3.gcn.nasa.gov'},
+                            client_id=prod_id,
                             client_secret=prod_secret,
                             domain='gcn.nasa.gov')
         
@@ -69,7 +71,8 @@ def SendTestAlert(results=None):
             prod_id = f.readline().rstrip('\n')
             prod_secret = f.readline().rstrip('\n')
 
-        producer = Producer(client_id=prod_id,
+        producer = Producer(#config={'bootstrap.servers': 'kafka3.gcn.nasa.gov'},
+                            client_id=prod_id,
                             client_secret=prod_secret,
                             domain='test.gcn.nasa.gov')
         
@@ -488,6 +491,7 @@ def parse_notice(record, wait_for_llama=False, heartbeat=False):
     else:
         with open(os.path.join(save_location, f'mocks/{name}_collected_results.json'),'w') as f:
             json.dump(collected_results, f, indent = 6)
+        #logger.info('sending test notice')
         #status = SendTestAlert(results = collected_results)
         #logger.info('status: {}'.format(status))
 
@@ -569,5 +573,5 @@ else:
         print(e)
         exit()
     
-    parse_notice(record, wait_for_llama=args.wait_for_llama)
+    parse_notice(record, wait_for_llama=args.wait_for_llama, heartbeat=args.heartbeat)
 logger.info("done")
