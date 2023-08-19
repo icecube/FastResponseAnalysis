@@ -44,6 +44,8 @@ def run_analysis(args):
     f.calc_pvalue(ntrials = args.ntrials)
     f.make_dNdE()
     f.plot_tsd()
+    
+    print('Calculating upper limit')
     f.upper_limit(n_per_sig = args.n_per_sig)
     results = f.save_results()
 
