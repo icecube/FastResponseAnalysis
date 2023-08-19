@@ -1,5 +1,8 @@
 #!/usr/bin/env python
 
+'''Note: this version listens to GCN CLASSIC. 
+Main sender is combine_results_kafka.py'''
+
 import logging
 from datetime import datetime
 import socket
@@ -60,7 +63,7 @@ def SendAlert(results=None):
             prod_id = f.readline().rstrip('\n')
             prod_secret = f.readline().rstrip('\n')
 
-        producer = Producer(config={'bootstrap.servers': 'kafka3.gcn.nasa.gov'},
+        producer = Producer(#config={'bootstrap.servers': 'kafka3.gcn.nasa.gov'},
                             client_id=prod_id,
                             client_secret=prod_secret,
                             domain='gcn.nasa.gov')
