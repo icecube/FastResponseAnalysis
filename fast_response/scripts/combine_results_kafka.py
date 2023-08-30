@@ -26,7 +26,8 @@ with open('/cvmfs/icecube.opensciencegrid.org/users/jthwaites/tokens/kafka_token
     client_secret = f.readline().rstrip('\n')
 
 consumer = Consumer(client_id=client_id,
-                    client_secret=client_secret)
+                    client_secret=client_secret,
+                    config={'max.poll.interval.ms':1200000})
 
 # Subscribe to topics to receive alerts
 consumer.subscribe(['gcn.classic.voevent.LVC_PRELIMINARY',
