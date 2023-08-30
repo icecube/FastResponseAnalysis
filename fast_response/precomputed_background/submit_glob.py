@@ -21,15 +21,15 @@ args = parser.parse_args()
 username = pwd.getpwuid(os.getuid())[0]
 if not os.path.exists(f'/scratch/{username}/'):
     os.mkdir(f'/scratch/{username}/')
-if not os.path.exists(f'/scratch/{username}/gw/'):
-    os.mkdir(f'/scratch/{username}/gw/')
-if not os.path.exists(f'/scratch/{username}/gw/condor/'):
-    os.mkdir(f'/scratch/{username}/gw/condor')
+if not os.path.exists(f'/scratch/{username}/fra/'):
+    os.mkdir(f'/scratch/{username}/fra/')
+if not os.path.exists(f'/scratch/{username}/fra/condor/'):
+    os.mkdir(f'/scratch/{username}/fra/condor')
 
-error = f'/scratch/{username}/gw/condor/error'
-output = f'/scratch/{username}/gw/condor/output'
-log = f'/scratch/{username}/gw/condor/log'
-submit = f'/scratch/{username}/gw/condor/submit'
+error = f'/scratch/{username}/fra/condor/error'
+output = f'/scratch/{username}/fra/condor/output'
+log = f'/scratch/{username}/fra/condor/log'
+submit = f'/scratch/{username}/fra/condor/submit'
 
 ### Create Dagman to submit jobs to cluster    
 job = pycondor.Job(
@@ -49,7 +49,7 @@ job = pycondor.Job(
         'when_to_transfer_output = ON_EXIT']
     )
 
-job.add_arg('--deltaT {} --dir {}'.format(args.tw, args.dir))
+job.add_arg('--deltaT {} --dir {} --nside {}'.format(args.tw, args.dir, 512))
 
 job.build_submit()
 
