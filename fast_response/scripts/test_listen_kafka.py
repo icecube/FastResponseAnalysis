@@ -19,15 +19,15 @@ with open('/cvmfs/icecube.opensciencegrid.org/users/jthwaites/tokens/kafka_token
     client_id = f.readline().rstrip('\n')
     client_secret = f.readline().rstrip('\n')
 
-domain = 'test.gcn.nasa.gov'
-#domain = 'gcn.nasa.gov'
+#domain = 'test.gcn.nasa.gov'
+domain = 'gcn.nasa.gov'
 
 consumer = Consumer(client_id=client_id,
                     client_secret=client_secret,
                     domain=domain)
 
-topic = 'gcn.notices.icecube.test.lvk_nu_track_search'
-#topic = 'gcn.notices.icecube.lvk_nu_track_search'
+#topic = 'gcn.notices.icecube.test.lvk_nu_track_search'
+topic = 'gcn.notices.icecube.lvk_nu_track_search'
 
 consumer.subscribe([topic])
 
@@ -37,9 +37,11 @@ logger.warning("checking for {}, connecting to GCN".format(topic))
 
 while True:
     for message in consumer.consume(timeout=1):
+        if message.error():
+            print(message.error())
+            continue
         value = message.value()
-        try: 
-            alert_dict = json.loads(value.decode('utf-8'))
-            print(json.dumps(alert_dict, indent=2))
-        except:
-            print(value)
+        
+        alert_dict = json.loads(value.decode('utf-8'))
+        print(json.dumps(alert_dict, indent=2))
+    
