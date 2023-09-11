@@ -68,7 +68,7 @@ def process_gcn(payload, root):
             merger_type = 'Burst'
         else:
             k = ['BNS','NSBH','BBH']
-            probs = {j: params[j] for j in k}
+            probs = {j: float(params[j]) for j in k}
             merger_type = max(zip(probs.values(), probs.keys()))[1]
     except:
         print('Could not determine type of event')
