@@ -8,25 +8,27 @@ from astropy.time import Time
 import matplotlib as mpl
 mpl.use('agg')
 import matplotlib.pyplot as plt
+from scipy import sparse
+
 
 from .FastResponseAnalysis import PriorFollowup
 from .reports import GammaRayBurstReport
 import fast_response
 
 class GRBFollowup(PriorFollowup):
-    _dataset = 'GFUOnline_v001p02'
+    _dataset = 'GFUOnline_v001p02' #'GFUOnline_v002p00'
     _fix_index = False
     _float_index = True
     _index = 2.0
     _pixel_scan_nsigma = 3.0
     _allow_neg = True
-    _containment = None
-    _nside = 256
-    _season_names = ['IC86, 2017', 'IC86, 2018', 'IC86, 2019']
+    _containment = 0.999 #None
+    _nside = 256 #128
+    _season_names = ['IC86, 2011','IC86, 2012', 'IC86, 2013','IC86, 2014', 'IC86, 2015', 'IC86, 2016','IC86, 2017', 'IC86, 2018', 'IC86, 2019']
     _nb_days = 5.
-    _ncpu = 10
+    _ncpu = 1
     
-    def run_background_trials(self, month=None, ntrials=1000):
+    def run_background_trials(self, tw, month=None, ntrials=1000):
         if month is None:
             # month = datetime.datetime.utcnow().month
             month = Time(self.centertime, format='mjd').datetime.month
@@ -38,10 +40,16 @@ class GRBFollowup(PriorFollowup):
             allow_pickle=True,
             encoding='latin1'
         )
+        '''
 
+        bg_trial_dir = '/data/user/rpmurphy/realtime/fast_response/FastResponseAnalysis/fast_response/grb_precomputed_trials/'
+        pre_ts_array = sparse.load_npz(bg_trial_dir + 'allsky_scans_TW_{}_trials_{}.npz'.format(tw, ntrials))
+        print(pre_ts_array.shape, self.skymap.shape)
+        '''
         # Create spatial prior weighting
         max_ts = []
         ts_norm = np.log(np.amax(self.skymap))
+        
         for i in range(pre_ts_array.size):
             # If a particular scramble in the pre-computed ts_array is empty,
             #that means that sky scan had no events in the sky, so max_ts=0
@@ -53,7 +61,15 @@ class GRBFollowup(PriorFollowup):
                 interp[interp<0] = 0.
                 ts_prior = pre_ts_array[i]['ts'] + 2*(np.log(interp) - ts_norm)
                 max_ts.append(ts_prior.max())
-
+        #import IPython
+        #IPython.embed()	
+        #print(ts_norm)
+        #ts_prior = pre_ts_array
+        #print(np.sum(ts_prior.max(axis=1).A > 0))
+        #ts_prior.data += (2*(np.log(self.skymap[pre_ts_array.indices]) - ts_norm)) 
+        #print(np.sum(ts_prior.max(axis=1).A > 0))
+        #ts_prior.data[ts_prior.data < 0] = 0
+        #max_ts = ts_prior.max(axis=1).A
         max_ts = np.array(max_ts)
         self.tsd = max_ts
         return max_ts
@@ -186,6 +202,7 @@ class GRBFollowup(PriorFollowup):
         #inj = PointSourceInjector(gamma=2, E0=1000.)
         #inj.fill(dec, self.llh.exp, self.llh.mc, self.llh.livetime,
         #         temporal_model=self.llh.temporal_model)
+        #Commented out to inject spectrum
         if (not hasattr(self, "inj")) or (not isinstance(self.inj, PointSourceInjector)):
             self.initialize_injector(e_range)
         ni, sample = self.inj.sample(ns,poisson=poisson)
@@ -245,6 +262,9 @@ class GRBFollowup(PriorFollowup):
         exp_pix   = hp.ang2pix(self.nside, exp_theta, exp_phi)
         overlap   = np.isin(exp_pix, self.ipix_90)
 
+        #import IPython
+        #IPython.embed()
+
         t_mask=(self.llh.exp['time'] <= self.stop) & (self.llh.exp['time'] >= self.start)
         events = self.llh.exp[t_mask]
         print('this is the events length', len(self.llh.exp['time']), self.stop, self.start)
@@ -269,6 +289,7 @@ class GRBFollowup(PriorFollowup):
         self.events_rec_array = events
         self.coincident_events = [dict(zip(events.dtype.names, x)) for x  in events]
         self.save_items['coincident_events'] = self.coincident_events
+        return self.coincident_events
 
     def upper_limit(self,n_per_sig=100, p0=None, erange=[0, np.inf],plot=True):
         sens_range = self.ps_sens_range()

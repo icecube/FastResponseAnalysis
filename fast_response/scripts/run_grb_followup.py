@@ -26,7 +26,7 @@ from skylab.datasets import Datasets
 from icecube import icetray
 from os.path import expanduser
 
-#from fast_response.make_ontime_plots   import make_rate_plots
+from fast_response.make_ontime_plots   import make_rate_plots
 import icecube.realtime_tools.live
 
 import json
@@ -45,12 +45,6 @@ except:
 from fast_response.GRBFollowup import GRBFollowup
 #import fast_response.web_utils as web_utils
 
-import matplotlib as mpl
-mpl.rcParams['text.usetex'] = True
-#mpl.rcParams['text.latex.preamble'] = [r'\usepackage{amsmath}'] 
-#mpl.rcParams.update(mpl.rcParamsDefault)
-#mpl.rcParams['text.usetex'] = True
-
 print(sys.path, os.environ)
 
 parser = argparse.ArgumentParser(description='GW Followup')
@@ -64,6 +58,13 @@ parser.add_argument('--allow_neg_ts', type=bool, default=False,
                     help='bool to allow negative TS values in gw analysis.')
 args = parser.parse_args()
 
+os.environ['MPLCONFIGDIR'] = '/data/user/rpmurphy/realtime/fast_response/FastResponseAnalysis/fast_response/scripts/{}'.format(args.name)
+
+import matplotlib as mpl
+mpl.rcParams['text.usetex'] = True
+#mpl.rcParams['text.latex.preamble'] = [r'\usepackage{amsmath}'] 
+#mpl.rcParams.update(mpl.rcParamsDefault)
+#mpl.rcParams['text.usetex'] = True
 
 ######################
 #                    #
@@ -128,11 +129,15 @@ def query_db_runs( time_window):
 
 def ontime_table(query_dict):
 	newdict=[]
+	l=0
 	for event in query_dict:
 		newevent = event['value']['data']
+		#import IPython
+		l =l+1
+		print(l)
 		for key,val in list(newevent['reco']['splinempe'].items()):
 			newevent['splinempe_'+key]=val
-		if Time(newevent['eventtime'],scale='utc',format='iso'):
+		if Time(newevent['eventtime'],scale='utc',format='iso') >= Time("2018-07-10 17:52:03.34", format='iso',scale='utc'):
 			newevent['muex']= newevent['reco']['energy']['mpe_muex']
 		del newevent['reco']
 		newdict.append(newevent)
@@ -140,13 +145,13 @@ def ontime_table(query_dict):
 
 	if len(events):
 		t=Time(list(events['eventtime']),scale='utc',format='iso')
-		events['t']=t.datatime
+		events['t']=t.datetime
 		events['mjd']=t.mjd
 	return events
 
 
-#report_path ='/home/rpmurphy/public_html/{}'.format(args.name)
-report_path = '/data/user/rpmurphy/realtime/fast_response/FastResponseAnalysis/fast_response/scripts/{}'.format(args.name)
+report_path ='/home/rpmurphy/public_html/{}'.format(args.name)
+#report_path = '/data/user/rpmurphy/realtime/fast_response/FastResponseAnalysis/fast_response/scripts/{}'.format(args.name)
 
 os.environ['PATH'] += '/usr/bin/'
 
@@ -231,9 +236,12 @@ else:
 #else:
 #	print('Skymap error')
 
+#import IPython
+#IPython.embed()
+
 t90_start = test_grb.mjd + test_grb.T90_start/86400 - test_grb.T0/86400
 
-t0_start = test_grb.mjd + test_grb.T0/86400
+t0_start = test_grb.mjd #+ test_grb.T0/86400
 
 t0 = Time(t0_start, format='mjd')
 
@@ -244,6 +252,12 @@ print('this is the t0 start', test_grb.T0)
 print('half t90', test_grb.T90/86400/2)
 
 t90_center = t90_start + test_grb.T90/86400/2
+
+print(test_grb.T90[0])
+
+if str(test_grb.T90[0]) == 'nan':
+	print(f"{args.name} does not have a T90. Must check GCN and run manually.")
+	exit() 
 
 print('this is the t90 center', t90_center)
 
@@ -270,7 +284,7 @@ message += '\n' + str(pyfiglet.figlet_format("GRB Followup")) + '\n'
 message += '*'*80
 print(message)
 
-tw_list = [10, 25, 50, 100, 250., 500., 1000., 5000., 172800., 1296000.]
+tw_list = [25] #[10, 25, 50, 100, 250, 500, 1000, 5000, 172800, 1296000]
 ts_list = []
 ns_list = []
 p_vals = []
@@ -295,6 +309,17 @@ for tw in tw_list:
 	#gw_time = Time(args.time, format='mjd')
 	#start_time = gw_time - (delta_t / 86400. / 2.)
 	#stop_time = gw_time + (delta_t / 86400. / 2.)
+	current_mjd = Time(datetime.datetime.now(), scale='utc').mjd
+	grb_mjd = test_grb.mjd
+	needed_delay = tw/86400
+	current_delay = current_mjd - grb_mjd
+	print('This is the current mdj, grb mjd, needed delay, and current delay:', current_mjd, grb_mjd, needed_delay, current_delay)
+	while current_delay < needed_delay:
+		print("need to wait another {:.1f} seconds before running {} time window")
+		time.sleep((needed_delay - current_delay)*86400.)
+		current_mjd = Time(datetime.datetime.now(), scale = 'utc').mjd
+		current_delay = current_mjd - grb_mjd
+
 
 	if tw == 1296000.:
 		t90_center_time = Time(t90_center, format='mjd')
@@ -308,16 +333,19 @@ for tw in tw_list:
 		print(start_time, stop_time)
 		
 	start_ndarray = start_time.iso
-	#start = start_ndarray.tostring()
+	print('this is the start_ndarray', start_ndarray)
+        #start = start_ndarray.tostring()
 	start = str(start_ndarray)[2:-2]
+	print('this is the start', start)
 	stop_ndarray = stop_time.iso
 	#stop = stop_ndarray.tostring()
 	stop = str(stop_ndarray)[2:-2]
 	name = args.name
 	name = name.replace('_', ' ')
 	tw = tw
+	print(start, stop)
 	start2stop = (start_time, stop_time)
-	print(name, skymap, start, stop, tw)
+	print('this section', name, skymap, start, stop, tw)
 	
 	if tw == 172800:
 		tw_1 = '2 day'
@@ -335,7 +363,12 @@ for tw in tw_list:
 	mdFile.new_header(level=1, title='{} Time Window'.format(tw_1))
 	mdFile.new_header(level=2, title='Source Information')
 	mdFile.new_table(columns = 2, rows=5, text= ["Source Name", "{}".format(args.name), "Skymap","{}".format(skymap),"Trigger Time","{} (MJD={})".format(t0.iso, t0.mjd), "Start Time", "{} (Trigger-{}s)".format(Time(start_trigger, format= 'mjd').iso, tw/2), "Stop Time", "{} (Trigger+{}s)".format(Time(stop_trigger, format='mjd').iso,tw/2) ] )	
-	
+	if tw < 50:
+		ntrials = 100*10000
+	elif tw < 172800:
+		ntrials = 10*10000
+	else:
+		ntrials = 10000
 
 	mdFile.new_header(level=2, title='Detector Operations')
 	#mdFile.new_table(columns=)
@@ -347,9 +380,9 @@ for tw in tw_list:
 	f._dataset = 'GFUOnline_v001p02'
 	f._fix_index = True
 	f._float_index = False
-	f._season_names = ['IC86, 2017', 'IC86, 2018', 'IC86, 2019']
-	
-	#f.initialize_injector() 
+	f._season_names = ['IC86, 2011-2018']#['IC86, 2017', 'IC86, 2018', 'IC86, 2019']
+	f._containment =0.999	
+	print('this is the skymap', skymap)
 	#run_table = f.run_table(time_window=[1,2])
 	
 	run_table_list = ['Run', 'Start Time', 'Stop Time', 'Duration', 'Livetime']
@@ -375,11 +408,20 @@ for tw in tw_list:
 
 	ontime = {}
 	ontime['type'] = 'database'
-	ontime['stream'] = 'neutrino' ###NEED TO CHANGE FOR PREVIOUS MDJ TIMES####
+	#ontime['stream'] = 'neutrino' ###NEED TO CHANGE FOR PREVIOUS MDJ TIMES####
+	ontime['runkey'] = 'run_id'
 	ontime['time_start'] = Time(run_table[0]['start'], format='iso', scale='utc', precision=0).iso
 	ontime['time_stop'] = Time(run_table[-1]['stop'], format='iso', scale='utc', precision=0).iso
+	if stop_time > Time(58309.74, format='mjd', scale='utc', precision=0):
+		ontime['stream'] = 'neutrino'
+	elif stop_time > Time(57891.17, format='mjd', scale='utc', precision=0):
+		ontime['stream'] = 'neutrino17'
+	else:
+		ontime['stream'] = 'neutrino16'
 
-	query_events = icecube.realtime_tools.live.get_events(ontime['stream'], ontime['time_stop'], ontime['time_stop'])
+
+
+	#query_events = icecube.realtime_tools.live.get_events(ontime['stream'], ontime['time_start'], ontime['time_stop'])
 
 	print(mpl.rcParams['text.usetex'], '4')
 
@@ -427,8 +469,23 @@ for tw in tw_list:
 			and run['run_mode'] in ['PhysicsTrig']
 			else "NotOK"
 			)
-		
-		#run['gfu_counts'] = (self.widewindow['run_id']==run['run_number']).sum()
+		query_events = icecube.realtime_tools.live.get_events(ontime['stream'], ontime['time_start'], ontime['time_stop'])
+		widewindow = ontime_table(query_events)
+		#import IPython
+		#IPython.embed()		
+
+		'''try:
+			widewindow['t']=Time(list(widewindow['eventtime']),scale='utc',format='iso')
+			for run_1 in run_table:
+				run_1['gfu_counts']=(widewindow['run_id'])
+				run_status_list.append(run_1['gfu_counts'])
+		except:
+			print("Old years of data have different database keys")
+			for run_1 in run_table:
+				run_1['gfu_counts']=0.
+				run_status_list.append(run_1['gfu_counts'])'''
+	
+		#run['gfu_counts'] = (widewindow['run_id']==run['run_number']).sum()
 		run_table_list.append(run['run_number'])
 		run_table_list.append(run['start'])
 		run_table_list.append(run['stop']) 
@@ -441,10 +498,9 @@ for tw in tw_list:
 		run_status_list.append(run['filter_mode'])
 		run_status_list.append(run['run_mode'])
 		run_status_list.append(run['OK'])
-		widewindow = ontime_table(query_events)
 		try:
 			widewindow['t']=Time(list(widewindow['eventtime']),scale='utc',format='iso')
-			run['gfu_counts']=(widewindow['run_id'])
+			run['gfu_counts'] = (self.widewindow['run_id']==run['run_number']).sum()
 			run_status_list.append(run['gfu_counts'])
 		except:
 			print("Old years of data have different database keys")
@@ -453,7 +509,8 @@ for tw in tw_list:
 		
 		length = length + 1
 	
-	#print(run_table_list)
+	#import IPython
+	#IPython.embed()
 	mdFile.new_header(level=2, title='Run Times')
 	mdFile.new_table(columns = 5, rows=length+1, text=run_table_list)
 	mdFile.new_paragraph('Total Livetime = {}s'.format(run['livetime']))
@@ -461,18 +518,23 @@ for tw in tw_list:
 	mdFile.new_header(level=2, title='Run Status')
 	mdFile.new_table(columns = 7, rows=length+1, text=run_status_list)
 	
-	plot_path = '/data/user/rpmurphy/realtime/fast_response/FastResponseAnalysis/fast_response/scripts/2018_07_21_GRB180721A{}'.format(tw)
-	'''make_rate_plots(start2stop, run_table, query_events, plot_path, args.name, tw, report_path,ontime['stream'])
+	plot_path = '/data/user/rpmurphy/realtime/fast_response/FastResponseAnalysis/fast_response/scripts/{}'.format(args.name)
+	plot_path_1 = '/data/user/rpmurphy/realtime/fast_response/FastResponseAnalysis/fast_response/scripts/20{}_{}_{}_{}{}/'.format(args.name[3:5], args.name[5:7], args.name[7:9], args.name, tw)
+	try:
+		make_rate_plots(start2stop, run_table, query_events, plot_path, args.name, tw, report_path,ontime['stream'])
+
+		online_str = 'OnlineL2Filter_16' if ontime['stream'] == 'neutrino16' else 'OnlineL2Filter_17'
 	
-	mdFile.new_header(level=2, title='Event Rates')
-	mdFile.new_line(mdFile.new_inline_image(text='multiplicity', path='./IN_ICE_SIMPLE_MULTIPLICITY_plot_{}.png'.format(tw)))
-	mdFile.new_line(mdFile.new_inline_image(text='badnessplot', path='./badness_plot_{}.png'.format(tw)))
-	mdFile.new_line(mdFile.new_inline_image(text='muonfilter',path = './MuonFilter_13_plot_{}.png'.format(tw)))
-	mdFile.new_line(mdFile.new_inline_image(text='Lfilter',path='./OnlineL2Filter_17_plot_{}.png'.format(tw)))
-	mdFile.new_line(mdFile.new_inline_image(text='gfurate',path = './GFU_rate_plot.png_{}'.format(tw)))
+		mdFile.new_header(level=2, title='Event Rates')
+		mdFile.new_line(mdFile.new_inline_image(text='multiplicity', path='./IN_ICE_SIMPLE_MULTIPLICITY_plot_{}.png'.format(tw)))
+		mdFile.new_line(mdFile.new_inline_image(text='badnessplot', path='./badness_plot_{}.png'.format(tw)))
+		mdFile.new_line(mdFile.new_inline_image(text='muonfilter',path = './MuonFilter_13_plot_{}.png'.format(tw)))
+		mdFile.new_line(mdFile.new_inline_image(text='Lfilter',path='./{}_plot_{}.png'.format(online_str, tw)))
+		mdFile.new_line(mdFile.new_inline_image(text='gfurate',path = './GFU_rate_plot_{}.png'.format(tw)))
+	except:
+		print("old event")
 
-
-	'''
+	
 	print('unblind TS')
 	ts, ns = f.unblind_TS()
 	print(mpl.rcParams['text.usetex'], '5')
@@ -482,8 +544,8 @@ for tw in tw_list:
 	print(mpl.rcParams['text.usetex'], '6')
 	f.plot_ontime()
 	print('calc_pvalue')
-	f.calc_pvalue()
-	p, sigma = f.calc_pvalue()
+	#f.calc_pvalue(ntrials=ntrials)
+	p, sigma = f.calc_pvalue(ntrials=ntrials)
 	try:
 		p_vals.append(p)
 		sigmas.append(sigma)
@@ -495,11 +557,12 @@ for tw in tw_list:
 	f.make_dNdE()
 	print('plot tsd')
 	f.plot_tsd(allow_neg=f._allow_neg)
-	print('upper limit')
+	#print('upper limit')
 	#y = f.upper_limit()
 	#print(y)
 	print('find coincident events')
-	f.find_coincident_events()
+	coincident_events = f.find_coincident_events()
+	print(coincident_events)
 	print('per event pvalue')
 	f.per_event_pvalue()
 	results = f.save_results()
@@ -507,28 +570,45 @@ for tw in tw_list:
 	#print(plot_path)
 	
 	mdFile.new_header(level=1, title= 'Results')
-	mdFile.new_line(mdFile.new_inline_image(text='All Sky On-time Events', path='./unblinded_skymap.png'))
-	mdFile.new_line(mdFile.new_inline_image(text='Zoom Skymap', path='./unblinded_skymap_zoom.png'))
+	mdFile.new_line(mdFile.new_inline_image(text='All Sky On-time Events', path= './20{}_{}_{}_{}unblinded_skymap.png'.format(args.name[3:5], args.name[5:7], args.name[7:9], args.name)))
+	mdFile.new_line(mdFile.new_inline_image(text='Zoom Skymap', path= './20{}_{}_{}_{}unblinded_skymap_zoom.png'.format(args.name[3:5], args.name[5:7], args.name[7:9], args.name)))
 	mdFile.new_header(level=2, title = 'Coincident Events')
+	print(plot_path_1, '20{}_{}_{}_{}unblinded_skymap_zoom.png'.format(args.name[3:5], args.name[5:7], args.name[7:9], args.name))
 	#mdFile.new_line()
 	### ADD COINCIDENT EVENT TABLE
+
+	coincident_event_table = ["Run:Event", "Time", r"$\alpha$, $\delta$","Angular Uncertianty", "Reconstructed energy"]
+	coincident_length = 1
+	if coincident_events is not None and coincident_events !=[]:
+		for event in coincident_events:
+			coincident_event_table.append("{}:{}".format(event['run'], event['event']))
+			coincident_event_table.append("{}".format(event['time']))
+			coincident_event_table.append(r"{:3.2f}\degree, {:+3.2f}\degree".format(np.rad2deg(event['ra']), np.rad2deg(event['dec'])))
+			coincident_event_table.append("{:3.2f}\degree".format(np.rad2deg(event["sigma"]*2.145966)))
+			#coincident_event_table.append("{:2.2f}\degree".format(event['delta_psi']*180. / np.pi)) #add back in???
+			coincident_event_table.append("{:2.2e}".format(10**event['logE']))
+			#coincident_event_table.append("{:.2f}".format(event['spatial_w']))
+			#coincident_event_table.append("{:.2f}".format(event['energy_w']))
+			coincident_length = coincident_length +1
+		print(coincident_length, len(coincident_event_table))
+		mdFile.new_table(columns=5 , rows =coincident_length , text=coincident_event_table)
 	mdFile.new_header(level =2, title='Likelihood Analysis')
-	mdFile.new_table(columns=4, rows=2, text=['ns', 'TS', 'p-value','sigma', ns, ts, p, sigma])
+	mdFile.new_table(columns=4, rows=2, text=['ns', 'TS', 'p-value','sigma', round(ns, 1), round(ts, 1), round(p,4), round(sigma,1)])
 	mdFile.new_line(mdFile.new_inline_image(text='dN/dE', path = './central_90_dNdE_{}.png'.format(tw)))
 	
-	if os.path.exists(f'{plot_path}/TS_distribution_{tw}.png'):
+	if os.path.exists(f'{plot_path_1}/TS_distribution_{tw}.png'):
 		mdFile.new_line(mdFile.new_inline_image(text='TS distribution', path = './TS_distribution_{}.png'.format(tw)))
 	else:
 		mdFile.new_line('No background TS distrubution')
 
-	if os.path.exists('./upper_limit_distribution.png'):
+	if os.path.exists(f'{plot_path_1}/upper_limit_distribution.png'):
 		mdFile.new_line(mdFile.new_inline_image(text='upper_limit_distribution.png'))
 	else:
 		mdFile.new_line('No upper limit calculation')
 
-	if os.path.isdir(report_path):
-        	print("Moving plots to {}".format(report_path))
-       		subprocess.call(['cp {}/* {}'.format(plot_path, report_path)], shell=True)
+	#if os.path.isdir(plot_path_1):
+	print("Moving plots to {}".format(report_path))
+	subprocess.call(['cp {}* {}'.format(plot_path_1, report_path)], shell=True)
 
 	mdFile.new_line('These plots are meant as validations of the minimizer, and cannot be interpreted directly using Wilk’s assuming one degree of freedom because the low statistics invalidates the asymptotic condition for Wilk’s theorem.')
 	
@@ -536,6 +616,14 @@ for tw in tw_list:
 	np.delete(run_table_list, [0, len(run_table_list)-1])
 	#np.delete(ts_list)
 	#np.delete(ns_list)
+
+	mdFile.create_md_file()
+	text_file= open("{}_report.md".format(args.name),"r")
+	text = text_file.read()
+	markdownFile = markdown.markdown(text, extensions=['tables', TableExtension(use_align_attribute=True)])
+	with open(report_path + "/{}_report.html".format(args.name, args.name), 'w') as output_file:
+		output_file.write(markdownFile)
+
 
 TW_best = np.argmin(p_vals)
 p_post_best = p_vals[TW_best]
@@ -545,14 +633,15 @@ TS_unblind_best = ts_list[TW_best]
 
 np.savez(report_path+f'{args.name}.npz',TS_unblind_list=ts_list, ns_unblind_list=ns_list, p_post=p_vals, TW_best=TW_best, p_post_best=p_post_best, TS_unblind_best=TS_unblind_best)
 
-print('130427B_offline.npz'[:8])
+print('saved npz file')
 
+'''
 mdFile.create_md_file()
-text_file= open("GRB180721A_report.md","r")
+text_file= open("{}_report.md".format(args.name),"r")
 text = text_file.read()
 markdownFile = markdown.markdown(text, extensions=['tables', TableExtension(use_align_attribute=True)])
 with open(report_path + "/{}_report.html".format(args.name, args.name), 'w') as output_file:
 	output_file.write(markdownFile)
-
+'''
 
 #markdown.markdownFromFile(input='markdownFile', output ='GRB180721A_report.html')

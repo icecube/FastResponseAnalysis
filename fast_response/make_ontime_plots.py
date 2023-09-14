@@ -60,7 +60,9 @@ def time_series(ax, run_table, time_window, t1, t2, n,
 
     tdiff = t2 - t1
     tmid = tdiff/2 + t1
-    
+    #import IPython
+    #IPython.embed()    
+
     r = n/tdiff.sec*scale
     rerr = np.sqrt(n)/tdiff.sec*scale
     m = np.isfinite(r)
@@ -75,6 +77,9 @@ def time_series(ax, run_table, time_window, t1, t2, n,
 def make_rate_plots(time_window, run_table, query_events, dirname, grb_name, tw, report_path, season='neutrino'):
     ########## MAKE GFU RATE PLOT ##########
     fig, ax = plt.subplots(figsize = (12,4))
+
+    #import IPython
+    #IPython.embed()
 
     gfu_run_start = Time([ r['start'] for r in run_table], format='iso',scale='utc')
     gfu_run_stop  = Time([r['stop' ] for r in run_table], format='iso',scale='utc')
@@ -91,9 +96,11 @@ def make_rate_plots(time_window, run_table, query_events, dirname, grb_name, tw,
     plt.locator_params(axis='x', nbins = 8)
     plt.grid(b = True, axis = 'y', alpha = 0.3)
     plt.savefig('{}/GFU_rate_plot_{}.png'.format(dirname, tw))
-    plt.savefig(report_path + '/GFU_rate_plot_{}.png'.format(grb_name,tw))
-
+    plt.savefig(report_path + '/GFU_rate_plot_{}.png'.format(tw))
+    
     try:
+        #import IPython
+        #IPython.embed()
         badness = icecube.realtime_tools.live.get_badness(run_table[0]['start'], run_table[-1]['stop'])
     except Exception as e:
         print(e)
@@ -114,8 +121,10 @@ def make_rate_plots(time_window, run_table, query_events, dirname, grb_name, tw,
     plt.grid(b = True, axis = 'y', alpha = 0.3)
     plt.savefig('{}/badness_plot_{}.png'.format(dirname, tw))
     plt.savefig(report_path +'/badness_plot_{}.png'.format(tw))    
- 
+   
     try:
+        #import IPython
+        #IPython.embed()
         rates = icecube.realtime_tools.live.get_rates(run_table[0]['start'], run_table[-1]['stop'])
     except Exception as e:
         #rates=np.load('/data/user/jthwaites/FastResponseAnalysis/output/2022_2mo_followup_rates.npy')
@@ -129,6 +138,9 @@ def make_rate_plots(time_window, run_table, query_events, dirname, grb_name, tw,
     recstop = Time(rates['rec_stop' ],format='mjd',scale='utc')
 
     online_str = 'OnlineL2Filter_16' if season == 'neutrino16' else 'OnlineL2Filter_17'
+
+    #import IPython
+    #IPython.embed()
 
     for rate, name, unit in [('IN_ICE_SIMPLE_MULTIPLICITY', 'In-Ice-Simple-Multiplicity', '(kHz)'), 
                 ('MuonFilter_13', 'Muon Filter', '(Hz)'), 
@@ -146,3 +158,7 @@ def make_rate_plots(time_window, run_table, query_events, dirname, grb_name, tw,
         plt.grid(b = True, axis = 'y', alpha = 0.3)
         plt.savefig('{}/{}_plot_{}.png'.format(dirname, rate, tw))
         plt.savefig(report_path + '/{}_plot_{}.png'.format(rate, tw))
+
+    #import IPython
+    #IPython.embed()
+

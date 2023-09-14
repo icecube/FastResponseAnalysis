@@ -103,7 +103,6 @@ class FastResponseAnalysis(object):
             # sys.exit()
         elif self.save_output:
             subprocess.call(['mkdir', self.analysispath])
-
         if 'test' in self.name.lower():
             self.scramble = True
             if self._verbose:
@@ -162,6 +161,7 @@ class FastResponseAnalysis(object):
             if self._verbose:
                 print("Old times, just grabbing archival data")
             exps, grls = [], []
+            print(self.dataset, self._season_names)
             for season in self._season_names:
                 exp, mc, livetime = dset.season(season, floor=self._floor)
                 grl = dset.grl(season)
@@ -207,7 +207,7 @@ class FastResponseAnalysis(object):
         self.sinDec_bins = sinDec_bins
         self.energy_bins = energy_bins
         
-    def initialize_llh(self, skipped=None, scramble=True):
+    def initialize_llh(self, skipped=None, scramble=False):
         '''
         Grab data and format it all into a skylab llh object
         '''
@@ -261,7 +261,9 @@ class FastResponseAnalysis(object):
             nsource_bounds=(0., 1e3),      # bounds on fitted ns
             src_extension = src_extension, # Model symmetric extended source
             nsource=1.,                    # seed for nsignal fit
-            seed=self.llh_seed)           
+            seed=self.llh_seed)
+
+        print('THIS IS THE LLH', llh)           
 
         return llh
     
@@ -313,7 +315,7 @@ class FastResponseAnalysis(object):
             sigma = 0.0
             self.tsd = None
         else:
-            self.run_background_trials(ntrials=ntrials)
+            self.run_background_trials(tw = self.tw, ntrials=ntrials)
             p = np.count_nonzero(self.tsd >= self.ts) / float(self.tsd.size)
             sigma = self.significance(p)
             if self._verbose:
@@ -672,7 +674,7 @@ class PriorFollowup(FastResponseAnalysis):
     _pixel_scan_nsigma = 4.0
     _containment = 0.99
     _allow_neg = False
-    _nside = 256
+    _nside = 128
 
     def __init__(self, name, skymap_path, tstart, tstop, tw, skipped=None, seed=None,
                  outdir=None, save=True, extension=None):
@@ -681,6 +683,8 @@ class PriorFollowup(FastResponseAnalysis):
                        outdir=outdir, save=save, extension=extension)
 
         self.skymap_path = skymap_path
+        #import IPython
+        #IPython.embed()
         try:
             skymap, skymap_header = hp.read_map(skymap_path, h=True, verbose=False)
             self.skymap_header = skymap_header
@@ -694,12 +698,16 @@ class PriorFollowup(FastResponseAnalysis):
                 order_in='NESTED', order_out='RING'
             )
             skymap_header = None
-        skymap = self.format_skymap(skymap)
+        #skymap = self.format_skymap(skymap)
         self.skymap = skymap
         self.nside = hp.pixelfunc.get_nside(self.skymap)
         self.ipix_90 = self.ipixs_in_percentage(0.9)
         self.ra, self.dec, self.extension = None, None, extension
         self.save_items['skymap'] = skymap
+        self.Liz_skymap = self.skymap
+        import IPython
+        IPython.embed()
+
 
     def __str__(self):
         int_str = super().__str__()
@@ -713,7 +721,7 @@ class PriorFollowup(FastResponseAnalysis):
             skymap = skymap/skymap.sum()
         return skymap
 
-    def initialize_injector(self, e_range=(0., np.inf)):
+    def initialize_injector(self, e_range=(0., np.inf), spectrum=None):
         r'''Method to make relevant injector in Skylab, done for analysis
         checks as well as for calculating sensitivities
 
@@ -731,7 +739,8 @@ class PriorFollowup(FastResponseAnalysis):
         inj = PriorInjector(
             spatial_prior, 
             gamma=self.index, 
-            e_range = e_range, 
+            e_range = e_range,
+            spectrum = spectrum, 
             E0=1000., 
             seed = self.llh_seed)
         inj.fill(
@@ -801,6 +810,7 @@ class PriorFollowup(FastResponseAnalysis):
                 coincident_events[-1]['in_contour'] = True
         self.coincident_events = coincident_events
         self.save_items['coincident_events'] = coincident_events
+        return coincident_events
 
     def unblind_TS(self, custom_events=None):
         r''' Unblind TS, either sky scan for spatial prior,
@@ -813,6 +823,9 @@ class PriorFollowup(FastResponseAnalysis):
         ts, ns: Test statistic and best fit ns
         ''' 
         # TODO: Fix the case of getting best-fit gamma
+        import IPython
+        IPython.embed()        
+
         t0 = time.time()
         spatial_prior = SpatialPrior(
             self.skymap, containment = self._containment,
@@ -908,8 +921,8 @@ class PriorFollowup(FastResponseAnalysis):
             results = self.llh.do_allsky_trials(
                 n_per_sig, src_ra=self.ra, src_dec=self.dec,
                 injector=self.inj, mean_signal=n, poisson=True)
-            import IPython
-            IPython.embed()
+            #import IPython
+            #IPython.embed()
             msk = results['TS'] > self.ts
             npass = len(results['TS'][msk])
             passing.append((n, npass, n_per_sig))
@@ -1018,6 +1031,9 @@ class PriorFollowup(FastResponseAnalysis):
         src_theta, src_phi = hp.pix2ang(self.nside, self.ipix_90)
         src_dec = np.pi/2. - src_theta
         src_dec = np.unique(src_dec)
+
+        #import IPython
+        #IPython.embed()
 
         low = src_dec.min()
         high = src_dec.max()
@@ -1128,10 +1144,11 @@ class PointSourceFollowup(FastResponseAnalysis):
         self.tsd = trials['TS']
         self.save_items['tsd'] = self.tsd
 
-    def initialize_injector(self, e_range=(0., np.inf)):
+    def initialize_injector(self, e_range=(0., np.inf), spectrum=None):
         inj = PointSourceInjector(
             gamma = self.index, 
             E0 = 1000., 
+            spectrum = spectrum, 
             e_range=e_range)
         inj.fill(
             self.dec,
