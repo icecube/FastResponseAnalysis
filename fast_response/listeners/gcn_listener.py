@@ -49,7 +49,7 @@ def process_gcn(payload, root):
 
         # IceCube sends 2: a notice and a revision, only want to run once
         if int(params['Rev']) !=0:
-            return        
+            return
 
     event_id = params['event_id']
     run_id = params['run_id']
@@ -134,11 +134,15 @@ def process_gcn(payload, root):
                 on_shift+='<@{}> '.format(shifters['slack_id'][i])
         link = 'https://user-web.icecube.wisc.edu/~jthwaites/FastResponse/webpage/output/'
         wp_link_1000 = '{}{}_{}_1.0e+03_s.html'.format(link, eventtime[0:10].replace('-','_'),event_name)
-        wp_link_2d   = '{}{}_{}_1.7e+05_s.html'.format(link, eventtime[0:10].replace('-','_'),event_name)
+        
+        day_before = '{}'.format(int(eventtime[8:10])-1)
+        if len(day_before)==1: day_before='0'+day_before
+        str_2d = '{}_{}'.format(eventtime[0:7].replace('-','_'),day_before)
+        wp_link_2d   = '{}{}_{}_1.7e+05_s.html'.format(link, str_2d, event_name)
         bot.send_message(f'Done running FRA for {alert_type} alert, {event_name}.\n '+ on_shift +'on shift',
                          'blanket_blob')
         if doc:
-            bot.send_message("Results for 1000s: <{}|link> \nResults for 2d: <{}|link>".format(
+            bot.send_message("-Results for 1000s: <{}|link> \n-Results for 2d: <{}|link>".format(
                               wp_link_1000, wp_link_2d),
                              'blanket_blob')
         print(' - slack message sent \n')
