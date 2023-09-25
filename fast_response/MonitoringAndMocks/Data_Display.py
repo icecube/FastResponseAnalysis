@@ -22,7 +22,7 @@ import warnings
 warnings.filterwarnings('ignore', module='astropy._erfa')
 
 def dial_up(who="jessie"):
-    cell_tower = "/cvmfs/icecube.opensciencegrid.org/users/jthwaites/"
+    cell_tower = "/home/jthwaites/private/"
     #halp = "https://icecube.wisc.edu/~jthwaites/FastResponse/error_call.xml"
     subprocess.call([cell_tower+"make_call.py", f"--{who}=True", '--troubleshoot=True'])#, "--call_file", halp])
     #print([cell_tower+"make_call.py", f"--{who}=True", '--troubleshoot=True'])
