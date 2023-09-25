@@ -21,7 +21,7 @@ import dateutil.parser
 from datetime import datetime
 from fast_response.web_utils import updateGW_public
 
-with open('/cvmfs/icecube.opensciencegrid.org/users/jthwaites/tokens/kafka_token.txt') as f:
+with open('/home/jthwaites/private/tokens/kafka_token.txt') as f:
     client_id = f.readline().rstrip('\n')
     client_secret = f.readline().rstrip('\n')
 
@@ -41,7 +41,7 @@ def SendAlert(results=None):
         if results is None:
             logger.fatal('Found no alert to send')
         
-        with open('/cvmfs/icecube.opensciencegrid.org/users/jthwaites/tokens/real_icecube_kafka_prod.txt') as f:
+        with open('/home/jthwaites/private/tokens/real_icecube_kafka_prod.txt') as f:
             prod_id = f.readline().rstrip('\n')
             prod_secret = f.readline().rstrip('\n')
 
@@ -68,7 +68,7 @@ def SendTestAlert(results=None):
         if results is None:
             logger.fatal('Found no alert to send')
         
-        with open('/cvmfs/icecube.opensciencegrid.org/users/jthwaites/tokens/test_icecube_kafka_prod.txt') as f:
+        with open('/home/jthwaites/private/tokens/test_icecube_kafka_prod.txt') as f:
             prod_id = f.readline().rstrip('\n')
             prod_secret = f.readline().rstrip('\n')
 
@@ -321,12 +321,15 @@ def parse_notice(record, wait_for_llama=False, heartbeat=False):
     if llama_results_finished:
         with open(llama_results_path, 'r') as f:
             llama_results = json.load(f)
-        if (record.attrib['role'] == 'observation') and (llama_results['inputs']['neutrino_info'][0]['type']=='blinded'):
-            logger.warning('LLAMA results blinded for real event! Skipping LLAMA')
-            llama_results_finished = False
-            if subthreshold: 
-                logger.warning('LLAMA skipped on subthreshold event, returning')
-                return
+        try:
+            if (record.attrib['role'] == 'observation') and (llama_results['inputs']['neutrino_info'][0]['type']=='blinded'):
+                logger.warning('LLAMA results blinded for real event! Skipping LLAMA')
+                llama_results_finished = False
+                if subthreshold: 
+                    logger.warning('LLAMA skipped on subthreshold event, returning')
+                    return
+        except:
+            logger.warning('NO neutrinos in 1000s in LLAMA result! Still sending . . .')
 
     if uml_results_finished and llama_results_finished:
         collected_results['pval_generic'] = round(uml_results['p'],4)
@@ -449,7 +452,7 @@ def parse_notice(record, wait_for_llama=False, heartbeat=False):
         logger.info('{}'.format(st))
 
         if status ==0:
-            with open('/cvmfs/icecube.opensciencegrid.org/users/jthwaites/tokens/gw_token.txt') as f:
+            with open('/home/jthwaites/private/tokens/gw_token.txt') as f:
                 my_key = f.readline()
             
             if not subthreshold:
@@ -497,7 +500,7 @@ def parse_notice(record, wait_for_llama=False, heartbeat=False):
         #logger.info('status: {}'.format(status))
 
         #send the notice to slack (#gw-mock-heartbeat)
-        with open('/cvmfs/icecube.opensciencegrid.org/users/jthwaites/tokens/gw_token.txt') as f:
+        with open('/home/jthwaites/private/tokens/gw_token.txt') as f:
             my_key = f.readline()
                 
         channel = '#gw-mock-heartbeat'
