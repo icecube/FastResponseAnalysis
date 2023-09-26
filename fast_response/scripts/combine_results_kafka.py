@@ -94,7 +94,7 @@ def format_ontime_events_uml(events, event_mjd):
                 'ra' : round(np.rad2deg(event['ra']), 2),
                 'dec' : round(np.rad2deg(event['dec']), 2),
                 "uncertainty_shape": "circle",
-                'ra_uncertainty': round(np.rad2deg(event['sigma']*2.145966),2),
+                'ra_uncertainty': [round(np.rad2deg(event['sigma']*2.145966),2)],
                 "containment_probability": 0.9,
                 "systematic_included": False
             },
@@ -111,7 +111,7 @@ def format_ontime_events_llama(events):
                 'ra' : round(event['ra'], 2),
                 'dec' : round(event['dec'], 2),
                 "uncertainty_shape": "circle",
-                'ra_uncertainty': round(np.rad2deg(np.deg2rad(event['sigma'])*2.145966),3),
+                'ra_uncertainty': [round(np.rad2deg(np.deg2rad(event['sigma'])*2.145966),3)],
                 "containment_probability": 0.9,
                 "systematic_included": False
             },
@@ -128,11 +128,11 @@ def format_ontime_events_llama_old(events,event_mjd):
                 'ra' : round(np.rad2deg(event['ra']), 2),
                 'dec' : round(np.rad2deg(event['dec']), 2),
                 "uncertainty_shape": "circle",
-                'ra_uncertainty': round(np.rad2deg(event['sigma']*2.145966),3),
+                'ra_uncertainty': [round(np.rad2deg(event['sigma']*2.145966),3)],
                 "containment_probability": 0.9,
                 "systematic_included": False
             },
-            'event_pval_bayesian': 'null'
+            'event_pval_bayesian': None
         }
     return ontime_events
 
@@ -148,21 +148,21 @@ def combine_events(uml_ontime, llama_ontime):
                 uml_ontime[id]['event_pval_bayesian'] = llama_ontime[id]['event_pval_bayesian']
                 coinc_events.append(uml_ontime[id])
             elif uml_ontime[id]['event_pval_generic'] < 0.1:
-                uml_ontime[id]['event_pval_bayesian'] = 'null'
+                uml_ontime[id]['event_pval_bayesian'] = None
                 coinc_events.append(uml_ontime[id])
             elif llama_ontime[id]['event_pval_bayesian']<0.1:
                 uml_ontime[id]['event_pval_bayesian'] = llama_ontime[id]['event_pval_bayesian']
-                uml_ontime[id]['event_pval_generic'] ='null'
+                uml_ontime[id]['event_pval_generic'] = None
                 coinc_events.append(uml_ontime[id])
         #case: only in uml
         elif id in uml_ontime.keys():
             if uml_ontime[id]['event_pval_generic'] < 0.1:
-                uml_ontime[id]['event_pval_bayesian'] = 'null'
+                uml_ontime[id]['event_pval_bayesian'] = None
                 coinc_events.append(uml_ontime[id])
         #case: only in llama
         elif id in llama_ontime.keys():
             if llama_ontime[id]['event_pval_bayesian']<0.1:
-                llama_ontime[id]['event_pval_generic']='null'
+                llama_ontime[id]['event_pval_generic']= None
                 coinc_events.append(llama_ontime[id])
 
     return coinc_events
@@ -207,7 +207,7 @@ def parse_notice(record, wait_for_llama=False, heartbeat=False):
         return
 
     collected_results = {}
-    collected_results["$schema"]= "https://gcn.nasa.gov/schema/gcn/notices/icecube/LvkNuTrackSearch.schema.json"
+    collected_results["$schema"]= "https://gcn.nasa.gov/schema/stable/gcn/notices/icecube/LvkNuTrackSearch.schema.json"
     collected_results["type"]= "IceCube LVK Alert Nu Track Search"
 
     eventtime = record.find('.//ISOTime').text
@@ -218,10 +218,8 @@ def parse_notice(record, wait_for_llama=False, heartbeat=False):
         name=name+'_test'
 
     logger.info("{} alert found, processing GCN".format(name))
-    collected_results['ref_id'] = name
-
-    #collected_results['ref_id'] = name.split('-')[0]
-    #collected_results['id'] = [name.split('-')[2],'Sequence:{}'.format(name.split('-')[1])]
+    collected_results['ref_ID'] = name.split('-')[0]
+    collected_results['reference']= {"gcn.notices.LVK.alert": name}
     
     ### WAIT ###
     # wait until the 500s has elapsed for data
@@ -344,7 +342,7 @@ def parse_notice(record, wait_for_llama=False, heartbeat=False):
             collected_results['n_events_coincident'] = len(coinc_events)
             collected_results['coincident_events'] = coinc_events
 
-            collected_results['most_likely_direction'] = {
+            collected_results['most_probable_direction'] = {
                 'ra': round(np.rad2deg(uml_results['fit_ra']), 2),
                 'dec' : round(np.rad2deg(uml_results['fit_dec']), 2),
             }
@@ -364,7 +362,7 @@ def parse_notice(record, wait_for_llama=False, heartbeat=False):
     
     elif uml_results_finished:
         collected_results['pval_generic'] = round(uml_results['p'],4)
-        collected_results['pval_bayesian'] = 'null'
+        collected_results['pval_bayesian'] = None
         if collected_results['pval_generic']<0.01:
             send_notif=True
 
@@ -373,12 +371,12 @@ def parse_notice(record, wait_for_llama=False, heartbeat=False):
             coinc_events=[]
             for eventid in uml_ontime.keys():
                 if (uml_ontime[eventid]['event_pval_generic'] < 0.1):
-                    uml_ontime[eventid]['event_pval_bayesian'] = 'null'
+                    uml_ontime[eventid]['event_pval_bayesian'] = None
                     coinc_events.append(uml_ontime[eventid])
             collected_results['n_events_coincident'] = len(coinc_events)
             collected_results['coincident_events'] = coinc_events
 
-            collected_results['most_likely_direction'] = {
+            collected_results['most_probable_direction'] = {
                 'ra': round(np.rad2deg(uml_results['fit_ra']), 2),
                 'dec' : round(np.rad2deg(uml_results['fit_dec']), 2)
             }
@@ -398,7 +396,7 @@ def parse_notice(record, wait_for_llama=False, heartbeat=False):
         }
 
     elif llama_results_finished:
-        collected_results['pval_generic'] = 'null'
+        collected_results['pval_generic'] = None
         collected_results['pval_bayesian'] = round(llama_results['p_value'],4)
         if collected_results['pval_bayesian']<0.01:
             send_notif=True
@@ -408,7 +406,7 @@ def parse_notice(record, wait_for_llama=False, heartbeat=False):
             coinc_events=[]
             for eventid in llama_ontime.keys():
                 if (llama_ontime[eventid]['event_pval_bayesian'] < 0.1):
-                    llama_ontime[eventid]['event_pval_generic'] = 'null'
+                    llama_ontime[eventid]['event_pval_generic'] = None
                     coinc_events.append(llama_ontime[eventid])
             collected_results['n_events_coincident'] = len(coinc_events)
             collected_results['coincident_events'] = coinc_events
@@ -430,13 +428,13 @@ def parse_notice(record, wait_for_llama=False, heartbeat=False):
 
     if (collected_results['n_events_coincident'] == 0) and ('coincident_events' in collected_results.keys()):
         c = collected_results.pop('coincident_events')
-    if ('most_likely_direction' in collected_results.keys()):
+    if ('most_probable_direction' in collected_results.keys()):
         if (collected_results['n_events_coincident'] == 0):
-            c = collected_results.pop('most_likely_direction')
-    if ('most_likely_direction' in collected_results.keys()):
+            c = collected_results.pop('most_probable_direction')
+    if ('most_probable_direction' in collected_results.keys()):
         try: 
             if (collected_results['pval_generic']>0.1):
-                c = collected_results.pop('most_likely_direction')
+                c = collected_results.pop('most_probable_direction')
         except Exception as e:
             print(e)
         
