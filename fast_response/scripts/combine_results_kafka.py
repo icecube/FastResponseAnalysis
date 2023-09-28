@@ -50,7 +50,7 @@ def SendAlert(results=None):
                             client_secret=prod_secret,
                             domain='gcn.nasa.gov')
         
-        if 'MS' in results['ref_id']:
+        if 'MS' in results['ref_ID']:
             return
             topic = 'gcn.notices.icecube.test.lvk_nu_track_search'
         else:
@@ -295,12 +295,27 @@ def parse_notice(record, wait_for_llama=False, heartbeat=False):
                     if uml_results_finished:
                         logger.warning('LLAMA results not finished in {:.0f} mins. Sending UML only'.format(max_wait))
                         results_done=True
+                        try: 
+                            subprocess.call(['/home/jthwaites/private/make_call.py', 
+                                             '--troubleshoot_gcn=True', '--missing_llama=True'])
+                        except:
+                            logger.warning('Failed to send alert to shifters: Issue finding LLAMA results. ')
                     if llama_results_finished:
                         logger.warning('UML results not finished in {:.0f} mins. Sending LLAMA only'.format(max_wait))
                         results_done=True
+                        try: 
+                            subprocess.call(['/home/jthwaites/private/make_call.py', 
+                                             '--troubleshoot_gcn=True', '--missing_uml=True'])
+                        except:
+                            logger.warning('Failed to send alert to shifters: Issue finding UML results. ')
                 else:
                     logger.warning('Both analyses not finished after {:.0f} min wait.'.format(max_wait))
                     logger.warning('Not sending GCN.')
+                    try: 
+                        subprocess.call(['/home/jthwaites/private/make_call.py', 
+                                         '--troubleshoot_gcn=True', '--missing_llama=True', '--missing_uml=True'])
+                    except:
+                        logger.warning('Failed to send alert to shifters: Issue finding both results. ')
                     return
                 
     collected_results['alert_datetime'] = '{}Z'.format(Time(datetime.utcnow(), scale='utc').isot)
@@ -521,7 +536,7 @@ parser.add_argument('--run_live', action='store_true', default=False,
                     help='Run on live GCNs')
 parser.add_argument('--test_path', type=str, default=None,
                     help='path to test xml file')
-parser.add_argument('--max_wait', type=float, default=60.,
+parser.add_argument('--max_wait', type=float, default=35.,
                     help='Maximum minutes to wait for LLAMA/UML results before timeout (default=60)')
 parser.add_argument('--wait_for_llama', action='store_true', default=False,
                     help='bool to decide to send llama results with uml, default false while not unblinded')
