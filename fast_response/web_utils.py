@@ -304,9 +304,9 @@ def updateGW_public(analysis, circular = None):
         start_date = Time(dateutil.parser.parse(analysis['observation_start'])).datetime
         start_str = f'{start_date.year:02d}_' \
             + f'{start_date.month:02d}_{start_date.day:02d}'
-        analysis['analysisid'] = start_str+'_'+analysis['ref_id']
+        analysis['analysisid'] = start_str+'_'+analysis['reference']['gcn.notices.LVK.alert']
 
-    analysis['name'] = analysis['ref_id']
+    analysis['name'] = analysis['reference']['gcn.notices.LVK.alert']
     if 'test' in analysis['analysisid']:
         analysis['name'] = analysis['name']+'_test'
 
@@ -352,7 +352,7 @@ def updateGW_public(analysis, circular = None):
         <td>{}</td>
     </tr>
     '''.format(row_start,analysis['name'], analysis['trigger_time'][:-1].replace('T',' '),
-               analysis['ref_id'].split('-')[0], link, duration, 
+               analysis['name'].split('-')[0], link, duration, 
                str(analysis['n_events_coincident']), 
                analysis["neutrino_flux_sensitivity_range"]['flux_sensitivity'][0],
                analysis["neutrino_flux_sensitivity_range"]['flux_sensitivity'][1], extra_info)
@@ -414,10 +414,10 @@ def createGWEventPage(analysis):
             #if 'LLAMASIG' in new_f[i]:
             #    new_f[i] = new_f[i].replace('LLAMASIG', '{:.2f}'.format(analysis['overall_sig_bayesian']))
             if 'MOSTPROBDIR' in new_f[i]:
-                if 'most_likely_direction' in analysis.keys():
+                if 'most_probable_direction' in analysis.keys():
                     new_f[i] = new_f[i].replace('MOSTPROBDIR', 'RA: {} deg, decl.: {} deg'.format(
-                                                analysis['most_likely_direction']['ra'], 
-                                                analysis['most_likely_direction']['dec']))
+                                                analysis['most_probable_direction']['ra'], 
+                                                analysis['most_probable_direction']['dec']))
                 else: 
                     new_f[i] = new_f[i].replace('MOSTPROBDIR', 'N/A')
             if '</div></div>' in new_f[i]:
