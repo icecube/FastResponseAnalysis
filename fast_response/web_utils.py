@@ -443,7 +443,7 @@ def createGWEventPage(analysis):
             </table>
         </table>
         '''.format(e, event['event_dt'], event['localization']['ra'], event['localization']['dec'], 
-                   event['localization']['ra_uncertainty'], 
+                   event['localization']['ra_uncertainty'][0], 
                    event['event_pval_generic'], event['event_pval_bayesian'])
         e+=1
     
