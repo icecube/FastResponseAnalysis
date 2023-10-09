@@ -61,14 +61,29 @@ def process_gcn(payload, root):
     
     print('\n' +'INCOMING ALERT FOUND: ',datetime.utcnow())
     log_file.flush()
+
+    #get type of event (burst, bbh, nsbh, bns)
+    try:
+        if params['Group'] == 'Burst': 
+            merger_type = 'Burst'
+        else:
+            k = ['BNS','NSBH','BBH']
+            probs = {j: float(params[j]) for j in k}
+            merger_type = max(zip(probs.values(), probs.keys()))[1]
+    except:
+        print('Could not determine type of event')
+        merger_type = None
     
     if root.attrib['role']=='observation' and not mock:
         ## Call everyone because it's a real event!
-        call_command=['/cvmfs/icecube.opensciencegrid.org/users/jthwaites/make_call.py']
+        call_command=['/home/jthwaites/private/make_call.py']
     
         call_args = ['--justin']
         for arg in call_args:
             call_command.append(arg+'=True')
+        if merger_type is not None:
+            call_command.append(f'--type={merger_type}')
+            
         try:
             subprocess.call(call_command)
             #print('Call here.')

@@ -22,7 +22,7 @@ import warnings
 warnings.filterwarnings('ignore', module='astropy._erfa')
 
 def dial_up(who="jessie"):
-    cell_tower = "/cvmfs/icecube.opensciencegrid.org/users/jthwaites/"
+    cell_tower = "/home/jthwaites/private/"
     #halp = "https://icecube.wisc.edu/~jthwaites/FastResponse/error_call.xml"
     subprocess.call([cell_tower+"make_call.py", f"--{who}=True", '--troubleshoot=True'])#, "--call_file", halp])
     #print([cell_tower+"make_call.py", f"--{who}=True", '--troubleshoot=True'])
@@ -747,11 +747,8 @@ def make_bg_pval_dist(fontsize=15, lower_y_bound=-3.5):
     print('Loading %i mocks (may take a while)'%(len(saved_mock_pkl)))
     for mock in saved_mock_pkl:
         with open(mock,'rb') as f:
-            try:
-                result=pickle.load(f)
-            except:
-                print('skipped {}'.format(mock))
-                continue
+            result=pickle.load(f)
+            #print('skipped {}'.format(mock))
             all_mocks[result['name']]=result['p']
     print('Done loading mocks.')
 

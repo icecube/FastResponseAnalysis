@@ -1,5 +1,8 @@
 #!/usr/bin/env python
 
+'''Note: this version listens to GCN CLASSIC. 
+Main sender is combine_results_kafka.py'''
+
 import logging
 from datetime import datetime
 import socket
@@ -13,6 +16,7 @@ import urllib.request, urllib.error, urllib.parse
 import argparse
 import json, pickle
 from gcn_kafka import Consumer
+import gcn
 #from icecube import realtime_tools
 import numpy as np
 import lxml.etree
@@ -21,13 +25,27 @@ import dateutil.parser
 from datetime import datetime
 from fast_response.web_utils import updateGW_public
 
-with open('/home/jthwaites/private/tokens/kafka_token.txt') as f:
+parser = argparse.ArgumentParser(description='Combine GW-Nu results')
+parser.add_argument('--run_live', action='store_true', default=False,
+                    help='Run on live GCNs')
+parser.add_argument('--test_path', type=str, default=None,
+                    help='path to test xml file')
+parser.add_argument('--max_wait', type=float, default=60.,
+                    help='Maximum minutes to wait for LLAMA/UML results before timeout (default=60)')
+parser.add_argument('--wait_for_llama', action='store_true', default=False,
+                    help='bool to decide to send llama results with uml, default false while not unblinded')
+parser.add_argument('--heartbeat', action='store_true', default=False,
+                    help='bool to save jsons for mocks (saves to save_dir+mocks/)')
+parser.add_argument('--save_dir', type=str, default='/home/followup/lvk_followup_output/',
+                    help='Directory to save output json (default=/home/followup/lvk_followup_output/)')
+args = parser.parse_args()
+
+with open('/cvmfs/icecube.opensciencegrid.org/users/jthwaites/tokens/kafka_token.txt') as f:
     client_id = f.readline().rstrip('\n')
     client_secret = f.readline().rstrip('\n')
 
 consumer = Consumer(client_id=client_id,
-                    client_secret=client_secret,
-                    config={'max.poll.interval.ms':1200000})
+                    client_secret=client_secret)
 
 # Subscribe to topics to receive alerts
 consumer.subscribe(['gcn.classic.voevent.LVC_PRELIMINARY',
@@ -41,7 +59,7 @@ def SendAlert(results=None):
         if results is None:
             logger.fatal('Found no alert to send')
         
-        with open('/home/jthwaites/private/tokens/real_icecube_kafka_prod.txt') as f:
+        with open('/cvmfs/icecube.opensciencegrid.org/users/jthwaites/tokens/real_icecube_kafka_prod.txt') as f:
             prod_id = f.readline().rstrip('\n')
             prod_secret = f.readline().rstrip('\n')
 
@@ -50,7 +68,7 @@ def SendAlert(results=None):
                             client_secret=prod_secret,
                             domain='gcn.nasa.gov')
         
-        if 'MS' in results['ref_ID']:
+        if 'MS' in results['ref_id']:
             return
             topic = 'gcn.notices.icecube.test.lvk_nu_track_search'
         else:
@@ -68,7 +86,7 @@ def SendTestAlert(results=None):
         if results is None:
             logger.fatal('Found no alert to send')
         
-        with open('/home/jthwaites/private/tokens/test_icecube_kafka_prod.txt') as f:
+        with open('/cvmfs/icecube.opensciencegrid.org/users/jthwaites/tokens/test_icecube_kafka_prod.txt') as f:
             prod_id = f.readline().rstrip('\n')
             prod_secret = f.readline().rstrip('\n')
 
@@ -94,7 +112,7 @@ def format_ontime_events_uml(events, event_mjd):
                 'ra' : round(np.rad2deg(event['ra']), 2),
                 'dec' : round(np.rad2deg(event['dec']), 2),
                 "uncertainty_shape": "circle",
-                'ra_uncertainty': [round(np.rad2deg(event['sigma']*2.145966),2)],
+                'ra_uncertainty': round(np.rad2deg(event['sigma']*2.145966),2),
                 "containment_probability": 0.9,
                 "systematic_included": False
             },
@@ -111,7 +129,7 @@ def format_ontime_events_llama(events):
                 'ra' : round(event['ra'], 2),
                 'dec' : round(event['dec'], 2),
                 "uncertainty_shape": "circle",
-                'ra_uncertainty': [round(np.rad2deg(np.deg2rad(event['sigma'])*2.145966),3)],
+                'ra_uncertainty': round(np.rad2deg(np.deg2rad(event['sigma'])*2.145966),3),
                 "containment_probability": 0.9,
                 "systematic_included": False
             },
@@ -128,11 +146,11 @@ def format_ontime_events_llama_old(events,event_mjd):
                 'ra' : round(np.rad2deg(event['ra']), 2),
                 'dec' : round(np.rad2deg(event['dec']), 2),
                 "uncertainty_shape": "circle",
-                'ra_uncertainty': [round(np.rad2deg(event['sigma']*2.145966),3)],
+                'ra_uncertainty': round(np.rad2deg(event['sigma']*2.145966),3),
                 "containment_probability": 0.9,
                 "systematic_included": False
             },
-            'event_pval_bayesian': None
+            'event_pval_bayesian': 'null'
         }
     return ontime_events
 
@@ -148,27 +166,34 @@ def combine_events(uml_ontime, llama_ontime):
                 uml_ontime[id]['event_pval_bayesian'] = llama_ontime[id]['event_pval_bayesian']
                 coinc_events.append(uml_ontime[id])
             elif uml_ontime[id]['event_pval_generic'] < 0.1:
-                uml_ontime[id]['event_pval_bayesian'] = None
+                uml_ontime[id]['event_pval_bayesian'] = 'null'
                 coinc_events.append(uml_ontime[id])
             elif llama_ontime[id]['event_pval_bayesian']<0.1:
                 uml_ontime[id]['event_pval_bayesian'] = llama_ontime[id]['event_pval_bayesian']
-                uml_ontime[id]['event_pval_generic'] = None
+                uml_ontime[id]['event_pval_generic'] ='null'
                 coinc_events.append(uml_ontime[id])
         #case: only in uml
         elif id in uml_ontime.keys():
             if uml_ontime[id]['event_pval_generic'] < 0.1:
-                uml_ontime[id]['event_pval_bayesian'] = None
+                uml_ontime[id]['event_pval_bayesian'] = 'null'
                 coinc_events.append(uml_ontime[id])
         #case: only in llama
         elif id in llama_ontime.keys():
             if llama_ontime[id]['event_pval_bayesian']<0.1:
-                llama_ontime[id]['event_pval_generic']= None
+                llama_ontime[id]['event_pval_generic']='null'
                 coinc_events.append(llama_ontime[id])
 
     return coinc_events
 
-def parse_notice(record, wait_for_llama=False, heartbeat=False):
+@gcn.handlers.include_notice_types(
+    gcn.notice_types.LVC_PRELIMINARY,
+    gcn.notice_types.LVC_INITIAL,
+    gcn.notice_types.LVC_UPDATE)
+
+def parse_notice(payload, record):
     logger = logging.getLogger()
+    wait_for_llama=args.wait_for_llama
+    heartbeat = args.heartbeat
 
     if record.attrib['role']!='observation':
         fra_results_location = '/data/user/jthwaites/o4-mocks/'
@@ -207,7 +232,7 @@ def parse_notice(record, wait_for_llama=False, heartbeat=False):
         return
 
     collected_results = {}
-    collected_results["$schema"]= "https://gcn.nasa.gov/schema/stable/gcn/notices/icecube/LvkNuTrackSearch.schema.json"
+    collected_results["$schema"]= "https://gcn.nasa.gov/schema/gcn/notices/icecube/LvkNuTrackSearch.schema.json"
     collected_results["type"]= "IceCube LVK Alert Nu Track Search"
 
     eventtime = record.find('.//ISOTime').text
@@ -218,8 +243,10 @@ def parse_notice(record, wait_for_llama=False, heartbeat=False):
         name=name+'_test'
 
     logger.info("{} alert found, processing GCN".format(name))
-    collected_results['ref_ID'] = name.split('-')[0]
-    collected_results['reference']= {"gcn.notices.LVK.alert": name}
+    collected_results['ref_id'] = name
+
+    #collected_results['ref_id'] = name.split('-')[0]
+    #collected_results['id'] = [name.split('-')[2],'Sequence:{}'.format(name.split('-')[1])]
     
     ### WAIT ###
     # wait until the 500s has elapsed for data
@@ -295,30 +322,12 @@ def parse_notice(record, wait_for_llama=False, heartbeat=False):
                     if uml_results_finished:
                         logger.warning('LLAMA results not finished in {:.0f} mins. Sending UML only'.format(max_wait))
                         results_done=True
-                        if record.attrib['role']=='observation' and not heartbeat:
-                            try: 
-                                subprocess.call(['/home/jthwaites/private/make_call.py', 
-                                                 '--troubleshoot_gcn=True', '--missing_llama=True'])
-                            except:
-                                logger.warning('Failed to send alert to shifters: Issue finding LLAMA results. ')
                     if llama_results_finished:
                         logger.warning('UML results not finished in {:.0f} mins. Sending LLAMA only'.format(max_wait))
                         results_done=True
-                        if record.attrib['role']=='observation' and not heartbeat:
-                            try: 
-                                subprocess.call(['/home/jthwaites/private/make_call.py', 
-                                                 '--troubleshoot_gcn=True', '--missing_uml=True'])
-                            except:
-                                logger.warning('Failed to send alert to shifters: Issue finding UML results. ')
                 else:
                     logger.warning('Both analyses not finished after {:.0f} min wait.'.format(max_wait))
                     logger.warning('Not sending GCN.')
-                    if record.attrib['role']=='observation' and not heartbeat:
-                        try: 
-                            subprocess.call(['/home/jthwaites/private/make_call.py', 
-                                             '--troubleshoot_gcn=True', '--missing_llama=True', '--missing_uml=True'])
-                        except:
-                            logger.warning('Failed to send alert to shifters: Issue finding both results. ')
                     return
                 
     collected_results['alert_datetime'] = '{}Z'.format(Time(datetime.utcnow(), scale='utc').isot)
@@ -337,15 +346,12 @@ def parse_notice(record, wait_for_llama=False, heartbeat=False):
     if llama_results_finished:
         with open(llama_results_path, 'r') as f:
             llama_results = json.load(f)
-        try:
-            if (record.attrib['role'] == 'observation') and (llama_results['inputs']['neutrino_info'][0]['type']=='blinded'):
-                logger.warning('LLAMA results blinded for real event! Skipping LLAMA')
-                llama_results_finished = False
-                if subthreshold: 
-                    logger.warning('LLAMA skipped on subthreshold event, returning')
-                    return
-        except:
-            logger.warning('NO neutrinos in 1000s in LLAMA result! Still sending . . .')
+        if (record.attrib['role'] == 'observation') and (llama_results['inputs']['neutrino_info'][0]['type']=='blinded'):
+            logger.warning('LLAMA results blinded for real event! Skipping LLAMA')
+            llama_results_finished = False
+            if subthreshold: 
+                logger.warning('LLAMA skipped on subthreshold event, returning')
+                return
 
     if uml_results_finished and llama_results_finished:
         collected_results['pval_generic'] = round(uml_results['p'],4)
@@ -360,7 +366,7 @@ def parse_notice(record, wait_for_llama=False, heartbeat=False):
             collected_results['n_events_coincident'] = len(coinc_events)
             collected_results['coincident_events'] = coinc_events
 
-            collected_results['most_probable_direction'] = {
+            collected_results['most_likely_direction'] = {
                 'ra': round(np.rad2deg(uml_results['fit_ra']), 2),
                 'dec' : round(np.rad2deg(uml_results['fit_dec']), 2),
             }
@@ -380,7 +386,7 @@ def parse_notice(record, wait_for_llama=False, heartbeat=False):
     
     elif uml_results_finished:
         collected_results['pval_generic'] = round(uml_results['p'],4)
-        collected_results['pval_bayesian'] = None
+        collected_results['pval_bayesian'] = 'null'
         if collected_results['pval_generic']<0.01:
             send_notif=True
 
@@ -389,12 +395,12 @@ def parse_notice(record, wait_for_llama=False, heartbeat=False):
             coinc_events=[]
             for eventid in uml_ontime.keys():
                 if (uml_ontime[eventid]['event_pval_generic'] < 0.1):
-                    uml_ontime[eventid]['event_pval_bayesian'] = None
+                    uml_ontime[eventid]['event_pval_bayesian'] = 'null'
                     coinc_events.append(uml_ontime[eventid])
             collected_results['n_events_coincident'] = len(coinc_events)
             collected_results['coincident_events'] = coinc_events
 
-            collected_results['most_probable_direction'] = {
+            collected_results['most_likely_direction'] = {
                 'ra': round(np.rad2deg(uml_results['fit_ra']), 2),
                 'dec' : round(np.rad2deg(uml_results['fit_dec']), 2)
             }
@@ -414,7 +420,7 @@ def parse_notice(record, wait_for_llama=False, heartbeat=False):
         }
 
     elif llama_results_finished:
-        collected_results['pval_generic'] = None
+        collected_results['pval_generic'] = 'null'
         collected_results['pval_bayesian'] = round(llama_results['p_value'],4)
         if collected_results['pval_bayesian']<0.01:
             send_notif=True
@@ -424,7 +430,7 @@ def parse_notice(record, wait_for_llama=False, heartbeat=False):
             coinc_events=[]
             for eventid in llama_ontime.keys():
                 if (llama_ontime[eventid]['event_pval_bayesian'] < 0.1):
-                    llama_ontime[eventid]['event_pval_generic'] = None
+                    llama_ontime[eventid]['event_pval_generic'] = 'null'
                     coinc_events.append(llama_ontime[eventid])
             collected_results['n_events_coincident'] = len(coinc_events)
             collected_results['coincident_events'] = coinc_events
@@ -446,13 +452,13 @@ def parse_notice(record, wait_for_llama=False, heartbeat=False):
 
     if (collected_results['n_events_coincident'] == 0) and ('coincident_events' in collected_results.keys()):
         c = collected_results.pop('coincident_events')
-    if ('most_probable_direction' in collected_results.keys()):
+    if ('most_likely_direction' in collected_results.keys()):
         if (collected_results['n_events_coincident'] == 0):
-            c = collected_results.pop('most_probable_direction')
-    if ('most_probable_direction' in collected_results.keys()):
+            c = collected_results.pop('most_likely_direction')
+    if ('most_likely_direction' in collected_results.keys()):
         try: 
             if (collected_results['pval_generic']>0.1):
-                c = collected_results.pop('most_probable_direction')
+                c = collected_results.pop('most_likely_direction')
         except Exception as e:
             print(e)
         
@@ -460,7 +466,7 @@ def parse_notice(record, wait_for_llama=False, heartbeat=False):
     if record.attrib['role']=='observation' and not heartbeat:
         with open(os.path.join(save_location, f'{name}_collected_results.json'),'w') as f:
             json.dump(collected_results, f, indent = 6)
-
+        
         logger.info('sending notice')
         status = SendAlert(results = collected_results)
         st = 'sent' if status == 0 else 'error!'
@@ -468,7 +474,7 @@ def parse_notice(record, wait_for_llama=False, heartbeat=False):
         logger.info('{}'.format(st))
 
         if status ==0:
-            with open('/home/jthwaites/private/tokens/gw_token.txt') as f:
+            with open('/cvmfs/icecube.opensciencegrid.org/users/jthwaites/tokens/gw_token.txt') as f:
                 my_key = f.readline()
             
             if not subthreshold:
@@ -516,7 +522,7 @@ def parse_notice(record, wait_for_llama=False, heartbeat=False):
         #logger.info('status: {}'.format(status))
 
         #send the notice to slack (#gw-mock-heartbeat)
-        with open('/home/jthwaites/private/tokens/gw_token.txt') as f:
+        with open('/cvmfs/icecube.opensciencegrid.org/users/jthwaites/tokens/gw_token.txt') as f:
             my_key = f.readline()
                 
         channel = '#gw-mock-heartbeat'
@@ -534,21 +540,6 @@ def parse_notice(record, wait_for_llama=False, heartbeat=False):
         else:
             logger.info("Error posting skymap to {}!".format(channel))
 
-parser = argparse.ArgumentParser(description='Combine GW-Nu results')
-parser.add_argument('--run_live', action='store_true', default=False,
-                    help='Run on live GCNs')
-parser.add_argument('--test_path', type=str, default=None,
-                    help='path to test xml file')
-parser.add_argument('--max_wait', type=float, default=35.,
-                    help='Maximum minutes to wait for LLAMA/UML results before timeout (default=60)')
-parser.add_argument('--wait_for_llama', action='store_true', default=False,
-                    help='bool to decide to send llama results with uml, default false while not unblinded')
-parser.add_argument('--heartbeat', action='store_true', default=False,
-                    help='bool to save jsons for mocks (saves to save_dir+mocks/)')
-parser.add_argument('--save_dir', type=str, default='/home/followup/lvk_followup_output/',
-                    help='Directory to save output json (default=/home/followup/lvk_followup_output/)')
-args = parser.parse_args()
-
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 logger.warning("combine_results starting, connecting to GCN")
@@ -564,6 +555,7 @@ max_wait = args.max_wait
 
 if args.run_live:
     logger.info('running on live GCNs')
+    '''
     while True:
         for message in consumer.consume(timeout=1):
             value = message.value()
@@ -572,8 +564,10 @@ if args.run_live:
                 logger.warning(value.decode('utf-8'))
                 continue
             notice = lxml.etree.fromstring(value.decode('utf-8').encode('ascii'))
-            parse_notice(notice, wait_for_llama=args.wait_for_llama, heartbeat = args.heartbeat)
+            parse_notice(notice)
             logger.info('Done.')
+    '''
+    gcn.listen(handler=parse_notice)
 
 else:
     if args.test_path is None:
@@ -593,5 +587,5 @@ else:
         print(e)
         exit()
     
-    parse_notice(record, wait_for_llama=args.wait_for_llama, heartbeat=args.heartbeat)
+    parse_notice(payload, record)
 logger.info("done")

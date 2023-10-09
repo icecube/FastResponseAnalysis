@@ -14,6 +14,8 @@ parser.add_argument('--deltaT', type=float, default=None,
                     help='Time Window in seconds')
 parser.add_argument('--dir',type=str, default='./',
                     help='directory for where trials are, will save npz to dir+/glob_trials/')
+parser.add_argument('--nside',type=int, default=256,
+                    help='nside used when running trials (default 256)')
 args = parser.parse_args()
 
 def glob_allsky_scans(delta_t, rate, dir, low_stats=False):
@@ -24,7 +26,7 @@ def glob_allsky_scans(delta_t, rate, dir, low_stats=False):
     #jobs_per_window = {1000.: 20, 172800.: 100, 2678400.: 100}
 
     files = glob(dir+'/gw_{:.1f}_mHz_seed_*_delta_t_{:.1e}.npz'.format(rate, delta_t))
-    nside = 256
+    nside = 512
     npix = hp.nside2npix(nside)
     maps = sparse.csr_matrix((0, npix), dtype=float)
     
@@ -52,7 +54,7 @@ def glob_allsky_scans(delta_t, rate, dir, low_stats=False):
     
     return maps
 
-for rate in [6.0]:#, 6.2, 6.4, 6.6, 6.8, 7.0, 7.2]:
+for rate in [6.0, 6.2, 6.4, 6.6, 6.8, 7.0, 7.2]:
     for low_stats in [False]:#[True, False]:
         print("Rate: {} mHz, low stats: {}".format(rate, low_stats))
         maps = glob_allsky_scans(args.deltaT, rate, args.dir, low_stats=low_stats)

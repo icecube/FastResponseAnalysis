@@ -326,12 +326,12 @@ class GWFollowup(PriorFollowup):
         except:
             noticeID = 'NOTICEID'
 
-        if pvalue > 0.1:
+        if pvalue > 0.2:
             template_path = os.path.join(base, 'circular_templates/gw_gcn_template_low.txt')
         else:
             template_path = os.path.join(base, 'circular_templates/gw_gcn_template_high.txt')
 
-        if pvalue>0.1:
+        if pvalue>0.2:
             with open(template_path, 'r') as gcn_template:
 
                 gcn = gcn_template.read()
@@ -568,7 +568,7 @@ class GWFollowup(PriorFollowup):
             usemask=False
         )
 
-        if self.p < 0.05:
+        if self.p < 0.1:
             for i in range(self.events_rec_array.size):
                 ts, p = self.per_event_scan(self.events_rec_array[i])
                 self.events_rec_array['pvalue'][i] = p
