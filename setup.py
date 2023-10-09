@@ -1,7 +1,7 @@
 import setuptools
 
 long_message = 'Fast Response Analysis'
-version = "1.1.3"
+version = "1.1.4"
 
 setuptools.setup(
     name="fast_response", 
