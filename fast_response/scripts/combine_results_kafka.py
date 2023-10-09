@@ -295,27 +295,30 @@ def parse_notice(record, wait_for_llama=False, heartbeat=False):
                     if uml_results_finished:
                         logger.warning('LLAMA results not finished in {:.0f} mins. Sending UML only'.format(max_wait))
                         results_done=True
-                        try: 
-                            subprocess.call(['/home/jthwaites/private/make_call.py', 
-                                             '--troubleshoot_gcn=True', '--missing_llama=True'])
-                        except:
-                            logger.warning('Failed to send alert to shifters: Issue finding LLAMA results. ')
+                        if record.attrib['role']=='observation' and not heartbeat:
+                            try: 
+                                subprocess.call(['/home/jthwaites/private/make_call.py', 
+                                                 '--troubleshoot_gcn=True', '--missing_llama=True'])
+                            except:
+                                logger.warning('Failed to send alert to shifters: Issue finding LLAMA results. ')
                     if llama_results_finished:
                         logger.warning('UML results not finished in {:.0f} mins. Sending LLAMA only'.format(max_wait))
                         results_done=True
-                        try: 
-                            subprocess.call(['/home/jthwaites/private/make_call.py', 
-                                             '--troubleshoot_gcn=True', '--missing_uml=True'])
-                        except:
-                            logger.warning('Failed to send alert to shifters: Issue finding UML results. ')
+                        if record.attrib['role']=='observation' and not heartbeat:
+                            try: 
+                                subprocess.call(['/home/jthwaites/private/make_call.py', 
+                                                 '--troubleshoot_gcn=True', '--missing_uml=True'])
+                            except:
+                                logger.warning('Failed to send alert to shifters: Issue finding UML results. ')
                 else:
                     logger.warning('Both analyses not finished after {:.0f} min wait.'.format(max_wait))
                     logger.warning('Not sending GCN.')
-                    try: 
-                        subprocess.call(['/home/jthwaites/private/make_call.py', 
-                                         '--troubleshoot_gcn=True', '--missing_llama=True', '--missing_uml=True'])
-                    except:
-                        logger.warning('Failed to send alert to shifters: Issue finding both results. ')
+                    if record.attrib['role']=='observation' and not heartbeat:
+                        try: 
+                            subprocess.call(['/home/jthwaites/private/make_call.py', 
+                                             '--troubleshoot_gcn=True', '--missing_llama=True', '--missing_uml=True'])
+                        except:
+                            logger.warning('Failed to send alert to shifters: Issue finding both results. ')
                     return
                 
     collected_results['alert_datetime'] = '{}Z'.format(Time(datetime.utcnow(), scale='utc').isot)
