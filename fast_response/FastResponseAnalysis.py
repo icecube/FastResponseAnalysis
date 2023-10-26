@@ -40,10 +40,11 @@ warnings.simplefilter("ignore", UserWarning)
 warnings.simplefilter("ignore", RuntimeWarning)
 
 class FastResponseAnalysis(object):
-    r''' Object to do realtime followup analyses of 
-        astrophysical transients with arbitrary event
-        localization
-        '''
+    """ 
+    Object to do realtime followup analyses of 
+    astrophysical transients with arbitrary event
+    localization
+    """
     _dataset = None
     _fix_index = True
     _float_index = not _fix_index
@@ -120,6 +121,7 @@ class FastResponseAnalysis(object):
 
     @property
     def dataset(self):
+        """Returns the dataset used"""
         return self._dataset
     @dataset.setter
     def dataset(self, x):
@@ -127,6 +129,7 @@ class FastResponseAnalysis(object):
 
     @property
     def index(self):
+        """Returns the spectral index"""
         return self._index
     @index.setter
     def index(self, x):
@@ -134,6 +137,7 @@ class FastResponseAnalysis(object):
 
     @property
     def llh_seed(self):
+        """Returns the seed used in the LLH"""
         return self._llh_seed
     @llh_seed.setter
     def llh_seed(self, x):
@@ -142,9 +146,13 @@ class FastResponseAnalysis(object):
     def get_data(self, livestream_start=None, livestream_stop=None):
         '''
         Gets the skylab data and MC from querying the i3live livestream
-        arguments:
-        livestream_start and livestream_stop - when to start and stop grabbing data
-        (needed due to low latency in GW followups)
+
+        Parameters:
+        -----------
+        livestream_start: float
+            (optional) start time for getting data (MJD) from i3Live. Default is start time of the analysis - 5 days
+        livestream_stop: float
+            (optional) stop time for getting data (MJD). Default is stop time of the analysis
         '''
         if self._verbose:
             print("Grabbing data")
@@ -206,6 +214,18 @@ class FastResponseAnalysis(object):
     def initialize_llh(self, skipped=None, scramble=False):
         '''
         Grab data and format it all into a skylab llh object
+
+        Parameters:
+        -----------
+        skipped: array of tuples 
+            (optional) event(s) to be removed in the analysis. 
+            Format: [(run_id,event_id),...]
+        scramble: bool
+            (optional) run on scrambled data (default=False)
+
+        Returns:
+        ----------
+        llh: skylab llh object
         '''
         if self.exp is None:
             self.get_data()
@@ -264,6 +284,21 @@ class FastResponseAnalysis(object):
     def remove_event(self, exp, dset, skipped):
         '''
         Remove a given event from the analysis, eg. for an alert event
+
+        Parameters:
+        -----------
+        exp: skylab data object
+            Data events loaded from livestream
+        dset: skylab Dataset object
+            Dataset used in the analysis
+        skipped: array of tuples 
+            Event(s) to be attempted to be removed in the analysis. 
+            Format: [(run_id,event_id),...]
+
+        Returns:
+        ----------
+        exp: skylab data object
+            Data events, minus the removed event (if successful)
         '''
         try:
             event = skipped[0]
@@ -292,7 +327,11 @@ class FastResponseAnalysis(object):
 
         Parameters:
         -----------
-        None
+        ntrials: int
+            Number of trials to run (default 1000)
+        run_anyway: bool
+            Choose to override and run background trials, even if TS=0 (default False)
+
         Returns:
         --------
         p: float
@@ -343,8 +382,14 @@ class FastResponseAnalysis(object):
         pass
 
     def plot_tsd(self, allow_neg=False):
-        r'''Outputs a plot of the background TS distributions
+        r'''
+        Outputs a plot of the background TS distributions
         as well as the observed TS
+
+        Parameters:
+        -----------
+        allow_neg: bool
+            Choose to allow negative TS values (all negative values are then TS=0). Default False
         '''
         if self.tsd is not None:
             fig, ax = plt.subplots()
@@ -405,6 +450,7 @@ class FastResponseAnalysis(object):
         ----------
         p: float
             P value
+            
         Returns:
         --------
         sigma: float
@@ -542,6 +588,9 @@ class FastResponseAnalysis(object):
 
         events = self.llh.exp
         events = events[(events['time'] < self.stop) & (events['time'] > self.start)]
+        #if self.duration < 1.:
+        #    for event in events:
+        #        print([event[key] for key in ['run', 'event', 'ra', 'dec', 'sigma', 'logE', 'time']])
 
         col_num = 5000
         seq_palette = sns.color_palette("icefire", col_num)
