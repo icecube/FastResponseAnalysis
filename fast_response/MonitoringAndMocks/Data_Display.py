@@ -731,12 +731,12 @@ fig.savefig("Linear_Delta_T_TIMESTAMP.png")
 import matplotlib as mpl
 mpl.use('agg')
 
-def make_bg_pval_dist(fontsize=15, lower_y_bound=-3.5):
+def make_bg_pval_dist(fontsize=15, lower_y_bound=-3.5, load_all = False):
     # function to make pval dist. lower_y_bound arg gives the exponent to set the lower y-axis 
     # limit, e.g. 10^-3
     all_maps_saved_pkl=sorted(glob.glob('/data/user/jthwaites/o4-mocks/*/*.pickle'))[::-1]
     saved_mock_pkl=[all_maps_saved_pkl[0]]
-
+         
     for mock in all_maps_saved_pkl:
         event_name=mock.split('-')[-3]
         event_name=event_name.split('/')[-1]
@@ -744,7 +744,13 @@ def make_bg_pval_dist(fontsize=15, lower_y_bound=-3.5):
             saved_mock_pkl.append(mock)
 
     all_mocks={}
-    print('Loading %i mocks (may take a while)'%(len(saved_mock_pkl)))
+    #if more than 2000 found - load most recent only (otherwise takes too long)  
+    if len(saved_mock_pkl)>2000 and not load_all:
+        print('Loading most recent 2000 mocks (may take a while)')
+        saved_mock_pkl = saved_mock_pkl[0:2000]
+    else:
+        print('Loading %i mocks (may take a while)'%(len(saved_mock_pkl)))
+
     for mock in saved_mock_pkl:
         with open(mock,'rb') as f:
             result=pickle.load(f)
@@ -766,8 +772,8 @@ def make_bg_pval_dist(fontsize=15, lower_y_bound=-3.5):
     #uniform_bins=np.logspace(lower_y_bound,0.,int(abs(lower_y_bound*7))+1) #evenly spaced bins in logspace
     #plt.step(uniform_bins[1:], np.diff(uniform_bins), label = 'Uniform p-value expectation', lw = 3.)
     plt.step(p_x_vals[1:], np.diff(p_x_vals), label = 'Uniform p-value distribution', lw = 3.)
-    plt.plot([0.1,0.1], [10**lower_y_bound, 1e0],linestyle='dotted', label=f'{lt_10per*100.:.2f} \% of p-values $<$ 0.1')
-    plt.plot([0.01, 0.01], [10**lower_y_bound, 1e0], linestyle='dashed',label=f'{lt_1per*100.:.2f} \% of p-values $<$ 0.01')
+    plt.plot([0.1,0.1], [10**lower_y_bound, 1e0],linestyle='dotted', label=f'{lt_10per*100.:.2f}% of p-values $<$ 0.1')
+    plt.plot([0.01, 0.01], [10**lower_y_bound, 1e0], linestyle='dashed',label=f'{lt_1per*100.:.2f}% of p-values $<$ 0.01')
 
     plt.xscale('log')
     plt.yscale('log')

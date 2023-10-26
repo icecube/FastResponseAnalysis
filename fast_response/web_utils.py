@@ -94,6 +94,7 @@ def updateDataFrame(analysis, gw=False, make_df=False):
             analysis['ns'], analysis['ts'], analysis['gamma'], analysis['fit_ra'], 
             analysis['fit_dec'], analysis['energy_range'], analysis['sens_range']]
     else: 
+        if 'energy_range' not in analysis.keys(): analysis['energy_range']= (None, None)
         new_list = [ra, dec, analysis['p'],
                 analysis['ns'], pd.Timestamp(Time(analysis['start'], format='mjd').iso), 
                 pd.Timedelta(analysis['stop'] - analysis['start'], unit='day'),
