@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 r"""
 Run trials for background only, all-sky scans. 
 No spatial prior is included; instead we record the 
@@ -130,7 +132,7 @@ maps = sparse.lil_matrix(shape, dtype=float)
 for jj in range(ntrials):
     val = f.llh.scan(0.0, 0.0, scramble=True, seed = seed_counter,
         #spatial_prior = f.spatial_prior, 
-        time_mask = [delta_t / 2., (start_mjd + stop_mjd) / 2.],
+        time_mask = [delta_t / 2., (start_mjd.mjd + stop_mjd.mjd) / 2.],
         pixel_scan = [f.nside, f._pixel_scan_nsigma], inject = None)
 
     if val['TS'] is not None:
