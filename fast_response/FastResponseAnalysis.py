@@ -1341,7 +1341,7 @@ class PointSourceFollowup(FastResponseAnalysis):
     def make_dNdE(self):
         r'''Make an E^-2 or E^-2.5 dNdE with the central 90% 
         for the most relevant declination band 
-        (5 deg around source dec)
+        (+/- 5 deg around source dec)
         '''
         dec_mask_1 = self.llh.mc['dec'] > self.dec - (5. * np.pi / 180.)
         dec_mask_2 = self.llh.mc['dec'] < self.dec + (5. * np.pi / 180.)
