@@ -4,26 +4,76 @@ from scipy.optimize import curve_fit
 from scipy.stats import chi2
 
 def find_nearest_idx(array, value):
+    '''
+    Find the index where an array is nearest to a 
+    given value
+    
+    Parameters:
+    -----------
+    array: list or array
+        Array to check
+    value: float
+        Particular value to look for in an array
+
+    Returns:
+    ----------
+    Int: Index where array is closest to value
+
+    See also:
+    ----------
+    find_nearest: gives closest value in array, rather than index
+    '''
     array = np.asarray(array)
     idx = (np.abs(array - value)).argmin()
     return idx
 
 def find_nearest(array, value):
+    '''
+    Find the value of an array closest to a 
+    given value
+    
+    Parameters:
+    -----------
+    array: list or array
+        Array to check
+    value: float
+        Particular value to look for in an array
+
+    Returns:
+    ----------
+    Float: value of the array that is closest to the value given
+
+    See also:
+    ----------
+    find_nearest_idx: returns index of closest value in array, rather than value
+    '''
     array = np.asarray(array)
     ind = (np.abs(array - value)).argmin()
     return array[ind]
 
 def deltaPsi(dec1, ra1, dec2, ra2):
     """
-    Calculate angular distance.
+    Calculate angular distance between two given points 
+    Values in Right Ascension/declination 
     
-    Args:
-        dec1: Declination of first direction in radian
-        ra1: Right ascension of first direction in radian
-        dec2: Declination of second direction in radian
-        ra2: Right ascension of second direction in radian
-        
-    Returns angular distance in radian
+    Parameters:
+    -----------
+    dec1: float
+        Declination of first direction in radian
+    ra1: float
+        Right ascension of first direction in radian
+    dec2: float
+        Declination of second direction in radian
+    ra2: float
+        Right ascension of second direction in radian
+    
+    Returns:
+    -----------
+    Float: angular distance in radian
+
+    See also:
+    -----------
+    deltaPsi2: helper function called within this function
     """
     return deltaPsi2(np.sin(dec1), np.cos(dec1), np.sin(ra1), np.cos(ra1), np.sin(dec2), np.cos(dec2), np.sin(ra2), np.cos(ra2))
 
@@ -31,17 +81,33 @@ def deltaPsi2(sDec1, cDec1, sRa1, cRa1, sDec2, cDec2, sRa2, cRa2):
     """
     Calculate angular distance.
     
-    Args:
-        sDec1: sin(Declination of first direction)
-        cDec1: cos(Declination of first direction)
-        sRa1: sin(Right ascension of first direction)
-        cRa1: cos(Right ascension of first direction)
-        sDec2: sin(Declination of second direction)
-        cDec2: cos(Declination of second direction)
-        sRa2: sin(Right ascension of second direction)
-        cRa2: cos(Right ascension of second direction)
-        
-    Returns angular distance in radian
+    Parameters:
+    -----------
+    sDec1: float
+        sin(Declination of first direction)
+    cDec1: float
+        cos(Declination of first direction)
+    sRa1: float
+        sin(Right ascension of first direction)
+    cRa1: float
+        cos(Right ascension of first direction)
+    sDec2: float
+        sin(Declination of second direction)
+    cDec2: float
+        cos(Declination of second direction)
+    sRa2: float
+        sin(Right ascension of second direction)
+    cRa2: float
+        cos(Right ascension of second direction)
+    
+    Returns:
+    ---------
+    Float: angular distance in radian
+
+    See also:
+    ----------
+    deltaPsi: this function is the wrapper to call this one. 
+    Users should directly call deltaPsi.
     """
     tmp = cDec1*cRa1*cDec2*cRa2 + cDec1*sRa1*cDec2*sRa2 + sDec1*sDec2
     tmp[tmp>1.] = 1.
