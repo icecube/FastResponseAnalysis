@@ -27,7 +27,7 @@ with open('/home/jthwaites/private/tokens/kafka_token.txt') as f:
 
 consumer = Consumer(client_id=client_id,
                     client_secret=client_secret,
-                    config={'max.poll.interval.ms':1200000})
+                    config={'max.poll.interval.ms':1800000})
 
 # Subscribe to topics to receive alerts
 consumer.subscribe(['gcn.classic.voevent.LVC_PRELIMINARY',
