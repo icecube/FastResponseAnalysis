@@ -14,9 +14,9 @@ assumes a binary merger scenario and accounts for known astrophysical priors, su
 distance, in the significance estimate [3].
 
 <N> track-like event(s) are found in spatial and temporal coincidence with the gravitational-wave 
-candidate <name>  calculated from the map circulated <give notice ID here..>. This
-represents an overall p-value of <pvalue> (<significance>sigma) from the generic transient search 
-and an overall p-value of <p-value> (<significance>sigma) for the Bayesian search.  These p-values 
+candidate <name> calculated from the map circulated in the <noticeID> notice. This
+represents an overall p-value of <p_gwava> from the generic transient search 
+and an overall p-value of <pvalue_llama> for the Bayesian search.  These p-values 
 measure the consistency of the observed track-like events with the known atmospheric backgrounds 
 for this single map (not trials corrected for multiple GW events). The most probable multi-messenger 
 source direction based on the neutrinos and GW skymap is RA <best_ra>, Dec <best_dec> degrees.
