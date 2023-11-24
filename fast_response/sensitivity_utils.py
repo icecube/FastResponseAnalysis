@@ -117,7 +117,35 @@ def deltaPsi2(sDec1, cDec1, sRa1, cRa1, sDec2, cDec2, sRa2, cRa2):
 def sensitivity_fit(signal_fluxes, passing, errs, fit_func, p0 = None, conf_lev = 0.9):
     r'''
     Given an array of injected fluxes (or events) and passing fraction
-    relative to the unblinded TS, do a fit given a CDF
+    relative to the unblinded TS, do a fit given a CDF. 
+    Built on curve_fit from scipy.optimize.
+
+    Parameters:
+    -----------
+    signal_fluxes: float Numpy array
+        set of injected flux values (or signal events).
+    passing: float Numpy array
+        corresponding fraction of trials with TS > threshold TS value, for each signal flux value.
+    errs: float Numpy array
+        binomial error for the given passing values. See also: binomial_error
+    fit_func: function
+        function to use in the fit. 
+        See also: Error function (erfunc), Chi squared (chi2cdf), Incomplete gamma (incomplete_gamma)
+    p0: None, scalar or N-length sequence
+        initial guess for parameters, passed directly to scipy.optimize.curve_fit
+    conf_lev: float
+        confidence level used (default 0.9 = 90% CL)
+    
+    Returns:
+    ----------
+    dict of fit values: 
+        popt, pcov: returned fit values from scipy.optimize.curve_fit
+        chi2, dof, pval: chi squared, degrees of freedom, and p-value from fit
+        xfit, yfit: arrays of values, using the fitted parameters of the given function
+        name: name of fit used
+        ls: linestyle, returns --
+        sens: calculated sensitivity value, in flux or ns (whichever is passed in signal_fluxes)
+    
     '''
     try:
         name = fit_func.__name__
@@ -137,22 +165,40 @@ def sensitivity_fit(signal_fluxes, passing, errs, fit_func, p0 = None, conf_lev 
             'name': name, 'pval':pval, 'ls':'--', 'sens': sens}
 
 def erfunc(x, a, b):
+    '''Error function'''
     x = np.array(x)
     return 0.5 + 0.5*sp.special.erf(a*x + b)
 
 def chi2cdf(x, df1, loc, scale):
+    '''Chi-squared CDF'''
     func = chi2.cdf(x,df1,loc,scale)
     return func
 
 def incomplete_gamma(x, a, scale):
+    '''Incomplete gamma function'''
     x = np.array(x)
     return sp.special.gammaincc( scale*x, a)
 
 def poissoncdf(x, mu, loc):
+    '''Poisson CDF function'''
     func = sp.stats.poisson.cdf(x, mu, loc)
     return func
 
 def binomial_error(p, number):
+    '''
+    Calculates binomial errors for given passing fraction values
+
+    Parameters:
+    -----------
+    p: float Numpy array
+        passing fraction values
+    number: int Numpy array
+        number of signal trials run for each injected value
+    
+    Returns:
+    ----------
+    float Numpy array of calculated binomial errors
+    '''
     errs = np.sqrt(p*(1.-p) / number)
     ntrig = p * number
     bound_case_pass = (ntrig + (1./3.)) / (number + (2./3.))
