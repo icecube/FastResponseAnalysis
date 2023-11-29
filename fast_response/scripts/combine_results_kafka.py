@@ -314,9 +314,10 @@ def parse_notice(record, wait_for_llama=False, heartbeat=False):
                     logger.warning('Both analyses not finished after {:.0f} min wait.'.format(max_wait))
                     logger.warning('Not sending GCN.')
                     if record.attrib['role']=='observation' and not heartbeat:
+                        err_msg = '--missing_llama=True --missing_uml=True' if not subthreshold else '--missing_llama=True'
                         try: 
                             subprocess.call(['/home/jthwaites/private/make_call.py', 
-                                             '--troubleshoot_gcn=True', '--missing_llama=True', '--missing_uml=True'])
+                                             '--troubleshoot_gcn=True', err_msg])
                         except:
                             logger.warning('Failed to send alert to shifters: Issue finding both results. ')
                     return
