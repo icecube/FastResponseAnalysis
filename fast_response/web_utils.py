@@ -140,6 +140,15 @@ def createFastResponsePage(analysis, gw=False):
                 if k in line:
                     line = line.replace(k, '{:.3f}'.format(analysis[r]))
             new_f.append(line)
+
+        #Filter names changed with 2023 runstart
+        if analysis["stop"] > 60276.86875:
+            muonfilter_str = "MuonFilter_23_plot.png"
+            l2filter_str="OnlineL2Filter_23_plot.png"
+        else: 
+            muonfilter_str="MuonFilter_13_plot.png"
+            l2filter_str="OnlineL2Filter_17_plot.png"
+
         for i in range(len(new_f)):
             if 'ANALYSISCREATIONTIME' in new_f[i]:
                 new_f[i] = new_f[i].replace('ANALYSISCREATIONTIME', str(datetime.datetime.utcnow())[:-7])
@@ -163,6 +172,11 @@ def createFastResponsePage(analysis, gw=False):
                 new_f[i] = new_f[i].replace('ANALYSISID', analysis['analysisid'])  
             if 'ANALYZER' in new_f[i]:
                 new_f[i] = new_f[i].replace('ANALYZER', username)
+            if 'MUONFILTER' in new_f[i]:
+                new_f[i] = new_f[i].replace('MUONFILTER', muonfilter_str)
+            if 'L2FILTER' in new_f[i]:
+                new_f[i] = new_f[i].replace('L2FILTER', l2filter_str)  
+            
             if gw:
                 if 'webpage' in new_f[i]:
                     new_f[i] = new_f[i].replace('webpage', 'gw-webpage')
