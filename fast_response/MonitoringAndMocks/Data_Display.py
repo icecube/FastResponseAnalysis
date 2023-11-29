@@ -8,52 +8,52 @@ matplotlib.rcParams['xtick.labelsize'] = 16
 matplotlib.rcParams['ytick.labelsize'] = 16
 import matplotlib.pyplot as plt
 import numpy as np
-import pickle, glob, os, datetime, pwd
+import glob, os, datetime, pwd, pickle
 from datetime import date
 from statistics import median
 #from statistics import mode
 from matplotlib.dates import DateFormatter
 from astropy.time import Time
 import pandas as pd
-#from IPython.display import HTML
-#from IPython.display import display
 import subprocess
 import warnings
 warnings.filterwarnings('ignore', module='astropy._erfa')
 
 def dial_up(who="jessie"):
     cell_tower = "/home/jthwaites/private/"
-    #halp = "https://icecube.wisc.edu/~jthwaites/FastResponse/error_call.xml"
-    subprocess.call([cell_tower+"make_call.py", f"--{who}=True", '--troubleshoot=True'])#, "--call_file", halp])
-    #print([cell_tower+"make_call.py", f"--{who}=True", '--troubleshoot=True'])
+    subprocess.call([cell_tower+"make_call.py", f"--{who}=True", '--troubleshoot=True'])
 
-#path = "/data/user/jthwaites/FastResponseAnalysis/output/"
 path=os.environ.get('FAST_RESPONSE_OUTPUT')
 out_put = '/data/user/jthwaites/o4-mocks/'
 
 #Creating readable (and callable) files from ALL pickle files previously created in gw_gcn_listener
 if pwd.getpwuid(os.getuid())[0] == 'realtime':
-    Pickle_to_text = sorted(glob.glob(path+'PickledMocks/*MS*.pickle')+
-                            glob.glob('/data/user/jthwaites/FastResponseAnalysis/output/PickledMocks/*MS*.pickle'))
+    Pickle_to_text = sorted(glob.glob(path+'PickledMocks/*MS*.pickle'))#+
+                            #glob.glob('/data/user/jthwaites/FastResponseAnalysis/output/PickledMocks/*MS*.pickle'))
 else:
     Pickle_to_text = sorted(glob.glob(path+'PickledMocks/*MS*.pickle'))
 
 all_dictionary = {'Trigger_Time': [], 'GCN_Alert': [], 'End_Time': [],
-                        'LVK_Latency': [], 'IceCube_Latency': [], 'Total_Latency': [],
-                            'We_had_to_wait:': [], 'Name': [], 'Time_Stamp': []}
+                  'LVK_Latency': [], 'IceCube_Latency': [], 'Total_Latency': [],
+                  'We_had_to_wait:': [], 'Name': [], 'Time_Stamp': []}
+print('Number of mocks to load: {}'.format(len(Pickle_to_text)))
 
+i=0
 for file in Pickle_to_text:
-        if os.path.exists(file):
-                with open(file, 'rb') as pickle_now:
-                        Entries = pickle.load(pickle_now)
-                if int(Entries["Trigger_Time"]) == 59957:
-                        continue #This is January 13th 2023, dates were messed up.
-                for Key in Entries.keys():
-                        if Key=="Ligo_Latency":
-                                all_dictionary['LVK_Latency'].append(Entries[Key])
-                        else:
-                                all_dictionary[Key].append(Entries[Key])
-                all_dictionary['Name'].append(file)
+    #if i%100==0: print(i)
+    if os.path.exists(file):
+        with open(file, 'rb') as pickle_now:
+            Entries = pickle.load(pickle_now)
+        if int(Entries["Trigger_Time"]) == 59957:
+            continue #This is January 13th 2023, dates were messed up.
+        for Key in Entries.keys():
+            if Key=="Ligo_Latency":
+                all_dictionary['LVK_Latency'].append(Entries[Key])
+            else:
+                all_dictionary[Key].append(Entries[Key])
+        all_dictionary['Name'].append(file)
+    i+=1
+
 for file in all_dictionary["Name"]:
         date_format = "%Y-%m-%d"
         c_timestamp = os.path.getmtime(file)
@@ -68,57 +68,56 @@ if (Time(datetime.datetime.utcnow()).mjd - max(Time(all_dictionary["Time_Stamp"]
         dial_up()
         x = (Time(datetime.datetime.utcnow()).mjd - max(Time(all_dictionary["Time_Stamp"]).mjd))*24
         print("It has been " +str(x) +" hours since last update to gw mocks.")
-#        print("Uh oh... spaghetti-o's")
+        #print("Uh oh... spaghetti-o's")
 
 #Sorting pickle files by date created and by most correct version
 if pwd.getpwuid(os.getuid())[0] == 'realtime':
-    Pickle_Files = sorted(glob.glob(path+'PickledMocks/*.pickle')+
-                            glob.glob('/data/user/jthwaites/FastResponseAnalysis/output/PickledMocks/*.pickle'))
+    Pickle_Files = sorted(glob.glob(path+'PickledMocks/*.pickle'))#+
+                          #glob.glob('/data/user/jthwaites/FastResponseAnalysis/output/PickledMocks/*.pickle'))
 else:
     Pickle_Files = sorted(glob.glob(path+'PickledMocks/*.pickle'))
-#Pickle_Files = sorted(glob.glob(path+'PickledMocks/*.pickle'))
 
 date_format = "%Y-%m-%d"
-
 Quality_Pickles = []
 
 for file in Pickle_Files:
-        c_timestamp = os.path.getmtime(file)
-        c_datestamp = datetime.datetime.fromtimestamp(c_timestamp)
-        if (c_datestamp >= datetime.datetime.strptime('2022-12-05', date_format)):
-                Quality_Pickles.append(file)
+    c_timestamp = os.path.getmtime(file)
+    c_datestamp = datetime.datetime.fromtimestamp(c_timestamp)
+    if (c_datestamp >= datetime.datetime.strptime('2022-12-05', date_format)):
+        Quality_Pickles.append(file)
 
 #Collecting the first maps created for each event for analysis
 First_Batch={'Trigger_Time': [], 'GCN_Alert': [], 'End_Time': [],
-                'LVK_Latency': [], 'IceCube_Latency': [], 'Total_Latency': [],
-                'We_had_to_wait:': [], 'Name': [], 'Time_Stamp': []}     
+             'LVK_Latency': [], 'IceCube_Latency': [], 'Total_Latency': [],
+             'We_had_to_wait:': [], 'Name': [], 'Time_Stamp': []}     
 if pwd.getpwuid(os.getuid())[0] == 'realtime':
-    First_Runs = sorted(glob.glob(path+'PickledMocks/*MS*-1-*.pickle')+
-                        glob.glob('/data/user/jthwaites/FastResponseAnalysis/output/PickledMocks/*MS*-1-*.pickle'))
+    First_Runs = sorted(glob.glob(path+'PickledMocks/*MS*-1-*.pickle'))#+
+                        #glob.glob('/data/user/jthwaites/FastResponseAnalysis/output/PickledMocks/*MS*-1-*.pickle'))
 else:
     First_Runs = sorted(glob.glob(path+'PickledMocks/*MS*-1-*.pickle'))
-#First_Runs= sorted(glob.glob((path+'PickledMocks/*MS*-1-*.pickle')))
 
 for file in First_Runs:
-        if os.path.exists(file):
-                with open(file, 'rb') as pickle_now:
-                        Entries = pickle.load(pickle_now)
-                        if int(Entries["Trigger_Time"]) == 59957:
-                                continue
-                        for Key in Entries.keys():
-                                if Key=="Ligo_Latency":
-                                        First_Batch['LVK_Latency'].append(Entries[Key])
-                                else:
-                                        First_Batch[Key].append(Entries[Key])        
-                First_Batch['Name'].append(file)
+    if os.path.exists(file):
+        with open(file, 'rb') as pickle_now:
+            Entries = pickle.load(pickle_now)
+            if int(Entries["Trigger_Time"]) == 59957:
+                continue
+            for Key in Entries.keys():
+                if Key=="Ligo_Latency":
+                    First_Batch['LVK_Latency'].append(Entries[Key])
+                else:
+                    First_Batch[Key].append(Entries[Key])        
+        First_Batch['Name'].append(file)
+
 for file in First_Batch["Name"]:
-        date_format = "%Y-%m-%d"
-        c_timestamp = os.path.getmtime(file)
-        c_datestamp = datetime.datetime.fromtimestamp(c_timestamp)
-        First_Batch['Time_Stamp'].append(c_datestamp)
+    date_format = "%Y-%m-%d"
+    c_timestamp = os.path.getmtime(file)
+    c_datestamp = datetime.datetime.fromtimestamp(c_timestamp)
+    First_Batch['Time_Stamp'].append(c_datestamp)
 print('Finished loading 1st map latencies.')
 
-#Breakdown full name of files created so only necessary parts are saved (i.e., the code for the event and number of the map)
+#Breakdown full name of files created so only necessary parts are saved 
+# (i.e., the code for the event and number of the map)
 pieces = [string.split('-') for string in Quality_Pickles]
 
 Puzzle_Box = {}
@@ -140,8 +139,8 @@ for key in Puzzle_Box.keys():
                         names.append(key[-9:]+'-'+str(high_file)+'-'+Puzzle_Box[key][1][i].split('.')[0])
 
 Last_Batch = {'Trigger_Time': [], 'GCN_Alert': [], 'End_Time': [],
-                        'LVK_Latency': [], 'IceCube_Latency': [], 'Total_Latency': [],
-                        'We_had_to_wait:': [], 'Name': [], 'Time_Stamp': []}
+              'LVK_Latency': [], 'IceCube_Latency': [], 'Total_Latency': [],
+              'We_had_to_wait:': [], 'Name': [], 'Time_Stamp': []}
 
 #Make keys in dictionary callable
 for file in answer:
@@ -149,13 +148,15 @@ for file in answer:
         with open(file, 'rb') as pickle_in:
             Brine = pickle.load(pickle_in)
             if int(Brine["Trigger_Time"]) == 59957: #This is January 13, 2023.
-                    continue                        #There was an error causing multiple files to be falsely saved to this date.
+                #There was an error causing multiple files to be falsely saved to this date.
+                continue 
             for Key in Brine.keys():
                 if Key=="Ligo_Latency":
-                        Last_Batch['LVK_Latency'].append(Brine[Key])
+                    Last_Batch['LVK_Latency'].append(Brine[Key])
                 else:
-                        Last_Batch[Key].append(Brine[Key])
+                    Last_Batch[Key].append(Brine[Key])
         Last_Batch['Name'].append(file)
+
 for file in Last_Batch["Name"]:
         date_format = "%Y-%m-%d"
         c_timestamp = os.path.getmtime(file)
@@ -167,34 +168,35 @@ First_TS = []
 Last_TS = []
 
 def find_ts(Batch, TS_List):
+    split_names = [string.split('/') for string in Batch]
 
-        split_names = [string.split('/') for string in Batch]
+    split_bits = []
+    prime_split = []
+    final_bit = []
 
-        split_bits = []
-        prime_split = []
-        final_bit = []
+    for i in range(len(split_names)):
+        split_bits.append(split_names[i][-1])
 
-        for i in range(len(split_names)):
-                split_bits.append(split_names[i][-1])
+    middle_split = [string.split('.') for string in split_bits]
 
-        middle_split = [string.split('.') for string in split_bits]
+    for i in range(len(middle_split)):
+        prime_split.append(middle_split[i][-2])
 
-        for i in range(len(middle_split)):
-                prime_split.append(middle_split[i][-2])
+    chop = [string.split('_') for string in prime_split]
 
-        chop = [string.split('_') for string in prime_split]
+    for i in range(len(chop)):
+        final_bit.append(chop[i][-2]+'_'+chop[i][-1])
 
-        for i in range(len(chop)):
-                final_bit.append(chop[i][-2]+'_'+chop[i][-1])
+    for i in final_bit:
+        FTS=glob.glob(out_put+f'/202*{i}/TS_distribution.png')
+        if len(FTS)>0:
+            TS_List.append(True)
+        else:
+            TS_List.append(False)
+            
+    TS_List = np.array(TS_List)
+    return TS_List
 
-        for i in final_bit:
-                FTS=glob.glob(out_put+f'/202*{i}/TS_distribution.png')
-                if len(FTS)>0:
-                        TS_List.append(True)
-                else:
-                        TS_List.append(False)
-        TS_List = np.array(TS_List)
-        return TS_List
 First_TS = find_ts(Batch = First_Batch["Name"], TS_List = First_TS)
 Last_TS = find_ts(Batch = Last_Batch["Name"], TS_List = Last_TS)
 
@@ -203,28 +205,29 @@ outliers_ice = []
 outliers_tot = []
 
 for item in range(len(First_Batch["IceCube_Latency"])):
-        if First_Batch["IceCube_Latency"][item]>=1200:
-                outliers_ice.append(First_Batch["Name"][item])
+    if First_Batch["IceCube_Latency"][item]>=1200:
+        outliers_ice.append(First_Batch["Name"][item])
 
 for item in range(len(First_Batch["Total_Latency"])):
-        if First_Batch["Total_Latency"][item]>=3000:
-                outliers_tot.append(First_Batch["Name"][item])
+    if First_Batch["Total_Latency"][item]>=3000:
+        outliers_tot.append(First_Batch["Name"][item])
 
 icecube_outliers = []
 total_outliers = []
 
 def outlier_name(outlier_list, outlier_names):
-        nb = [string.split('/') for string in outlier_list]
+    nb = [string.split('/') for string in outlier_list]
 
-        out_bit=[]
+    out_bit=[]
 
-        for i in range(len(nb)):
-                out_bit.append(nb[i][-1])
+    for i in range(len(nb)):
+        out_bit.append(nb[i][-1])
 
-        last_bit = [string.split('_') for string in out_bit]
+    last_bit = [string.split('_') for string in out_bit]
 
-        for i in range(len(last_bit)):
-                outlier_names.append(last_bit[i][-2])
+    for i in range(len(last_bit)):
+        outlier_names.append(last_bit[i][-2])
+
 outlier_name(outlier_list = outliers_ice, outlier_names = icecube_outliers)
 outlier_name(outlier_list = outliers_tot, outlier_names = total_outliers)
 
@@ -727,12 +730,10 @@ axs.grid(b = True, color ='black',
 
 plt.tight_layout()
 fig.savefig("Linear_Delta_T_TIMESTAMP.png")
-###p value plots
-import matplotlib as mpl
-mpl.use('agg')
 
+###p value plot
 def make_bg_pval_dist(fontsize=15, lower_y_bound=-3.5, load_all = False):
-    # function to make pval dist. lower_y_bound arg gives the exponent to set the lower y-axis 
+    # function to make pval hist. lower_y_bound arg gives the exponent to set the lower y-axis 
     # limit, e.g. 10^-3
     all_maps_saved_pkl=sorted(glob.glob('/data/user/jthwaites/o4-mocks/*/*.pickle'))[::-1]
     saved_mock_pkl=[all_maps_saved_pkl[0]]
@@ -750,15 +751,16 @@ def make_bg_pval_dist(fontsize=15, lower_y_bound=-3.5, load_all = False):
         saved_mock_pkl = saved_mock_pkl[0:2000]
     else:
         print('Loading %i mocks (may take a while)'%(len(saved_mock_pkl)))
-
+    i=0
     for mock in saved_mock_pkl:
         with open(mock,'rb') as f:
             result=pickle.load(f)
             #print('skipped {}'.format(mock))
             all_mocks[result['name']]=result['p']
+        i+=1
     print('Done loading mocks.')
 
-    mpl.rcParams.update({'font.size':fontsize})
+    matplotlib.rcParams.update({'font.size':fontsize})
     plt.figure(figsize = (10,6), dpi=300)
     #ax.tick_params(labelsize=fontsize)
 
