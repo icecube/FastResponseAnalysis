@@ -104,7 +104,10 @@ class ReportGenerator(object):
         # first query the rundata base with the times of the analysis
         # plus 8 hours on either side
         run_url = 'https://live.icecube.wisc.edu/run_info/'
-        run_query = {'user':'icecube', 'pass':'skua',
+        with open('/home/jthwaites/private/tokens/auth.txt') as f:
+            user = f.readline().rstrip('\n')
+            pasw = f.readline().rstrip('\n')
+        run_query = {'user':user, 'pass':pasw,
                      'start':(Time(time_window[0],precision=0)
                               - TimeDelta(8*3600,format='sec')).iso,
                      'stop': (Time(time_window[1],precision=0)
@@ -345,12 +348,19 @@ class ReportGenerator(object):
                     "}\n"
                 )
 
+            if self.source["stop_mjd"] > 60276.86875:
+                muonfilter_str = "MuonFilter_23_plot.png"
+                l2filter_str="OnlineL2Filter_23_plot.png"
+            else: 
+                muonfilter_str="MuonFilter_13_plot.png"
+                l2filter_str="OnlineL2Filter_17_plot.png"
+
             for plot_name, plot_path in [("gfurate", "GFU_rate_plot.png"),
                                          ('skymap', self.analysisid + "unblinded_skymap.png"),
                                          ('skymapzoom', self.analysisid + "unblinded_skymap_zoom.png"),
                                          ('limitdNdE', "central_90_dNdE.png"),
-                                         ('muonfilter', "MuonFilter_13_plot.png"),
-                                         ("Lfilter", "OnlineL2Filter_17_plot.png"),
+                                         ('muonfilter', muonfilter_str),
+                                         ("Lfilter", l2filter_str),
                                          ("badnessplot", "badness_plot.png"),
                                          ("multiplicity", "IN_ICE_SIMPLE_MULTIPLICITY_plot.png")]:
                 if os.path.isfile(self.dirname + '/' + plot_path):

@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 r"""
 Run trials for background only, all-sky scans. 
 No spatial prior is included; instead we record the 
@@ -10,7 +12,7 @@ Jessie Thwaites, Oct 2023
 
 import numpy  as np
 import healpy as hp
-import argparse, os
+import argparse, os, time
 
 from astropy.time           import Time
 from fast_response          import GWFollowup
@@ -37,39 +39,27 @@ p.add_argument("--outdir", default = None, type=str,
 args = p.parse_args()
 
 def config_llh(self, scramble = True):
-    """ Use full timescramble method for BG trials
+    ''' Use full timescramble method for BG trials
     This method is adapted from initialize_llh in FastResponseAnalysis.py
-    """
+    '''
 
-    self.get_data()
-
-    print("Initializing Point Source LLH in Skylab")
+    print("Initializing Point Source LLH w/Timescramble in Skylab")
 
     assert self._float_index==True,\
         'Index should be fitted - check initialization'
 
-    if self._fix_index:
-        llh_model = EnergyLLH(
-            twodim_bins=[self.energy_bins, self.sinDec_bins],
-            allow_empty=True,
-            spectrum=PowerLaw(A=1, gamma=self.index, E0=1000.),
-            ncpu=self._ncpu) 
-    elif self._float_index:
-        llh_model = EnergyLLH(
-            twodim_bins=[self.energy_bins, self.sinDec_bins],
-            allow_empty=True,
-            bounds=self._index_range,
-            seed = self.index,
-            ncpu=self._ncpu)
+    llh_model = EnergyLLH(
+        twodim_bins=[self.energy_bins, self.sinDec_bins],
+        allow_empty=True,
+        bounds=self._index_range,
+        seed = self.index,
+        ncpu=self._ncpu)
         
     box = TemporalModel(
         grl=self.grl,
         poisson_llh=True,
         days=self._nb_days,
         signal=BoxProfile(self.start, self.stop))
-
-    # should not be an extension here
-    src_extension = None
 
     llh = PointSourceLLH(
         self.exp,                      # array with data events
@@ -81,10 +71,10 @@ def config_llh(self, scramble = True):
         llh_model=llh_model,           # likelihood model
         temporal_model=box,            # use box for temporal model
         nsource_bounds=(0., 1e3),      # bounds on fitted ns
-        src_extension = src_extension, # Model symmetric extended source
+        src_extension = None,          # Model symmetric extended source
         nsource=1.,                    # seed for nsignal fit
     )           
-
+    llh._warn_nsignal_max=False
     return llh
 
 if args.outdir == None:
@@ -100,10 +90,12 @@ outdir=outdir+'/trials/'
 
 gw_time = Time(60000., format='mjd') #2023-02-25
 delta_t = float(args.deltaT)
+delta_t_days = delta_t/86400.
 
 if args.deltaT==1000:
     start_mjd = gw_time - (delta_t / 86400. / 2.)
     stop_mjd = gw_time + (delta_t / 86400. / 2.)
+
 else: #2 week followup
     start_mjd = gw_time - 0.1
     stop_mjd = gw_time + 14.
@@ -113,11 +105,13 @@ stop_iso = stop_mjd.iso
 
 #skymap needed for initialization - not used here
 f = GWFollowup('precomputed_bg_test', '/data/user/jthwaites/o3-gw-skymaps/S191216ap.fits.gz', 
-               start_iso, stop_iso)
+               start_iso, stop_iso, save=False)
 f._allow_neg = False
 
 f.llh = config_llh(f)
+
 f.llh.nbackground=args.bkg
+print('nside = {}'.format(f.nside))
 
 ntrials = args.ntrials
 stop = ntrials * (args.seed+1)
@@ -128,9 +122,11 @@ npix = hp.nside2npix(f.nside)
 shape = (args.ntrials, npix)
 maps = sparse.lil_matrix(shape, dtype=float)
 for jj in range(ntrials):
-    val = f.llh.scan(0.0, 0.0, scramble=True, seed = seed_counter,
+    print('Starting scan {}'.format(jj))
+    t1 = time.time()
+    val = f.llh.scan(0.0, 0.0, seed = seed_counter, scramble=True,
         #spatial_prior = f.spatial_prior, 
-        time_mask = [delta_t / 2., (start_mjd + stop_mjd) / 2.],
+        time_mask = [delta_t_days / 2., (start_mjd.mjd + stop_mjd.mjd) / 2.],
         pixel_scan = [f.nside, f._pixel_scan_nsigma], inject = None)
 
     if val['TS'] is not None:
@@ -138,11 +134,14 @@ for jj in range(ntrials):
             results = np.empty((val['TS'].size,), dtype=dtype)
             pixels = hp.ang2pix(f.nside, np.pi/2. - val['dec'], val['ra'])
             maps[jj, pixels] = val['TS']
+    t2 = time.time()
+    print("finished scan, took {} s".format(t2-t1))
 
     seed_counter+=1
 print("DONE")
 hp_sparse = maps.tocsr()
 
 outfilename = outdir+'gw_{:.1f}_mHz_delta_t_{:.1e}_seed_{}.npz'.format(args.bkg, args.deltaT, args.seed)
+
 sparse.save_npz(outfilename, hp_sparse)
 print("Saved to {}".format(outfilename))

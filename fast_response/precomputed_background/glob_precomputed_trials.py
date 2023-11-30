@@ -25,7 +25,7 @@ def glob_allsky_scans(delta_t, rate, dir, low_stats=False):
     #n_per_job = {1000.: 1000, 172800.: 50, 2678400.: 30}
     #jobs_per_window = {1000.: 20, 172800.: 100, 2678400.: 100}
 
-    files = glob(dir+'/gw_{:.1f}_mHz_seed_*_delta_t_{:.1e}.npz'.format(rate, delta_t))
+    files = glob(dir+'/gw_{:.1f}_mHz_delta_t_{:.1e}_seed_*.npz'.format(rate, delta_t))
     nside = 512
     npix = hp.nside2npix(nside)
     maps = sparse.csr_matrix((0, npix), dtype=float)
@@ -54,8 +54,8 @@ def glob_allsky_scans(delta_t, rate, dir, low_stats=False):
     
     return maps
 
-for rate in [6.0, 6.2, 6.4, 6.6, 6.8, 7.0, 7.2]:
-    for low_stats in [False]:#[True, False]:
+for rate in [6.0]:#, 6.2, 6.4, 6.6, 6.8, 7.0, 7.2]:
+    for low_stats in [True, False]:
         print("Rate: {} mHz, low stats: {}".format(rate, low_stats))
         maps = glob_allsky_scans(args.deltaT, rate, args.dir, low_stats=low_stats)
         del maps

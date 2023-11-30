@@ -29,6 +29,9 @@ parser.add_argument(
 parser.add_argument(
     '--outdir', default= default_outdir, type=str, 
     help = 'Output directory. default is FAST_RESPONSE_OUTPUT (if set) or ./ if not')
+parser.add_argument(
+    '--no_overwrite', type=int, default=1,
+    help='int to make sure previous trials are not overwritten (1=True, default)')
 args = parser.parse_args()
 
 print('Output trials to directory: {}'.format(args.outdir))
@@ -70,8 +73,8 @@ job = pycondor.Job(
     getenv=True,
     universe='vanilla',
     verbose=2,
-    request_cpus=8,
-    request_memory=8000,
+    request_cpus=8,#10,
+    request_memory=8000,#10000,
     extra_lines=[
         'should_transfer_files = YES',
         'when_to_transfer_output = ON_EXIT']
@@ -79,6 +82,11 @@ job = pycondor.Job(
 
 for bg_rate in [6.0, 6.2, 6.4, 6.6, 6.8, 7.0, 7.2]:
     for seed in range(args.seed_start, int(args.ntrials/args.n_per_batch)+1):
+        if args.no_overwrite==1:
+            import glob
+            already_run = glob.glob(os.path.join(args.outdir,
+                                'trials/gw_{:.1f}_mHz_delta_t_{:.1e}_seed_{}.npz'.format(bg_rate, deltaT, seed)))
+            if len(already_run) != 0: continue
         job.add_arg('--deltaT {} --ntrials {} --seed {} --bkg {} --outdir {}'.format(
             deltaT, args.n_per_batch, seed, bg_rate, args.outdir))
 

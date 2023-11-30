@@ -125,10 +125,18 @@ def make_rate_plots(time_window, run_table, query_events, dirname, season='neutr
     recstart= Time(rates['rec_start'],format='mjd',scale='utc')
     recstop = Time(rates['rec_stop' ],format='mjd',scale='utc')
 
-    online_str = 'OnlineL2Filter_16' if season == 'neutrino16' else 'OnlineL2Filter_17'
+    if season == 'neutrino16':
+        online_str = 'OnlineL2Filter_16' 
+        muon_str='MuonFilter_13'
+    elif time_window[1].mjd > 60276.86875:
+        online_str='OnlineL2Filter_23'
+        muon_str='MuonFilter_23'
+    else:
+        online_str = 'OnlineL2Filter_17'
+        muon_str='MuonFilter_13'
 
     for rate, name, unit in [('IN_ICE_SIMPLE_MULTIPLICITY', 'In-Ice-Simple-Multiplicity', '(kHz)'), 
-                ('MuonFilter_13', 'Muon Filter', '(Hz)'), 
+                (muon_str, 'Muon Filter', '(Hz)'), 
                 (online_str, 'Online L2 Filter', '(Hz)')]:
         fig, ax = plt.subplots(figsize = (12,4))
         time_series(ax, run_table, time_window, 

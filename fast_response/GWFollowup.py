@@ -336,8 +336,6 @@ class GWFollowup(PriorFollowup):
 
                 gcn = gcn_template.read()
                 low_sens, high_sens = self.sens_range
-                # for key, val in [('<lowSens>', f'{low_sens:1.3f}'),
-                #                  ()]
                 gcn = gcn.replace('<lowSens>', '{:1.3f}'.format(low_sens))
                 gcn = gcn.replace('<highSens>', '{:1.3f}'.format(high_sens))
                 gcn = gcn.replace('<name>' , gw_name)
@@ -350,10 +348,9 @@ class GWFollowup(PriorFollowup):
             gcn_file.close()
 
         else:
-            significance = '{:1.2f}'.format(self.significance(pvalue))
+            #significance = '{:1.2f}'.format(self.significance(pvalue))
 
-            #info = ' <dt>   <ra>       <dec>          <angErr>                    <p_gwava>                 <p_llama>\n'
-            info = '  <dt>\t\t <ra>\t\t <dec>\t\t <angErr>\t\t\t\t <p_gwava>\t\t\t\t\t <p_llama>\n'
+            info = ' <dt>\t <ra>\t\t <dec>\t\t <angErr>\t\t\t <p_gwava>\t\t\t <p_llama>\n'
             table = ''
             n_coincident_events=0
             for event in events:
@@ -387,6 +384,9 @@ class GWFollowup(PriorFollowup):
                 num = str(n_coincident_events)
             #num = events['pvalue'][events['pvalue']<=0.1].size
             gcn_file = open(self.analysispath+'/gcn_%s.txt' % gw_name,'w')
+            best_ra = '{:1.2f}'.format(np.rad2deg(self.skymap_fit_ra))
+            best_dec = '{:1.2f}'.format(np.rad2deg(self.skymap_fit_dec))
+
             with open(template_path,'r') as gcn_template:
 
                 for line in gcn_template.readlines():
@@ -395,14 +395,17 @@ class GWFollowup(PriorFollowup):
                     line = line.replace('<noticeID>', noticeID)
                     line = line.replace('<tstart>', start_iso)
                     line = line.replace('<tstop>', stop_iso)
+                    line = line.replace('<best_ra>', best_ra)
+                    line = line.replace('<best_dec>', best_dec)
+                    
                     if pvalue<0.0013499:
                         pval_str = '<0.00135'
                         line = line.replace('<p_gwava>', pval_str)
-                        line = line.replace('<sig_gwava>', '>3')
+                        #line = line.replace('<sig_gwava>', '>3')
                     else:
                         pval_str = '{:1.3f}'.format(pvalue)
                         line = line.replace('<p_gwava>', pval_str)
-                        line = line.replace('<sig_gwava>', significance)
+                        #line = line.replace('<sig_gwava>', significance)
 
                     if '<dt>' in line:
                         line = table

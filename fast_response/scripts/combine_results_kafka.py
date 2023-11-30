@@ -27,7 +27,7 @@ with open('/home/jthwaites/private/tokens/kafka_token.txt') as f:
 
 consumer = Consumer(client_id=client_id,
                     client_secret=client_secret,
-                    config={'max.poll.interval.ms':1200000})
+                    config={'max.poll.interval.ms':1800000})
 
 # Subscribe to topics to receive alerts
 consumer.subscribe(['gcn.classic.voevent.LVC_PRELIMINARY',
@@ -207,7 +207,7 @@ def parse_notice(record, wait_for_llama=False, heartbeat=False):
         return
 
     collected_results = {}
-    collected_results["$schema"]= "https://gcn.nasa.gov/schema/stable/gcn/notices/icecube/LvkNuTrackSearch.schema.json"
+    collected_results["$schema"]= "https://gcn.nasa.gov/schema/v3.0.0/gcn/notices/icecube/lvk_nu_track_search.schema.json"
     collected_results["type"]= "IceCube LVK Alert Nu Track Search"
 
     eventtime = record.find('.//ISOTime').text
@@ -314,9 +314,10 @@ def parse_notice(record, wait_for_llama=False, heartbeat=False):
                     logger.warning('Both analyses not finished after {:.0f} min wait.'.format(max_wait))
                     logger.warning('Not sending GCN.')
                     if record.attrib['role']=='observation' and not heartbeat:
+                        err_msg = '--missing_llama=True --missing_uml=True' if not subthreshold else '--missing_llama=True'
                         try: 
                             subprocess.call(['/home/jthwaites/private/make_call.py', 
-                                             '--troubleshoot_gcn=True', '--missing_llama=True', '--missing_uml=True'])
+                                             '--troubleshoot_gcn=True', err_msg])
                         except:
                             logger.warning('Failed to send alert to shifters: Issue finding both results. ')
                     return

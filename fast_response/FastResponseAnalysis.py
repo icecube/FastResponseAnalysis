@@ -40,10 +40,11 @@ warnings.simplefilter("ignore", UserWarning)
 warnings.simplefilter("ignore", RuntimeWarning)
 
 class FastResponseAnalysis(object):
-    r''' Object to do realtime followup analyses of 
-        astrophysical transients with arbitrary event
-        localization
-        '''
+    """ 
+    Object to do realtime followup analyses of 
+    astrophysical transients with arbitrary event
+    localization
+    """
     _dataset = None
     _fix_index = True
     _float_index = not _fix_index
@@ -120,6 +121,7 @@ class FastResponseAnalysis(object):
 
     @property
     def dataset(self):
+        """Returns the dataset used"""
         return self._dataset
     @dataset.setter
     def dataset(self, x):
@@ -127,6 +129,7 @@ class FastResponseAnalysis(object):
 
     @property
     def index(self):
+        """Returns the spectral index"""
         return self._index
     @index.setter
     def index(self, x):
@@ -134,6 +137,7 @@ class FastResponseAnalysis(object):
 
     @property
     def llh_seed(self):
+        """Returns the seed used in the LLH"""
         return self._llh_seed
     @llh_seed.setter
     def llh_seed(self, x):
@@ -142,9 +146,13 @@ class FastResponseAnalysis(object):
     def get_data(self, livestream_start=None, livestream_stop=None):
         '''
         Gets the skylab data and MC from querying the i3live livestream
-        arguments:
-        livestream_start and livestream_stop - when to start and stop grabbing data
-        (needed due to low latency in GW followups)
+
+        Parameters:
+        -----------
+        livestream_start: float
+            (optional) start time for getting data (MJD) from i3Live. Default is start time of the analysis - 5 days
+        livestream_stop: float
+            (optional) stop time for getting data (MJD). Default is stop time of the analysis
         '''
         if self._verbose:
             print("Grabbing data")
@@ -206,6 +214,18 @@ class FastResponseAnalysis(object):
     def initialize_llh(self, skipped=None, scramble=False):
         '''
         Grab data and format it all into a skylab llh object
+
+        Parameters:
+        -----------
+        skipped: array of tuples 
+            (optional) event(s) to be removed in the analysis. 
+            Format: [(run_id,event_id),...]
+        scramble: bool
+            (optional) run on scrambled data (default=False)
+
+        Returns:
+        ----------
+        llh: skylab llh object
         '''
         if self.exp is None:
             self.get_data()
@@ -264,6 +284,21 @@ class FastResponseAnalysis(object):
     def remove_event(self, exp, dset, skipped):
         '''
         Remove a given event from the analysis, eg. for an alert event
+
+        Parameters:
+        -----------
+        exp: skylab data object
+            Data events loaded from livestream
+        dset: skylab Dataset object
+            Dataset used in the analysis
+        skipped: array of tuples 
+            Event(s) to be attempted to be removed in the analysis. 
+            Format: [(run_id,event_id),...]
+
+        Returns:
+        ----------
+        exp: skylab data object
+            Data events, minus the removed event (if successful)
         '''
         try:
             event = skipped[0]
@@ -292,7 +327,11 @@ class FastResponseAnalysis(object):
 
         Parameters:
         -----------
-        None
+        ntrials: int
+            Number of trials to run (default 1000)
+        run_anyway: bool
+            Choose to override and run background trials, even if TS=0 (default False)
+
         Returns:
         --------
         p: float
@@ -343,8 +382,14 @@ class FastResponseAnalysis(object):
         pass
 
     def plot_tsd(self, allow_neg=False):
-        r'''Outputs a plot of the background TS distributions
+        r'''
+        Outputs a plot of the background TS distributions
         as well as the observed TS
+
+        Parameters:
+        -----------
+        allow_neg: bool
+            Choose to allow negative TS values (all negative values are then TS=0). Default False
         '''
         if self.tsd is not None:
             fig, ax = plt.subplots()
@@ -405,6 +450,7 @@ class FastResponseAnalysis(object):
         ----------
         p: float
             P value
+            
         Returns:
         --------
         sigma: float
@@ -415,16 +461,19 @@ class FastResponseAnalysis(object):
         return sigma
 
     def save_results(self, alt_path=None):
-        r'''Once analysis has been performed, push
-        all relevant info to a new directory
+        r'''Once analysis has been performed, save
+        all relevant info to a new directory.
+        Saves to a file called [analysisid]_results.pickle
+
         Parameters:
         -----------
-        None
+        alt_path: string
+            optional specified directory to save results to
+        
         Returns:
-        ________
-        None
-
-        TODO: Make a dictionary of keys that we want to save
+        -----------
+        save_items: (dict)
+            dictionary of saved analysis parameters        
         '''
         if alt_path is None:
             print("Saving results to directory:\n\t{}".format(self.analysispath))
@@ -440,10 +489,17 @@ class FastResponseAnalysis(object):
             return self.save_items
 
     def plot_ontime(self, with_contour=False, contour_files=None, label_events=False):
-        r'''Plots ontime events with either the full sky spatial
-        prior or a zoomed in version like traditional fast response
-        followups
-        label_events: adds a number label to events on skymap
+        r'''Plots ontime events on the full skymap and a 
+        zoomed in version near the scan best-fit
+
+        Parameters:
+        -----------
+        with_contour: bool
+            plots the 90% containment contour of a skymap (default False)
+        contour_files: string
+            text file containing skymap contours to be plotted (default None)
+        label_events: bool
+            adds a number label to events on skymap (default False)
         '''
         try:
             self.plot_skymap_zoom(with_contour=with_contour, contour_files=contour_files)
@@ -453,7 +509,15 @@ class FastResponseAnalysis(object):
 
     def plot_skymap_zoom(self, with_contour=False, contour_files=None):
         r'''Make a zoomed in portion of a skymap with
-        all neutrino events within a certain range
+        all ontime neutrino events within a certain range
+        Outputs a plot (in png and pdf formats) to the analysis path
+
+        Parameters:
+        -----------
+        with_contour: bool
+            plots the 90% containment contour of a skymap (default False)
+        contour_files: string
+            text file containing skymap contours to be plotted (default None)
         '''
         events = self.llh.exp
         events = events[(events['time'] < self.stop) & (events['time'] > self.start)]
@@ -538,6 +602,16 @@ class FastResponseAnalysis(object):
     def plot_skymap(self, with_contour=False, contour_files=None, label_events=False):
         r''' Make skymap with event localization and all
         neutrino events on the sky within the given time window
+        Outputs a plot in png format to the analysis path
+
+        Parameters:
+        -----------
+        with_contour: bool
+            plots the 90% containment contour of a skymap (default False)
+        contour_files: string
+            text file containing skymap contours to be plotted (default None)
+        label_events: bool
+            adds a number label to events on skymap (default False)
         '''
 
         events = self.llh.exp
@@ -649,34 +723,17 @@ class FastResponseAnalysis(object):
 
     def generate_report(self):
         r'''Generates report using class attributes
-        and the ReportGenerator Class'''
+        and the ReportGenerator Class
+        Makes full report and outputs as pdf
+        '''
         report = FastResponseReport(self)
         report.generate_report()
         report.make_pdf()
-        # report_kwargs = vars(self).copy()
-        # print("\nGenerating PDF Report")
-        # for key in ['name', 'trigger', 'start', 'stop', 'ts', 'ns', 'source_type', 'analysisid']:
-        #     report_kwargs.pop(key)
-        # report = ReportGenerator(self.name, self.trigger, self.start, self.stop, 
-        #                         self.ts, self.ns, self.source_type, self.analysisid, **report_kwargs)
-        # report.generate_report()
-        # report.make_pdf()
-        # print("Report saved to output directory")
-        # username = subprocess.check_output(['whoami']).decode("utf-8").strip('\n')
-        # if os.path.isdir('/home/{}/public_html/FastResponse/'.format(username)):
-        #     print("Copying report to {}'s public html in FastResponse Directory".format(username))
-        #     shutil.copy2(self.analysispath + '/' + self.analysisid + "_report.pdf", 
-        #         '/home/{}/public_html/FastResponse/{}_report.pdf'.format(username, self.analysisid))
-        # else:
-        #     print("Creating FastResponse Directory in {}'s public html and copying report")
-        #     os.mkdir('/home/{}/public_html/FastResponse/'.format(username))
-        #     shutil.copy2(self.analysispath + '/' + self.analysisid + "_report.pdf", 
-        #         '/home/{}/public_html/FastResponse/{}_report.pdf'.format(username, self.analysisid))
     
 
 class PriorFollowup(FastResponseAnalysis):
     '''
-    Class for skymap based analyses
+    Class for skymap-based analyses
     '''
     _pixel_scan_nsigma = 4.0
     _containment = 0.99
@@ -717,6 +774,19 @@ class PriorFollowup(FastResponseAnalysis):
         return int_str
 
     def format_skymap(self, skymap):
+        r'''Method to up or downgrade nside of a skymap to 
+        the nside used in the analysis
+
+        Parameters:
+        -----------
+        skymap: array
+            Healpix skymap from a file
+        
+        Returns:
+        ----------
+        skymap: array
+            Healpix skymap, with correct nside for use in FRA
+        '''
         if hp.pixelfunc.get_nside(skymap) != self._nside:
             skymap = hp.pixelfunc.ud_grade(skymap, self._nside, power=-2)
             skymap = skymap/skymap.sum()
@@ -728,12 +798,15 @@ class PriorFollowup(FastResponseAnalysis):
 
         Parameters:
         -----------
-        self
-        gamma: float
-            spectral index to inject
+        e_range: tuple
+            optional energy range allowed for injector. default (0., np.inf)
+
         Returns:
         --------
-        inj: Skylab injector object'''
+        inj: Skylab injector object
+            Spatial prior injector using skylab
+        '''
+
         print("Initializing Prior Injector")
         spatial_prior = SpatialPrior(self.skymap, containment = self._containment, allow_neg=self._allow_neg)
         self.spatial_prior = spatial_prior
@@ -752,11 +825,12 @@ class PriorFollowup(FastResponseAnalysis):
 
     def run_background_trials(self, ntrials=1000):
         r''' helper method to run background trials for the spatial prior analyses
+        Note: this method is not used in running the analysis in realtime
 
         Returns:
         --------
-        tsd: array-like
-            TS distribution for the background only trials
+        ntrials: int
+            number of trials to run (default 1000)
         ''' 
         tsd = []
         spatial_prior = SpatialPrior(self.skymap, containment = self._containment, allow_neg=self._allow_neg)
@@ -788,7 +862,10 @@ class PriorFollowup(FastResponseAnalysis):
 
     def find_coincident_events(self):
         r'''Find "coincident events" for a skymap
-        based analysis'''
+        based analysis.
+        These are ontime events that are also in the 
+        90% contour of the skymap
+        '''
         t_mask=(self.llh.exp['time']<=self.stop)&(self.llh.exp['time']>=self.start)
         events = self.llh.exp[t_mask]
         exp_theta = 0.5*np.pi - events['dec']
@@ -817,11 +894,20 @@ class PriorFollowup(FastResponseAnalysis):
 
         Parameters:
         -----------
-        self 
-        --------
-        ts, ns: Test statistic and best fit ns
+        custom_events: array
+            specific events for use in scan (UNUSED)
+        
+        Returns:
+        -----------
+        ts: float
+            unblinded test statistic
+        ns: float
+            unblinded fitted number of signal events at the best-fit location
+        gamma: float
+            unblinded fitted spectral index at the best-fit location
+            returned only if spectral index is floated
+        
         ''' 
-        # TODO: Fix the case of getting best-fit gamma
         t0 = time.time()
         spatial_prior = SpatialPrior(
             self.skymap, containment = self._containment,
@@ -888,21 +974,24 @@ class PriorFollowup(FastResponseAnalysis):
             return ts, ns
 
     def upper_limit(self):
+        ''' UPPER LIMIT WITH SPATIAL PRIOR NOT YET IMPLEMENTED
+        '''
         print("Upper limit with spatial prior not yet implemented")
         pass
 
     def ipixs_in_percentage(self, percentage):
         """Finding ipix indices confined in a given percentage.
         
-        Input parameters
+        Parameters
         ----------------
         skymap: ndarray
             array of probabilities for a skymap
         percentage : float
             fractional percentage from 0 to 1  
-        Return
+
+        Returns
         ------- 
-        ipix : numpy array
+        ipix : numpy int array
             indices of pixels within percentage containment
         """
         # TODO: Find a more efficient way to do this
@@ -950,7 +1039,9 @@ class PriorFollowup(FastResponseAnalysis):
 
     def make_dNdE(self):
         r'''Make an E^-2 or E^-2.5 dNdE with the central 90% 
-        for the most relevant declination'''
+        for the minimum and maximum declinations on the skymap
+        '''
+
         min_dec, max_dec = self.dec_skymap_range()
         dec_mask_1 = self.llh.mc['dec'] > min_dec - (5. * np.pi / 180.)
         dec_mask_2 = self.llh.mc['dec'] < min_dec + (5. * np.pi / 180.)
@@ -999,6 +1090,8 @@ class PriorFollowup(FastResponseAnalysis):
         self.save_items['energy_range'] = self.energy_range
 
     def ns_scan(self):
+        ''' NS SCAN WITH SPATIAL PRIOR NOT AN OPTION
+        '''
         print("ns scan not an option for skymap based analyses")
 
     def write_circular(self):
@@ -1040,10 +1133,13 @@ class PointSourceFollowup(FastResponseAnalysis):
         return int_str
 
     def run_background_trials(self, ntrials=1000):
-        # if self._verbose:
-        #     print("Need to reinitialize LLH for background trials")
-        # self.llh = self.initialize_llh(
-        #     skipped=self.skipped, scramble=True)
+        r''' Method to run background trials for point source analysis
+
+        Parameters:
+        -----------
+        ntrials: int
+            number of background trials to run (default 1000)
+        '''
         trials = self.llh.do_trials(
             int(ntrials),
             src_ra=self.ra,
@@ -1052,6 +1148,19 @@ class PointSourceFollowup(FastResponseAnalysis):
         self.save_items['tsd'] = self.tsd
 
     def initialize_injector(self, e_range=(0., np.inf)):
+        r'''Method to make relevant injector in Skylab.
+        Used in calculating upper limit
+
+        Parameters:
+        -----------
+        e_range: tuple
+            optional energy range allowed for injector. default (0., np.inf)
+
+        Returns:
+        --------
+        inj: Skylab injector object
+            Point source injector using skylab
+        '''
         inj = PointSourceInjector(
             gamma = self.index, 
             E0 = 1000., 
@@ -1065,14 +1174,14 @@ class PointSourceFollowup(FastResponseAnalysis):
         self.inj = inj
 
     def unblind_TS(self):
-        r''' Unblind TS, either sky scan for spatial prior,
-        or just at one location for a point source
+        r''' Unblind TS at one location for a point source
 
-        Parameters:
-        -----------
-        self 
+        Returns
         --------
-        ts, ns: Test statistic and best fit ns
+        ts: float
+            unblinded test statistic
+        ns: float
+            best fit ns
         ''' 
         # Fix the case of getting best-fit gamma
         # TODO: What if gamma is floated
@@ -1090,6 +1199,10 @@ class PointSourceFollowup(FastResponseAnalysis):
         return ts, ns
 
     def find_coincident_events(self):
+        r'''Find "coincident events" for the analysis.
+        These are ontime events that have a spatial times energy weight > 10
+
+        '''
         spatial_weights = self.llh.llh_model.signal(
             self.ra, self.dec, self.llh._events, 
             src_extension=self.extension)[0] / self.llh._events['B']
@@ -1150,9 +1263,18 @@ class PointSourceFollowup(FastResponseAnalysis):
     def upper_limit(self, n_per_sig=100, p0=None):
         r'''After calculating TS, find upper limit
         Assuming an E^-2 spectrum
+
+        Parameters:
+        -----------
+        n_per_sig: int
+            number of trials per injected signal events to run
+        p0: None, scalar, or n-length sequence
+            Initial guess for the parameters passed to curve_fit (optional, default None)
+
         Returns:
         --------
-        Value of E^2 dN / dE in units of TeV / cm^2 
+        upperlimit: float
+            Value of E^2 dN / dE in units of TeV / cm^2 
         '''
         if self.inj is None:
             self.initialize_injector()
@@ -1218,7 +1340,9 @@ class PointSourceFollowup(FastResponseAnalysis):
 
     def make_dNdE(self):
         r'''Make an E^-2 or E^-2.5 dNdE with the central 90% 
-        for the most relevant declination'''
+        for the most relevant declination band 
+        (+/- 5 deg around source dec)
+        '''
         dec_mask_1 = self.llh.mc['dec'] > self.dec - (5. * np.pi / 180.)
         dec_mask_2 = self.llh.mc['dec'] < self.dec + (5. * np.pi / 180.)
         dec_mask_3, dec_mask_4 = None, None
