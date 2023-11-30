@@ -21,7 +21,7 @@ parser.add_argument('--deltaT', type=float, default=None,
 parser.add_argument('--ntrials', type=int, default = 10000,
                         help='Trials')
 parser.add_argument("--bkg", default=6.4, type=float,
-                        help="Expected background rate in mHz (defualt 6.4)")
+                        help="Expected background rate in mHz (default 6.4)")
 parser.add_argument('--seed', default=1, type=int, 
                         help='Unique seed for running on the cluster')
 parser.add_argument('--outdir',type=str, default=None,
