@@ -6,10 +6,10 @@ import matplotlib as mpl
 import meander
 
 def plot_zoom(scan, ra, dec, title, reso=3, var="pVal", range=[0, 6],cmap=None):
-    '''
+    """
     Make a zoomed-in skymap around a particular point (RA, decl) on the sky
 
-    Parameters:
+    Parameters
     -----------
     scan: numpy array
         Healpix map of values to be plotted (usually a skymap)
@@ -23,7 +23,7 @@ def plot_zoom(scan, ra, dec, title, reso=3, var="pVal", range=[0, 6],cmap=None):
         Resolution (arcmins), default 3
     cmap: matplotlib colormap or None
         colormap to use. if not set default is Seaborn "Blues"
-    '''
+    """
     if cmap is None:
         pdf_palette = sns.color_palette("Blues", 500)
         cmap = mpl.colors.ListedColormap(pdf_palette)
@@ -42,10 +42,10 @@ def plot_zoom(scan, ra, dec, title, reso=3, var="pVal", range=[0, 6],cmap=None):
     plot_labels(dec, ra, reso)
 
 def plot_color_bar(labels=[0.,2.,4.,6.], col_label=r"IceCube Event Time", range=[0,6], cmap=None, offset=-35):
-    '''
+    """
     Adds a color bar to an existing healpy map
 
-    Parameters:
+    Parameters
     -----------
     labels: float list
         list of points to be used (default [0., 2., 4., 6.])
@@ -55,7 +55,7 @@ def plot_color_bar(labels=[0.,2.,4.,6.], col_label=r"IceCube Event Time", range=
         colormap to use. if not set default is "Blues"
     offset: int
         offset value for colorbar's label. default is -35
-    '''
+    """
     fig = plt.gcf()
     ax = fig.add_axes([0.95, 0.2, 0.03, 0.6])
     labels = labels
@@ -72,7 +72,7 @@ def plot_labels(src_dec, src_ra, reso):
     """
     Add labels to healpy zoom
 
-    Parameters:
+    Parameters
     -----------
     src_dec: float
         Declination value at the center of the plot (best-fit dec or source dec)
@@ -111,7 +111,7 @@ def plot_events(dec, ra, sigmas, src_ra, src_dec, reso, sigma_scale=5., col = 'k
     """
     Adds events to a healpy zoom plot. Events are expected to be from self.llh.exp
 
-    Parameters:
+    Parameters
     -----------
     dec: float array
         Array of declination values for each event
@@ -161,10 +161,10 @@ def plot_events(dec, ra, sigmas, src_ra, src_dec, reso, sigma_scale=5., col = 'k
             edgecolor=col, facecolor=col, s=60, alpha=1.0)
 
 def load_plotting_settings():
-    '''
+    """
     Load settings to be used as default plot settings.
     Includes Times New Roman font and size 12 font
-    '''
+    """
     mpl.use('agg')
     mpl.rcParams['text.usetex'] = True
     try:
@@ -183,9 +183,9 @@ def load_plotting_settings():
     mpl.rcParams['ytick.major.size'] = 5
 
 def contour(ra, dec, sigma, nside):
-    r''' Function for plotting contours on skymaps
+    r""" Function for plotting contours on skymaps
 
-    Parameters:
+    Parameters
     -----------
     ra: ndarray
         Array of ra for events 
@@ -196,13 +196,13 @@ def contour(ra, dec, sigma, nside):
     nside:
         nside of healpy map
 
-    Returns:
+    Returns
     --------
     Theta: array
         array of theta values of contour
     Phi: array
         array of phi values of contour 
-    '''
+    """
     dec = np.pi/2 - dec
     sigma = np.rad2deg(sigma)
     delta, step, bins = 0, 0, 0
@@ -227,10 +227,10 @@ def contour(ra, dec, sigma, nside):
     return Theta, Phi
 
 def plot_contours(proportions, samples):
-    r''' Plot containment contour around desired level.
+    r""" Plot containment contour around desired level.
     E.g 90% containment of a PDF on a healpix map
 
-    Parameters:
+    Parameters
     -----------
     proportions: list
         list of containment level to make contours for.
@@ -239,13 +239,13 @@ def plot_contours(proportions, samples):
         array of values read in from healpix map
         E.g samples = hp.read_map(file)
         
-    Returns:
+    Returns
     --------
     theta_list: list
         List of arrays containing theta values for desired contours
     phi_list: list
         List of arrays containing phi values for desired contours
-    '''
+    """
 
     levels = []
     sorted_samples = list(reversed(list(sorted(samples))))
@@ -269,10 +269,10 @@ def plot_contours(proportions, samples):
     return theta_list, phi_list
 
 def make_public_zoom_skymap(skymap, events, ra, dec, with_contour=True, name='test'):
-    '''
+    """
     Make a zoomed skymap for public webpage (currently unused, under development)
 
-    Parameters:
+    Parameters
     -----------
     skymap: array
         Healpy probability skymap (plotted as a colorscale)
@@ -286,10 +286,7 @@ def make_public_zoom_skymap(skymap, events, ra, dec, with_contour=True, name='te
         Plot skymap 90% contour (default True)
     name: str
         Event name, to save in filename
-
-    See also: 
-    plot_zoom: full routine to plot zoomed skymap
-    '''
+    """
 
     pdf_palette = sns.color_palette("Blues", 500)
     cmap = mpl.colors.ListedColormap(pdf_palette)

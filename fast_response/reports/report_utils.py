@@ -2,19 +2,20 @@ from astropy.time import Time, TimeDelta
 import numpy as np
 
 def interptime(tstr):
-    ''' Check time format of a given input
+    """ Check time format of a given input
 
-    Parameters:
+    Parameters
     ------------
     tstr: str
         time value to check. Expects either a unit at the end 
         (allowed units are sec, s, min, hr, mjd, d) or to have an
         ISO time
     
-    Returns:
+    Returns
     ----------
-    Time or TimeDelta, or None type. Formatted time value
-    '''
+    Time, TimeDelta, or None:
+        Formatted time value
+    """
     if tstr is None:
         t= None
     elif tstr.endswith('sec'):
@@ -34,9 +35,9 @@ def interptime(tstr):
     return t
  
 def get_times(trig,sta,sto):
-    '''Get correctly formatted start, stop, and trigger times
+    """Get correctly formatted start, stop, and trigger times
     
-    Parameters:
+    Parameters
     -----------
     trig: str
         trigger time, with unit at end, or ISO format
@@ -44,11 +45,8 @@ def get_times(trig,sta,sto):
         start time, with unit at end, or ISO format
     sto: str
         stop time, with unit at end, or ISO format
-    
-    See also:
-    ----------
-    interptime: checks format and returns a Time or TimeDelta object
-    '''
+
+    """
     trigger = interptime(trig)
     if type(trigger)!=Time:
         trigger=None
@@ -72,20 +70,21 @@ def get_times(trig,sta,sto):
     return trigger,start,stop
 
 def valid_location(ra, dec):
-    r'''For a point source, check if location
+    r"""For a point source, check if location
     is valid
-    Parameters:
+    
+    Parameters
     -----------
     ra: float
         Right ascension in radians
     dec: float
         Declination in radians
 
-    Returns:
+    Returns
     --------
-    True or False: Bool
+    bool
         Whether or not the location is valid
-    '''
+    """
     if (ra is None) or (dec is None):
         return False
     else:

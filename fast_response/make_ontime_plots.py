@@ -31,9 +31,9 @@ current_palette = sns.color_palette('colorblind', 10)
 
 
 def time_axis(ax, run_table, time_window):
-    '''Make an axis that is in times, formatted as ISO times
+    """Make an axis that is in times, formatted as ISO times
 
-    Parameters:
+    Parameters
     -----------
     ax: matplotlib.pyplot Axis
         axis to convert to times and format
@@ -41,7 +41,7 @@ def time_axis(ax, run_table, time_window):
         Table of run information for events
     time_window: tuple astropy Time object
         (start, stop) of the time window, in mjd
-    '''
+    """
     for run in run_table:
         plt.axvline(Time(run['start'],format='iso',scale='utc').plot_date, ls = '--', lw = 0.75, c = 'grey')
         plt.axvline(Time(run['stop'],format='iso',scale='utc').plot_date, ls = '--', lw = 0.75, c = 'grey')
@@ -64,9 +64,9 @@ def time_axis(ax, run_table, time_window):
 
 def time_series(ax, run_table, time_window, t1, t2, n, 
                 scale=1, ymax=0, xerr = False, **kwargs):
-    '''Make a plot that is a rate over time
+    """Make a plot that is a rate over time
 
-    Parameters:
+    Parameters
     -----------
     ax: matplotlib.pyplot Axis
         axis to convert to times and format
@@ -84,12 +84,9 @@ def time_series(ax, run_table, time_window, t1, t2, n,
         rescale value/unit for the y-axis (default 1, not rescaled)
     ymax: float
         maximum value to plot for the y-axis (default 0, no max)
-    **kwargs passed to matplotlib.pyplot.ax.errorbar
-        
-    See also:
-    -----------
-    time_axis: formats the x-axis to be in ISO time
-    '''
+    kwargs: optional
+        passed to matplotlib.pyplot.ax.errorbar
+    """
     if ax is None:
         ax=plt.gca()
     time_axis(ax, run_table, time_window)
@@ -109,15 +106,16 @@ def time_series(ax, run_table, time_window, t1, t2, n,
     ax.set_ylim(-0.5,Ymax)
 
 def make_rate_plots(time_window, run_table, query_events, dirname, season='neutrino'):
-    ''' Make plots of filter rates for the time window we're interested in. 
+    """ Make plots of filter rates for the time window we're interested in. 
     Rates plotted are: 
+
     * GFU singlet rate
     * Badness
     * Online L2
     * Muon filter
     * In Ice Simple Multiplicity
 
-    Parameters:
+    Parameters
     -----------
     time_window: tuple astropy Time object
         (start, stop) of the time window, in mjd
@@ -127,7 +125,7 @@ def make_rate_plots(time_window, run_table, query_events, dirname, season='neutr
         Directory events are saved to
     season: str
         Season to load (default neutrino)
-    '''
+    """
     ########## MAKE GFU RATE PLOT ##########
     fig, ax = plt.subplots(figsize = (12,4))
 

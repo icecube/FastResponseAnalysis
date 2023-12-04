@@ -14,14 +14,12 @@ from .reports import AlertReport
 from . import sensitivity_utils
 
 class AlertFollowup(PriorFollowup):
-    '''
+    """
     Class for external skymap followup.
-    By default, uses a fixed index of 2.5 in LLH.
+    By default, uses a fixed index of 2.5 in LLH. Built on the
+    PriorFollowup class
 
-    See also:
-    ----------
-    PriorFollowup: class for skymap-based analyses
-    '''
+    """
     _smear = False
     _dataset = "GFUOnline_v001p02"
     _fix_index = True
@@ -29,15 +27,15 @@ class AlertFollowup(PriorFollowup):
     _index = 2.5
 
     def run_background_trials(self, ntrials = 1000):
-        r'''For alert events with specific time windows,
+        r"""For alert events with specific time windows,
         just use precomputed background arrays
         
-        Returns:
+        Returns
         --------
-        tsd: array-like
+        tsd : array-like
             test-statistic distribution with weighting 
             from alert event spatial prior
-        '''
+        """
         current_rate = self.llh.nbackground / (self.duration * 86400.) * 1000.
         closest_rate = sensitivity_utils.find_nearest(np.linspace(6.2, 7.2, 6), current_rate)
 
@@ -61,22 +59,26 @@ class AlertFollowup(PriorFollowup):
         return tsd
 
     def upper_limit(self):
+        """ Sensitivity Range (not truly an UL) for the 
+        full declination range of the map. Also makes a plot of
+        the sensitivity range versus dec, with relevant decs highlighted
+        """
         sens_range = self.ps_sens_range()
         self.sens_range = sens_range
         self.save_items['sens_range'] = sens_range
         self.sens_range_plot()
 
     def ps_sens_range(self):
-        r'''
+        r"""
         Compute the minimum and maximum sensitivities
         within the 90% contour of the skymap
         
-        Returns: 
+        Returns 
         ----------
-        float, float:
+        float, float :
             lowest sensitivity within the 90% contour of the skymap
             highest sensitivity within the 90% contour of the skymap
-        '''
+        """
 
         sens_dir = '/data/ana/analyses/NuSources/2021_v2_alert_stacking_FRA/' \
             + 'fast_response/reference_sensitivity_curves/'
@@ -93,10 +95,10 @@ class AlertFollowup(PriorFollowup):
         return low, high
 
     def sens_range_plot(self):
-        r'''
+        r"""
         For alert events, make a sensitivity plot highlighting
         the region where the contour lives
-        '''
+        """
         fig, ax = plt.subplots()
 
         sens_dir = '/data/ana/analyses/NuSources/2021_v2_alert_stacking_FRA/' \
@@ -126,28 +128,25 @@ class AlertFollowup(PriorFollowup):
             plt.savefig(self.analysispath + '/upper_limit_distribution.png', bbox_inches='tight', dpi=200)
 
     def generate_report(self):
-        r'''
-        Generates report using class attributes
+        r"""
+        Generates report using ReportGenerator.AlertReport attributes
         and the ReportGenerator Class
         
-        See Also:
-        ----------
-        ReportGenerator.AlertReport
-        '''
+        """
         report = AlertReport(self)
         report.generate_report()
         report.make_pdf()
 
     def write_circular(self, alert_results):
-        '''
+        """
         Generate a circular from internal followup template.
         Saves a text file in the output directory as alertid_circular.txt
 
-        Parameters:
+        Parameters
         ------------
-        alert_results: dict
+        alert_results : dict
             Dictionary of results from the two time window analyses
-        '''
+        """
         base = os.path.dirname(fast_response.__file__)
         template_path = os.path.join(base, 'circular_templates/internal_followup.txt')
 
@@ -255,16 +254,13 @@ class AlertFollowup(PriorFollowup):
         
 
 class TrackFollowup(AlertFollowup):
-    '''
+    """
     Class for followup of track alert events
     By default, uses a fixed index of 2.5 in LLH.
-    By default, converts milipede LLH map to a PDF
+    By default, converts milipede LLH map to a PDF. 
+    Built on AlertFollowup and PriorFollowup base classes
 
-    See also:
-    ----------
-    AlertFollowup: class for Alert event followup
-    PriorFollowup: class for skymap-based analyses
-    '''
+    """
     _smear = True
     _dataset = "GFUOnline_v001p02"
     _fix_index = True
@@ -272,18 +268,19 @@ class TrackFollowup(AlertFollowup):
     _index = 2.5
 
     def format_skymap(self, skymap):
-        '''
+        """
         Format milipede LLH map to a PDF Healpy skymap
 
-        Parameters:
+        Parameters
         -----------
-        skymap: Healpy array
+        skymap : Healpy array
             Array of milipede LLH values, read in via Healpy
         
-        Returns:
+        Returns
         -----------
-        Healpy array: formatted skymap of probabilities
-        '''
+        Healpy array : 
+            formatted skymap of probabilities
+        """
         skymap = self.convert_llh_to_prob(skymap)
         skymap = super().format_skymap(skymap)
         return skymap
@@ -292,15 +289,16 @@ class TrackFollowup(AlertFollowup):
         """
         Finding ipix indices confined in a given percentage.
         
-        Parameters:
+        Parameters
         -----------
-        percentage: float
+        percentage : float
             percent containment to use. 
             Allowed values for alert events are 0.5 and 0.9 (50% and 90% containment)
         
-        Returns:
+        Returns
         -----------
-        int array: array of indexes within the given percentage.
+        int array
+            array of indexes within the given percentage
         """
         skymap = self.skymap_llh
         if hp.pixelfunc.get_nside(skymap) != self._nside:
@@ -318,20 +316,21 @@ class TrackFollowup(AlertFollowup):
         return ipix
 
     def convert_llh_to_prob(self, skymap_fits):
-        '''
+        """
         This takes a millipede map and converts from the likelihood
         values to a pdf assuming the order-preserving mapping
         we use to account for systematics
 
-        Parameters:
+        Parameters
         -----------
-        skymap_fits: Healpy array
+        skymap_fits : Healpy array
             Milipede LLH values read from scanner output
 
-        Returns:
+        Returns
         ----------
-        Healpy array of scaled probability values
-        '''
+        Healpy array
+            Scaled probability values
+        """
         skymap_llh = skymap_fits.copy()
         self.skymap_llh = skymap_llh
         skymap_fits = np.exp(-1. * skymap_fits / 2.) #Convert from 2LLH to unnormalized probability
@@ -352,24 +351,21 @@ class TrackFollowup(AlertFollowup):
         return skymap_fits
 
     def _scale_2d_gauss(self, arr, sigma_arr, new_sigma):
-        '''
+        """
         Helper function for scaling the likelihood space
         according to systematic resimulations
-        '''
+        """
         tmp = arr**(sigma_arr**2. / new_sigma**2.)/(np.sqrt(2.*np.pi)*new_sigma)* \
                         np.power(np.sqrt(2.*np.pi)*sigma_arr, (sigma_arr**2. / new_sigma**2.)) 
         return tmp / np.sum(tmp)
 
 class CascadeFollowup(AlertFollowup):
-    '''
+    """
     Class for followup of cascade alert events
-    By default, uses a fixed index of 2.5 in LLH.
+    By default, uses a fixed index of 2.5 in LLH. Built on
+    the AlertFollowup and PriorFollowup base classes
 
-    See also:
-    ----------
-    AlertFollowup: class for Alert event followup
-    PriorFollowup: class for skymap-based analyses
-    '''
+    """
     _smear = False
     _dataset = "GFUOnline_v001p02"
     _fix_index = True
