@@ -2,6 +2,19 @@ from astropy.time import Time, TimeDelta
 import numpy as np
 
 def interptime(tstr):
+    ''' Check time format of a given input
+
+    Parameters:
+    ------------
+    tstr: str
+        time value to check. Expects either a unit at the end 
+        (allowed units are sec, s, min, hr, mjd, d) or to have an
+        ISO time
+    
+    Returns:
+    ----------
+    Time or TimeDelta, or None type. Formatted time value
+    '''
     if tstr is None:
         t= None
     elif tstr.endswith('sec'):
@@ -21,6 +34,21 @@ def interptime(tstr):
     return t
  
 def get_times(trig,sta,sto):
+    '''Get correctly formatted start, stop, and trigger times
+    
+    Parameters:
+    -----------
+    trig: str
+        trigger time, with unit at end, or ISO format
+    sta: str
+        start time, with unit at end, or ISO format
+    sto: str
+        stop time, with unit at end, or ISO format
+    
+    See also:
+    ----------
+    interptime: checks format and returns a Time or TimeDelta object
+    '''
     trigger = interptime(trig)
     if type(trigger)!=Time:
         trigger=None
@@ -52,6 +80,7 @@ def valid_location(ra, dec):
         Right ascension in radians
     dec: float
         Declination in radians
+
     Returns:
     --------
     True or False: Bool
