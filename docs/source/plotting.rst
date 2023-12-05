@@ -3,7 +3,7 @@ Plotting
 .. note::
    Functions for making plots, both analysis and detector plots, as well as sensitivity calculations. These are used internally in the FRA package. 
 
-Plotting utils
+Plotting functions
 -------------------------------------------------------
 .. autofunction:: fast_response.plotting_utils.plot_zoom
 
@@ -29,8 +29,8 @@ Detector status plots
 .. autofunction:: fast_response.make_ontime_plots.make_rate_plots
 
 
-Sensitivity utils
-------------------
+Sensitivity functions
+------------------------
 .. autofunction:: fast_response.sensitivity_utils.find_nearest_idx
 
 .. autofunction:: fast_response.sensitivity_utils.find_nearest

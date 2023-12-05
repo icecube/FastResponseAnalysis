@@ -1,5 +1,5 @@
-web_utils
-=======================================================
+Webpages
+=====================================================
 .. note::
    Functions for making public and private webpages using FRA. These functions are used internally within the Fast Response package to automatically generate webpages, with only a few exceptions. 
 
