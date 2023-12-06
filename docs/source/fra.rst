@@ -11,7 +11,7 @@ Base FastResponseAnalysis class
 Base PriorFollowup class
 ---------------------------
 .. autoclass:: fast_response.FastResponseAnalysis.PriorFollowup
-   :members: dec_skymap_range, find_coincident_events, format_skymap, initialize_injector, ipixs_in_percentage, make_dNdE, run_background_trials, unblind_TS
+   :members: 
 
 Base PointSourceFollowup class
 ---------------------------------

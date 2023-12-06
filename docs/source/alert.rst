@@ -6,7 +6,7 @@ AlertFollowup
 General Alert followup class
 ------------------------------
 .. autoclass:: fast_response.AlertFollowup.AlertFollowup
-   :members: generate_report, ps_sens_range, run_background_trials, sens_range_plot, write_circular
+   :members: 
 
 Track Followups (Gold and Bronze)
 ----------------------------------
