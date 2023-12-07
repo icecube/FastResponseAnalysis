@@ -3,8 +3,8 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Fast Response Analysis
-================================================
+IceCube Fast Response Analysis (FRA)
+=====================================
 
 ::
    
@@ -36,8 +36,9 @@ This documentation describes the Fast Response Package. For a description of the
 
 (Top graphic made with `PyFiglet <https://pypi.org/project/pyfiglet/>`_)
 
+Contents
+============
 .. toctree::
-   :caption: Contents:
    :maxdepth: 2
 
    getting_started
