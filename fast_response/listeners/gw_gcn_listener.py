@@ -219,17 +219,16 @@ def process_gcn(payload, root):
     if not os.path.exists(os.path.join(os.environ.get('FAST_RESPONSE_OUTPUT'),save_dir)):
         os.mkdir(os.path.join(os.environ.get('FAST_RESPONSE_OUTPUT'),save_dir))
 
-    with open(os.path.join(os.environ.get('FAST_RESPONSE_OUTPUT'), f'{save_dir}/gw_latency_dict_{name}.pickle'), 'wb') as file:
-        pickle.dump(gw_latency, file, protocol=pickle.HIGHEST_PROTOCOL)
+    #check to see if results file was created, before saving pickle file
+    #essentially, check if the analysis finished sucessfully
+    if os.path.exists(os.path.join(output, '{}_{}_results.pickle'.format(eventtime[0:10].replace('-','_'), name))):
+        with open(os.path.join(os.environ.get('FAST_RESPONSE_OUTPUT'), f'{save_dir}/gw_latency_dict_{name}.pickle'), 'wb') as file:
+            pickle.dump(gw_latency, file, protocol=pickle.HIGHEST_PROTOCOL)
     
     #save xml and skymap, for later
     et = lxml.etree.ElementTree(root)
     et.write(os.path.join(output, '{}-{}-{}.xml'.format(params['GraceID'], 
                         params['Pkt_Ser_Num'], params['AlertType'])), pretty_print=True)
-    
-    #skymap_filename=skymap.split('/')[-1]
-    #subprocess.call(['wget', skymap])
-    #subprocess.call(['mv', skymap_filename, output])
 
     if root.attrib['role'] != 'observation':
         # Move mocks to a seperate folder to avoid swamping FRA output folder
