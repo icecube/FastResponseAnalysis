@@ -503,9 +503,10 @@ class FastResponseAnalysis(object):
             adds a number label to events on skymap (default False)
 
         """
+        
         try:
             self.plot_skymap_zoom(with_contour=with_contour, contour_files=contour_files)
-        except:
+        except Exception as e:
             print('Failed to make skymap zoom plot')
         self.plot_skymap(with_contour=with_contour, contour_files=contour_files, label_events=label_events) 
 

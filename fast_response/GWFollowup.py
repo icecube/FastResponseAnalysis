@@ -747,11 +747,20 @@ class GWFollowup(PriorFollowup):
         h1, l1 = ax1.get_legend_handles_labels()
         h2, l2 = ax2.get_legend_handles_labels()
         plt.legend(h1+h2,l1+l2,loc=1)
+        
         if self.save_output:
-            plt.savefig(
-                self.analysispath + f'/decPDF.png',
-                bbox_inches='tight', dpi=200
-            )
+            try: 
+                plt.savefig(
+                    self.analysispath + f'/decPDF.png',
+                    bbox_inches='tight', dpi=200
+                )
+            except:
+                print('Issue making dec PDF')
+                plt.title('Dec PDF')
+                plt.savefig(
+                    self.analysispath + f'/decPDF.png',
+                    bbox_inches='tight', dpi=200
+                )
         plt.close()
 
     def generate_report(self):

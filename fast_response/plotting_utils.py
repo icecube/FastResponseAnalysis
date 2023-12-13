@@ -82,22 +82,22 @@ def plot_labels(src_dec, src_ra, reso):
         Resolution (arcmins)
     """
     fontsize = 20
-    plt.text(-1*np.radians(1.75*reso),np.radians(0), r"%.2f$^{\circ}$"%(np.degrees(src_dec)),
+    plt.text(-1*np.radians(1.75*reso),np.radians(0), r"%.1f$^{\circ}$"%(np.degrees(src_dec)),
              horizontalalignment='right',
              verticalalignment='center', fontsize=fontsize)
-    plt.text(-1*np.radians(1.75*reso),np.radians(reso), r"%.2f$^{\circ}$"%(reso+np.degrees(src_dec)),
+    plt.text(-1*np.radians(1.75*reso),np.radians(reso), r"%.1f$^{\circ}$"%(reso+np.degrees(src_dec)),
              horizontalalignment='right',
              verticalalignment='center', fontsize=fontsize)
-    plt.text(-1*np.radians(1.75*reso),np.radians(-reso), r"%.2f$^{\circ}$"%(-reso+np.degrees(src_dec)),
+    plt.text(-1*np.radians(1.75*reso),np.radians(-reso), r"%.1f$^{\circ}$"%(-reso+np.degrees(src_dec)),
              horizontalalignment='right',
              verticalalignment='center', fontsize=fontsize)
-    plt.text(np.radians(0),np.radians(-1.75*reso), r"%.2f$^{\circ}$"%(np.degrees(src_ra)),
+    plt.text(np.radians(0),np.radians(-1.75*reso), r"%.1f$^{\circ}$"%(np.degrees(src_ra)),
              horizontalalignment='center',
              verticalalignment='top', fontsize=fontsize)
-    plt.text(np.radians(reso),np.radians(-1.75*reso), r"%.2f$^{\circ}$"%(-reso+np.degrees(src_ra)),
+    plt.text(np.radians(reso),np.radians(-1.75*reso), r"%.1f$^{\circ}$"%(-reso+np.degrees(src_ra)),
              horizontalalignment='center',
              verticalalignment='top', fontsize=fontsize)
-    plt.text(np.radians(-reso),np.radians(-1.75*reso), r"%.2f$^{\circ}$"%(reso+np.degrees(src_ra)),
+    plt.text(np.radians(-reso),np.radians(-1.75*reso), r"%.1f$^{\circ}$"%(reso+np.degrees(src_ra)),
              horizontalalignment='center',
              verticalalignment='top', fontsize=fontsize)
     plt.text(-1*np.radians(2.35*reso), np.radians(0), r"declination", 
