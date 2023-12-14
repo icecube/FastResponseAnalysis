@@ -25,6 +25,9 @@ You should then install `fast_response` into this environment by navigating into
 pip install -e .
 ```
 
+The docs are built using [Sphinx](https://www.sphinx-doc.org/en/master/). If you want to build your own set of docs, you should also `pip install sphinx` to the environment, and the docs can be built following the instructions [in the Sphinx docs here](https://www.sphinx-doc.org/en/master/usage/quickstart.html#running-the-build).
+
+
 This package also has dependencies on IceCube software, specifically [IceTray](https://github.com/icecube/icetray), [realtime](https://github.com/icecube/realtime), and [Skylab](https://github.com/icecube/skylab). `realtime` is a parasitic metaproject, meaning you need a built version of `icetray` before building the `realtime` environment. 
 
 After you have a version of `IceTray` installed and built, you will want to do a parasitic build of the realtime project, building off of this version of `icetray`. To do this, navigate to a new directory where you want your realtime project to live, and run
