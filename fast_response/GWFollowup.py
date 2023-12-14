@@ -21,6 +21,11 @@ import fast_response
 from . import sensitivity_utils
 
 class GWFollowup(PriorFollowup):
+    """
+    Class for followup of a GW. By default, fits the index in the LLH. Built on the
+    PriorFollowup class for skymap-based analyses
+    """
+
     _dataset = 'GFUOnline_v001p02'
     _fix_index = False
     _float_index = True
@@ -45,15 +50,21 @@ class GWFollowup(PriorFollowup):
                        outdir=outdir, save=save, extension=extension)
     
     def run_background_trials(self, month=None, ntrials=1000):
-        '''For GW followup, 2 possible time windows:
-        1000s: for all (default)
-        [-0.1, +14]: NS included (run manually)
-        Returns:
+        r"""
+        For GW followups with specific time windows,
+        just use precomputed background arrays.
+        2 allowed time windows:
+
+        - 1000s: for all (default)
+        - [-0.1, +14]: BNS, NSBH
+
+        Returns
         --------
-            tsd: array-like
-                test-statistic distribution with weighting 
-                from alert event spatial prior
-        '''
+        tsd: array-like
+            test-statistic distribution with weighting 
+            from alert event spatial prior
+        """
+
         if self.duration > 1.:
             #self.duration is in days, so this is to load 2 week precomputed trials
             #This is an exact copy of AlertFollowup.py, as it was run with the same script
@@ -128,11 +139,16 @@ class GWFollowup(PriorFollowup):
             return max_ts
 
     def check_events_after(self):
-        '''check for events after the on-time window. 
+        """
+        Check that we have recieved at least one event after the on-time window closes. 
         This is to make sure we have all data from i3Live before running.
-        Returns a bool: 
-         check_passed = True if there is at least 1 event after tw
-         check_passed = False if there are no events after (should re-load!) '''
+
+        Returns
+        ----------
+        bool: 
+            True if there is at least 1 event after tw (prints how many), or
+            False if there are no events after (should re-load!) 
+        """
 
         t1 = Time(datetime.datetime.utcnow()).mjd
         if ((t1-self.stop)*86400.)>5000.:
@@ -155,13 +171,24 @@ class GWFollowup(PriorFollowup):
         return check_passed
 
     def initialize_llh(self, skipped=None, scramble=False):
-        '''
-        Grab data and format it all into a skylab llh object
+        """
+        Grab data and format it all into a skylab llh object -
         This function is very similar to the one in FastResponseAnalysis.py, 
         with the main difference being that these are low-latency enough that we may
         have to wait for the last min of data to reach i3live.
-        if so, initialize LLH, load ontime data, then add temporal info and ontime data to llh
-        '''
+        if so, initialize LLH, load ontime data, then add temporal info and ontime data to llh.
+
+        Parameters
+        -----------
+        skipped: array of tuples
+            Event(s) to be attempted to be removed in the analysis. Format: [(run_id,event_id),... ]
+        scramble: bool
+            scramble events in LLH (default False)
+        
+        Returns
+        -----------
+        Skylab LLH object
+        """
         t0 = Time(datetime.datetime.utcnow()).mjd
 
         if self.stop > t0 + 60./86400.:
@@ -248,11 +275,15 @@ class GWFollowup(PriorFollowup):
         return llh
     
     def get_best_fit_contour(self, proportions=[0.5,0.9]):
-        '''Get a contour for the error around the best-fit point
-        proportions = confidence levels to calculate
-        -------
+        """
+        Get a contour for the error around the best-fit point. 
         Makes a zoomed skymap of the ts-space with contours
-        '''
+
+        Parameters
+        -----------
+        proportions: list
+            confidence levels to calculate (default [0.5,0.9])
+        """
         if self.tsd is None: return
         
         from scipy import special
@@ -313,6 +344,13 @@ class GWFollowup(PriorFollowup):
         return super().plot_ontime(with_contour=True, contour_files=contour_files, label_events=label_events)
 
     def write_circular(self):
+        """
+        Generate a circular from a template. Uses a different template if
+        high significance or low-significance (no longer sent for O4).
+        High-significance are generated for p<0.2, in case LLAMA sees p<0.01
+        for the same event and a circular is needed.
+        Saves a text file in the output directory as gcn_[eventname].txt
+        """
         base = os.path.dirname(fast_response.__file__)
         events = self.coincident_events
         pvalue = self.p
@@ -414,22 +452,25 @@ class GWFollowup(PriorFollowup):
                 gcn_file.close()
 
     def inject_scan(self, ra, dec, ns, poisson=True):
-        r''' Run All sky scan using event localization as 
+        r""" 
+        Run All sky scan using event localization as 
         spatial prior, while also injecting events according
         to event localization
 
-        Parameters:
+        Parameters
         -----------
         ns: float
             Number of signal events to inject
         poisson: bool
             Will poisson fluctuate number of signal events
             to be injected
-        Returns:
-        --------
-        ts: array
-            array of ts values of 
-        '''
+
+        Returns
+        ----------
+        tuple: (results, events)
+            results dict with ts, ns, gamma, ra, dec; 
+            events in the time window
+        """
         from skylab.priors import SpatialPrior
         from skylab.ps_injector import PointSourceInjector
 
@@ -490,6 +531,11 @@ class GWFollowup(PriorFollowup):
         return (results, events)
 
     def find_coincident_events(self):
+        r"""
+        Find "coincident events" for a skymap
+        based analysis. These are ALL ontime events,
+        with a bool to indicate if they are in the 90% contour
+        """
         if self.ts_scan is None:
             raise ValueError("Need to unblind TS before finding events")
         exp_theta = 0.5*np.pi - self.llh.exp['dec']
@@ -522,22 +568,30 @@ class GWFollowup(PriorFollowup):
         self.save_items['coincident_events'] = self.coincident_events
 
     def upper_limit(self):
+        r"""
+        Get a *Sensitivity Range* (not truly an UL)
+        for the full range of declinations for GW skymap. Calculated 
+        with the ps_sens_range function to get the point source sensitivity
+        range within the 90% contour of the map
+            
+        """
         sens_range = self.ps_sens_range()
         self.sens_range = sens_range
         self.save_items['sens_range'] = sens_range
         self.make_dec_pdf()
 
     def ps_sens_range(self):
-        r''' Compute minimum and maximum sensitivities within
+        r""" 
+        Compute minimum and maximum sensitivities within
         the declination range of the 90% contour of a given skymap
 
-        Returns:
+        Returns
         --------
         low: float
             lowest sensitivity within dec range
         high: float
-            highest sensitivity wihtin dec range
-        '''
+            highest sensitivity within dec range
+        """
         
         sens_dir = '/data/ana/analyses/NuSources/2023_realtime_gw_analysis/' \
                 +  'fast_response/ps_sensitivities'
@@ -564,6 +618,24 @@ class GWFollowup(PriorFollowup):
         return low,high
 
     def per_event_pvalue(self):
+        """
+        Calculate per-event p-values. There are a few cases here: 
+
+        - overall p < 0.1: 
+            Redoes the all-sky scan, using per_event_scan, with only that single event.
+            This is the same as asking the question: 
+            If that single event is the only one on the sky, with this given skymap,
+            what TS/p-value would we get for that event?
+
+        - 1.0 > overall p > 0.1:
+            Calculates the p-value at the reconstructed event direction. 
+            Takes the TS at that location, and calculates the p-value at that location. 
+            Does not re-run the scan, to save time in realtime
+
+        - p=1.0:
+            Does not get p-values for the events (all are set to None)
+
+        """
         self.events_rec_array = append_fields(
             self.events_rec_array,
             names=['pvalue'],
@@ -587,6 +659,21 @@ class GWFollowup(PriorFollowup):
         self.save_items['coincident_events'] = self.coincident_events
 
     def per_event_scan(self, custom_events):
+        """Runs the all-sky scan for only one (or certain) events on the sky
+
+        Parameters
+        ------------
+        custom_events: masked array
+            Ontime event(s) loaded in Skylab to use when running the all sky scan
+        
+        Returns
+        -----------
+        ts: float
+            best-fit TS using only this event
+        p: float
+            p-value for the given event(s)
+        
+        """
         from skylab.priors import SpatialPrior
 
         spatial_prior = SpatialPrior(self.skymap, containment = self._containment, allow_neg=self._allow_neg)
@@ -604,9 +691,9 @@ class GWFollowup(PriorFollowup):
         return ts, p
 
     def make_dec_pdf(self):
-        r''' Plot PDF of source declination overlaid with IceCube's
-        point source sensitivity
-        '''
+        r""" 
+        Plot PDF of source declination overlaid with IceCube's point source sensitivity
+        """
 
         sinDec_bins = np.linspace(-1,1,30)
         bin_centers = (sinDec_bins[:-1] + sinDec_bins[1:]) / 2
@@ -660,16 +747,29 @@ class GWFollowup(PriorFollowup):
         h1, l1 = ax1.get_legend_handles_labels()
         h2, l2 = ax2.get_legend_handles_labels()
         plt.legend(h1+h2,l1+l2,loc=1)
+        
         if self.save_output:
-            plt.savefig(
-                self.analysispath + f'/decPDF.png',
-                bbox_inches='tight', dpi=200
-            )
+            try: 
+                plt.savefig(
+                    self.analysispath + f'/decPDF.png',
+                    bbox_inches='tight', dpi=200
+                )
+            except:
+                print('Issue making dec PDF')
+                plt.title('Dec PDF')
+                plt.savefig(
+                    self.analysispath + f'/decPDF.png',
+                    bbox_inches='tight', dpi=200
+                )
         plt.close()
 
     def generate_report(self):
-        r'''Generates report using class attributes
-        and the ReportGenerator Class'''
+        r"""
+        Generates GW report using class attributes
+        and the ReportGenerator Class, from
+        fast_response.reports.GravitationalWaveReport
+
+        """
         report = GravitationalWaveReport(self)
         #if self.duration > 1.:
         #    report._figure_list = [('decPDF', 'decPDF.png'),('ts_contours', 'ts_contours.png')]

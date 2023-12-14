@@ -5,33 +5,33 @@ r"""
 @date:    3 Oct 2014
 @brief:   class for generating a slackbot and having it send messages to slack.
 
+NOTE: To create URL for webhook, go to your Slack desktop app.
+    Under the 'IceCube' drop down menu choose 'Customize Slack'.
+    This brings you to a webpage with a menu in the upper left.
+    Click Menu --> Configure Apps --> Custom Integrations
+    --> Incoming WebHooks. Click the green "add configuration"
+    button on the left of the Incoming WebHooks page. Search
+    for a channel name to post to and click Add.
+
 """
 
 import os
 
 class slackbot(object):
+    r""" Constructor
+
+    Parameters
+    ----------
+    channel : str
+        Channel name to send to
+    name : str
+        Name of author who is sending messages
+        (Note: doesn't need to be a user account)
+    url : str
+        Url path for webhook.
+    """
 
     def __init__(self, channel, name, url):
-        r""" Constructor
-
-        Parameters
-        ----------
-        channel : str
-            Channel name to send to
-        name : str
-            Name of author who is sending messages
-            (Note: doesn't need to be a user account)
-        url : str
-            Url path for webhook.
-
-        NOTE: To create URL for webhook, go to your Slack desktop app.
-        Under the 'IceCube' drop down menu choose 'Customize Slack'.
-        This brings you to a webpage with a menu in the upper left.
-        Click Menu --> Configure Apps --> Custom Integrations
-        --> Incoming WebHooks. Click the green "add configuration"
-        button on the left of the Incoming WebHooks page. Search
-        for a channel name to post to and click Add.
-        """
         self.name = name
         self.channel = channel
         self.url = url

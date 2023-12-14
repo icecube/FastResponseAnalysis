@@ -3,11 +3,9 @@ from .FastResponseAnalysis import PointSourceFollowup, PriorFollowup
 class ExternalFollowup(PointSourceFollowup):
     '''
     Class for external point-source or extended source followup.
-    By default, uses a fixed index of 2.0 in LLH.
+    By default, uses a fixed index of 2.0 in LLH. Based on 
+    the PointSourceFollowup class
 
-    See also:
-    ----------
-    PointSourceFollowup: class for a general point source followup
     '''
     _dataset = "GFUOnline_v001p02"
     _fix_index = True
@@ -18,10 +16,10 @@ class ExternalSkymapFollowup(PriorFollowup):
     '''
     Class for external skymap followup.
     By default, uses a fixed index of 2.0 in LLH.
+    Based on the PriorFollowup class.
 
-    See also:
-    ----------
-    PriorFollowup: class for skymap-based analyses
+    NOTE: There are many functions that are not yet implemented here. 
+    The point source followup is strongly preferred for this reason.
     '''
     _dataset = "GFUOnline_v001p02"
     _fix_index = True

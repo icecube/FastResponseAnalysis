@@ -38,17 +38,17 @@ mpl.rcParams['ytick.major.size'] = 5
 
 
 def updateFastResponseWeb(analysis, gw=False):
-    r'''
+    r"""
     Create analysis specific page, and update
     plots with information from all analyses
 
-    Parameters:
+    Parameters
     -----------
-    analysis: dict
+    analysis : dict
         Dictionary of FastResponseAnalysis results
-    gw: bool
+    gw : bool
         Indicate if event is a GWFollowup (uses GW-specific results page and dataframe). Default False
-    '''
+    """
     updateDataFrame(analysis, gw=gw)
     createFastResponsePage(analysis, gw=gw)
     if gw:
@@ -58,20 +58,20 @@ def updateFastResponseWeb(analysis, gw=False):
     updateFastResponsePlots(gw=gw)
 
 def updateDataFrame(analysis, gw=False, make_df=False):
-    r'''
+    r"""
     Read in official Fast Response Dataframe,
     add these results, save DataFrame
     
-    Parameters:
+    Parameters
     -----------
-    analysis: dict
+    analysis : dict
         Dictionary of FastResponseAnalysis results
-    gw: bool
+    gw : bool
         Indicate if event is a GWFollowup (uses GW-specific dataframe). Default False
-    make_df: bool
+    make_df : bool
         Make a new dataframe from scratch. Default False
         NOTE: this will overwrite any existing Dataframe in the expected path.
-    '''
+    """
     base_path = os.path.dirname(fast_response.__file__)
     if make_df:
         if gw:
@@ -119,16 +119,16 @@ def updateDataFrame(analysis, gw=False, make_df=False):
         df.to_pickle(f'{base_path}/results_dataframe.pkl')
 
 def createFastResponsePage(analysis, gw=False):
-    r'''
+    r"""
     Create analysis specific page
 
-    Parameters:
+    Parameters
     -----------
-    analysis: dict
+    analysis : dict
         Dictionary of FastResponseAnalysis results
-    gw: bool
+    gw : bool
         Indicate if event is a GWFollowup (uses GW-specific webpage). Default False
-    '''
+    """
     new_f = []
     keypairs = [('ANALYSISTS', 'ts'), ('ANALYSISNS', 'ns'), ('ANALYSISP', 'p')]
     base_path = os.path.dirname(fast_response.__file__)
@@ -194,20 +194,17 @@ def createFastResponsePage(analysis, gw=False):
             f.write(line)
 
 def updateFastResponseTable(analysis):
-    r'''
+    r"""
     Push information from this analysis to summary webpage
-    tables, include new entries where applicable
-    This uses the general FastResponse webpage (not GW)
+    tables, include new entries where applicable.
+    This uses the general FastResponse webpage (not GW), see 
+    updateGWTable for the GWFollowup equivalent routine.
 
-    Parameters:
+    Parameters
     -----------
-    analysis: dict
+    analysis : dict
         Dictionary of FastResponseAnalysis results
-
-    See also:
-    -----------
-    updateGWTable: GWFollowup equivalent routine
-    '''
+    """
     dec = '-' if 'dec' not in analysis.keys() else '{:+.2f}'.format(analysis['dec'] * 180. / np.pi)
     ra = '-' if 'ra' not in analysis.keys() else '{:.2f}'.format(analysis['ra'] * 180. / np.pi)
     ext = '-' if 'extension' not in analysis.keys() else '{:.2f}'.format(analysis['extension'] * 180. / np.pi)
@@ -241,17 +238,15 @@ def updateFastResponseTable(analysis):
 def updateGWTable(analysis):
     r'''
     Push information from this analysis to summary
-    GWFollowup webpage tables, include new entries where applicable
-    This uses the the GWFollowup webpage
+    GWFollowup webpage tables, include new entries where applicable. 
+    This uses the the GWFollowup webpage, see updateFastResponseTable
+    for the Alert or External Followup equivalent routine
 
-    Parameters:
+    Parameters
     -----------
-    analysis: dict
+    analysis : dict
         Dictionary of FastResponseAnalysis results for a GWFollowup
 
-    See also:
-    -----------
-    updateFastResponseTable: Alert or External Followup equivalent routine
     '''
     dec = '-' if analysis['ts']<=0. else '{:+.2f}'.format(analysis['fit_dec'] * 180. / np.pi)
     ra = '-' if analysis['ts']<=0. else '{:.2f}'.format(analysis['fit_ra'] * 180. / np.pi)
@@ -289,14 +284,15 @@ def updateGWTable(analysis):
                 f.write(line)
 
 def updateFastResponsePlots(gw=False):
-    r'''
+    r"""
     Update overview p-value distribution for all analyses
 
-    Parameters:
-    gw: bool
+    Parameters
+    ----------------
+    gw : bool
         Indicate if event is a GWFollowup (makes p-val distribution for all GW followups only). 
         Default False.
-    '''
+    """
     base_path = os.path.dirname(fast_response.__file__)
 
     if gw: 
@@ -334,23 +330,21 @@ def updateFastResponsePlots(gw=False):
     #plt.savefig(f'/home/{username}/public_html/FastResponse/webpage/output/pvalue_distribution_liveupdate.png', dpi=200, bbox_inches='tight')
 
 def updateGW_public(analysis, circular = None):
-    r'''
+    r"""
     Push information from this analysis to summary tables 
-    on GW PUBLIC followup webpage
+    on GW PUBLIC followup webpage. See createGWEventPage for the function
+    to create the event-specific webpage, if neutrinos are sent, and 
+    update_internal_public for the equivalent routine for alert event followup
 
-    Parameters:
+    Parameters
     -----------
-    analysis: dict
+    analysis : dict
         Dictionary of results from UML and LLAMA analyses 
         (should be read from the GCN Notice sent with results of both)
-    circular: int
+    circular : int
         GCN circular number, which links to circular rather than the notice
-    
-    See also:
-    -----------
-    createGWEventPage: creates event-specific webpage, if neutrinos are sent
-    update_internal_public: equivalent routine for alert event followup
-    '''
+
+    """
 
     duration = analysis['observation_livetime']
     if 'analysisid' not in analysis.keys():
@@ -425,16 +419,16 @@ def updateGW_public(analysis, circular = None):
                 f.write(line)
 
 def createGWEventPage(analysis):
-    r'''
+    r"""
     Create event-specific PUBLIC webpage with neutrino information, 
     for a GW where neutrino information is sent over GCN (p<10%)
 
-    Parameters:
+    Parameters
     -----------
-    analysis: dict
+    analysis : dict
         Dictionary of results from UML and LLAMA analyses 
         (should be read from the GCN Notice sent with results of both)
-    '''
+    """
     new_f = []
     base_path = os.path.dirname(fast_response.__file__)
     html_base = f'{base_path}/../html/'
@@ -515,25 +509,23 @@ def createGWEventPage(analysis):
             f.write(line)
 
 def update_internal_public(analysis_1000, analysis_2d, alert_gcn=None, fra_circular=None):
-    r'''
+    r"""
     Push information from this analysis to summary tables 
-    on PUBLIC Alert Followup webpage
+    on PUBLIC Alert Followup webpage. See updateGW_public: for the 
+    equivalent routine for GWFollowup
 
-    Parameters:
+    Parameters
     -----------
-    analysis_1000: dict
+    analysis_1000 : dict
         FastResponseAnalysis results for a 1000 sec time window
-    analysis_2d: dict
+    analysis_2d : dict
         FastResponseAnalysis results for a 2 day time window
-    alert_gcn: int or tuple of ints
+    alert_gcn : int or tuple of ints
         Either a single int (Circular number) or tuple (run id, event id) if linking to notice
-    fra_circular: int
+    fra_circular : int
         GCN circular sent for FRA followup
     
-    See also:
-    -----------
-    updateGW_public: equivalent routine for GWFollowup
-    '''
+    """
     event_name = analysis_2d['name'].replace(' 1.7e+05 s','')
     cascade=True if 'Cascade' in event_name else False
 
@@ -606,13 +598,13 @@ def update_internal_public(analysis_1000, analysis_2d, alert_gcn=None, fra_circu
                 f.write(line)
 
 def format_dec_str(dec):
-    '''
-    Add a + before declination value if decl > 0.
+    """Add a + before declination value if decl > 0.
 
-    Parameters:
-    dec: float
+    Parameters
+    ---------------
+    dec : float
         Declination value
-    '''
+    """
     if dec < 0:
         return str(dec)
     else:

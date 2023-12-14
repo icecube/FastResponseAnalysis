@@ -35,12 +35,12 @@ mpl_logger = log.getLogger('matplotlib')
 mpl_logger.setLevel(log.ERROR) 
  
 class ReportGenerator(object):
+    r"""
+    Generate report from a FastResponseAnalysis object
+    """
     _figure_list = []
 
     def __init__(self, analysis):
-        r'''
-        Generate report from a FastResponseAnalysis object
-        '''
         self.analysis = analysis
         if self.analysis.skymap is None:
             self.source_type = 'PS'
@@ -72,16 +72,29 @@ class ReportGenerator(object):
         self.trigger = Time(self.source['trigger_mjd'], format='mjd')
 
     def get_report_source(self):
-        # try:
-        #     reportsrc = os.path.join(os.environ["FAST_RESPONSE_SCRIPTS"], 'latex', 'report_skylab.tex')
-        # except KeyError:
-        #     reportsrc = os.path.join(os.getcwd(), 'latex', 'report_skylab.tex')
+        """ Find base path of the general report TeX document
+        Looks for the directory location fast_response, returns 
+        fast_response/latex/report_general.tex
+        """
         base = os.path.dirname(fast_response.__file__)
         return os.path.join(base, 'latex/report_general.tex')
 
     def write_table(self, file, name, header, table, prefix=""):
         """
-        write a table in latex format for the generated reports
+        Write a table in latex format for the generated reports
+
+        Parameters
+        -----------
+        file: I/O file object
+            Opened file that is being written to
+        name: str
+            Name of the table
+        header: list
+            Headers for each column (can be empty if none)
+        table: array of tuples
+            set of values to put in the table. tuples give individual rows
+        prefix: str
+            prefix to latex command, if needed (default "")
         """
 
         cols = max([len(r) for r in table if r is not None]+[len(header)])
@@ -101,8 +114,20 @@ class ReportGenerator(object):
             "}\n")
 
     def query_db_runs(self, time_window):
-        # first query the rundata base with the times of the analysis
-        # plus 8 hours on either side
+        """ Queries IceCube Live for the ontime window, 
+        plus 8 hours on either side (or as much as possible, if in realtime)
+
+        Parameters
+        -----------
+        time_window: tuple of astropy.time Time objects
+            (start, stop) for the analysis, in mjd
+        
+        Returns
+        ----------
+        dict: 
+            table of runs loaded, and status of the runs
+        """
+        
         run_url = 'https://live.icecube.wisc.edu/run_info/'
         with open('/home/jthwaites/private/tokens/auth.txt') as f:
             user = f.readline().rstrip('\n')
@@ -161,6 +186,18 @@ class ReportGenerator(object):
 
     @staticmethod
     def ontime_table(query_dict):
+        """Makes a DataFrame of events, queried from IceCube Live
+
+        Parameters
+        -----------
+        query_dict: dict
+            Queried events in a particular time window
+        
+        Returns
+        ----------
+        pandas DataFrame:
+            Event parameters for the given events
+        """
         newdict=[]
         for event in query_dict:
             newevent = event['value']['data']
@@ -179,6 +216,13 @@ class ReportGenerator(object):
         return events
 
     def make_coinc_events_table(self, f):
+        """Make a table of ontime events, in LaTeX format
+
+        Parameters
+        -----------
+        f: I/O file object
+            Opened file that is being written to
+        """
         event_table = []
         if self.analysis.coincident_events is not None and self.analysis.coincident_events != []:
             if self.analysis.skymap is None:
@@ -270,10 +314,26 @@ class ReportGenerator(object):
             f.write(r"\newcommand{\event}{[None]}")
 
     def make_new_command(self, f, name, command):
+        """Define a new command, in LaTeX, for the report
+        
+        Parameters
+        -----------
+        f: I/O file object
+            Opened file that is being written to
+        name: str
+            Name of the command being defined
+        command: str
+            Value of the command being defined
+        """
         f.write(r"\newcommand{"+"\\"+name+"}{"+
                 command+"}\n")
 
     def generate_report(self):
+        """Generate the report! This function does most of the heavy lifting.
+        Starts making the source LaTeX file (named r.tex), queries runs,
+        makes detector status plots, includes all plots for the analysis,
+        makes all tables for analysis parameters, runs, events, etc.
+        """
 
         report_fname = os.path.join(self.dirname, "r.tex")
 
@@ -499,6 +559,9 @@ class ReportGenerator(object):
                 )
 
     def make_pdf(self):
+        """Makes the PDF compiled version of the LaTeX report
+        using pdflatex, and saves to the analysis folder
+        """
         # symlink main report tex file
         reportfname = self.analysisid + "_report.tex"
         reportpath = os.path.join(self.dirname, reportfname)
@@ -520,6 +583,9 @@ class ReportGenerator(object):
         )
 
 class FastResponseReport(ReportGenerator):
+    """Generates a general FastResponse Report for a point source.
+    Includes additional plots of the 1D LLH ns scan
+    """
     _figure_list = [('nsscan', 'llh_ns_scan.png')]
 
     def __init__(self, analysis):
@@ -529,15 +595,28 @@ class FastResponseReport(ReportGenerator):
         super().generate_report()
 
 class GravitationalWaveReport(ReportGenerator):
+    """Generates a FastResponse Report for a GW.
+    Includes additional plot of skymap PDF versus dec, 
+    with PS sensitivity overlaid
+    """
     _figure_list = [('decPDF', 'decPDF.png')]
 
     def get_report_source(self):
+        """Find base path of the general report TeX document.
+        Looks for the directory location fast_response, 
+        returns fast_response/latex/report_gw.tex
+        """
         base = os.path.dirname(fast_response.__file__)
         return os.path.join(base, 'latex/report_gw.tex')
 
 class AlertReport(ReportGenerator):
+    """Generates a FastResponse Report for an Alert event."""
     _figure_list = []
 
     def get_report_source(self):
+        """Find base path of the general report TeX document.
+        Looks for the directory location fast_response, 
+        returns fast_response/latex/report_alert.tex
+        """
         base = os.path.dirname(fast_response.__file__)
         return os.path.join(base, 'latex/report_alert.tex')

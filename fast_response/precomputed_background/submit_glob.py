@@ -16,6 +16,8 @@ parser.add_argument(
 parser.add_argument(
     '--dir', type=str, default='./',
     help='directory where trials are loaded from, saves output to dir+/glob_trials/')
+parser.add_argument('--nside',type=int, default=256,
+    help='nside used when running trials (default 256)')
 args = parser.parse_args()
 
 username = pwd.getpwuid(os.getuid())[0]
@@ -49,7 +51,7 @@ job = pycondor.Job(
         'when_to_transfer_output = ON_EXIT']
     )
 
-job.add_arg('--deltaT {} --dir {} --nside {}'.format(args.tw, args.dir, 512))
+job.add_arg('--deltaT {} --dir {} --nside {}'.format(args.tw, args.dir, args.nside))
 
 job.build_submit()
 
