@@ -21,12 +21,13 @@ from skylab.ps_llh          import PointSourceLLH
 from skylab.spectral_models import PowerLaw 
 from skylab.temporal_models import BoxProfile, TemporalModel
 from scipy                  import sparse
+#from config_GW              import config
 
 ######################### CONFIGURE ARGUEMENTS #############################
 p = argparse.ArgumentParser(description="Calculates Sensitivity and Discovery"
                             " Potential Fluxes for Background Gravitational wave/Neutrino Coincidence study",
                             formatter_class=argparse.RawTextHelpFormatter)
-p.add_argument("--ntrials", default=1000, type=int,
+p.add_argument("--ntrials", default=100, type=int,
                 help="Number of trials (default=1000")
 p.add_argument("--seed", default=0, type=int,
                 help="Process ID to save unique numpy array after running (Default=0)")
@@ -107,10 +108,13 @@ stop_iso = stop_mjd.iso
 f = GWFollowup('precomputed_bg_test', '/data/user/jthwaites/o3-gw-skymaps/S191216ap.fits.gz', 
                start_iso, stop_iso, save=False)
 f._allow_neg = False
+# seasons = ['GFUOnline_v001p02','IC86, 2011-2018']
+# llh = config(seasons,gamma=2.,ncpu=2,seed=1, days=5,
+#         time_mask=[delta_t_days/2., gw_time.mjd], poisson=True)
 
 f.llh = config_llh(f)
 
-f.llh.nbackground=args.bkg
+f.llh.nbackground=args.bkg*args.deltaT/1000.
 print('nside = {}'.format(f.nside))
 
 ntrials = args.ntrials
@@ -126,7 +130,7 @@ for jj in range(ntrials):
     t1 = time.time()
     val = f.llh.scan(0.0, 0.0, seed = seed_counter, scramble=True,
         #spatial_prior = f.spatial_prior, 
-        time_mask = [delta_t_days / 2., (start_mjd.mjd + stop_mjd.mjd) / 2.],
+        time_mask = [delta_t_days / 2., gw_time.mjd],
         pixel_scan = [f.nside, f._pixel_scan_nsigma], inject = None)
 
     if val['TS'] is not None:
