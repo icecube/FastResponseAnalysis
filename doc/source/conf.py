@@ -30,7 +30,7 @@ extensions = [
 templates_path = ['_templates']
 exclude_patterns = []
 
-
+autodoc_mock_imports = ['skylab', 'icecube']
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
@@ -39,4 +39,4 @@ html_theme = 'classic'
 html_theme_options = {
     "sidebarwidth": 310,
 }
-html_static_path = ['_static']
+
