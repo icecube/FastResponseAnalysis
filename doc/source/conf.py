@@ -39,4 +39,4 @@ html_theme = 'classic'
 html_theme_options = {
     "sidebarwidth": 310,
 }
-html_static_path = ['_static']
+

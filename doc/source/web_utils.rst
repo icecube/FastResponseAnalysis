@@ -31,7 +31,3 @@ Updates to GW public webpage
 
 .. autofunction:: fast_response.web_utils.createGWEventPage
 
-Slack Posters
------------------------
-.. autoclass:: fast_response.slack_posters.slack.slackbot
-   :members:
