@@ -508,7 +508,11 @@ class FastResponseAnalysis(object):
             self.plot_skymap_zoom(with_contour=with_contour, contour_files=contour_files)
         except Exception as e:
             print('Failed to make skymap zoom plot')
-        self.plot_skymap(with_contour=with_contour, contour_files=contour_files, label_events=label_events) 
+
+        try:
+            self.plot_skymap(with_contour=with_contour, contour_files=contour_files, label_events=label_events) 
+        except Exception as e:
+            print('Failed to make FULL skymap plot')
 
     def plot_skymap_zoom(self, with_contour=False, contour_files=None):
         r"""Make a zoomed in portion of a skymap with
@@ -643,9 +647,9 @@ class FastResponseAnalysis(object):
             max_val = max(skymap)
             min_val = min(skymap)
         moll_cbar = True if self.skymap is not None else None
-
+        
         try:
-            hp.mollview(skymap, coord='C', cmap=cmap, rot=180, cbar=moll_cbar)
+            hp.mollview(skymap, coord='C', cmap=cmap, rot=180, cbar=moll_cbar) #cbar=None) #
         except Exception as e:
             if min_val<1.0e-16:
                 #for some reason, sometimes have an underflow issue here
@@ -719,11 +723,14 @@ class FastResponseAnalysis(object):
             handles.append(Line2D([0], [0], lw=2, c='k', label=r"Skymap (90\% cont.)"))
             for i in range(1, len(theta)):
                 hp.projplot(theta[i], phi[i], linewidth=2., c='k')
-
-        # plt.title('Fast Response Skymap')
+        
         plt.title(self.name.replace('_', ' '))
         plt.legend(loc=1, handles=handles)
-        plt.savefig(self.analysispath + '/' + self.analysisid + 'unblinded_skymap.png',bbox_inches='tight')
+        try: 
+            plt.savefig(self.analysispath + '/' + self.analysisid + 'unblinded_skymap.png',bbox_inches='tight')
+        except:
+            plt.title('Fast Response Skymap')
+            plt.savefig(self.analysispath + '/' + self.analysisid + 'unblinded_skymap.png',bbox_inches='tight')
         plt.close()
 
     def generate_report(self):
