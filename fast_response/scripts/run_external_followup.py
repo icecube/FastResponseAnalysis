@@ -63,7 +63,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='Fast Response Analysis')
     parser.add_argument('--name', type=str, default="Fast Response",
-                        help='Name of the source')
+                        help='Name of the source (do not use underscores or LaTeX will be mad!)')
     parser.add_argument('--skymap', type=str, default=None,
                         help='Source localization PDF path')
     parser.add_argument('--ra', default=None, type=float,
@@ -87,4 +87,6 @@ if __name__ == "__main__":
     parser.add_argument('--document', default=False, action='store_true')
     args = parser.parse_args()
 
+    if '_' in args.name:
+        print('Warning: underscores in source name cause LaTeX to fail!')
     run_analysis(args)
