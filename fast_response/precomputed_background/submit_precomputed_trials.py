@@ -80,13 +80,18 @@ job = pycondor.Job(
         'when_to_transfer_output = ON_EXIT']
     )
 
-for bg_rate in [6.0, 6.2, 6.4, 6.6, 6.8, 7.0, 7.2]:
-    for seed in range(args.seed_start, int(args.ntrials/args.n_per_batch)+1):
+for bg_rate in [6.2, 6.4, 6.6, 6.8, 7.0, 7.2, 7.4]:
+    for seed in range(args.seed_start, int(args.ntrials/args.n_per_batch)):
         if args.no_overwrite==1:
+            if args.type == 'gw':
+                filename = 'trials/gw_{:.1f}_mHz_delta_t_{:.1e}_seed_{}.npz'.format(bg_rate, deltaT, seed)
+            else:
+                filename = 'trials/{:.1f}_mHz_seed_{}_delta_t_{:.1e}.npz'.format(bg_rate, seed, deltaT)
+            
             import glob
-            already_run = glob.glob(os.path.join(args.outdir,
-                                'trials/gw_{:.1f}_mHz_delta_t_{:.1e}_seed_{}.npz'.format(bg_rate, deltaT, seed)))
+            already_run = glob.glob(os.path.join(args.outdir, filename))
             if len(already_run) != 0: continue
+            
         job.add_arg('--deltaT {} --ntrials {} --seed {} --bkg {} --outdir {}'.format(
             deltaT, args.n_per_batch, seed, bg_rate, args.outdir))
 
