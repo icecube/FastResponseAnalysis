@@ -11,7 +11,7 @@ import glob
 parser = argparse.ArgumentParser(
     description='Submit script')
 parser.add_argument(
-    '--tw', type=float, default=1000., #[-0.1, +14]day: 1218240
+    '--tw', type=float, default=1000., #[-0.1, +14]day: 1218240, +/-1day: 172800
     help='time window to use (in sec)')
 parser.add_argument(
     '--dir', type=str, default='./',

@@ -44,7 +44,7 @@ def glob_allsky_scans(delta_t, rate, dir, low_stats=False, typ='alert'):
     if len(files)==0: return None
     
     print('Starting to load at {}'.format(time.ctime()))
-    final_ind = -1 if not low_stats else 10
+    final_ind = len(files) if not low_stats else 10
     for f in files[:final_ind]:
         scan = sparse.load_npz(f)
         maps = sparse.vstack((maps, scan))
@@ -67,24 +67,10 @@ def glob_allsky_scans(delta_t, rate, dir, low_stats=False, typ='alert'):
     
     return maps
 
-for rate in [6.0, 6.2, 6.4, 6.6, 6.8, 7.0, 7.2]:
-    for low_stats in [True, False]:
+for rate in [6.2, 6.4, 6.6, 6.8, 7.0, 7.2, 7.4]:
+    for low_stats in [False]:# [True, False]:
         print("Rate: {} mHz, low stats: {}".format(rate, low_stats))
         maps = glob_allsky_scans(args.deltaT, rate, args.dir, typ=args.type, low_stats=low_stats)
         del maps
         print ('done')
 
-
-#for rate in [6.2, 6.4, 6.6, 6.8, 7.0, 7.2]:
-#    for low_stats in [True, False]:
-#        print("Rate: {} mHz, low stats: {}".format(rate, low_stats))
-#        maps = glob_allsky_scans(1000., rate, low_stats=low_stats)
-#        del maps
-#        print ('')
-
-#for rate in [7.0, 7.2]:
-#    for low_stats in [True]:
-#        print("Rate: {} mHz, low stats: {}".format(rate, low_stats))
-#        maps = glob_allsky_scans(2.*86400., rate, low_stats=low_stats)
-#        del maps
-#        print ('')
