@@ -41,27 +41,30 @@ outdir=outdir+'/trials/'
 
 skymap_files = glob('/data/ana/realtime/alert_catalog_v2/2yr_prelim/fits_files/Run13*.fits.gz')
 
-start_mjd = 58484.0 #Jan 1, 2019
+#start_mjd = 58484.0 #Jan 1, 2019
+start_mjd = 60298.0 #Dec 20, 2023
 stop_mjd = start_mjd + (args.deltaT / 86400.)
-start = Time(start_mjd, format='mjd').iso
-stop = Time(stop_mjd, format='mjd').iso
+start_iso = Time(start_mjd, format='mjd').iso
+stop_iso = Time(stop_mjd, format='mjd').iso
 deltaT = args.deltaT / 86400.
-
-trials_per_sig = args.ntrials
-seed_counter = args.seed
 
 #skymap required for initialization, but not used here
 f = AlertFollowup('Precompute_trials_test', skymap_files[0],
-                start, stop, save=False)  
+                start_iso, stop_iso, save=False)  
 f.llh.nbackground=args.bkg*args.deltaT/1000.
 #inj = f.initialize_injector(gamma=2.5) #just put this here to initialize f.spatial_prior
 #print f.llh.nbackground
 #results_array = []
 
+ntrials = args.ntrials
+stop = ntrials * (args.seed+1)
+start = stop-ntrials
+seed_counter = start
+
 npix = hp.nside2npix(f.nside)
 shape = (args.ntrials, npix)
 maps = sparse.lil_matrix(shape, dtype=float)
-for jj in range(trials_per_sig):
+for jj in range(ntrials):
     seed_counter += 1
     val = f.llh.scan(0.0, 0.0, scramble=True, seed = seed_counter,
             #spatial_prior = f.spatial_prior, 
