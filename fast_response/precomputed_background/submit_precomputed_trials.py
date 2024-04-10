@@ -12,7 +12,7 @@ if default_outdir is None: default_outdir='./'
 parser = argparse.ArgumentParser(
     description='Submit script')
 parser.add_argument(
-    '--deltaT', type=float, default=1000., #[-0.1, +14]day: 1218240
+    '--deltaT', type=float, default=1000., #[-0.1, +14]day: 1218240, +/-1day: 172800
     help='time window to use (in sec)')
 parser.add_argument(
     '--ntrials', type=int, default=30000,
@@ -80,7 +80,7 @@ job = pycondor.Job(
         'when_to_transfer_output = ON_EXIT']
     )
 
-for bg_rate in [6.2, 6.4, 6.6, 6.8, 7.0, 7.2, 7.4]:
+for bg_rate in [6.0, 6.2, 6.4, 6.6, 6.8, 7.0, 7.2, 7.4]:
     for seed in range(args.seed_start, int(args.ntrials/args.n_per_batch)):
         if args.no_overwrite==1:
             if args.type == 'gw':

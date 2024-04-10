@@ -37,7 +37,7 @@ submit = f'/scratch/{username}/fra/condor/submit'
 
 ### Create Dagman to submit jobs to cluster    
 job = pycondor.Job(
-    'gw_precomp_trials',
+    'fra_glob_trials',
     '/data/user/jthwaites/FastResponseAnalysis/fast_response/precomputed_background/glob_precomputed_trials.py',
     error=error,
     output=output,
@@ -46,14 +46,18 @@ job = pycondor.Job(
     getenv=True,
     universe='vanilla',
     verbose=2,
-    request_cpus=8,
-    request_memory=10000,
+    request_cpus=6,
+    request_memory=20000,
     extra_lines=[
         'should_transfer_files = YES',
         'when_to_transfer_output = ON_EXIT']
     )
 
-job.add_arg('--deltaT {} --dir {} --nside {} --type {}'.format(args.tw, args.dir, args.nside, args.type))
+if args.tw > 1000000.:
+    #save in sets, so that these are loadable
+    job.add_arg('--deltaT {} --dir {} --nside {} --type {} --mult'.format(args.tw, args.dir, args.nside, args.type))
+else:
+    job.add_arg('--deltaT {} --dir {} --nside {} --type {}'.format(args.tw, args.dir, args.nside, args.type))
 
 job.build_submit()
 
