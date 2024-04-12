@@ -11,13 +11,15 @@ import glob
 parser = argparse.ArgumentParser(
     description='Submit script')
 parser.add_argument(
-    '--tw', type=float, default=1000., #[-0.1, +14]day: 1218240
+    '--tw', type=float, default=1000., #[-0.1, +14]day: 1218240, +/-1day: 172800
     help='time window to use (in sec)')
 parser.add_argument(
     '--dir', type=str, default='./',
     help='directory where trials are loaded from, saves output to dir+/glob_trials/')
 parser.add_argument('--nside',type=int, default=256,
     help='nside used when running trials (default 256)')
+parser.add_argument('--type', default='alert', type=str,
+    help='type of trial to load (gw or alert - default)')
 args = parser.parse_args()
 
 username = pwd.getpwuid(os.getuid())[0]
@@ -35,7 +37,7 @@ submit = f'/scratch/{username}/fra/condor/submit'
 
 ### Create Dagman to submit jobs to cluster    
 job = pycondor.Job(
-    'gw_precomp_trials',
+    'fra_glob_trials',
     '/data/user/jthwaites/FastResponseAnalysis/fast_response/precomputed_background/glob_precomputed_trials.py',
     error=error,
     output=output,
@@ -44,14 +46,18 @@ job = pycondor.Job(
     getenv=True,
     universe='vanilla',
     verbose=2,
-    request_cpus=8,
-    request_memory=10000,
+    request_cpus=6,
+    request_memory=20000,
     extra_lines=[
         'should_transfer_files = YES',
         'when_to_transfer_output = ON_EXIT']
     )
 
-job.add_arg('--deltaT {} --dir {} --nside {}'.format(args.tw, args.dir, args.nside))
+if args.tw > 1000000.:
+    #save in sets, so that these are loadable
+    job.add_arg('--deltaT {} --dir {} --nside {} --type {} --mult'.format(args.tw, args.dir, args.nside, args.type))
+else:
+    job.add_arg('--deltaT {} --dir {} --nside {} --type {}'.format(args.tw, args.dir, args.nside, args.type))
 
 job.build_submit()
 

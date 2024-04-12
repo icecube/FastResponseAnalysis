@@ -61,14 +61,11 @@ for file in all_dictionary["Name"]:
         all_dictionary['Time_Stamp'].append(c_datestamp)
 print('Finished loading all latencies.')
 
-#Setting conditions for call to be made if script fails. Condition: if more than 2 hours pass between alerts
-if (Time(datetime.datetime.utcnow()).mjd - max(Time(all_dictionary["Time_Stamp"]).mjd)) > 3600.*2/86400:
-        #print(datetime.datetime.utcnow())
-        #print(max(all_dictionary["Time_Stamp"]))
+#Setting conditions for call to be made if script fails. Condition: if more than 3 hours pass between alerts
+if (Time(datetime.datetime.utcnow()).mjd - max(Time(all_dictionary["Time_Stamp"]).mjd)) > 3600.*3/86400:
         dial_up()
         x = (Time(datetime.datetime.utcnow()).mjd - max(Time(all_dictionary["Time_Stamp"]).mjd))*24
         print("It has been " +str(x) +" hours since last update to gw mocks.")
-        #print("Uh oh... spaghetti-o's")
 
 #Sorting pickle files by date created and by most correct version
 if pwd.getpwuid(os.getuid())[0] == 'realtime':

@@ -165,7 +165,7 @@ class ReportGenerator(object):
             livetime = (min(time_window[1],runstop)-
                         max(time_window[0],runstart)).sec
             run['livetime'] = livetime if livetime > 0 else 0
-            if run['livetime'] > 86400. * 2:
+            if (run['livetime'] > 86400. * 2) or (hours > 100):
                 run['livetime'] = 0
                 run['stop'] = run['start']
                 dt=0

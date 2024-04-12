@@ -98,8 +98,12 @@ def format_ontime_events_uml(events, event_mjd):
                 "containment_probability": 0.9,
                 "systematic_included": False
             },
-            'event_pval_generic' : round(event['pvalue'],4)
+            #'event_pval_generic' : round(event['pvalue'],4)
         }
+        if event['pvalue'] < 0.0001:
+            ontime_events[event['event']]['event_pval_generic'] = float('{:.1e}'.format(event['pvalue']))
+        else:
+            ontime_events[event['event']]['event_pval_generic'] = round(event['pvalue'],4)
     return ontime_events
 
 def format_ontime_events_llama(events):
@@ -115,25 +119,12 @@ def format_ontime_events_llama(events):
                 "containment_probability": 0.9,
                 "systematic_included": False
             },
-            'event_pval_bayesian': round(event['p_value'],4)
+            #'event_pval_bayesian': round(event['p_value'],4)
         }
-    return ontime_events
-
-def format_ontime_events_llama_old(events,event_mjd):
-    ontime_events={}
-    for event in events:
-        ontime_events[event['event']] = {
-            'event_dt' : round((event['mjd']-event_mjd)*86400.,2),
-            'localization':{
-                'ra' : round(np.rad2deg(event['ra']), 2),
-                'dec' : round(np.rad2deg(event['dec']), 2),
-                "uncertainty_shape": "circle",
-                'ra_uncertainty': [round(np.rad2deg(event['sigma']*2.145966),3)],
-                "containment_probability": 0.9,
-                "systematic_included": False
-            },
-            'event_pval_bayesian': None
-        }
+        if event['p_value'] < 0.0001:
+            ontime_events[event['i3event']]['event_pval_bayesian'] = float('{:.1e}'.format(event['p_value']))
+        else:
+            ontime_events[event['i3event']]['event_pval_bayesian'] = round(event['p_value'],4)
     return ontime_events
 
 def combine_events(uml_ontime, llama_ontime):
@@ -349,8 +340,16 @@ def parse_notice(record, wait_for_llama=False, heartbeat=False):
             logger.warning('NO neutrinos in 1000s in LLAMA result! Still sending . . .')
 
     if uml_results_finished and llama_results_finished:
-        collected_results['pval_generic'] = round(uml_results['p'],4)
-        collected_results['pval_bayesian'] = round(llama_results['p_value'],4)
+        if uml_results['p']< 0.0001:
+            collected_results['pval_generic'] = float('{:.1e}'.format(uml_results['p']))
+        else:
+            collected_results['pval_generic'] = round(uml_results['p'],4)
+        
+        if llama_results['p_value'] < 0.0001:
+            collected_results['pval_bayesian'] = float('{:.1e}'.format(llama_results['p_value']))
+        else:
+            collected_results['pval_bayesian'] = round(llama_results['p_value'],4)
+
         if (collected_results['pval_generic']<0.01) or (collected_results['pval_bayesian']<0.01):
             send_notif=True
 
@@ -380,8 +379,13 @@ def parse_notice(record, wait_for_llama=False, heartbeat=False):
         }
     
     elif uml_results_finished:
-        collected_results['pval_generic'] = round(uml_results['p'],4)
+        if uml_results['p']< 0.0001:
+            collected_results['pval_generic'] = float('{:.1e}'.format(uml_results['p']))
+        else:
+            collected_results['pval_generic'] = round(uml_results['p'],4)
+
         collected_results['pval_bayesian'] = None
+
         if collected_results['pval_generic']<0.01:
             send_notif=True
 
@@ -416,7 +420,12 @@ def parse_notice(record, wait_for_llama=False, heartbeat=False):
 
     elif llama_results_finished:
         collected_results['pval_generic'] = None
-        collected_results['pval_bayesian'] = round(llama_results['p_value'],4)
+        
+        if llama_results['p_value'] < 0.0001:
+            collected_results['pval_bayesian'] = float('{:.1e}'.format(llama_results['p_value']))
+        else:
+            collected_results['pval_bayesian'] = round(llama_results['p_value'],4)
+
         if collected_results['pval_bayesian']<0.01:
             send_notif=True
 
