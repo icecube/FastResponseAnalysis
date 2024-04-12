@@ -122,9 +122,9 @@ def format_ontime_events_llama(events):
             #'event_pval_bayesian': round(event['p_value'],4)
         }
         if event['p_value'] < 0.0001:
-            ontime_events[event['event']]['event_pval_bayesian'] = float('{:.1e}'.format(event['p_value']))
+            ontime_events[event['i3event']]['event_pval_bayesian'] = float('{:.1e}'.format(event['p_value']))
         else:
-            ontime_events[event['event']]['event_pval_bayesian'] = round(event['p_value'],4)
+            ontime_events[event['i3event']]['event_pval_bayesian'] = round(event['p_value'],4)
     return ontime_events
 
 def combine_events(uml_ontime, llama_ontime):
