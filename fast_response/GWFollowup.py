@@ -85,7 +85,7 @@ class GWFollowup(PriorFollowup):
 
             i=0
             for fi in files:
-                print('Loading {}/{} files for bkg trials'.format(i+1, len(files)))
+                print('Loading {}/{} files for bkg trials'.format(i+1, len(files)), end='')
                 pre_ts_array = sparse.load_npz(fi)
                 
                 #check for nside mismatch
@@ -105,7 +105,8 @@ class GWFollowup(PriorFollowup):
                 else:
                     tss = np.concatenate([tss, tsd])
                 i+=1
-            print(tss.shape)
+                print(' . . . Done')
+            
             self.tsd = tss
             return tss
 
