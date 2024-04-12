@@ -9,6 +9,7 @@ import matplotlib as mpl
 mpl.use('agg')
 import matplotlib.pyplot as plt
 import pickle
+import glob
 
 from .FastResponseAnalysis import PriorFollowup
 from .reports import GravitationalWaveReport
@@ -77,27 +78,36 @@ class GWFollowup(PriorFollowup):
             bg_trial_dir = '/data/ana/analyses/NuSources/' \
                 + '2023_realtime_gw_analysis/fast_response/' \
                 + 'precomputed_background/'
-
-            pre_ts_array = sparse.load_npz(
-                bg_trial_dir
-                + 'gw_precomputed_trials_delta_t_'
-                + '{:.2e}_trials_rate_{:.1f}_low_stats.npz'.format(
-                self.duration * 86400., closest_rate, self.duration * 86400.))
             
-            #check for nside mismatch
-            #if hp.pixelfunc.get_nside(pre_ts_array.shape[1]) != self.nside:
-            #    print('Error! Analysis uses nside of %i '.format(self.nside)+
-            #          'while precomputed BG is nside %i'.format(hp.pixelfunc.get_nside(pre_ts_array.shape[1])))
+            files = glob.glob(bg_trial_dir + 
+                    'gw_precomputed_trials_delta_t_{:.2e}_trials_rate_{:.1f}_low_stats*.npz'.format(
+                    self.duration * 86400., closest_rate))
 
-            ts_norm = np.log(np.amax(self.skymap))
-            ts_prior = pre_ts_array.copy()
-            ts_prior.data += 2.*(np.log(self.skymap[pre_ts_array.indices]) - ts_norm)
-            ts_prior.data[~np.isfinite(ts_prior.data)] = 0.
-            ts_prior.data[ts_prior.data < 0] = 0.
-            tsd = ts_prior.max(axis=1).A
-            tsd = np.array(tsd)
-            self.tsd = tsd
-            return tsd
+            i=0
+            for fi in files:
+                print('Loading {}/{} files for bkg trials'.format(i+1, len(files)))
+                pre_ts_array = sparse.load_npz(fi)
+                
+                #check for nside mismatch
+                #if hp.pixelfunc.get_nside(pre_ts_array.shape[1]) != self.nside:
+                #    print('Error! Analysis uses nside of %i '.format(self.nside)+
+                #          'while precomputed BG is nside %i'.format(hp.pixelfunc.get_nside(pre_ts_array.shape[1])))
+
+                ts_norm = np.log(np.amax(self.skymap))
+                ts_prior = pre_ts_array.copy()
+                ts_prior.data += 2.*(np.log(self.skymap[pre_ts_array.indices]) - ts_norm)
+                ts_prior.data[~np.isfinite(ts_prior.data)] = 0.
+                ts_prior.data[ts_prior.data < 0] = 0.
+                tsd = ts_prior.max(axis=1).A
+                tsd = np.array(tsd)
+                if i ==0: 
+                    tss = tsd
+                else:
+                    tss = np.concatenate([tss, tsd])
+                i+=1
+            print(tss.shape)
+            self.tsd = tss
+            return tss
 
         else: 
             #Case: load 1000s precomputed trials (run by Raamis in O3)

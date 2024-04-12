@@ -884,6 +884,15 @@ class PriorFollowup(FastResponseAnalysis):
         exp_pix   = hp.ang2pix(self.nside, exp_theta, exp_phi)
         overlap   = np.isin(exp_pix, self.ipix_90)
         events = events[overlap]
+
+        # print nearby events, as a check (if needed)
+        # msk1 = (self.llh.exp[t_mask]['ra'] < (self.skymap_fit_ra+np.radians(5)))*(self.llh.exp[t_mask]['ra'] > (self.skymap_fit_ra-np.radians(5)))
+        # msk2 = (self.llh.exp[t_mask]['dec'] < (self.skymap_fit_dec+np.radians(5)))*((self.llh.exp[t_mask]['dec'] > self.skymap_fit_dec-np.radians(5)))
+        # msk3 = msk1*msk2
+        # print('Nearby events:')
+        # print("[run, event, ra, dec, sigma, logE, time]")
+        # for e in self.llh.exp[t_mask][msk3]: print([e[k] for k in ['run', 'event', 'ra', 'dec', 'sigma', 'logE', 'time']])
+
         if len(events) == 0:
             coincident_events = []
         else:
