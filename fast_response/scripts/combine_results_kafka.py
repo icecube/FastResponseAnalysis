@@ -184,10 +184,10 @@ def parse_notice(record, wait_for_llama=False, heartbeat=False):
         if int(params['Significant'])==0: 
             subthreshold=True
             logger.warning('low-significance alert found. ')
-    if params['Group'] == 'Burst':
+    if params['Group'] == 'Burst' or params["Pipeline"] =='CWB':
         wait_for_llama = False
         m = 'Significant' if not subthreshold else 'Subthreshold'
-        logger.warning('{} burst alert found. '.format(m))
+        logger.warning('{} burst or CWB alert found. '.format(m))
     if len(params['Instruments'].split(','))==1:
         #wait_for_llama = False
         logger.warning('One detector event found. ')
@@ -304,6 +304,7 @@ def parse_notice(record, wait_for_llama=False, heartbeat=False):
                 else:
                     logger.warning('Both analyses not finished after {:.0f} min wait.'.format(max_wait))
                     logger.warning('Not sending GCN.')
+
                     if record.attrib['role']=='observation' and not heartbeat:
                         err_msg = '--missing_llama=True --missing_uml=True' if not subthreshold else '--missing_llama=True'
                         try: 
