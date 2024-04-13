@@ -105,7 +105,8 @@ def process_gcn(payload, root):
         print('--skymap={} --time={} --alert_id={}'.format(skymap, str(event_mjd), run_id+':'+event_id)) 
         return
     
-    print('Running {}'.format(command))
+    print('\nRunning {} --skymap={} --time={} --alert_id={} --suffix={}'.format(
+        command, skymap, str(event_mjd), run_id+':'+event_id, suffix))
     subprocess.call([command, '--skymap={}'.format(skymap), 
         '--time={}'.format(str(event_mjd)), 
         '--alert_id={}'.format(run_id+':'+event_id),
