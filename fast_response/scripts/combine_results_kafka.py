@@ -306,10 +306,11 @@ def parse_notice(record, wait_for_llama=False, heartbeat=False):
                     logger.warning('Not sending GCN.')
 
                     if record.attrib['role']=='observation' and not heartbeat:
-                        err_msg = '--missing_llama=True --missing_uml=True' if not subthreshold else '--missing_llama=True'
+                        err_msg = ['--troubleshoot_gcn=True', '--missing_llama=True']
+                        if not subthreshold: err_msg.append('--missing_uml=True')
+                        
                         try: 
-                            subprocess.call(['/home/jthwaites/private/make_call.py', 
-                                             '--troubleshoot_gcn=True', err_msg])
+                            subprocess.call(['/home/jthwaites/private/make_call.py', err_msg])
                         except:
                             logger.warning('Failed to send alert to shifters: Issue finding both results. ')
                     return
@@ -517,6 +518,23 @@ def parse_notice(record, wait_for_llama=False, heartbeat=False):
                 logger.info('Sent alert to ROC for p<0.01')
             except:
                 logger.warning('Failed to send email/SMS notification.')
+
+            # try:
+            #     if params['Group'] == 'Burst': 
+            #         merger_type = 'Burst'
+            #     else:
+            #         k = ['BNS','NSBH','BBH']
+            #         probs = {j: float(params[j]) for j in k}
+            #         merger_type = max(zip(probs.values(), probs.keys()))[1]
+            # except:
+            #     logger.info('Could not determine type of event')
+            #     merger_type = None
+
+            # try:
+            #     subprocess.call(['/home/jthwaites/private/make_call.py', f'--type={merger_type}', '--call_anyway'])
+            # except Exception as e:
+            #     logger.warning('Call for p<0.01 failed.')
+
         else: 
             logger.info('p>0.01: no email/sms sent')
     else:
