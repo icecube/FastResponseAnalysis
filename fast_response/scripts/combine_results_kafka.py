@@ -306,11 +306,12 @@ def parse_notice(record, wait_for_llama=False, heartbeat=False):
                     logger.warning('Not sending GCN.')
 
                     if record.attrib['role']=='observation' and not heartbeat:
-                        err_msg = ['--troubleshoot_gcn=True', '--missing_llama=True']
+                        err_msg = ['/home/jthwaites/private/make_call.py', '--troubleshoot_gcn=True', 
+                                   '--missing_llama=True']
                         if not subthreshold: err_msg.append('--missing_uml=True')
                         
                         try: 
-                            subprocess.call(['/home/jthwaites/private/make_call.py', err_msg])
+                            subprocess.call(err_msg)
                         except:
                             logger.warning('Failed to send alert to shifters: Issue finding both results. ')
                     return
@@ -484,7 +485,7 @@ def parse_notice(record, wait_for_llama=False, heartbeat=False):
                 my_key = f.readline()
             
             if not subthreshold:
-                channels = ['#gwnu-heartbeat', '#gwnu','#alerts']
+                channels = ['#gwnu-heartbeat', '#alerts']#, '#gwnu']
             else:
                 channels = ['#gwnu-heartbeat']
             for channel in channels:
