@@ -191,7 +191,7 @@ def process_gcn(payload, root):
                 webhook = f.readline().rstrip('\n')
                 bot_name = f.readline().rstrip('\n')
 
-            for channel in ['#fra-shifting','#gwnu']:
+            for channel in ['#fra-shifting','#gwnu-heartbeat']:
                 bot = slackbot(channel, bot_name, webhook)
                 bot.send_message(slack_message,'gw')
             
