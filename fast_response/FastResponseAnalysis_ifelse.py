@@ -153,7 +153,8 @@ class FastResponseAnalysis(object):
 
     @property
     def llh_exp(self):
-        """Returns a flat array of experimental data loaded across the used dataset(s) loaded into the LLH"""
+        """Returns a flat array of experimental data loaded across the used dataset(s) loaded into the LLH,
+        limited to fields used for plotting and amended with a field for the dataset."""
         # NOTE can not use self.dset_container as that is before self.remove_event(skipped=skipped)
         # TODO make this more efficient?
         if self.multi:
@@ -163,11 +164,13 @@ class FastResponseAnalysis(object):
         else:
             exp = {-1: self.llh.exp}
             
+        merged_dtype = np.dtype([('run', '<i4'), ('event', '<i4'), ('time', '<f4'), ('ra', '<f4'), ('dec', '<f4'), ('sigma', '<f4'), ('enum', '<i4')])
         for enum, _exp in exp.items():
-            exp[enum] = np.lib.recfunctions.append_fields(_exp, 'enum', np.full( _exp.size, enum))
-        
+            _exp = np.lib.recfunctions.drop_fields(_exp, [_field for _field in _exp.dtype.names if _field not in merged_dtype.names])
+            _exp = np.lib.recfunctions.append_fields(_exp, 'enum', np.full( _exp.size, enum))
+            _exp = _exp.astype(merged_dtype)
+            exp[enum] = _exp
         return np.concatenate([exp[enum] for enum in exp])
-            
 
 
 

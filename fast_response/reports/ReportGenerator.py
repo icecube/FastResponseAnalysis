@@ -375,7 +375,6 @@ class ReportGenerator(object):
 
         s = self.source
 
-        dataset = Datasets[self.analysis._dataset]
         # Make rate plots and put them in analysis directory
         make_rate_plots(
             self.time_window,
@@ -466,15 +465,27 @@ class ReportGenerator(object):
                     ("Time Window",r"{:1.1f}s".format(s["realtime"])),
                 ]
             )
+            
+            # retrieve metadata of used dataset(s) for the table
+            _dataset = self.analysis._dataset
+            if not isinstance(_dataset, list):
+                _dataset = [_dataset]
+            datasets = [Datasets[_ds] for _ds in _dataset]
 
-            self.write_table(f,"skylabtable",[],[
+            # 
+            skylabtable = [
                 ("Skylab Version", skylab.__version__),
                 ("IceTray Path", str(icetray.__path__).replace('_', '\_')),
                 ("Created by", expanduser('~')[6:]),
+            ]
+            for dataset in datasets:
+                skylabtable.extend([
                 ("Dataset Used", str(dataset.subdir).replace('_',' ')),
                 ("Dataset details", str(dataset.name)[:80]),
-                ("", str(dataset.name)[80:])
-            ])
+                ("", str(dataset.name)[80:]),
+                ])
+                
+            self.write_table(f,"skylabtable",[],skylabtable)
 
             r1=[]
             r2=[]
