@@ -165,6 +165,8 @@ def load_plotting_settings():
     Load settings to be used as default plot settings.
     Includes Times New Roman font and size 12 font
     """
+    # undo eventual matplotlibrc in user config
+    mpl.rcdefaults()
     mpl.use('agg')
     mpl.rcParams['text.usetex'] = True
     try:
