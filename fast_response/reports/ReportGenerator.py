@@ -355,6 +355,9 @@ class ReportGenerator(object):
             precision=0).iso
         self.ontime['time_query']=now.strftime('%Y-%m-%d %H:%M:%S')
 
+
+        # TODO add column per realtime data stream, right now it's only GFU. 
+        # TODO for a start, add feature to realtime_tools to get times of online Greco filter (no reconstruction yet)
         self.query_events=icecube.realtime_tools.live.get_events(
             self.ontime['stream'],
             self.ontime['time_start'],
@@ -538,17 +541,29 @@ class ReportGenerator(object):
             
             if self.analysis._float_index:
                 if self.analysis.ts > 0.:
-                    self.write_table(
-                        f,
-                        "results",
-                        [],
-                        [("$n_s$", "{:1.3f}".format(self.analysis.ns)),
-                        ("$TS$", "{:1.3f}".format(self.analysis.ts)),
-                        ("$\gamma$", f"{self.analysis.gamma:.2f}"),
-                        ("$p-value$", "{:1.4f}".format(self.analysis.p)),
-                        ("best-fit RA", "{:3.2f}\degree".format(np.rad2deg(self.analysis.skymap_fit_ra))),
-                        ("best-fit dec", "{:3.2f}\degree".format(np.rad2deg(self.analysis.skymap_fit_dec)))]
-                    )
+                    if self.source_type == 'skymap':
+                        self.write_table(
+                            f,
+                            "results",
+                            [],
+                            [("$n_s$", "{:1.3f}".format(self.analysis.ns)),
+                            ("$TS$", "{:1.3f}".format(self.analysis.ts)),
+                            ("$\gamma$", f"{self.analysis.gamma:.2f}"),
+                            ("$p-value$", "{:1.4f}".format(self.analysis.p)),
+                            ("best-fit RA", "{:3.2f}\degree".format(np.rad2deg(self.analysis.skymap_fit_ra))),
+                            ("best-fit dec", "{:3.2f}\degree".format(np.rad2deg(self.analysis.skymap_fit_dec)))]
+                        )
+                    elif self.source_type == 'PS':
+                        self.write_table(
+                            f,
+                            "results",
+                            [],
+                            [("$n_s$", "{:1.3f}".format(self.analysis.ns)),
+                            ("$TS$", "{:1.3f}".format(self.analysis.ts)),
+                            ("$\gamma$", f"{self.analysis.gamma:.2f}"),
+                            ("$p-value$", "{:1.4f}".format(self.analysis.p)),
+                            ]
+                        )
                 else: 
                     self.write_table(
                         f,
