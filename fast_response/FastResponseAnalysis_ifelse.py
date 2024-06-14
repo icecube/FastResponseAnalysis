@@ -99,6 +99,7 @@ class FastResponseAnalysis(object):
             # sys.exit()
         elif self.save_output:
             subprocess.call(['mkdir', self.analysispath])
+            #os.makedirs(self.analysispath, exist_ok=False) if creating parent directories is ok
 
         if 'test' in self.name.lower():
             self.scramble = True
@@ -663,6 +664,7 @@ class FastResponseAnalysis(object):
             cmap = mpl.colors.ListedColormap([(1.,1.,1.)] * 50)
 
         plotting_utils.plot_zoom(skymap, ra, dec, "", range = [0,10], reso=3., cmap = cmap)
+        # TODO change xlim, ylim via the gnomview tools to accommodate datasets with larger resolution
 
         if self.skipped is not None:
             try:
@@ -986,18 +988,27 @@ class PointSourceFollowup(FastResponseAnalysis):
         return ts, ns
 
     def find_coincident_events_single(self, llh):
-        r"""Find "coincident events" for the analysis.
-        These are ontime events that have a spatial times energy weight greater than 10
+        """Find ontime events with a spatial weight > 10.
+
+        Parameters:
+        -----------
+        llh: BaseLLH
+             A single-sample LLH, such as PointSourceLLH.
+        
+             
+        Returns:
+        coincident_events: [dict]
+
         """
-        # FIXME these will not work for Multi
-        # either wrap class or modify attributes
 
         spatial_weights = llh.llh_model.signal(
             self.ra, self.dec, llh._events, 
             src_extension=self.extension)[0] / llh._events['B']
         energy_ratio, _ = llh.llh_model.weight(
            llh._events, **self.ns_params)
-        temporal_weights =llh.temporal_model.signal(llh._events)
+        # TODO or should that use a fixed index, for consistent plots, rather than what contributes to the LLH?
+        # the threshold of 10 is also tuned to GFU, gamma=2
+        temporal_weights = llh.temporal_model.signal(llh._events)
         msk = spatial_weights * energy_ratio * temporal_weights > 10
         coincident_events = []
         if len(spatial_weights[msk]) > 0:
@@ -1171,6 +1182,7 @@ class PointSourceFollowup(FastResponseAnalysis):
         r"""Make an E^-2 or E^-2.5 dNdE with the central 90% 
         for the most relevant declination band 
         (+/- 5 deg around source dec)
+        for a single dataset
         """
         dec_mask_1 = self.llh.mc['dec'] > self.dec - (5. * np.pi / 180.)
         dec_mask_2 = self.llh.mc['dec'] < self.dec + (5. * np.pi / 180.)
@@ -1207,6 +1219,7 @@ class PointSourceFollowup(FastResponseAnalysis):
         r"""Make an E^-2 or E^-2.5 dNdE with the central 90% 
         for the most relevant declination band 
         (+/- 5 deg around source dec)
+        for multiple datasets
         """
         low5 = []
         high5 = []
@@ -1254,6 +1267,10 @@ class PointSourceFollowup(FastResponseAnalysis):
         self.save_items['energy_range'] = tuple(zip(self.low5, self.high5))
 
     def make_dNdE(self):
+        r"""Make an E^-2 or E^-2.5 dNdE with the central 90% 
+        for the most relevant declination band 
+        (+/- 5 deg around source dec)
+        """
         if self.multi:
             self.make_dNdE_multi()
         else:
