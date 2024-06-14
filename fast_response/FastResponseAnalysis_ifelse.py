@@ -58,7 +58,7 @@ class FastResponseAnalysis(object):
     _verbose = True
     _angScale = 2.145966
     _llh_seed = 1
-    _season_names = [f"IC86, 201{y}" for y in range(1, 10)]
+    _season_names = [f"IC86, 20{y:02d}" for y in range(11, 22+1)]
     _nb_days = 10
     _ncpu = 5
 
@@ -177,14 +177,25 @@ class FastResponseAnalysis(object):
 
     def get_data_single(self, dataset, livestream_start=None, livestream_stop=None):
         """
-        Gets the skylab data and MC from querying the i3live livestream
+        Gets the skylab data and MC from querying the i3live livestream for a single dataset.
 
         Parameters
         -----------
+        dataset: str
+            Name of dataset in skylab.datasets.Datasets
         livestream_start: float
             (optional) start time for getting data (MJD) from i3Live. Default is start time of the analysis - 5 days
         livestream_stop: float
             (optional) stop time for getting data (MJD). Default is stop time of the analysis
+
+        Returns:
+        --------
+        dset_container: argparse.Namespace
+            Namespace containing
+            exp, mc, grl = single arrays of experimental data, Monte Carlo, GRL
+            livetime = sum of livetime
+            dset = Skylab dataset object
+            sinDec_bins, energy_bins = binning to be used for LLH
         """
         if self._verbose:
             print(f"Grabbing data for {dataset}")
@@ -193,22 +204,24 @@ class FastResponseAnalysis(object):
 
         dset = Datasets[dataset]
         dset_container = Namespace()
-        #if self.stop < 58933.0: 
-        # FIXME replace with end of respective season?
+        # not all datasets have seasons from 2011--2022
+        # e.g. the default GFU is 2011-2019, Greco 2012--2022
+        archival_seasons = sorted(list(set(dset.season_names()).intersection(self._season_names)))
+        
+        # TODO change this if the used GFU ever gets updated, or replace with and of GRL
         if self.stop < 59215:
             if self._verbose:
                 print("Old times, just grabbing archival data")
             exps, grls = [], []
-            for season in self._season_names:
-                # not all datasets have seasons from 2011--2019
-                if season not in dset.seasons.keys():
-                    continue
+            for season in archival_seasons:
                 exp, mc, livetime = dset.season(season, floor=self._floor)
                 grl = dset.grl(season)
                 exps.append(exp)
                 grls.append(grl)
-            # FIXME this will not work for Greco. Move to more complete overall?
-            if (self.stop > 58933.0):
+            # TODO this relies on the assumption the archival GFU is equal to the default
+            if (self.stop > 58933.0) and dataset.startswith('GFUOnline'):
+                if self._verbose:
+                    print('adding 2020 GFU from /data/user/apizzuto')
                 # Add local 2020 if need be
                 # TODO: Need to figure out what to do for zenith_smoothed
                 exp_new = np.load(
@@ -226,7 +239,7 @@ class FastResponseAnalysis(object):
                 grls.append(grl)
             exp = np.concatenate(exps)
             grl = np.concatenate(grls)
-        # TODO add livestream method to Greco dataset
+        # TODO add livestream season to Greco dataset - big task
         else:
             if self._verbose:
                 print("Recent time: querying the i3live database")
@@ -235,16 +248,16 @@ class FastResponseAnalysis(object):
                 livestream_stop = self.stop
             exp, mc, livetime, grl = dset.livestream(
                 livestream_start, livestream_stop,
-                append=self._season_names, 
+                append=archival_seasons, 
                 floor=self._floor)
         exp.sort(order='time')
         grl.sort(order='run')
         livetime = grl['livetime'].sum()
-
-        #sinDec_bins = dset.sinDec_bins("livestream") # FIXME GrecoOnline needs this
-        #energy_bins = dset.energy_bins("livestream") # as it needs to be consistent with whatever is used for live
-        # workaround:
-        reference_season = dset.season_names()[0]
+        # workaround while not all datasets have livestream yet
+        if 'livestream' in dset.season_names():
+            reference_season = 'livestream'
+        else:
+            reference_season = archival_seasons[0]
         sinDec_bins = dset.sinDec_bins(reference_season)
         energy_bins = dset.energy_bins(reference_season)
 
@@ -257,13 +270,19 @@ class FastResponseAnalysis(object):
         dset_container.energy_bins = energy_bins
         return dset_container
 
-    def get_data_multi(self, **kwargs):
-        return {enum:self.get_data_single(_dataset) for enum, _dataset in enumerate(self.dataset)}
-
     def get_data(self, **kwargs):
-        if self.multi:
+        """
+        Gets the skylab data and MC from querying the i3live livestream
 
-            dset_multi = self.get_data_multi(**kwargs)
+        Parameters
+        -----------
+        livestream_start: float
+            (optional) start time for getting data (MJD) from i3Live. Default is start time of the analysis - 5 days
+        livestream_stop: float
+            (optional) stop time for getting data (MJD). Default is stop time of the analysis
+        """
+        if self.multi:
+            dset_multi = {enum:self.get_data_single(_dataset) for enum, _dataset in enumerate(self.dataset)}
             self.dset_container = dset_multi
             # pivot from dictionary of namespaces
             # to dictionaries in the class namespace
