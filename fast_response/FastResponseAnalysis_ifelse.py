@@ -12,23 +12,24 @@ import pickle, dateutil.parser, logging, warnings
 from argparse import Namespace
 
 import h5py
-import healpy               as hp
-import numpy                as np
-import seaborn              as sns
-import matplotlib           as mpl
-import matplotlib.pyplot    as plt
-from astropy.time           import Time
-from scipy.special          import erfinv
-from matplotlib.lines       import Line2D
+import healpy                 as hp
+import numpy                  as np
+import seaborn                as sns
+import matplotlib             as mpl
+import matplotlib.pyplot      as plt
+import numpy.lib.recfunctions as rf
+from astropy.time             import Time
+from scipy.special            import erfinv
+from matplotlib.lines         import Line2D
 
-from skylab.datasets        import Datasets
-from skylab.llh_models      import EnergyLLH
-from skylab.priors          import SpatialPrior
-from skylab.ps_injector     import PointSourceInjector
-from skylab.ps_llh          import PointSourceLLH, MultiPointSourceLLH
-from skylab.ps_injector     import PriorInjector
-from skylab.spectral_models import PowerLaw 
-from skylab.temporal_models import BoxProfile, TemporalModel
+from skylab.datasets          import Datasets
+from skylab.llh_models        import EnergyLLH
+from skylab.priors            import SpatialPrior
+from skylab.ps_injector       import PointSourceInjector
+from skylab.ps_llh            import PointSourceLLH, MultiPointSourceLLH
+from skylab.ps_injector       import PriorInjector
+from skylab.spectral_models   import PowerLaw 
+from skylab.temporal_models   import BoxProfile, TemporalModel
 # import meander
 
 from . import web_utils
@@ -166,8 +167,8 @@ class FastResponseAnalysis(object):
             
         merged_dtype = np.dtype([('run', '<i4'), ('event', '<i4'), ('time', '<f4'), ('ra', '<f4'), ('dec', '<f4'), ('sigma', '<f4'), ('enum', '<i4')])
         for enum, _exp in exp.items():
-            _exp = np.lib.recfunctions.drop_fields(_exp, [_field for _field in _exp.dtype.names if _field not in merged_dtype.names])
-            _exp = np.lib.recfunctions.append_fields(_exp, 'enum', np.full( _exp.size, enum))
+            _exp = rf.drop_fields(_exp, [_field for _field in _exp.dtype.names if _field not in merged_dtype.names])
+            _exp = rf.append_fields(_exp, 'enum', np.full( _exp.size, enum))
             _exp = _exp.astype(merged_dtype)
             exp[enum] = _exp
         return np.concatenate([exp[enum] for enum in exp])
@@ -619,10 +620,7 @@ class FastResponseAnalysis(object):
             text file containing skymap contours to be plotted (default None)
 
         """
-        # FIXME will not work with multi
-        # maybe change to array with enums
-        # with a common flattening method
-        events = self.llh_exp
+        events = self.llh_exp # flattened array of exp per sample
         events = events[(events['time'] < self.stop) & (events['time'] > self.start)]
 
         col_num = 5000
@@ -717,9 +715,6 @@ class FastResponseAnalysis(object):
             adds a number label to events on skymap (default False)
 
         """
-
-        # FIXME assumes this is not a dictionary
-        # (maybe change to array with enums?)
         events = self.llh_exp
         events = events[(events['time'] < self.stop) & (events['time'] > self.start)]
 
