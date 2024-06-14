@@ -947,6 +947,7 @@ class PointSourceFollowup(FastResponseAnalysis):
             self.llh.livetime,
             temporal_model=temporal_model)
         self.inj = inj
+        self.save_items['E0'] = self.inj.E0
 
     def unblind_TS(self):
         r""" Unblind TS at one location for a point source
@@ -967,10 +968,21 @@ class PointSourceFollowup(FastResponseAnalysis):
         ns = ns['nsignal']
         if self._verbose:
             print("TS = {}".format(ts))
-            print("ns = {}\n\n".format(ns))
+            print("ns = {}".format(ns))
+            for par, val in params.items():
+                print(f"{par} = {val:.3f}")
+            print("\n\n")
         self.ts, self.ns = ts, ns
         self.save_items['ts'] = ts
         self.save_items['ns'] = ns
+        # TODO alternatively change ReportGenerator to report ns_params generically
+        if 'gamma' in params:
+            self.gamma = params['gamma']
+            for par, val in params.items():
+                if par in self.save_items:
+                    if self._verbose:
+                        print(f'Warning, not saving {par} as save_items already has such a key')
+                self.save_items.setdefault(par, val)
         return ts, ns
 
     def find_coincident_events_single(self, llh):
@@ -1026,7 +1038,11 @@ class PointSourceFollowup(FastResponseAnalysis):
             Values of ns scanned and corresponding -2*delta_llh values"""
 
         if params is None:
-            params = {'spectrum': str(self.spectrum)}
+            if self._fix_index:
+                params = {'spectrum': str(self.spectrum)}
+            else:
+                params = self.ns_params
+                # TODO or minimize per point?
 
         bounds = self.ns * 2.5
         if bounds == 0.0:
@@ -1067,7 +1083,8 @@ class PointSourceFollowup(FastResponseAnalysis):
         upperlimit: float
             Value of E^2 dN / dE in units of TeV / cm^2 
         """
-        # FIXME this docstring and plot is not general enough,
+        # TODO this docstring is not general enough,
+        # and actually the return value is from mu2flux but does not match its units
         # because injector index is set by self._index, and for multisample we want softer indices.
         if self.inj is None:
             self.initialize_injector()
@@ -1104,6 +1121,8 @@ class PointSourceFollowup(FastResponseAnalysis):
         fits[best_fit_ind]['ls'] = '-'
         self.upperlimit = self.inj.mu2flux(fits[best_fit_ind]['sens'])
         self.upperlimit_ninj = fits[best_fit_ind]['sens']
+        # E^2 dN/dE at self.inj.E0
+        upperlimit_fluence = self.upperlimit * self.duration * 86400. * self.inj.E0**2
 
         fig, ax = plt.subplots()
         for fit_dict in fits:
@@ -1117,9 +1136,16 @@ class PointSourceFollowup(FastResponseAnalysis):
             if fit_dict['ls'] == '-':
                 ax.axhline(0.9, color = 'm', linewidth = 0.3, linestyle = '-.')
                 ax.axvline(fit_dict['sens'], color = 'm', linewidth = 0.3, linestyle = '-.')
-                ax.text(3.5, 0.8, r'Sens. = {:.2f} events'.format(fit_dict['sens']), fontsize = 16)
-                ax.text(3.5, 0.7, r' = {:.1e}'.format(self.upperlimit * self.duration * 86400. * 1e6) + r' GeV cm$^{-2}$', fontsize = 16)
+                limit_annotation = r'Sens. = {:.2f} events'.format(fit_dict['sens']) + '\n'
+                limit_annotation +=  r' = {:.1e}'.format(upperlimit_fluence) + r' GeV cm$^{-2}$' + '\n'
+                #ax.text(3.5, 0.8, r'Sens. = {:.2f} events'.format(fit_dict['sens']), fontsize = 16)
+                #ax.text(3.5, 0.7, r' = {:.1e}'.format(upperlimit_fluence) + r' GeV cm$^{-2}$', fontsize = 16)
+                if self.index != 2:
+                    # E^2 F not constant in energy, state pivot energy in label
+                    #ax.text(3.5, 0.7, r' = {:.1e}'.format(upperlimit_fluence) + r' GeV cm$^{-2}$' + f'\nat {self.inj.E0:.0f} GeV', fontsize = 16)
+                    limit_annotation += f'at {self.inj.E0:.0f} GeV'
                 #ax.text(5, 0.5, r'Sens. = {:.2e}'.format(self.inj.mu2flux(fit_dict['sens'])) + ' GeV^-1 cm^-2 s^-1')
+                ax.annotate(limit_annotation, (0.6, 0.8), ha = 'left', va = 'top', xycoords = 'axes fraction', fontsize = 16)
         ax.errorbar(signal_fluxes, passing, yerr=errs, capsize = 3, linestyle='', marker = 's', markersize = 2)
         ax.legend(loc=4, fontsize = 14)
         ax.set_xlabel(r'$\langle n_{inj} \rangle$', fontsize = 14)
