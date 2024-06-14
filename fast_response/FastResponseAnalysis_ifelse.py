@@ -864,13 +864,16 @@ class PointSourceFollowup(FastResponseAnalysis):
     """
     _nside = 256
     def __init__(self, name, ra, dec, tstart, tstop, extension=None,
-                 index=None, dataset=None,
+                 index=None, dataset=None, fix_index=None,
                  skipped=None, outdir=None, save=True, seed=None):
 
         if index is not None:
             self._index = float(index)
         if dataset is not None:
             self._dataset = dataset
+        if fix_index is not None:
+            self._fix_index = fix_index
+            self._float_index = not self._fix_index
         
         super().__init__(name, tstart, tstop, skipped=skipped, seed=seed,
                        outdir=outdir, save=save, extension=extension)
