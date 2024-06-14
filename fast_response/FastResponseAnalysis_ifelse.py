@@ -1014,9 +1014,19 @@ class PointSourceFollowup(FastResponseAnalysis):
         return coincident_events
     
     def find_coincident_events(self):
-        # TODO add dataset enum or name
+        r"""Find "coincident events" for the analysis.
+        These are ontime events that have a spatial times energy weight greater than 10.
+        These will be combined from all used samples, with a key 'enum' to distinguish.
+        """
+        # TODO clarify the docstring: actually it includes the temporal weight!
+        coincident_events = []
         if self.multi:
-            coincident_events = sum((self.find_coincident_events_single(_sam) for _sam in self.llh._samples.values()), [])
+            for enum, _sam in self.llh._samples.items():
+                _coincident_events = self.find_coincident_events_single(_sam)
+                for _ev in _coincident_events:
+                    _ev['enum'] = enum
+                coincident_events += _coincident_events
+                
         else:
             coincident_events = self.find_coincident_events_single(self.llh)
         self.coincident_events = coincident_events
