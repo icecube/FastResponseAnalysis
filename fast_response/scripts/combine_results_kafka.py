@@ -93,8 +93,7 @@ def format_ontime_events_uml(events, event_mjd):
             'localization':{
                 'ra' : round(np.rad2deg(event['ra']), 2),
                 'dec' : round(np.rad2deg(event['dec']), 2),
-                "uncertainty_shape": "circle",
-                'ra_uncertainty': [round(np.rad2deg(event['sigma']*2.145966),2)],
+                'ra_dec_error': round(np.rad2deg(event['sigma']*2.145966),2),
                 "containment_probability": 0.9,
                 "systematic_included": False
             },
@@ -114,8 +113,7 @@ def format_ontime_events_llama(events):
             'localization':{
                 'ra' : round(event['ra'], 2),
                 'dec' : round(event['dec'], 2),
-                "uncertainty_shape": "circle",
-                'ra_uncertainty': [round(np.rad2deg(np.deg2rad(event['sigma'])*2.145966),3)],
+                'ra_dec_error': round(np.rad2deg(np.deg2rad(event['sigma'])*2.145966),2),
                 "containment_probability": 0.9,
                 "systematic_included": False
             },
@@ -198,7 +196,7 @@ def parse_notice(record, wait_for_llama=False, heartbeat=False):
         return
 
     collected_results = {}
-    collected_results["$schema"]= "https://gcn.nasa.gov/schema/v3.0.0/gcn/notices/icecube/lvk_nu_track_search.schema.json"
+    collected_results["$schema"]= "https://gcn.nasa.gov/schema/v4.0.0/gcn/notices/icecube/lvk_nu_track_search.schema.json"
     collected_results["type"]= "IceCube LVK Alert Nu Track Search"
 
     eventtime = record.find('.//ISOTime').text
