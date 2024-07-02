@@ -138,6 +138,14 @@ class FastResponseAnalysis(object):
         self._dataset = x
 
     @property
+    def datasets(self):
+        '''Dataset(s) used as a list'''
+        if isinstance(self.dataset, list):
+            return self.dataset
+        else:
+            return [self.dataset]
+
+    @property
     def index(self):
         """Returns the spectral index"""
         return self._index
@@ -627,7 +635,7 @@ class FastResponseAnalysis(object):
         except Exception as e:
             print('Failed to make FULL skymap plot')
 
-    def plot_skymap_zoom(self, with_contour=False, contour_files=None):
+    def plot_skymap_zoom(self, events=None, with_contour=False, contour_files=None):
         r"""Make a zoomed in portion of a skymap with
         all ontime neutrino events within a certain range
         Outputs a plot (in png and pdf formats) to the analysis path
@@ -640,7 +648,8 @@ class FastResponseAnalysis(object):
             text file containing skymap contours to be plotted (default None)
 
         """
-        events = self.llh_exp # flattened array of exp per sample
+        if events is None:
+            events = self.llh_exp # flattened array of exp per sample
         events = events[(events['time'] < self.stop) & (events['time'] > self.start)]
 
         col_num = 5000
@@ -721,7 +730,8 @@ class FastResponseAnalysis(object):
         plt.savefig(self.analysispath + '/' + self.analysisid + 'unblinded_skymap_zoom.pdf',bbox_inches='tight', dpi=300)
         plt.close()
 
-    def plot_skymap(self, with_contour=False, contour_files=None, label_events=False):
+    def plot_skymap(self, events = None,
+    with_contour=False, contour_files=None, label_events=False):
         r""" Make skymap with event localization and all
         neutrino events on the sky within the given time window
         Outputs a plot in png format to the analysis path
@@ -736,7 +746,8 @@ class FastResponseAnalysis(object):
             adds a number label to events on skymap (default False)
 
         """
-        events = self.llh_exp
+        if events is None:
+            events = self.llh_exp
         events = events[(events['time'] < self.stop) & (events['time'] > self.start)]
 
         col_num = 5000
@@ -1259,7 +1270,7 @@ class PointSourceFollowup(FastResponseAnalysis):
         plt.xlabel('Energy (GeV)', fontsize = 24)
 
         plt.xlim(1e1, 1e8)
-        plt.legend(loc='upper left',  bbox_to_anchor=(1,1), fontsize=18)
+        plt.legend(loc=4, fontsize=18)
         plt.savefig(self.analysispath + '/central_90_dNdE.png',bbox_inches='tight')
 
         self.low5 = low5
