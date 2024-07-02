@@ -470,10 +470,7 @@ class ReportGenerator(object):
             )
             
             # retrieve metadata of used dataset(s) for the table
-            _dataset = self.analysis._dataset
-            if not isinstance(_dataset, list):
-                _dataset = [_dataset]
-            datasets = [Datasets[_ds] for _ds in _dataset]
+            datasets = [Datasets[_ds] for _ds in self.analysis.datasets]
 
             # 
             skylabtable = [

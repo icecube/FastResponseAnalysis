@@ -58,9 +58,23 @@ class FastResponseAnalysis(object):
     _nb_days = 10
     _ncpu = 5
 
-    def __init__(self, name, tstart, tstop, skipped=None, seed=None,
-                 outdir=None, save=True, extension=None):
+    def __init__(self, name, tstart, tstop,
+                 skipped=None, seed=None,
+                 outdir=None, save=True,
+                 extension=None,
+                 index=None,
+                 fix_index=None,
+                 dataset=None,
+                 ):
         self.name = name
+
+        if index is not None:
+            self._index = float(index)
+        if dataset is not None:
+            self._dataset = dataset
+        if fix_index is not None:
+            self._fix_index = fix_index
+            self._float_index = not self._fix_index
         
         if seed is not None:
             self.llh_seed(seed)
@@ -200,8 +214,13 @@ class FastResponseAnalysis(object):
         grl.sort(order='run')
         livetime = grl['livetime'].sum()
 
-        sinDec_bins = dset.sinDec_bins("livestream")
-        energy_bins = dset.energy_bins("livestream")
+        # workaround while not all datasets have livestream yet
+        if 'livestream' in dset.season_names():
+            reference_season = 'livestream'
+        else:
+            reference_season = self._season_names[0]
+        sinDec_bins = dset.sinDec_bins(reference_season)
+        energy_bins = dset.energy_bins(reference_season)
 
         self.exp = exp
         self.mc = mc
@@ -514,7 +533,7 @@ class FastResponseAnalysis(object):
         except Exception as e:
             print('Failed to make FULL skymap plot')
 
-    def plot_skymap_zoom(self, with_contour=False, contour_files=None):
+    def plot_skymap_zoom(self, events=None, with_contour=False, contour_files=None):
         r"""Make a zoomed in portion of a skymap with
         all ontime neutrino events within a certain range
         Outputs a plot (in png and pdf formats) to the analysis path
@@ -527,7 +546,8 @@ class FastResponseAnalysis(object):
             text file containing skymap contours to be plotted (default None)
 
         """
-        events = self.llh.exp
+        if events is None:
+            events = self.llh.exp
         events = events[(events['time'] < self.stop) & (events['time'] > self.start)]
 
         col_num = 5000
@@ -565,6 +585,8 @@ class FastResponseAnalysis(object):
                 cols = cols[~msk]
             except:
                 print("Removed event not in GFU")
+                # TODO print the actual dataset name
+                # (once one implemention Multi code is merged)
 
         if (self.stop - self.start) <= 21.:
             plotting_utils.plot_events(events['dec'], events['ra'], events['sigma']*self._angScale, ra, dec, 2*6, sigma_scale=1.0,
@@ -607,7 +629,7 @@ class FastResponseAnalysis(object):
         plt.savefig(self.analysispath + '/' + self.analysisid + 'unblinded_skymap_zoom.pdf',bbox_inches='tight', dpi=300)
         plt.close()
 
-    def plot_skymap(self, with_contour=False, contour_files=None, label_events=False):
+    def plot_skymap(self, events=None, with_contour=False, contour_files=None, label_events=False, label='GFU Event'):
         r""" Make skymap with event localization and all
         neutrino events on the sky within the given time window
         Outputs a plot in png format to the analysis path
@@ -623,7 +645,8 @@ class FastResponseAnalysis(object):
 
         """
 
-        events = self.llh.exp
+        if events is None:
+            events = self.llh.exp
         events = events[(events['time'] < self.stop) & (events['time'] > self.start)]
 
         col_num = 5000
@@ -682,11 +705,11 @@ class FastResponseAnalysis(object):
 
         # plot events on sky with error contours
         handles=[]
-        hp.projscatter(theta,phi,c=cols,marker='x',label='GFU Event',coord='C', zorder=5)
+        hp.projscatter(theta,phi,c=cols,marker='x',label=label,coord='C', zorder=5)
         if label_events:
             for j in range(len(theta)):
                 hp.projtext(theta[j], phi[j]-0.11, '{}'.format(j+1), color='red', fontsize=18, zorder=6)
-        handles.append(Line2D([0], [0], marker='x', ls='None', label='GFU Event'))
+        handles.append(Line2D([0], [0], marker='x', ls='None', label=label))
 
         if (self.stop - self.start) <= 0.5:        #Only plot contours if less than 2 days
             for i in range(events['ra'].size):
@@ -1218,15 +1241,22 @@ class PointSourceFollowup(FastResponseAnalysis):
         self.save_items['ns'] = ns
         return ts, ns
 
-    def find_coincident_events(self):
+    def find_coincident_events(self, ns_params=None):
         r"""Find "coincident events" for the analysis.
         These are ontime events that have a spatial times energy weight greater than 10
+
+        Parameters
+        -----------
+        ns_params: dict
+            Fit parameters to use for weight calculation, e.g. if fit happened in MultiPointSourceFollowup
         """
+        if ns_params is None:
+            ns_params = self.ns_params
         spatial_weights = self.llh.llh_model.signal(
             self.ra, self.dec, self.llh._events, 
             src_extension=self.extension)[0] / self.llh._events['B']
         energy_ratio, _ = self.llh.llh_model.weight(
-            self.llh._events, **self.ns_params)
+            self.llh._events, **ns_params)
         temporal_weights = self.llh.temporal_model.signal(self.llh._events)
         msk = spatial_weights * energy_ratio * temporal_weights > 10
         self.coincident_events = []
