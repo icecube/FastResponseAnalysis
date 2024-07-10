@@ -167,6 +167,7 @@ def load_plotting_settings():
     """
     # undo eventual matplotlibrc in user config
     mpl.rcdefaults()
+
     mpl.use('agg')
     mpl.rcParams['text.usetex'] = True
     try:
@@ -183,6 +184,9 @@ def load_plotting_settings():
     mpl.rcParams['ytick.labelsize'] = 16
     mpl.rcParams['xtick.major.size'] = 5
     mpl.rcParams['ytick.major.size'] = 5
+
+    # increase figure resolution from default
+    mpl.rcParams['savefig.dpi'] = 300
 
 def contour(ra, dec, sigma, nside):
     r""" Function for plotting contours on skymaps
