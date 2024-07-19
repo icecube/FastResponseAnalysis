@@ -183,12 +183,9 @@ class MultiFastResponseAnalysis(FastResponseAnalysis):
             self._llh_exp = np.concatenate([exp[enum] for enum in exp])
         return self._llh_exp
     
-    # TODO: eventually write out all these event signatures again
-    # makes it harder to change, but crucial for usability
-    def plot_skymap_zoom(self, **kwargs):
-        return super().plot_skymap_zoom(events = self.llh_exp, **kwargs)
+    # TODO: smarter way to change label
     def plot_skymap(self, **kwargs):
-        return super().plot_skymap(events = self.llh_exp, label='Event', **kwargs)
+        return super().plot_skymap(label='Event', **kwargs)
 
 class MultiPointSourceFollowup(PointSourceFollowup, MultiFastResponseAnalysis):
 

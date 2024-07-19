@@ -157,6 +157,21 @@ class FastResponseAnalysis(object):
     def llh_seed(self, x):
         self._llh_seed = x
 
+    @property
+    def llh_exp(self):
+        """Returns a flat array of experimental data loaded into the LLH,
+        limited to fields used for plotting and amended with an enum=0."""
+        if not hasattr(self, '_llh_exp'):
+            exp = self.llh.exp
+            merged_dtype = np.dtype([('run', '<i4'), ('event', '<i4'), ('time', '<f4'), ('ra', '<f4'), ('dec', '<f4'), ('sigma', '<f4'), ('enum', '<i4')])
+            exp = rf.drop_fields(exp, [_field for _field in exp.dtype.names if _field not in merged_dtype.names])
+            enum = 0
+            exp = rf.append_fields(exp, 'enum', np.full( exp.size, enum))
+            exp = exp.astype(merged_dtype)
+            self._llh_exp = exp
+        return self._llh_exp
+    
+
     def get_data(self, livestream_start=None, livestream_stop=None):
         """
         Gets the skylab data and MC from querying the i3live livestream
@@ -533,7 +548,7 @@ class FastResponseAnalysis(object):
         except Exception as e:
             print('Failed to make FULL skymap plot')
 
-    def plot_skymap_zoom(self, events=None, with_contour=False, contour_files=None):
+    def plot_skymap_zoom(self, with_contour=False, contour_files=None, reso=3.):
         r"""Make a zoomed in portion of a skymap with
         all ontime neutrino events within a certain range
         Outputs a plot (in png and pdf formats) to the analysis path
@@ -546,8 +561,8 @@ class FastResponseAnalysis(object):
             text file containing skymap contours to be plotted (default None)
 
         """
-        if events is None:
-            events = self.llh.exp
+        
+        events = self.llh_exp
         events = events[(events['time'] < self.stop) & (events['time'] > self.start)]
 
         col_num = 5000
@@ -570,12 +585,14 @@ class FastResponseAnalysis(object):
             label_str = self.name
             cmap = mpl.colors.ListedColormap([(1.,1.,1.)] * 50)
 
-        plotting_utils.plot_zoom(skymap, ra, dec, "", range = [0,10], reso=3., cmap = cmap)
+        plotting_utils.plot_zoom(skymap, ra, dec, "", range = [0,10], reso=reso, cmap = cmap)
+        
 
         if self.skipped is not None:
             try:
                 msk = events['run'] == int(self.skipped[0][0])
                 msk *= events['event'] == int(self.skipped[0][1])
+                # TODO here we don't know which sample the skipped event came from...
                 plotting_utils.plot_events(self.skipped_event['dec'], self.skipped_event['ra'], 
                     self.skipped_event['sigma']*self._angScale, 
                     ra, dec, 2*6, sigma_scale=1.0, constant_sigma=False, 
@@ -589,12 +606,26 @@ class FastResponseAnalysis(object):
                 # (once one implemention Multi code is merged)
 
         if (self.stop - self.start) <= 21.:
-            plotting_utils.plot_events(events['dec'], events['ra'], events['sigma']*self._angScale, ra, dec, 2*6, sigma_scale=1.0,
-                    constant_sigma=False, same_marker=True, energy_size=True, col = cols)
+            sigma_scale = 1.0
         else:
             #Long time windows means don't plot contours
-            plotting_utils.plot_events(events['dec'], events['ra'], events['sigma']*self._angScale, ra, dec, 2*6, sigma_scale=None,
-                    constant_sigma=False, same_marker=True, energy_size=True, col = cols)
+            sigma_scale = None
+
+        for enum in np.unique(events['enum']):
+            _mask = events['enum'] == enum
+            _events = events[_mask]
+            print(_events.size, self.datasets[enum], plotting_utils.skymap_style[enum])
+            plotting_utils.plot_events(_events['dec'], _events['ra'], _events['sigma']*self._angScale,
+                ra, dec, 2*6,
+                sigma_scale=reso/3.,
+                constant_sigma=False, same_marker=True, energy_size=True,
+                col = cols[_mask], kw_style=plotting_utils.skymap_style[enum],
+                )
+
+        # plotting_utils.plot_events(events['dec'], events['ra'], events['sigma']*self._angScale,
+        #         ra, dec, 2*6,
+        #         sigma_scale=sigma_scale,
+        #         constant_sigma=False, same_marker=True, energy_size=True, col = cols)
 
         if contour_files is not None:
             cont_ls = ['solid', 'dashed']
@@ -627,7 +658,7 @@ class FastResponseAnalysis(object):
                     offset=-50, labels = [r'-$\Delta T \Bigg/ 2$', r'+$\Delta T \Bigg/ 2$'])
         plt.savefig(self.analysispath + '/' + self.analysisid + 'unblinded_skymap_zoom.png',bbox_inches='tight')
         plt.savefig(self.analysispath + '/' + self.analysisid + 'unblinded_skymap_zoom.pdf',bbox_inches='tight', dpi=300)
-        plt.close()
+        #plt.close()
 
     def plot_skymap(self, events=None, with_contour=False, contour_files=None, label_events=False, label='GFU Event'):
         r""" Make skymap with event localization and all

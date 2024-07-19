@@ -4,6 +4,13 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 import meander
+from copy import copy
+
+skymap_style = [dict(linestyle='solid', marker='x', alpha=1.0),
+                dict(linestyle='dotted', marker='+', alpha=1.0),
+                dict(linestyle='dashed', marker='2', alpha=1.0),
+                dict(linestyle='dashdot', marker='d', alpha=1.0),
+                ]
 
 def plot_zoom(scan, ra, dec, title, reso=3, var="pVal", range=[0, 6],cmap=None):
     """
@@ -106,7 +113,7 @@ def plot_labels(src_dec, src_ra, reso):
                 ha='center', va='center', fontsize=fontsize)
 
 def plot_events(dec, ra, sigmas, src_ra, src_dec, reso, sigma_scale=5., col = 'k', constant_sigma=False,
-                    same_marker=False, energy_size=False, with_mark=True, with_dash=False,
+                    same_marker=False, energy_size=False, with_mark=True, with_dash=False, kw_style={},
                     label=''):
     """
     Adds events to a healpy zoom plot. Events are expected to be from self.llh.exp
@@ -133,10 +140,12 @@ def plot_events(dec, ra, sigmas, src_ra, src_dec, reso, sigma_scale=5., col = 'k
     constant_sigma: bool
         Ignores sigma parameter and plots all markers with a size of 20.
     with_mark: bool
-        Uses an x marker instead of o
+        Include marker at event location in addition to error circle
     with_dash: bool
         Plot the angular error as a dashed contour.
         Usually used to indicated a removed event (e.g. alert event that triggered the analysis)
+    kw_style: dict
+        dictionary of style to use: marker and line style. Overridden by with_dash.
     same_marker, energy_size: bool
         Currently unused options.
     """
@@ -144,20 +153,29 @@ def plot_events(dec, ra, sigmas, src_ra, src_dec, reso, sigma_scale=5., col = 'k
     tmp = np.cos(src_ra - ra) * np.cos(src_dec) * cos_ev + np.sin(src_dec) * np.sin(dec)
     dist = np.arccos(tmp)
 
+    # with_dash overrides the given line style
+    kw_style = copy(kw_style) # because a dict is mutable
+    if with_dash:
+        kw_style['linestyle'] = ':'
+    # else, set default style
+    else:
+        kw_style.setdefault('linestyle', 'solid')
+    kw_style.setdefault('marker', 'x')
+    marker = kw_style.pop('marker') # have to pop it out as it's used in a different place
+
+
     if sigma_scale is not None:
         sigma = np.degrees(sigmas)/sigma_scale
         sizes = 5200*sigma**2
         if constant_sigma:
             sizes = 20*np.ones_like(sizes)
-        if with_dash:
-            hp.projscatter(np.pi/2-dec, ra, marker='o', linewidth=2, 
-                edgecolor=col, linestyle=':', facecolor="None", s=sizes, 
-                alpha=1.0)
-        else:
-            hp.projscatter(np.pi/2-dec, ra, marker='o', linewidth=2, 
-                edgecolor=col, facecolor="None", s=sizes, alpha=1.0)
+        
+        hp.projscatter(np.pi/2-dec, ra, marker='o', linewidth=2,
+            edgecolor=col, facecolor="None", s=sizes, 
+            **kw_style,
+            )
     if with_mark:
-        hp.projscatter(np.pi/2-dec, ra, marker='x', linewidth=2, 
+        hp.projscatter(np.pi/2-dec, ra, marker=marker, linewidth=2, 
             edgecolor=col, facecolor=col, s=60, alpha=1.0)
 
 def load_plotting_settings():
@@ -186,7 +204,7 @@ def load_plotting_settings():
     mpl.rcParams['ytick.major.size'] = 5
 
     # increase figure resolution from default
-    mpl.rcParams['savefig.dpi'] = 300
+    mpl.rcParams['savefig.dpi'] = 200
 
 def contour(ra, dec, sigma, nside):
     r""" Function for plotting contours on skymaps
