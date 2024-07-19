@@ -658,7 +658,7 @@ class FastResponseAnalysis(object):
                     offset=-50, labels = [r'-$\Delta T \Bigg/ 2$', r'+$\Delta T \Bigg/ 2$'])
         plt.savefig(self.analysispath + '/' + self.analysisid + 'unblinded_skymap_zoom.png',bbox_inches='tight')
         plt.savefig(self.analysispath + '/' + self.analysisid + 'unblinded_skymap_zoom.pdf',bbox_inches='tight', dpi=300)
-        #plt.close()
+        plt.close()
 
     def plot_skymap(self, events=None, with_contour=False, contour_files=None, label_events=False, label='GFU Event'):
         r""" Make skymap with event localization and all
