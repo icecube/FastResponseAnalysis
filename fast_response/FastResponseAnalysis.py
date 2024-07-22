@@ -9,11 +9,12 @@ import os, sys, time, subprocess
 import pickle, dateutil.parser, logging, warnings
 
 import h5py
-import healpy               as hp
-import numpy                as np
-import seaborn              as sns
-import matplotlib           as mpl
-import matplotlib.pyplot    as plt
+import healpy                 as hp
+import numpy                  as np
+import seaborn                as sns
+import matplotlib             as mpl
+import matplotlib.pyplot      as plt
+import numpy.lib.recfunctions as rf
 from astropy.time           import Time
 from scipy.special          import erfinv
 from matplotlib.lines       import Line2D
@@ -108,6 +109,7 @@ class FastResponseAnalysis(object):
             # sys.exit()
         elif self.save_output:
             subprocess.call(['mkdir', self.analysispath])
+            #os.makedirs(self.analysispath, exist_ok=False) if creating parent directories is ok
 
         if 'test' in self.name.lower():
             self.scramble = True
@@ -187,6 +189,7 @@ class FastResponseAnalysis(object):
             print("Grabbing data")
 
         dset = Datasets[self.dataset]
+        # TODO change this if the used GFU ever gets updated, or replace with and of GRL
         #if self.stop < 58933.0: 
         if self.stop < 59215:
             if self._verbose:
@@ -197,7 +200,8 @@ class FastResponseAnalysis(object):
                 grl = dset.grl(season)
                 exps.append(exp)
                 grls.append(grl)
-            if self.stop > 58933.0:
+            # TODO this relies on the assumption the archival GFU is equal to the default
+            if (self.stop > 58933.0) and dataset.startswith('GFUOnline'):
                 # Add local 2020 if need be
                 # TODO: Need to figure out what to do for zenith_smoothed
                 exp_new = np.load(
@@ -562,7 +566,11 @@ class FastResponseAnalysis(object):
 
         """
         
-        events = self.llh_exp
+        events = self.llh_exp # TODO ask if they prefer alternative:
+        # events as optional kwarg
+        # separate out a method that takes events of one sample
+        # and the rest of the plotting
+        # then this method needs to know nothing of enum
         events = events[(events['time'] < self.stop) & (events['time'] > self.start)]
 
         col_num = 5000
@@ -614,7 +622,8 @@ class FastResponseAnalysis(object):
         for enum in np.unique(events['enum']):
             _mask = events['enum'] == enum
             _events = events[_mask]
-            print(_events.size, self.datasets[enum], plotting_utils.skymap_style[enum])
+            if self._verbose:
+                print(f'Found {_events.size} on-time events from {self.datasets[enum]}')
             plotting_utils.plot_events(_events['dec'], _events['ra'], _events['sigma']*self._angScale,
                 ra, dec, 2*6,
                 sigma_scale=reso/3.,
@@ -660,7 +669,7 @@ class FastResponseAnalysis(object):
         plt.savefig(self.analysispath + '/' + self.analysisid + 'unblinded_skymap_zoom.pdf',bbox_inches='tight', dpi=300)
         plt.close()
 
-    def plot_skymap(self, events=None, with_contour=False, contour_files=None, label_events=False, label='GFU Event'):
+    def plot_skymap(self, with_contour=False, contour_files=None, label_events=False, label='GFU Event'):
         r""" Make skymap with event localization and all
         neutrino events on the sky within the given time window
         Outputs a plot in png format to the analysis path
@@ -676,8 +685,7 @@ class FastResponseAnalysis(object):
 
         """
 
-        if events is None:
-            events = self.llh.exp
+        events = self.llh_exp
         events = events[(events['time'] < self.stop) & (events['time'] > self.start)]
 
         col_num = 5000
@@ -736,6 +744,10 @@ class FastResponseAnalysis(object):
 
         # plot events on sky with error contours
         handles=[]
+        # TODO change markers and label accordingly in loop
+        # (then the combination of both plots has a complete legend)
+        # inside this method, using enum from self.llh_exp?
+        # or re-factor this method, so it can be used from MultiFRA?
         hp.projscatter(theta,phi,c=cols,marker='x',label=label,coord='C', zorder=5)
         if label_events:
             for j in range(len(theta)):
@@ -1392,6 +1404,8 @@ class PointSourceFollowup(FastResponseAnalysis):
         fits[best_fit_ind]['ls'] = '-'
         self.upperlimit = self.inj.mu2flux(fits[best_fit_ind]['sens'])
         self.upperlimit_ninj = fits[best_fit_ind]['sens']
+        # E^2 dN/dE at self.inj.E0
+        upperlimit_fluence = self.upperlimit * self.duration * 86400. * self.inj.E0**2
 
         fig, ax = plt.subplots()
         for fit_dict in fits:
@@ -1405,9 +1419,16 @@ class PointSourceFollowup(FastResponseAnalysis):
             if fit_dict['ls'] == '-':
                 ax.axhline(0.9, color = 'm', linewidth = 0.3, linestyle = '-.')
                 ax.axvline(fit_dict['sens'], color = 'm', linewidth = 0.3, linestyle = '-.')
-                ax.text(3.5, 0.8, r'Sens. = {:.2f} events'.format(fit_dict['sens']), fontsize = 16)
-                ax.text(3.5, 0.7, r' = {:.1e}'.format(self.upperlimit * self.duration * 86400. * 1e6) + r' GeV cm$^{-2}$', fontsize = 16)
+                limit_annotation = r'Sens. = {:.2f} events'.format(fit_dict['sens']) + '\n'
+                limit_annotation +=  r' = {:.1e}'.format(upperlimit_fluence) + r' GeV cm$^{-2}$' + '\n'
+                #ax.text(3.5, 0.8, r'Sens. = {:.2f} events'.format(fit_dict['sens']), fontsize = 16)
+                #ax.text(3.5, 0.7, r' = {:.1e}'.format(upperlimit_fluence) + r' GeV cm$^{-2}$', fontsize = 16)
+                if self.index != 2:
+                    # E^2 F not constant in energy, state pivot energy in label
+                    #ax.text(3.5, 0.7, r' = {:.1e}'.format(upperlimit_fluence) + r' GeV cm$^{-2}$' + f'\nat {self.inj.E0:.0f} GeV', fontsize = 16)
+                    limit_annotation += f'at {self.inj.E0:.0f} GeV'
                 #ax.text(5, 0.5, r'Sens. = {:.2e}'.format(self.inj.mu2flux(fit_dict['sens'])) + ' GeV^-1 cm^-2 s^-1')
+                ax.annotate(limit_annotation, (0.6, 0.8), ha = 'left', va = 'top', xycoords = 'axes fraction', fontsize = 16)
         ax.errorbar(signal_fluxes, passing, yerr=errs, capsize = 3, linestyle='', marker = 's', markersize = 2)
         ax.legend(loc=4, fontsize = 14)
         ax.set_xlabel(r'$\langle n_{inj} \rangle$', fontsize = 14)

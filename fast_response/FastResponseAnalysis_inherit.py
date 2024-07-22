@@ -16,11 +16,11 @@ from argparse import Namespace
 from copy import deepcopy
 
 import h5py
-import healpy               as hp
-import numpy                as np
-import seaborn              as sns
-import matplotlib           as mpl
-import matplotlib.pyplot    as plt
+import healpy                 as hp
+import numpy                  as np
+import seaborn                as sns
+import matplotlib             as mpl
+import matplotlib.pyplot      as plt
 import numpy.lib.recfunctions as rf
 from astropy.time           import Time
 from scipy.special          import erfinv
@@ -212,6 +212,7 @@ class MultiPointSourceFollowup(PointSourceFollowup, MultiFastResponseAnalysis):
             _kwargs['save'] = False # this single FRA does not save output
             # other class attributes one may want to broadcast
             for attr in ['_verbose',
+                         '_index',
                          '_float_index',
                          '_fix_index',
                          '_index_range',
@@ -259,10 +260,6 @@ class MultiPointSourceFollowup(PointSourceFollowup, MultiFastResponseAnalysis):
                 _event['dataset'] = _ana.dataset
         self.coincident_events = sum([_ana.coincident_events for _ana in self.analyses], [])
         self.save_items['coincident_events'] = self.coincident_events
-    
-    #def upper_limit(self, n_per_sig=100, p0=None):
-    # in principle no extra methods, but need to put floating index fixes
-    # from FRA_ifelse into base class
 
     def make_dNdE(self):
         # easier if calculation and plotting were separate methods...
