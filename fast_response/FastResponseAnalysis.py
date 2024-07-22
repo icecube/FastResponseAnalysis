@@ -1278,10 +1278,26 @@ class PointSourceFollowup(FastResponseAnalysis):
         ns = ns['nsignal']
         if self._verbose:
             print("TS = {}".format(ts))
-            print("ns = {}\n\n".format(ns))
+            print("ns = {}".format(ns))
+            for par, val in params.items():
+                print(f"{par} = {val:.3f}")
+            print("\n\n")
         self.ts, self.ns = ts, ns
         self.save_items['ts'] = ts
         self.save_items['ns'] = ns
+        # need gamma for report
+        # TODO alternatively change ReportGenerator to report any ns_params
+        # (if they are not a fixed spectrum)
+        if 'gamma' in params:
+            self.gamma = params['gamma']
+        # save all parameters besides nsignal
+        # (can be other spectral models)
+        for par, val in params.items():
+            if par in self.save_items:
+                if self._verbose:
+                    print(f'Warning, not saving {par} as save_items already has such a key')
+            self.save_items.setdefault(par, val)
+
         return ts, ns
 
     def find_coincident_events(self, ns_params=None):
