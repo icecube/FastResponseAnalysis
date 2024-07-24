@@ -619,7 +619,7 @@ class FastResponseAnalysis(object):
             #Long time windows means don't plot contours
             sigma_scale = None
 
-        for enum in np.unique(events['enum']):
+        for enum in np.unique(events['enum']): # not adding pandas as dependency
             _mask = events['enum'] == enum
             _events = events[_mask]
             if self._verbose:
@@ -669,7 +669,10 @@ class FastResponseAnalysis(object):
         plt.savefig(self.analysispath + '/' + self.analysisid + 'unblinded_skymap_zoom.pdf',bbox_inches='tight', dpi=300)
         plt.close()
 
-    def plot_skymap(self, with_contour=False, contour_files=None, label_events=False, label='GFU Event'):
+    def plot_skymap(self, with_contour=False, contour_files=None, label_events=False,
+                    labels=['GFU Event'],
+                    show=False,
+                    ):
         r""" Make skymap with event localization and all
         neutrino events on the sky within the given time window
         Outputs a plot in png format to the analysis path
@@ -693,7 +696,7 @@ class FastResponseAnalysis(object):
         lscmap = mpl.colors.ListedColormap(seq_palette)
 
         rel_t = np.array((events['time'] - self.start) * col_num / (self.stop - self.start), dtype = int)
-        cols = [seq_palette[j] for j in rel_t]
+        cols = np.array([seq_palette[j] for j in rel_t])
 
         # Set color map and plot skymap
         pdf_palette = sns.color_palette("Blues", 500)
@@ -748,18 +751,29 @@ class FastResponseAnalysis(object):
         # (then the combination of both plots has a complete legend)
         # inside this method, using enum from self.llh_exp?
         # or re-factor this method, so it can be used from MultiFRA?
-        hp.projscatter(theta,phi,c=cols,marker='x',label=label,coord='C', zorder=5)
+        for enum in np.unique(events['enum']):
+            _mask = events['enum'] == enum
+            _style = plotting_utils.skymap_style[enum]
+            _label = labels[enum]
+            hp.projscatter(theta[_mask], phi[_mask], c=cols[_mask],
+                           marker=_style['marker'],
+                           label=_label,
+                           coord='C', zorder=5)
+            handles.append(Line2D([0], [0], marker=_style['marker'], ls='None', label=_label))
+        
         if label_events:
             for j in range(len(theta)):
                 hp.projtext(theta[j], phi[j]-0.11, '{}'.format(j+1), color='red', fontsize=18, zorder=6)
-        handles.append(Line2D([0], [0], marker='x', ls='None', label=label))
-
+        
         if (self.stop - self.start) <= 0.5:        #Only plot contours if less than 2 days
             for i in range(events['ra'].size):
+                _enum = events['enum'][i]
+                _style = plotting_utils.skymap_style[_enum]
                 my_contour = plotting_utils.contour(events['ra'][i], 
                                     events['dec'][i],sigma_90[i], self._nside)
                 hp.projplot(my_contour[0], my_contour[1], linewidth=2., 
-                                    color=cols[i], linestyle="solid",coord='C', zorder=5)
+                                    color=cols[i], linestyle=_style['linestyle'],
+                                    coord='C', zorder=5)
 
         if self.skymap is None:
             src_theta = np.pi/2. - self.dec
@@ -797,7 +811,8 @@ class FastResponseAnalysis(object):
         except:
             plt.title('Fast Response Skymap')
             plt.savefig(self.analysispath + '/' + self.analysisid + 'unblinded_skymap.png',bbox_inches='tight')
-        plt.close()
+        if not show:
+            plt.close()
 
     def generate_report(self):
         r"""Generates report using class attributes
@@ -1437,14 +1452,12 @@ class PointSourceFollowup(FastResponseAnalysis):
                 ax.axvline(fit_dict['sens'], color = 'm', linewidth = 0.3, linestyle = '-.')
                 limit_annotation = r'Sens. = {:.2f} events'.format(fit_dict['sens']) + '\n'
                 limit_annotation +=  r' = {:.1e}'.format(upperlimit_fluence) + r' GeV cm$^{-2}$' + '\n'
-                #ax.text(3.5, 0.8, r'Sens. = {:.2f} events'.format(fit_dict['sens']), fontsize = 16)
-                #ax.text(3.5, 0.7, r' = {:.1e}'.format(upperlimit_fluence) + r' GeV cm$^{-2}$', fontsize = 16)
                 if self.index != 2:
                     # E^2 F not constant in energy, state pivot energy in label
-                    #ax.text(3.5, 0.7, r' = {:.1e}'.format(upperlimit_fluence) + r' GeV cm$^{-2}$' + f'\nat {self.inj.E0:.0f} GeV', fontsize = 16)
                     limit_annotation += f'at {self.inj.E0:.0f} GeV'
-                #ax.text(5, 0.5, r'Sens. = {:.2e}'.format(self.inj.mu2flux(fit_dict['sens'])) + ' GeV^-1 cm^-2 s^-1')
-                ax.annotate(limit_annotation, (0.6, 0.8), ha = 'left', va = 'top', xycoords = 'axes fraction', fontsize = 16)
+                ax.annotate(limit_annotation,
+                            (3.5, 0.8), ha = 'left', va = 'top', xycoords = 'data',
+                            fontsize = 16)
         ax.errorbar(signal_fluxes, passing, yerr=errs, capsize = 3, linestyle='', marker = 's', markersize = 2)
         ax.legend(loc=4, fontsize = 14)
         ax.set_xlabel(r'$\langle n_{inj} \rangle$', fontsize = 14)

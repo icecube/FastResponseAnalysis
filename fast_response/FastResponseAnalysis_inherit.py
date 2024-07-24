@@ -185,7 +185,16 @@ class MultiFastResponseAnalysis(FastResponseAnalysis):
     
     # TODO: smarter way to change label
     def plot_skymap(self, **kwargs):
-        return super().plot_skymap(label='Event', **kwargs)
+        # FIXME more elegant way than hardcoding this!
+        # maybe a "short name" description in the actual Skylab dataset?
+        label_bases = ['GFU', 'Greco', 'DNNCascade', 'ESTRES', 'ELOWEN']
+        labels = []
+        for _ds in self.datasets:
+            for _base in label_bases:
+                if _ds.startswith(_base):
+                    labels.append(f'{_base} Event')
+                    break
+        return super().plot_skymap(labels=labels, **kwargs)
 
 class MultiPointSourceFollowup(PointSourceFollowup, MultiFastResponseAnalysis):
 
