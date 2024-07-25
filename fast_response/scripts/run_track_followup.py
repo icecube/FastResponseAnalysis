@@ -6,7 +6,7 @@ high-energy neutrino alert events
 Author: Alex Pizzuto
 May 2020'''
 
-import os, argparse
+import os, argparse, glob
 from astropy.time import Time
 
 from fast_response.AlertFollowup import TrackFollowup
@@ -49,10 +49,14 @@ for delta_t in [1000., 2.*86400.]:
 
     # look for contour files
     base_skymap_path = '/home/followup/output_plots/'
-    contour_fs = [base_skymap_path \
-            + f'run{run_id:08d}.evt{ev_id:012d}.HESE.contour_{containment}.txt' \
-            for containment in ['50', '90']]
-    contour_fs = [f for f in contour_fs if os.path.exists(f)]
+    contour_fs = []
+    for containment in ['50', '90']:
+        contour_fs = contour_fs + glob.glob(base_skymap_path +
+                     f'run{run_id:08d}.evt{ev_id:012d}.*.contour_{containment}.txt')
+    # contour_fs = [base_skymap_path \
+    #         + f'run{run_id:08d}.evt{ev_id:012d}.HESE.contour_{containment}.txt' \
+    #         for containment in ['50', '90']]
+    # contour_fs = [f for f in contour_fs if os.path.exists(f)]
     if len(contour_fs) == 0:
         contour_fs = None
 
