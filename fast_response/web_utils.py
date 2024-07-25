@@ -310,7 +310,7 @@ def updateFastResponsePlots(gw=False):
     plt.gca().invert_xaxis()
     plt.grid(which = 'both', alpha = 0.2)
     plt.xlim(1.1e0,1e-3)
-    plt.ylim(3e-3, 1e0)
+    plt.ylim(1e-3, 1e0)
     plt.xlabel('p-value', fontsize = 18)
     plt.ylabel('Fraction of Analyses', fontsize = 18)
     plt.tick_params(labelsize = 18)
@@ -324,7 +324,7 @@ def updateFastResponsePlots(gw=False):
         pval_dist_path=f'/home/{username}/public_html/FastResponse/webpage/output/pvalue_distribution_liveupdate.png'
         plt.title("{} Fast Response Analyses as of {}".format(len(df), today), fontsize = 20)          
     #plt.text(7e-3, 5e-2, "IceCube\nPreliminary", fontsize = 20, color = 'r')
-    plt.ylim(3e-3, 1e0)
+    # plt.ylim(3e-3, 1e0)
     
     plt.savefig(pval_dist_path, dpi=200, bbox_inches='tight')
     #plt.savefig(f'/home/{username}/public_html/FastResponse/webpage/output/pvalue_distribution_liveupdate.png', dpi=200, bbox_inches='tight')
