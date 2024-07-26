@@ -1220,7 +1220,12 @@ class PointSourceFollowup(FastResponseAnalysis):
 
     def find_coincident_events(self):
         r"""Find "coincident events" for the analysis.
-        These are ontime events that have a spatial times energy weight greater than 10
+        These are ontime events that satisfy:
+        
+        Spatial weight * energy weight [* temporal weight] > 10
+
+        (Note that for this box time window, all events in the ontime window
+        have the same temporal weight.)
         """
         spatial_weights = self.llh.llh_model.signal(
             self.ra, self.dec, self.llh._events, 
@@ -1294,7 +1299,7 @@ class PointSourceFollowup(FastResponseAnalysis):
         Returns
         --------
         upperlimit: float
-            Value of E^2 dN / dE in units of TeV / cm^2 
+            Flux upper limit in [TeV cm^2 s]^-1
         """
         if self.inj is None:
             self.initialize_injector()

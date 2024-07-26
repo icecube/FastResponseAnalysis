@@ -93,8 +93,7 @@ def format_ontime_events_uml(events, event_mjd):
             'localization':{
                 'ra' : round(np.rad2deg(event['ra']), 2),
                 'dec' : round(np.rad2deg(event['dec']), 2),
-                "uncertainty_shape": "circle",
-                'ra_uncertainty': [round(np.rad2deg(event['sigma']*2.145966),2)],
+                'ra_dec_error': round(np.rad2deg(event['sigma']*2.145966),2),
                 "containment_probability": 0.9,
                 "systematic_included": False
             },
@@ -114,8 +113,7 @@ def format_ontime_events_llama(events):
             'localization':{
                 'ra' : round(event['ra'], 2),
                 'dec' : round(event['dec'], 2),
-                "uncertainty_shape": "circle",
-                'ra_uncertainty': [round(np.rad2deg(np.deg2rad(event['sigma'])*2.145966),3)],
+                'ra_dec_error': round(np.rad2deg(np.deg2rad(event['sigma'])*2.145966),2),
                 "containment_probability": 0.9,
                 "systematic_included": False
             },
@@ -184,10 +182,10 @@ def parse_notice(record, wait_for_llama=False, heartbeat=False):
         if int(params['Significant'])==0: 
             subthreshold=True
             logger.warning('low-significance alert found. ')
-    if params['Group'] == 'Burst':
+    if params['Group'] == 'Burst' or params["Pipeline"] =='CWB':
         wait_for_llama = False
         m = 'Significant' if not subthreshold else 'Subthreshold'
-        logger.warning('{} burst alert found. '.format(m))
+        logger.warning('{} burst or CWB alert found. '.format(m))
     if len(params['Instruments'].split(','))==1:
         #wait_for_llama = False
         logger.warning('One detector event found. ')
@@ -198,7 +196,7 @@ def parse_notice(record, wait_for_llama=False, heartbeat=False):
         return
 
     collected_results = {}
-    collected_results["$schema"]= "https://gcn.nasa.gov/schema/v3.0.0/gcn/notices/icecube/lvk_nu_track_search.schema.json"
+    collected_results["$schema"]= "https://gcn.nasa.gov/schema/v4.0.0/gcn/notices/icecube/lvk_nu_track_search.schema.json"
     collected_results["type"]= "IceCube LVK Alert Nu Track Search"
 
     eventtime = record.find('.//ISOTime').text
@@ -304,11 +302,14 @@ def parse_notice(record, wait_for_llama=False, heartbeat=False):
                 else:
                     logger.warning('Both analyses not finished after {:.0f} min wait.'.format(max_wait))
                     logger.warning('Not sending GCN.')
+
                     if record.attrib['role']=='observation' and not heartbeat:
-                        err_msg = '--missing_llama=True --missing_uml=True' if not subthreshold else '--missing_llama=True'
+                        err_msg = ['/home/jthwaites/private/make_call.py', '--troubleshoot_gcn=True', 
+                                   '--missing_llama=True']
+                        if not subthreshold: err_msg.append('--missing_uml=True')
+                        
                         try: 
-                            subprocess.call(['/home/jthwaites/private/make_call.py', 
-                                             '--troubleshoot_gcn=True', err_msg])
+                            subprocess.call(err_msg)
                         except:
                             logger.warning('Failed to send alert to shifters: Issue finding both results. ')
                     return
@@ -482,7 +483,7 @@ def parse_notice(record, wait_for_llama=False, heartbeat=False):
                 my_key = f.readline()
             
             if not subthreshold:
-                channels = ['#gwnu-heartbeat', '#gwnu','#alerts']
+                channels = ['#gwnu-heartbeat', '#alerts']#, '#gwnu']
             else:
                 channels = ['#gwnu-heartbeat']
             for channel in channels:
@@ -516,6 +517,23 @@ def parse_notice(record, wait_for_llama=False, heartbeat=False):
                 logger.info('Sent alert to ROC for p<0.01')
             except:
                 logger.warning('Failed to send email/SMS notification.')
+
+            # try:
+            #     if params['Group'] == 'Burst': 
+            #         merger_type = 'Burst'
+            #     else:
+            #         k = ['BNS','NSBH','BBH']
+            #         probs = {j: float(params[j]) for j in k}
+            #         merger_type = max(zip(probs.values(), probs.keys()))[1]
+            # except:
+            #     logger.info('Could not determine type of event')
+            #     merger_type = None
+
+            # try:
+            #     subprocess.call(['/home/jthwaites/private/make_call.py', f'--type={merger_type}', '--call_anyway'])
+            # except Exception as e:
+            #     logger.warning('Call for p<0.01 failed.')
+
         else: 
             logger.info('p>0.01: no email/sms sent')
     else:
