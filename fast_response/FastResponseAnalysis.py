@@ -189,9 +189,19 @@ class FastResponseAnalysis(object):
             print("Grabbing data")
 
         dset = Datasets[self.dataset]
-        # TODO change this if the used GFU ever gets updated, or replace with and of GRL
+        livetime_range = (dset.grl(self._season_names[0])['start'].min(),
+                          dset.grl(self._season_names[-1])['stop'].max())
+        # TODO change this if the used GFU ever gets updated, or replace with end of GRL
+        # TODO clean up the if-else while preserving default behaviour
         #if self.stop < 58933.0: 
-        if self.stop < 59215:
+        
+        
+        if self.start < livetime_range[0]:
+           raise ValueError(f'Followup start MJD {self.start} earlier than first season {self._season_names[0]}, MJD {livetime_range}')
+        if self.dataset.startswith('GFUOnline_v001p02'):
+            livetime_range = (livetime_range[0], 59215) # default behavior
+        if self.stop < livetime_range[1]:
+        # FIXME this breaks the default behaviour of shimming in 2020 GFU
             if self._verbose:
                 print("Old times, just grabbing archival data")
             exps, grls = [], []
@@ -201,7 +211,7 @@ class FastResponseAnalysis(object):
                 exps.append(exp)
                 grls.append(grl)
             # TODO this relies on the assumption the archival GFU is equal to the default
-            if (self.stop > 58933.0) and dataset.startswith('GFUOnline'):
+            if (self.stop > 58933.0) and self.dataset.startswith('GFUOnline_v001p02'):
                 # Add local 2020 if need be
                 # TODO: Need to figure out what to do for zenith_smoothed
                 exp_new = np.load(
@@ -219,6 +229,8 @@ class FastResponseAnalysis(object):
                 grls.append(grl)
             exp = np.concatenate(exps)
             grl = np.concatenate(grls)
+            # TODO discuss: for new analyses, can replace with new GFU?
+            # TODO discuss: can replace this with a Skylab dataset definition?
         else:
             if self._verbose:
                 print("Recent time: querying the i3live database")
@@ -953,13 +965,14 @@ class PriorFollowup(FastResponseAnalysis):
         self.tsd = tsd
         self.save_items['tsd'] = tsd
 
-    def find_coincident_events(self):
+    def find_coincident_events(self, exp=None):
         r"""Find coincident events for a skymap
         based analysis. These are ontime events that are also in the 
         90% contour of the skymap
         """
-        t_mask=(self.llh.exp['time']<=self.stop)&(self.llh.exp['time']>=self.start)
-        events = self.llh.exp[t_mask]
+        t_mask=(self.llh_exp['time']<=self.stop)&(self.llh_exp['time']>=self.start)
+        events = self.llh_exp[t_mask]
+        # Using the llh_exp property -- TODO get feedback if they mind
         exp_theta = 0.5*np.pi - events['dec']
         exp_phi   = events['ra']
         exp_pix   = hp.ang2pix(self.nside, exp_theta, exp_phi)

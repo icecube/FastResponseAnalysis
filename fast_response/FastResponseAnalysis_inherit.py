@@ -40,7 +40,9 @@ from . import web_utils
 from . import sensitivity_utils
 from . import plotting_utils
 from .reports import FastResponseReport
-from .FastResponseAnalysis import FastResponseAnalysis, PointSourceFollowup
+from .FastResponseAnalysis import FastResponseAnalysis, PriorFollowup, PointSourceFollowup
+from .GWFollowup import GWFollowup
+from .AlertFollowup import AlertFollowup, CascadeFollowup, TrackFollowup
 
 mpl.use('agg')
 current_palette = sns.color_palette('colorblind', 10)
@@ -61,6 +63,10 @@ class MultiFastResponseAnalysis(FastResponseAnalysis):
     Requires some extra arguments to FastResponseAnalysis methods.
     """
 
+    # attributes that are identical for each analysis produced by one followup class
+    # will be broadcast to the constituent analyses
+    static_attributes = []
+
     # inherits some default config attributes
     def __init__(self,  *args, **kwargs):
         """The arguments dataset and index override the defaults 
@@ -69,6 +75,8 @@ class MultiFastResponseAnalysis(FastResponseAnalysis):
         Same args and kwargs as FastResponseAnalysis
         
         """
+
+        # FIXME is this ever called?
 
         # basic config of this instance, and initialize_llh
         super().__init__(*args, **kwargs)
@@ -79,9 +87,22 @@ class MultiFastResponseAnalysis(FastResponseAnalysis):
             self.spectrum = PowerLaw(A=1, gamma=self.index, E0=1000.)
         self.time_profile = BoxProfile(self.start, self.stop)
 
-    @abstractmethod
     def initialize_analyses(self, *args, **kwargs):
-        pass
+        # initialize individual dataset LLH
+        # needs to be here as they will have the same constructor signature
+        self.analyses = []
+        for _followup in self._followups:
+            _kwargs = deepcopy(kwargs)
+            _kwargs['save'] = False # this single FRA does not save output
+            # other class attributes one may want to broadcast
+            for attr in self.static_attributes:
+                setattr(_followup, attr, getattr(self, attr))
+            # initialize with analysis specific args and kwargs
+            # such as source properties, or override settings
+            print(args, kwargs)
+            # get tstart, tstop, ra, dec, and other config
+            _analysis = _followup(*args, **_kwargs)
+            self.analyses.append(_analysis)
 
     def initialize_llh(self, skipped=None, scramble=False):
         if self._verbose:
@@ -101,6 +122,8 @@ class MultiFastResponseAnalysis(FastResponseAnalysis):
         for enum, fra in enumerate(self.analyses):
             fra.llh.do_trials_seed = 1
             multi_llh.add_sample(fra._dataset, fra.llh)
+        # TODO make sure sample_weights are still correct
+        # (as the temporal_model system wasn't used for this before)
         return multi_llh
         
     def remove_event(self, exp, dset, skipped):
@@ -196,31 +219,19 @@ class MultiFastResponseAnalysis(FastResponseAnalysis):
                     break
         return super().plot_skymap(labels=labels, **kwargs)
 
-class MultiPointSourceFollowup(PointSourceFollowup, MultiFastResponseAnalysis):
-
-    def __init__(self, *args, **kwargs):
-
-        # first, construct constituent analyses with some arguments
-        self.initialize_analyses(*args, **kwargs)    
-        super().__init__(*args, **kwargs)
-
-    def __str__(self):
-        string = super().__str__().rstrip()
-        string = string.rstrip()
+    @property
+    def dataset_string(self):
+        string = ''
         string += 'Datasets:\n'
         string += '\n'.join(self.datasets)
         string += '\n\n'
         return string
 
-    def initialize_analyses(self, *args, **kwargs):
-        # initialize individual dataset LLH
-        # needs to be here as they will have the same constructor signature
-        self.analyses = []
-        for _followup in self._followups:
-            _kwargs = deepcopy(kwargs)
-            _kwargs['save'] = False # this single FRA does not save output
-            # other class attributes one may want to broadcast
-            for attr in ['_verbose',
+class MultiPriorFollowup(PriorFollowup, MultiFastResponseAnalysis):
+
+    # attributes that are identical for each analysis produced by one followup class
+    # will be broadcast to the constituent analyses
+    static_attributes = ['_verbose',
                          '_index',
                          '_float_index',
                          '_fix_index',
@@ -228,14 +239,78 @@ class MultiPointSourceFollowup(PointSourceFollowup, MultiFastResponseAnalysis):
                          '_llh_seed',
                          '_nb_days',
                          '_ncpu',
-                         ]:
-                setattr(_followup, attr, getattr(self, attr))
-            # initialize with analysis specific args and kwargs
-            # such as source properties, or override settings
-            print(args, kwargs)
-            # get tstart, tstop, ra, dec, and other config
-            _analysis = _followup(*args, **_kwargs)
-            self.analyses.append(_analysis)
+                         '_pixel_scan_nsigma',
+                         '_allow_neg',
+                         '_containment',
+                         '_nside',
+                         ]
+    # TODO let this be defined in parent classes, extended by child classes
+    # could use a property and super()?
+
+    def __init__(self, *args, **kwargs):
+
+        # first, construct constituent analyses with same arguments
+        self.initialize_analyses(*args, **kwargs)
+
+        # then prepare LLH and store prior-specific attributes
+        super().__init__(*args, **kwargs)
+
+    def __str__(self):
+        string = super().__str__().rstrip()
+        string += self.dataset_string
+        return string
+    
+    def initialize_injector(self, e_range=(0., np.inf)):
+        print("Initializing Prior Injector")
+        spatial_prior = SpatialPrior(self.skymap, containment = self._containment, allow_neg=self._allow_neg)
+        self.spatial_prior = spatial_prior
+        inj = PriorInjector(
+            spatial_prior, 
+            gamma=self.index, 
+            e_range = e_range, 
+            E0=1000., 
+            seed = self.llh_seed)
+        temporal_model = {enum:_llh.temporal_model for enum,_llh in self.llh._samples.items()}
+        inj.fill(
+            self.dec,
+            self.llh.exp,
+            self.llh.mc,
+            self.llh.livetime,
+            temporal_model=temporal_model)
+        self.inj = inj
+        self.save_items['E0'] = self.inj.E0
+    
+    #def find_coincident_events(self):
+    # No implementation needed since replacing self.llh.exp with self.llh_exp
+    # TODO get feedback if that change is acceptable
+    
+    def make_dNdE(self):
+        self.super().make_dNdE()
+
+class MultiPointSourceFollowup(PointSourceFollowup, MultiFastResponseAnalysis):
+    
+    # attributes that are identical for each analysis produced by one followup class
+    # will be broadcast to the constituent analyses
+    static_attributes = ['_verbose',
+                         '_index',
+                         '_float_index',
+                         '_fix_index',
+                         '_index_range',
+                         '_llh_seed',
+                         '_nb_days',
+                         '_ncpu',
+                         ]
+
+    def __init__(self, *args, **kwargs):
+
+        # first, construct constituent analyses with same arguments
+        self.initialize_analyses(*args, **kwargs)    
+        super().__init__(*args, **kwargs)
+
+    def __str__(self):
+        string = super().__str__().rstrip()
+        string += self.dataset_string
+        return string
 
     def initialize_injector(self, e_range=(0., np.inf)):
         inj = PointSourceInjector(
