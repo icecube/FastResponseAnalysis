@@ -25,6 +25,15 @@ class AlertFollowup(PriorFollowup):
     _fix_index = True
     _float_index = not _fix_index
     _index = 2.5
+    _bg_trial_dir = os.path.join(
+        '/data/ana/analyses/NuSources/',
+        '2021_v2_alert_stacking_FRA/fast_response/',
+        'alert_precomputed_trials/'
+    )
+    _sens_dir = '/data/ana/analyses/NuSources/2021_v2_alert_stacking_FRA/' \
+            + 'fast_response/reference_sensitivity_curves/'
+    # These directories will need to changed for each AlertFollowup LLH configuration
+    # i.e. dataset combination and such
 
     def run_background_trials(self, ntrials = 1000):
         r"""For alert events with specific time windows,
@@ -36,15 +45,11 @@ class AlertFollowup(PriorFollowup):
             test-statistic distribution with weighting 
             from alert event spatial prior
         """
+        
         current_rate = self.llh.nbackground / (self.duration * 86400.) * 1000.
         closest_rate = sensitivity_utils.find_nearest(np.linspace(6.2, 7.2, 6), current_rate)
-
-        bg_trial_dir = '/data/ana/analyses/NuSources/' \
-            + '2021_v2_alert_stacking_FRA/fast_response/' \
-            + 'alert_precomputed_trials/'
-        
         pre_ts_array = sparse.load_npz(
-            bg_trial_dir
+            self._bg_trial_dir
             + 'precomputed_trials_delta_t_'
             + '{:.2e}_trials_rate_{:.1f}_low_stats.npz'.format(
                 self.duration * 86400., closest_rate, self.duration * 86400.))
@@ -80,10 +85,7 @@ class AlertFollowup(PriorFollowup):
             highest sensitivity within the 90% contour of the skymap
         """
 
-        sens_dir = '/data/ana/analyses/NuSources/2021_v2_alert_stacking_FRA/' \
-            + 'fast_response/reference_sensitivity_curves/'
-
-        with open(f'{sens_dir}ideal_ps_sensitivity_deltaT_{self.duration:.2e}_50CL.pkl', 'rb') as f:
+        with open(f'{self._sens_dir}ideal_ps_sensitivity_deltaT_{self.duration:.2e}_50CL.pkl', 'rb') as f:
             ideal = pickle.load(f, encoding='bytes')
         delta_t = self.duration * 86400.
         src_theta, src_phi = hp.pix2ang(self.nside, self.ipix_90)
@@ -101,10 +103,7 @@ class AlertFollowup(PriorFollowup):
         """
         fig, ax = plt.subplots()
 
-        sens_dir = '/data/ana/analyses/NuSources/2021_v2_alert_stacking_FRA/' \
-            + 'fast_response/reference_sensitivity_curves/'
-
-        with open(f'{sens_dir}ideal_ps_sensitivity_deltaT_{self.duration:.2e}_50CL.pkl', 'rb') as f:
+        with open(f'{self._sens_dir}ideal_ps_sensitivity_deltaT_{self.duration:.2e}_50CL.pkl', 'rb') as f:
             ideal = pickle.load(f, encoding='bytes')
         delta_t = self.duration * 86400.
         plt.plot(ideal[b'sinDec'], np.array(ideal[b'sensitivity'])*delta_t*1e6, lw=3, ls='-', 
