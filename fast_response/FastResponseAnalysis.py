@@ -15,7 +15,7 @@ import seaborn              as sns
 import matplotlib           as mpl
 import matplotlib.pyplot    as plt
 from astropy.time           import Time
-from scipy.special          import erfinv
+from scipy.special          import erfinv, logsumexp
 from matplotlib.lines       import Line2D
 
 from skylab.datasets        import Datasets
@@ -992,6 +992,94 @@ class PriorFollowup(FastResponseAnalysis):
             return ts, ns, gamma_fit
         else:
             return ts, ns
+    
+
+    
+    def make_posterior_map(self, nsToTest=[1,2,3,4,5], prior=lambda ns,gamma,ra,dec: 1, testingPlotsLocation=None):
+        # Posterior Approach
+        # We want a function P(RA, DEC | X) where X is the neutrino data
+        # Compute the entire likelihood space P(X | RA, DEC, ns, gamma)
+        # Apply Bayes rule, marginalize over nuisance parameters to get P(RA, DEC | X)
+ 
+        #ns to test give as list 
+        #Give prior as a function f(ns, gamma, ra, dec)
+        #TODO: flux/ns priors 
+        val=None
+        spatial_prior = SpatialPrior(
+            self.skymap, 
+            containment = self._containment,allow_neg=self._allow_neg)
+        for nsigT in nsToTest:
+            temp_val = self.llh.scan(0.0,0.0, scramble = False,spatial_prior=spatial_prior,
+                    time_mask = [self.duration/2., self.centertime],
+                    pixel_scan=[self.nside, self._pixel_scan_nsigma],
+                    fixed=['nsignal'],
+                    nsignal=np.array([nsigT]*12*pow(self.nside,2),dtype=float)  #TODO: Check if we can do more than 1 at a time
+                    )
+            if val is None:
+                val=temp_val
+            else:
+                val=np.hstack((val,temp_val))
+        ras=val["ra"]
+        decs=val["dec"]
+        nss=val["nsignal"]
+        gammas=val["index"]
+        TS_spatial_prior_0=val["TS_spatial_prior_0"]
+
+        logProbs=TS_spatial_prior_0/2 #not normalized so technically C*ln(P)
+        finalProbs={}
+        for i in range(len(ras)):
+            prior=1 #TODO
+            if((ras[i],decs[i]) in finalProbs):
+                finalProbs[(ras[i],decs[i])]=logsumexp([finalProbs[(ras[i],decs[i])],logProbs[i]+np.log(prior)])
+            else:
+                finalProbs[(ras[i],decs[i])]=logProbs[i]+np.log(prior)
+        #Normalize
+        totalLog=logsumexp(list(finalProbs.values())) 
+        finalProbs={k:v-totalLog for k,v in finalProbs.items()}
+        outputProbHPMap=np.zeros(12*self.nside**2)
+        outputProbHPMap[hp.ang2pix(nside=self.nside,theta=np.array(ras_graph)*180/np.pi, phi=np.array(decs_graph)*180/np.pi,lonlat=True)]=np.exp(np.array(list(finalProbs.values())))
+        
+        #set 0s to nan for plotting 
+        outputProbHPMap[outputProbHPMap == 0] = np.nan
+
+        if (testingPlotsLocation is not None):
+            fig, ax=plt.subplots(1,1,figsize=(10,10))
+            ras_graph,decs_graph=zip(*list(finalProbs.keys()))
+            fig, ax=plt.subplots(1,1,figsize=(10,10))
+            plt.sca(ax)
+            reso=3
+            nPixZoom=200
+            sizeZoomInDegs=reso/60*nPixZoom
+            
+            """
+            hp.visufunc.gnomview(map=outputProbHPMap,hold=True,title="Zoomed Posterior Skymap",rot=(src_ra*180/np.pi,src_dec*180/np.pi,0),
+                xsize=nPixZoom,ysize=nPixZoom,reso=reso,bgcolor="white",badcolor="white",margins=(.01,.01,0,0),notext=True,)
+            """
+            hp.visufunc.mollview(map=outputProbHPMap,hold=True,title="Posterior Skymap",bgcolor="white",badcolor="white",rot=(180,0,0))
+            plt.savefig(testingPlotsLocation+"PosteriorMap.png")
+            plt.close()
+
+
+            for (ra,dec) in finalProbs:
+                total_val=finalProbs[(ra,dec)]
+                temp_val=val[(val["ra"]==ra)&(val["dec"]==dec)]
+                nss_temp=temp_val["nsignal"]
+                gammas_temp=temp_val["index"]
+                TS_temp=temp_val["TS_spatial_prior_0"]/2
+
+                totalLog=logsumexp(TS_temp) 
+                p_temp=np.exp(TS_temp-totalLog)
+                plt.plot(nss_temp,p_temp,alpha=total_val)
+            plt.colorbar()
+            plt.xlabel("ns")
+            plt.ylabel("TS")
+            plt.savefig(testingPlotsLocation+"nsProfilePlot.png")
+            plt.close()
+
+        return outputProbHPMap
+
+
+
 
     def upper_limit(self):
         """ UPPER LIMIT WITH SPATIAL PRIOR NOT YET IMPLEMENTED
