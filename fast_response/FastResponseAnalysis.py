@@ -67,6 +67,7 @@ class FastResponseAnalysis(object):
                  fix_index=None,
                  dataset=None,
                  ):
+        logging.debug('FastResponseAnalysis.__init__')
         self.name = name
 
         if index is not None:
@@ -1220,7 +1221,7 @@ class PointSourceFollowup(FastResponseAnalysis):
     _nside = 256
     def __init__(self, name, ra, dec, tstart, tstop, extension=None,
                  skipped=None, outdir=None, save=True, seed=None):
-        
+        logging.debug('PointSourceFollowup.__init__')
         super().__init__(name, tstart, tstop, skipped=skipped, seed=seed,
                        outdir=outdir, save=save, extension=extension)
 

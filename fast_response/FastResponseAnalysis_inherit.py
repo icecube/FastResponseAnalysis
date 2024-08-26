@@ -76,10 +76,13 @@ class MultiFastResponseAnalysis(FastResponseAnalysis):
         
         """
 
-        # FIXME is this ever called?
+
+        self.analyses = []
 
         # basic config of this instance, and initialize_llh
         super().__init__(*args, **kwargs)
+
+        # TODO can we use just a bit of composition to clear the inheritance maze?
 
         # save spectrum and time profile to help broadcast
         self.spectrum = None
@@ -92,6 +95,8 @@ class MultiFastResponseAnalysis(FastResponseAnalysis):
         # needs to be here as they will have the same constructor signature
         self.analyses = []
         for _followup in self._followups:
+            #if not issubclass(type(_followup), type(self)):
+            #    raise TypeError(f'Trying to construct a {type(self)} with a {type(_followup)}')
             _kwargs = deepcopy(kwargs)
             _kwargs['save'] = False # this single FRA does not save output
             # other class attributes one may want to broadcast
@@ -99,7 +104,7 @@ class MultiFastResponseAnalysis(FastResponseAnalysis):
                 setattr(_followup, attr, getattr(self, attr))
             # initialize with analysis specific args and kwargs
             # such as source properties, or override settings
-            print(args, kwargs)
+            
             # get tstart, tstop, ra, dec, and other config
             _analysis = _followup(*args, **_kwargs)
             self.analyses.append(_analysis)
@@ -206,17 +211,13 @@ class MultiFastResponseAnalysis(FastResponseAnalysis):
             self._llh_exp = np.concatenate([exp[enum] for enum in exp])
         return self._llh_exp
     
-    # TODO: smarter way to change label
     def plot_skymap(self, **kwargs):
-        # FIXME more elegant way than hardcoding this!
-        # maybe a "short name" description in the actual Skylab dataset?
-        label_bases = ['GFU', 'Greco', 'DNNCascade', 'ESTRES', 'ELOWEN']
+        # TODO maybe a "short name" description in the actual Skylab dataset?
         labels = []
         for _ds in self.datasets:
-            for _base in label_bases:
-                if _ds.startswith(_base):
-                    labels.append(f'{_base} Event')
-                    break
+            _base = _ds.split('_')[0] # convention: version after underscore
+            _base = _base.replace('Online', '') # not necessary for legend
+            labels.append(f'{_base} Event')
         return super().plot_skymap(labels=labels, **kwargs)
 
     @property
@@ -257,6 +258,7 @@ class MultiPriorFollowup(PriorFollowup, MultiFastResponseAnalysis):
 
     def __str__(self):
         string = super().__str__().rstrip()
+        string += '\n'
         string += self.dataset_string
         return string
     
@@ -283,6 +285,10 @@ class MultiPriorFollowup(PriorFollowup, MultiFastResponseAnalysis):
     #def find_coincident_events(self):
     # No implementation needed since replacing self.llh.exp with self.llh_exp
     # TODO get feedback if that change is acceptable
+
+    # TODO why does run_background_trials call initialize_llh to init a new LLH with scrambled data?
+    # is there no scrambling within the trials?
+    # FIXME my code breaks this: initialize_llh only constructs MultiPSLLH
     
     def make_dNdE(self):
         self.super().make_dNdE()
@@ -301,7 +307,11 @@ class MultiPointSourceFollowup(PointSourceFollowup, MultiFastResponseAnalysis):
                          '_ncpu',
                          ]
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, followups=None, **kwargs):
+
+        logging.debug('MultiPointSourceFollowup.__init__')
+        if followups is not None:
+            self._followups = followups
 
         # first, construct constituent analyses with same arguments
         self.initialize_analyses(*args, **kwargs)    
