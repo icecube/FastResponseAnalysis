@@ -62,8 +62,8 @@ class FastResponseAnalysis(object):
                  outdir=None, save=True, extension=None):
         self.name = name
         
-        if seed is not None:
-            self.llh_seed(seed)
+        # if seed is not None:
+        #     self.llh_seed(seed)
         if outdir is None:
             outdir = os.environ.get('FAST_RESPONSE_OUTPUT')
             if outdir is None:
