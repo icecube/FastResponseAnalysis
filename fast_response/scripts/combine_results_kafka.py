@@ -196,7 +196,7 @@ def parse_notice(record, wait_for_llama=False, heartbeat=False):
         return
 
     collected_results = {}
-    collected_results["$schema"]= "https://gcn.nasa.gov/schema/v4.0.0/gcn/notices/icecube/lvk_nu_track_search.schema.json"
+    collected_results["$schema"]= "https://gcn.nasa.gov/schema/v4.1.0/gcn/notices/icecube/lvk_nu_track_search.schema.json"
     collected_results["type"]= "IceCube LVK Alert Nu Track Search"
 
     eventtime = record.find('.//ISOTime').text
