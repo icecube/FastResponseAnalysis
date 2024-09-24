@@ -177,7 +177,9 @@ def process_gcn(payload, root):
         #'--allow_neg_ts=True']
         )
     
-    output = os.path.join(os.environ.get('FAST_RESPONSE_OUTPUT'),eventtime[0:10].replace('-','_')+'_'+name)
+    analysis_start = Time(event_mjd - 500./86400., format='mjd').iso
+    output = os.path.join(os.environ.get('FAST_RESPONSE_OUTPUT'),
+                          analysis_start[0:10].replace('-','_')+'_'+name)
     #update webpages
     webpage_update = os.path.join(analysis_path,'document.py')
     if not mock and root.attrib['role'] == 'observation':
