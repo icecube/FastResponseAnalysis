@@ -31,9 +31,11 @@ from . import sensitivity_utils
 from . import plotting_utils
 from .reports import FastResponseReport
 from .FastResponseAnalysis import FastResponseAnalysis, PriorFollowup, PointSourceFollowup
-from .FastResponseAnalysis_inherit import MultiPriorFollowup
+from .MultiFastResponseAnalysis import MultiPriorFollowup
 from .GWFollowup import GWFollowup
 from .AlertFollowup import AlertFollowup, CascadeFollowup, TrackFollowup
+
+from .reports import AlertReport
 
 mpl.use('agg')
 current_palette = sns.color_palette('colorblind', 10)
@@ -72,11 +74,27 @@ class MultiAlertFollowup(AlertFollowup, MultiPriorFollowup):
     _sens_dir = os.path.join(_base_dir, 'reference_sensitivity_curves')
 
     def run_background_trials(self, ntrials = 1000):
-        # How to get back to base class method?
-        raise NotImplementedError('')
+        '''Not yet adapted to rate fluctuations as in PriorFollowup
+        '''
+        # TODO include saving unpenalised trials
+        return PriorFollowup.run_background_trials(self, ntrials=ntrials)
+
+    # TODO each class should have method
+    # - generate and save BG trials
+    # - load BG trials
+    # - calculate sensitivity curve
+    # - load sensitivity curve
+    # => same configuration can be used in script for
+    # - analysis
+    # - filling the cache
     
-    # def run_background_trials(self, ntrials = 1000):
-        # TODO  this is tricky - don't implement caching for now.
+    def run_background_trials(self, ntrials = 1000):
+        #
+        # TODO other solutions for this
+        # - by month like in GW
+        # -  
+        # - 
+        #  this is tricky - don't implement caching for now.
         # as it deals with Multi-LLH trials (calculated where?)
         # but uses self.llh.nbackground (which is defined for PSLLH only)
         # to retrieve BG trials for the current rate - in multi
@@ -84,20 +102,51 @@ class MultiAlertFollowup(AlertFollowup, MultiPriorFollowup):
         # raise NotImplementedError('''Not decided how to handle background fluctuations
         #                           in multiple samples, which may be partially correlated,
         #                           but energy x selection adds another axis to seasonality.''')
-        #duration_seconds = self.duration * 86400.
-        # pre_ts_array = sparse.load_npz(os.path.join(
-        #     bg_trial_dir,
-        #     f'precomputed_trials_delta_t_{duration_seconds:.2e}_low_stats.npz',
-        #)
-        # ts_norm = np.log(np.amax(self.skymap))
-        # ts_prior = pre_ts_array.copy()
-        # ts_prior.data += 2.*(np.log(self.skymap[pre_ts_array.indices]) - ts_norm)
-        # ts_prior.data[~np.isfinite(ts_prior.data)] = 0.
-        # ts_prior.data[ts_prior.data < 0] = 0.
-        # tsd = ts_prior.max(axis=1).A
-        # tsd = np.array(tsd)
-        # self.tsd = tsd
-        # return tsd
+        duration_seconds = self.duration * 86400.
+        closest_rates = []
+        for enum in self.llh._samples:
+            nbackground = self.llh._samples[enum].nbackground
+            # FIXME do it properly/correctly
+            #current_rate = nbackground / (self.duration * 86400.) * 1000.
+            current_rate = nbackground / (self.llh._samples[enum].on_livetime * 86400.) * 1000.
+            closest_rate = sensitivity_utils.find_nearest(np.linspace(4.2, 7.2, 6), current_rate)
+            closest_rates.append(closest_rate)
+        
+        rates_str = '_'.join([f'{_rate:.1f}' for _rate in closest_rates])
+        trials_filename = '_'.join([
+            f'precomputed_trials_delta_t_{self.duration * 86400.:.2e}',
+            f'index_{self._index}',
+            f'{rates_str}_mHz',
+            f'low_stats.npz',
+            ]
+        )
+
+        pre_ts_array = sparse.load_npz(os.path.join(trials_filename))
+        ts_norm = np.log(np.amax(self.skymap))
+        ts_prior = pre_ts_array.copy()
+        ts_prior.data += 2.*(np.log(self.skymap[pre_ts_array.indices]) - ts_norm)
+        ts_prior.data[~np.isfinite(ts_prior.data)] = 0.
+        ts_prior.data[ts_prior.data < 0] = 0.
+        tsd = ts_prior.max(axis=1).A
+        tsd = np.array(tsd)
+        self.tsd = tsd
+        return tsd
+
+    #def sens_range_plot(self):
+    # TODO include method to produce sensitivity curve
+
+    # so far have adapted report to be flexible
+    # should there be dedicated Multi...Report classes? TODO
+    def generate_report(self):
+        r"""
+        Generates report using ReportGenerator.MultiAlertReport attributes
+        and the ReportGenerator Class
+        
+        """
+        super().generate_report()
+    
+    def write_circular(self, alert_results):
+        raise NotImplementedError('Analysis specific')
 
 class MultiTrackFollowup(MultiAlertFollowup, TrackFollowup):
     # this inheritance structure should work as long as CascadeFollowup does not override methods
@@ -108,4 +157,3 @@ class MultiTrackFollowup(MultiAlertFollowup, TrackFollowup):
 class MultiCascadeFollowup(MultiAlertFollowup, CascadeFollowup):
     _smear = False
 
-    
