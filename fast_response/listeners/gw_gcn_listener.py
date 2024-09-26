@@ -186,7 +186,8 @@ def process_gcn(payload, root):
         try:
             subprocess.call([webpage_update,  '--gw', f'--path={output}'])
 
-            wp_link = 'https://user-web.icecube.wisc.edu/~jthwaites/FastResponse/gw-webpage/output/{}.html'.format(eventtime[0:10].replace('-','_')+'_'+name)
+            wp_link = 'https://user-web.icecube.wisc.edu/~jthwaites/FastResponse/gw-webpage/output/'+\
+                      '{}.html'.format(analysis_start[0:10].replace('-','_')+'_'+name)
             slack_message = "UML GW analysis finished running for event {}: <{}|link>.".format(name, wp_link) 
             with open('../slack_posters/internal_alert_slackbot.txt') as f:
                 chan = f.readline().rstrip('\n')
