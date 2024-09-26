@@ -1,4 +1,4 @@
-from .FastResponseAnalysis_inherit import MultiPointSourceFollowup
+from .MultiFastResponseAnalysis import MultiPointSourceFollowup
 from .FastResponseAnalysis import PointSourceFollowup
 
 import numpy as np
