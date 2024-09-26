@@ -174,6 +174,7 @@ class FastResponseAnalysis(object):
             self._llh_exp = exp
         return self._llh_exp
     
+    
 
     def get_data(self, livestream_start=None, livestream_stop=None):
         """
@@ -231,7 +232,7 @@ class FastResponseAnalysis(object):
             exp = np.concatenate(exps)
             grl = np.concatenate(grls)
             # TODO discuss: for new analyses, can replace with new GFU?
-            # TODO discuss: can replace this with a Skylab dataset definition?
+            # TODO discuss: can replace this v001p02 + /data/user/ with a Skylab dataset definition?
         else:
             if self._verbose:
                 print("Recent time: querying the i3live database")
@@ -849,6 +850,8 @@ class PriorFollowup(FastResponseAnalysis):
     def __init__(self, name, skymap_path, tstart, tstop, skipped=None, seed=None,
                  outdir=None, save=True, extension=None):
 
+        logging.debug('PriorFollowup.__init__')
+
         super().__init__(name, tstart, tstop, skipped=skipped, seed=seed,
                        outdir=outdir, save=save, extension=extension)
         
@@ -1218,6 +1221,8 @@ class PointSourceFollowup(FastResponseAnalysis):
     Class for point-source or extended source followup
     i.e. there is a fixed location on the sky, not a healpy skymap
     """
+    logging.debug('PointSourceFollowup.__init__')
+    
     _nside = 256
     def __init__(self, name, ra, dec, tstart, tstop, extension=None,
                  skipped=None, outdir=None, save=True, seed=None):

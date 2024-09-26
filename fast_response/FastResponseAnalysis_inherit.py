@@ -63,6 +63,9 @@ class MultiFastResponseAnalysis(FastResponseAnalysis):
     Requires some extra arguments to FastResponseAnalysis methods.
     """
 
+    # attributes that will be set for a specific followup configuration inheriting from this base class
+    _followups = None
+
     # attributes that are identical for each analysis produced by one followup class
     # will be broadcast to the constituent analyses
     static_attributes = []
@@ -75,14 +78,12 @@ class MultiFastResponseAnalysis(FastResponseAnalysis):
         Same args and kwargs as FastResponseAnalysis
         
         """
-
-
-        self.analyses = []
+        logging.debug('MultiFastResponseAnalysis')
 
         # basic config of this instance, and initialize_llh
         super().__init__(*args, **kwargs)
 
-        # TODO can we use just a bit of composition to clear the inheritance maze?
+        # TODO can we use just a bit of composition to clarify the inheritance maze?
 
         # save spectrum and time profile to help broadcast
         self.spectrum = None
@@ -249,6 +250,7 @@ class MultiPriorFollowup(PriorFollowup, MultiFastResponseAnalysis):
     # could use a property and super()?
 
     def __init__(self, *args, **kwargs):
+        logging.debug('MultiPriorFollowup.__init__')
 
         # first, construct constituent analyses with same arguments
         self.initialize_analyses(*args, **kwargs)
@@ -314,7 +316,9 @@ class MultiPointSourceFollowup(PointSourceFollowup, MultiFastResponseAnalysis):
             self._followups = followups
 
         # first, construct constituent analyses with same arguments
-        self.initialize_analyses(*args, **kwargs)    
+        self.initialize_analyses(*args, **kwargs)
+
+        # then construct LLH
         super().__init__(*args, **kwargs)
 
     def __str__(self):
