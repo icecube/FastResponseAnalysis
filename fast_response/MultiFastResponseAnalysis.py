@@ -374,7 +374,7 @@ class MultiPointSourceFollowup(PointSourceFollowup, MultiFastResponseAnalysis):
         for enum in self.llh._samples:
             llh = self.llh._samples[enum]
             dataset = self.datasets[enum].replace('_', ' ')
-
+            style = plotting_utils.skymap_style[enum]
             dec_mask_1 = llh.mc['dec'] > self.dec - (5. * np.pi / 180.)
             dec_mask_2 = llh.mc['dec'] < self.dec + (5. * np.pi / 180.)
             dec_mask_3, dec_mask_4 = None, None
@@ -382,7 +382,8 @@ class MultiPointSourceFollowup(PointSourceFollowup, MultiFastResponseAnalysis):
             
             
             lab = dataset
-            color = f'C{enum+1}'
+            #color = f'C{enum+1}'
+            color = color = sns.xkcd_rgb['windows blue']
             delta_gamma = -1. * self.index + 1.
             a = plt.hist(llh.mc['trueE'][dec_mask], bins = np.logspace(1., 8., 50), 
                     weights = llh.mc['ow'][dec_mask] * np.power(llh.mc['trueE'][dec_mask], delta_gamma) / llh.mc['trueE'][dec_mask], 
@@ -392,9 +393,15 @@ class MultiPointSourceFollowup(PointSourceFollowup, MultiFastResponseAnalysis):
             median = np.interp(0.5, cdf, a[1][:-1])
             high_5 = np.interp(0.95, cdf, a[1][:-1])
         
-            plt.axvspan(low_5, high_5, color = color, alpha = 0.25, label="Central 90\%")
+            plt.axvspan(low_5, high_5,
+                        color = color, linestyle = style['linestyle'],
+                        linewidth = 2.,
+                        alpha = 0.25, label="Central 90\%")
             lab = 'Median'
-            plt.axvline(median, c = color, alpha = 0.75, label = lab)
+            plt.axvline(median,
+                        c = color, linestyle = style['linestyle'],
+                        linewidth = 2.,
+                        alpha = 0.75, label = lab)
             low5.append(low_5)
             high5.append(high_5)
             print('{} 90% Central Energy Range: {}, {} GeV'.format(dataset, round(low_5), round(high_5)))
