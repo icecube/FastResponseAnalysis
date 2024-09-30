@@ -9,7 +9,7 @@ May 2020'''
 import os, argparse, glob
 from astropy.time import Time
 
-from fast_response.AlertFollowup import TrackFollowup
+from fast_response.AlertFollowup import TrackFollowup, TrackFollowupLLH
 import fast_response.web_utils as web_utils
 
 parser = argparse.ArgumentParser(description='Fast Response Analysis')
@@ -27,6 +27,8 @@ parser.add_argument('--alert_id', default=None,
 parser.add_argument('--suffix', type=str, default='A',
                     help="letter to differentiate multiple alerts on the same day (default = A)."
                     "Event name given by IceCube-yymmdd + suffix.")
+parser.add_argument('--deltallh_skymap', action='store_true', default=False,
+                    help='Option MUST be raised if using deltaLLH map (default: False, assumes probability map)')
 args = parser.parse_args()
 
 track_time = Time(args.time, format='mjd')
@@ -53,14 +55,15 @@ for delta_t in [1000., 2.*86400.]:
     for containment in ['50', '90']:
         contour_fs = contour_fs + glob.glob(base_skymap_path +
                      f'run{run_id:08d}.evt{ev_id:012d}.*.contour_{containment}.txt')
-    # contour_fs = [base_skymap_path \
-    #         + f'run{run_id:08d}.evt{ev_id:012d}.HESE.contour_{containment}.txt' \
-    #         for containment in ['50', '90']]
-    # contour_fs = [f for f in contour_fs if os.path.exists(f)]
     if len(contour_fs) == 0:
         contour_fs = None
 
-    f = TrackFollowup(name, args.skymap, start, stop, skipped=args.alert_id)
+    if args.deltallh_skymap:
+        print('Initializing Track follow up with deltaLLH map')
+        f = TrackFollowupLLH(name, args.skymap, start, stop, skipped=args.alert_id)
+    else:
+        print('Initializing Track follow up with probability skymap')
+        f = TrackFollowup(name, args.skymap, start, stop, skipped=args.alert_id)
 
     f.unblind_TS()
     f.plot_ontime(contour_files=contour_fs)
