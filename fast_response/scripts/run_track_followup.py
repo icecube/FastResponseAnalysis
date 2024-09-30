@@ -27,6 +27,8 @@ parser.add_argument('--alert_id', default=None,
 parser.add_argument('--suffix', type=str, default='A',
                     help="letter to differentiate multiple alerts on the same day (default = A)."
                     "Event name given by IceCube-yymmdd + suffix.")
+parser.add_argument('--print_nearby', action='store_true', default=False,
+                    help='Option to print events within 5 degrees of best-fit to the screen (default False)')
 parser.add_argument('--deltallh_skymap', action='store_true', default=False,
                     help='Option MUST be raised if using deltaLLH map (default: False, assumes probability map)')
 args = parser.parse_args()
@@ -71,7 +73,7 @@ for delta_t in [1000., 2.*86400.]:
     f.make_dNdE()
     f.plot_tsd()
     f.upper_limit()
-    f.find_coincident_events()
+    f.find_coincident_events(print_events=args.print_nearby)
     results = f.save_results()
     f.generate_report()
     all_results[delta_t] = results
