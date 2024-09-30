@@ -581,8 +581,9 @@ class FastResponseAnalysis(object):
                 cont = np.loadtxt(c_file, skiprows=1)
                 cont_ra = cont.T[0]
                 cont_dec = cont.T[1]
-                label = 'Millipede 50\%, 90\% (160427A syst.)' \
-                    if contour_counter == 0 else ''
+                cont_label = 'Millipede 50\%, 90\% (160427A syst.)' if self._llh_map else 'Skymap 50\%, 90\%'
+                label = cont_label if contour_counter == 0 else ''
+                
                 hp.projplot(np.pi/2. - cont_dec, cont_ra, linewidth=3., 
                     color='k', linestyle=cont_ls[contour_counter], coord='C', 
                     label=label)
@@ -872,7 +873,7 @@ class PriorFollowup(FastResponseAnalysis):
         self.tsd = tsd
         self.save_items['tsd'] = tsd
 
-    def find_coincident_events(self):
+    def find_coincident_events(self, print_events=False):
         r"""Find coincident events for a skymap
         based analysis. These are ontime events that are also in the 
         90% contour of the skymap
@@ -885,13 +886,16 @@ class PriorFollowup(FastResponseAnalysis):
         overlap   = np.isin(exp_pix, self.ipix_90)
         events = events[overlap]
 
-        # print nearby events, as a check (if needed)
-        # msk1 = (self.llh.exp[t_mask]['ra'] < (self.skymap_fit_ra+np.radians(5)))*(self.llh.exp[t_mask]['ra'] > (self.skymap_fit_ra-np.radians(5)))
-        # msk2 = (self.llh.exp[t_mask]['dec'] < (self.skymap_fit_dec+np.radians(5)))*((self.llh.exp[t_mask]['dec'] > self.skymap_fit_dec-np.radians(5)))
-        # msk3 = msk1*msk2
-        # print('Nearby events:')
-        # print("[run, event, ra, dec, sigma, logE, time]")
-        # for e in self.llh.exp[t_mask][msk3]: print([e[k] for k in ['run', 'event', 'ra', 'dec', 'sigma', 'logE', 'time']])
+        if print_events:
+            # print nearby events, as a check (if needed)
+            msk1 = (self.llh.exp[t_mask]['ra'] < (self.skymap_fit_ra+np.radians(5)))*(self.llh.exp[t_mask]['ra'] > (self.skymap_fit_ra-np.radians(5)))
+            msk2 = (self.llh.exp[t_mask]['dec'] < (self.skymap_fit_dec+np.radians(5)))*((self.llh.exp[t_mask]['dec'] > self.skymap_fit_dec-np.radians(5)))
+            msk3 = msk1*msk2
+            if np.count_nonzero(msk3) > 0:
+                print('Events within 5 deg of best-fit:')
+                print("[run, event, ra, dec, sigma, logE, time]")
+                for e in self.llh.exp[t_mask][msk3]: 
+                    print([e[k] for k in ['run', 'event', 'ra', 'dec', 'sigma', 'logE', 'time']])
 
         if len(events) == 0:
             coincident_events = []
