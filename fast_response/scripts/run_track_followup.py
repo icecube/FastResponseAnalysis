@@ -17,7 +17,7 @@ parser.add_argument('--skymap', type=str, default=None,
                     help='path to skymap')
 parser.add_argument('--time', type=float, default=None,
                     help='Time of the alert event (mjd)')
-parser.add_argument('--gcn_notice_num', default=0, type=int,
+parser.add_argument('--alert_circ', default=0, type=int,
                     help="GCN Circular NUMBER for updated circular (not Bacodine/Notice)")
 parser.add_argument('--alert_id', default=None,
                     type= lambda z:[ tuple(int(y) for y in x.split(':')) for x in z.split(',')],
@@ -78,7 +78,7 @@ for delta_t in [1000., 2.*86400.]:
     f.generate_report()
     all_results[delta_t] = results
 
-all_results[1000.]['gcn_num'] = args.gcn_notice_num
+all_results[1000.]['gcn_num'] = args.alert_circ
 
 # Write circular to the output directory of the 2 day analysis
 f.write_circular(all_results)

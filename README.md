@@ -128,7 +128,7 @@ In order to run this analysis, you should find the alert event time (sent in the
 Once you have these details, you can run the analysis with
 
 ```console
-python run_track_followup.py --skymap=/home/followup/output_plots/run{RUNID}.evt{EVENTID}.HESE.skymap_nside_512.fits.gz --time={ALERT_MJD} --gcn_notice_num={GCN_CIRCULAR_NUMBER} --alert_id={RUNID}:{EVENTID}
+python run_track_followup.py --skymap=/home/followup/output_plots/run{RUNID}.evt{EVENTID}.neutrino_8_64_512_1024.skymap_nside_1024.fits.gz --time={ALERT_MJD} --alert_circ={GCN_CIRCULAR_NUMBER} --alert_id={RUNID}:{EVENTID}
 ```
 
 This will run two analyses, one with a time window of 1000 seconds and one with a time window of 2 days, both centered on the alert time. It will also remove the alert event from the sample, and it will assume a spectral index of -2.5, which is different than the -2 used for the `run_external_followup.py` script.
