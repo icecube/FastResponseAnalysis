@@ -9,7 +9,7 @@ May 2020'''
 import os, argparse, glob
 from astropy.time import Time
 
-from fast_response.AlertFollowup import TrackFollowup
+from fast_response.AlertFollowup import TrackFollowup, TrackFollowupLLH
 import fast_response.web_utils as web_utils
 
 parser = argparse.ArgumentParser(description='Fast Response Analysis')
@@ -17,7 +17,7 @@ parser.add_argument('--skymap', type=str, default=None,
                     help='path to skymap')
 parser.add_argument('--time', type=float, default=None,
                     help='Time of the alert event (mjd)')
-parser.add_argument('--gcn_notice_num', default=0, type=int,
+parser.add_argument('--alert_circ', default=0, type=int,
                     help="GCN Circular NUMBER for updated circular (not Bacodine/Notice)")
 parser.add_argument('--alert_id', default=None,
                     type= lambda z:[ tuple(int(y) for y in x.split(':')) for x in z.split(',')],
@@ -27,6 +27,10 @@ parser.add_argument('--alert_id', default=None,
 parser.add_argument('--suffix', type=str, default='A',
                     help="letter to differentiate multiple alerts on the same day (default = A)."
                     "Event name given by IceCube-yymmdd + suffix.")
+parser.add_argument('--print_nearby', action='store_true', default=False,
+                    help='Option to print events within 5 degrees of best-fit to the screen (default False)')
+parser.add_argument('--deltallh_skymap', action='store_true', default=False,
+                    help='Option MUST be raised if using deltaLLH map (default: False, assumes probability map)')
 args = parser.parse_args()
 
 track_time = Time(args.time, format='mjd')
@@ -53,14 +57,15 @@ for delta_t in [1000., 2.*86400.]:
     for containment in ['50', '90']:
         contour_fs = contour_fs + glob.glob(base_skymap_path +
                      f'run{run_id:08d}.evt{ev_id:012d}.*.contour_{containment}.txt')
-    # contour_fs = [base_skymap_path \
-    #         + f'run{run_id:08d}.evt{ev_id:012d}.HESE.contour_{containment}.txt' \
-    #         for containment in ['50', '90']]
-    # contour_fs = [f for f in contour_fs if os.path.exists(f)]
     if len(contour_fs) == 0:
         contour_fs = None
 
-    f = TrackFollowup(name, args.skymap, start, stop, skipped=args.alert_id)
+    if args.deltallh_skymap:
+        print('Initializing Track follow up with deltaLLH map')
+        f = TrackFollowupLLH(name, args.skymap, start, stop, skipped=args.alert_id)
+    else:
+        print('Initializing Track follow up with probability skymap')
+        f = TrackFollowup(name, args.skymap, start, stop, skipped=args.alert_id)
 
     f.unblind_TS()
     f.plot_ontime(contour_files=contour_fs)
@@ -68,12 +73,12 @@ for delta_t in [1000., 2.*86400.]:
     f.make_dNdE()
     f.plot_tsd()
     f.upper_limit()
-    f.find_coincident_events()
+    f.find_coincident_events(print_events=args.print_nearby)
     results = f.save_results()
     f.generate_report()
     all_results[delta_t] = results
 
-all_results[1000.]['gcn_num'] = args.gcn_notice_num
+all_results[1000.]['gcn_num'] = args.alert_circ
 
 # Write circular to the output directory of the 2 day analysis
 f.write_circular(all_results)

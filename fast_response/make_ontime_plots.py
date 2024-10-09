@@ -174,7 +174,6 @@ def make_rate_plots(time_window, run_table, query_events, dirname, season='neutr
                          format='mjd').iso #first 35 days
             rates1 = icecube.realtime_tools.live.get_rates(run_table[0]['start'], midpt)
             rates2 = icecube.realtime_tools.live.get_rates(midpt, run_table[-1]['stop'])
-            #avoid double counting last entry
             rates = np.concatenate([rates1, rates2])
         else:
             rates = icecube.realtime_tools.live.get_rates(run_table[0]['start'], run_table[-1]['stop'])

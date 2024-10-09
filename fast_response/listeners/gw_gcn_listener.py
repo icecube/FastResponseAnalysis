@@ -177,14 +177,17 @@ def process_gcn(payload, root):
         #'--allow_neg_ts=True']
         )
     
-    output = os.path.join(os.environ.get('FAST_RESPONSE_OUTPUT'),eventtime[0:10].replace('-','_')+'_'+name)
+    analysis_start = Time(event_mjd - 500./86400., format='mjd').iso
+    output = os.path.join(os.environ.get('FAST_RESPONSE_OUTPUT'),
+                          analysis_start[0:10].replace('-','_')+'_'+name)
     #update webpages
     webpage_update = os.path.join(analysis_path,'document.py')
     if not mock and root.attrib['role'] == 'observation':
         try:
             subprocess.call([webpage_update,  '--gw', f'--path={output}'])
 
-            wp_link = 'https://user-web.icecube.wisc.edu/~jthwaites/FastResponse/gw-webpage/output/{}.html'.format(eventtime[0:10].replace('-','_')+'_'+name)
+            wp_link = 'https://user-web.icecube.wisc.edu/~jthwaites/FastResponse/gw-webpage/output/'+\
+                      '{}.html'.format(analysis_start[0:10].replace('-','_')+'_'+name)
             slack_message = "UML GW analysis finished running for event {}: <{}|link>.".format(name, wp_link) 
             with open('../slack_posters/internal_alert_slackbot.txt') as f:
                 chan = f.readline().rstrip('\n')

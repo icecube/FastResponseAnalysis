@@ -112,7 +112,7 @@ def updateDataFrame(analysis, gw=False, make_df=False):
         num = np.count_nonzero(df.index == analysis['name'])
         analysis['name'] += '_{}'.format(num)
     df.loc[analysis['name']] = new_list
-     
+    
     if gw: 
         df.to_pickle(f'{base_path}/results_dataframe_gw.pkl')
     else:

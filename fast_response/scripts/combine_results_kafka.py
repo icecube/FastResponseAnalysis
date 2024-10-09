@@ -196,7 +196,7 @@ def parse_notice(record, wait_for_llama=False, heartbeat=False):
         return
 
     collected_results = {}
-    collected_results["$schema"]= "https://gcn.nasa.gov/schema/v4.0.0/gcn/notices/icecube/lvk_nu_track_search.schema.json"
+    collected_results["$schema"]= "https://gcn.nasa.gov/schema/v4.1.0/gcn/notices/icecube/lvk_nu_track_search.schema.json"
     collected_results["type"]= "IceCube LVK Alert Nu Track Search"
 
     eventtime = record.find('.//ISOTime').text
@@ -235,7 +235,8 @@ def parse_notice(record, wait_for_llama=False, heartbeat=False):
             )
     
     while results_done == False:
-        start_date = Time(dateutil.parser.parse(eventtime)).datetime
+        start_time = Time(Time(eventtime, format='isot').mjd - 500./86400., format='mjd').isot
+        start_date = Time(dateutil.parser.parse(start_time)).datetime
         start_str = f'{start_date.year:02d}_{start_date.month:02d}_{start_date.day:02d}'
 
         uml_results_path = os.path.join(fra_results_location, start_str + '_' + name.replace(' ', '_') \

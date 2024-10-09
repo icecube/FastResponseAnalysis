@@ -25,6 +25,7 @@ class AlertFollowup(PriorFollowup):
     _fix_index = True
     _float_index = not _fix_index
     _index = 2.5
+    _llh_map = False
 
     def run_background_trials(self, ntrials = 1000):
         r"""For alert events with specific time windows,
@@ -257,7 +258,22 @@ class TrackFollowup(AlertFollowup):
     """
     Class for followup of track alert events
     By default, uses a fixed index of 2.5 in LLH.
-    By default, converts milipede LLH map to a PDF. 
+    Assumes a probability skymap for the follow-up.
+    Built on AlertFollowup and PriorFollowup base classes
+
+    """
+    _smear = False
+    _dataset = "GFUOnline_v001p02"
+    _fix_index = True
+    _float_index = not _fix_index
+    _index = 2.5
+    _llh_map = False
+
+class TrackFollowupLLH(AlertFollowup):
+    """
+    [Old] Class for followup of track alert events
+    By default, uses a fixed index of 2.5 in LLH
+    and converts milipede LLH map to a PDF. 
     Built on AlertFollowup and PriorFollowup base classes
 
     """
@@ -266,6 +282,7 @@ class TrackFollowup(AlertFollowup):
     _fix_index = True
     _float_index = not _fix_index
     _index = 2.5
+    _llh_map = True
 
     def format_skymap(self, skymap):
         """
@@ -371,3 +388,4 @@ class CascadeFollowup(AlertFollowup):
     _fix_index = True
     _float_index = not _fix_index
     _index = 2.5
+    _llh_map = False

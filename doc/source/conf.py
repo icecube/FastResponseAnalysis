@@ -16,7 +16,7 @@ sys.path.insert(0, os.path.abspath('../../fast_response/'))
 project = 'FastResponseAnalysis'
 copyright = '2023, Alex Pizzuto, Jessie Thwaites'
 author = 'Alex Pizzuto, Jessie Thwaites'
-release = '1.2.2'
+release = '1.3.0'
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration

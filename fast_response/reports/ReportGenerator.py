@@ -203,6 +203,8 @@ class ReportGenerator(object):
             newevent = event['value']['data']
             for key,val in list(newevent['reco']['splinempe'].items()): 
                 newevent['splinempe_'+key]=val
+            if '+' in newevent['eventtime']: 
+                newevent['eventtime'] = newevent['eventtime'].split('+')[0]
             if Time(newevent['eventtime'],scale='utc',format='iso') >= Time("2018-07-10 17:52:03.34", format='iso',scale='utc'):
                 newevent['muex'] = newevent['reco']['energy']['mpe_muex']
             del newevent['reco']
