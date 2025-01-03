@@ -1106,7 +1106,10 @@ class PriorFollowup(FastResponseAnalysis):
         plt.axvline(median_max_dec, c = sns.xkcd_rgb['dark navy blue'], alpha = 0.75, label = "Median (max dec.)", ls = '--')
         plt.xlim(1e1, 1e8)
         plt.legend(loc=4, fontsize=18)
-        plt.savefig(self.analysispath + '/central_90_dNdE.png',bbox_inches='tight')
+        try: 
+            plt.savefig(self.analysispath + '/central_90_dNdE.png',bbox_inches='tight')
+        except: 
+            print('Failed to save dNdE plot')
 
         self.energy_range = (np.min([low_5_min_dec, low_5_max_dec]),
                              np.max([high_5_min_dec, high_5_max_dec]))
