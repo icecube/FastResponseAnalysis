@@ -135,12 +135,11 @@ def process_gcn(payload, root):
             if shifters['start'][i]<datetime.utcnow()<shifters['stop'][i]:
                 on_shift+='<@{}> '.format(shifters['slack_id'][i])
         link = 'https://user-web.icecube.wisc.edu/~jthwaites/FastResponse/webpage/output/'
-        wp_link_1000 = '{}{}_{}_1.0e+03_s.html'.format(link, eventtime[0:10].replace('-','_'),event_name)
+        start_1000 = Time(event_mjd -500./86400., format='mjd').iso
+        wp_link_1000 = '{}{}_{}_1.0e+03_s.html'.format(link, start_1000[:10].replace('-','_'),event_name)
         
-        day_before = '{}'.format(int(eventtime[8:10])-1)
-        if len(day_before)==1: day_before='0'+day_before
-        str_2d = '{}_{}'.format(eventtime[0:7].replace('-','_'),day_before)
-        wp_link_2d   = '{}{}_{}_1.7e+05_s.html'.format(link, str_2d, event_name)
+        start_2d = Time(event_mjd-1., format='mjd').iso
+        wp_link_2d   = '{}{}_{}_1.7e+05_s.html'.format(link, start_2d[:10].replace('-','_'), event_name)
         bot.send_message(f'Done running FRA for {alert_type} alert, {event_name}.\n '+ on_shift +'on shift',
                          'blanket_blob')
         if doc:
