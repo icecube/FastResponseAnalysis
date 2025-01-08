@@ -7,6 +7,7 @@ r''' General Fast Response Analysis Class.
 from abc import abstractmethod
 import os, sys, time, subprocess
 import pickle, dateutil.parser, logging, warnings
+from collections            import Counter
 
 import h5py
 import healpy               as hp
@@ -14,8 +15,12 @@ import numpy                as np
 import seaborn              as sns
 import matplotlib           as mpl
 import matplotlib.pyplot    as plt
+import copy
 from astropy.time           import Time
+import astropy.io.fits      as fits
+
 from scipy.special          import erfinv, logsumexp
+import scipy.stats          as spstats
 from matplotlib.lines       import Line2D
 
 from skylab.datasets        import Datasets
@@ -186,16 +191,18 @@ class FastResponseAnalysis(object):
                 grls.append(grl)
             exp = np.concatenate(exps)
             grl = np.concatenate(grls)
-        else:
+        else: 
             if self._verbose:
                 print("Recent time: querying the i3live database")
             if livestream_start is None or livestream_stop is None:
                 livestream_start = self.start - 6.
                 livestream_stop = self.stop
+            print("livestream",livestream_start, livestream_stop)
             exp, mc, livetime, grl = dset.livestream(
                 livestream_start, livestream_stop,
                 append=self._season_names, 
                 floor=self._floor)
+            print(max(exp["time"]))
         exp.sort(order='time')
         grl.sort(order='run')
         livetime = grl['livetime'].sum()
@@ -359,7 +366,7 @@ class FastResponseAnalysis(object):
         return p
 
     @abstractmethod
-    def find_coincident_events(self):
+    def find_coincident_events(self,custom_events=None):
         pass
 
     @abstractmethod
@@ -489,7 +496,7 @@ class FastResponseAnalysis(object):
             print("Results successfully saved")
             return self.save_items
 
-    def plot_ontime(self, with_contour=False, contour_files=None, label_events=False):
+    def plot_ontime(self, with_contour=False, contour_files=None, label_events=False,custom_events=None):
         r"""Plots ontime events on the full skymap and a 
         zoomed in version near the scan best-fit
 
@@ -505,16 +512,16 @@ class FastResponseAnalysis(object):
         """
         
         try:
-            self.plot_skymap_zoom(with_contour=with_contour, contour_files=contour_files)
+            self.plot_skymap_zoom(with_contour=with_contour, contour_files=contour_files,custom_events=custom_events)
         except Exception as e:
             print('Failed to make skymap zoom plot')
 
         try:
-            self.plot_skymap(with_contour=with_contour, contour_files=contour_files, label_events=label_events) 
+            self.plot_skymap(with_contour=with_contour, contour_files=contour_files, label_events=label_events,custom_events=custom_events) 
         except Exception as e:
             print('Failed to make FULL skymap plot')
 
-    def plot_skymap_zoom(self, with_contour=False, contour_files=None):
+    def plot_skymap_zoom(self, with_contour=False, contour_files=None,custom_events=None):
         r"""Make a zoomed in portion of a skymap with
         all ontime neutrino events within a certain range
         Outputs a plot (in png and pdf formats) to the analysis path
@@ -529,7 +536,9 @@ class FastResponseAnalysis(object):
         """
         events = self.llh.exp
         events = events[(events['time'] < self.stop) & (events['time'] > self.start)]
-
+        print(custom_events)
+        if(custom_events is not None):
+            events=np.concatenate([events,custom_events])
         col_num = 5000
         seq_palette = sns.color_palette("icefire", col_num)
         lscmap = mpl.colors.ListedColormap(seq_palette)
@@ -607,7 +616,7 @@ class FastResponseAnalysis(object):
         plt.savefig(self.analysispath + '/' + self.analysisid + 'unblinded_skymap_zoom.pdf',bbox_inches='tight', dpi=300)
         plt.close()
 
-    def plot_skymap(self, with_contour=False, contour_files=None, label_events=False):
+    def plot_skymap(self, with_contour=False, contour_files=None, label_events=False,custom_events=None):
         r""" Make skymap with event localization and all
         neutrino events on the sky within the given time window
         Outputs a plot in png format to the analysis path
@@ -625,6 +634,8 @@ class FastResponseAnalysis(object):
 
         events = self.llh.exp
         events = events[(events['time'] < self.stop) & (events['time'] > self.start)]
+        if(custom_events is not None):
+            events=np.concatenate([events,custom_events])
 
         col_num = 5000
         seq_palette = sns.color_palette("icefire", col_num)
@@ -872,7 +883,7 @@ class PriorFollowup(FastResponseAnalysis):
         self.tsd = tsd
         self.save_items['tsd'] = tsd
 
-    def find_coincident_events(self):
+    def find_coincident_events(self,custom_events=None):
         r"""Find coincident events for a skymap
         based analysis. These are ontime events that are also in the 
         90% contour of the skymap
@@ -897,6 +908,14 @@ class PriorFollowup(FastResponseAnalysis):
             coincident_events = []
         else:
             coincident_events = []
+            if(custom_events is not None):
+                for ev in custom_events:
+                    self.coincident_events.append({})
+                    self.coincident_events[-1]['delta_psi'] = -1 
+                    self.coincident_events[-1]['spatial_w'] = -1
+                    self.coincident_events[-1]['energy_w'] = -1
+                    for key in ['run', 'event', 'ra', 'dec', 'sigma', 'logE', 'time']:
+                        self.coincident_events[-1][key] = ev[key]
             for ev in events:
                 coincident_events.append({})
                 for key in ['run', 'event', 'ra', 'dec', 'sigma', 'logE', 'time']:
@@ -938,7 +957,8 @@ class PriorFollowup(FastResponseAnalysis):
         val = self.llh.scan(
             0.0,0.0, scramble = False, spatial_prior=spatial_prior,
             time_mask = [self.duration/2., self.centertime],
-            pixel_scan=[self.nside, self._pixel_scan_nsigma]
+            pixel_scan=[self.nside, self._pixel_scan_nsigma],
+            inject=custom_events
         )
         self.ts_scan = val
         t2 = time.time()
@@ -992,10 +1012,70 @@ class PriorFollowup(FastResponseAnalysis):
             return ts, ns, gamma_fit
         else:
             return ts, ns
-    
+    def inject_events(self,ninj=0):
+        ni, sample,src_ra, src_dec = self.inj.sample(ninj,poisson=False,return_position =True)
+        return sample
 
-    
-    def make_posterior_map(self, nsToTest=[1,2,3,4,5], prior=lambda ns,gamma,ra,dec: 1, testingPlotsLocation=None):
+
+    def make_prior_map(self, 
+                        plotting_location=None,
+                        format=True
+                           ):
+        #TODO: Document
+        """
+        Generates a zoomed in skymap around the best fit location from the maximum likelihood analysis        
+        """
+
+
+        #Format the skymap if told to format (usually formatted at construction so shouldn't change anything)
+
+        if(format):
+            skymap = self.format_skymap(self.skymap)
+        else:
+            skymap=self.skymap
+        
+        #Plot the prior skymap
+        fig, ax=plt.subplots(1,1,figsize=(10,10))
+        plt.sca(ax)
+        reso=.1
+        sizeZoomInDegs=10
+        nPixZoom=sizeZoomInDegs/reso*60
+        hp.visufunc.gnomview(map=np.log10(skymap),hold=True,title="Prior Skymap",rot=(np.degrees(self.skymap_fit_ra),np.degrees(self.skymap_fit_dec),0),
+            xsize=nPixZoom,ysize=nPixZoom,reso=reso,bgcolor="white",badcolor="white",margins=(.01,.01,0,0),notext=True,cbar=False)
+        #hp.visufunc.cartview(map=np.log10(skymap),hold=True,title="Prior Skymap",rot=(np.degrees(self.skymap_fit_ra),np.degrees(self.skymap_fit_dec),0),
+        #    lonra=[np.degrees(self.skymap_fit_ra)-5,np.degrees(self.skymap_fit_ra)+5],latra=[np.degrees(self.skymap_fit_dec)-5,np.degrees(self.skymap_fit_dec)+5],bgcolor="white",badcolor="white",margins=(.01,.01,0,0),notext=True,)
+        
+        hp.graticule(verbose=True)
+        plotting_utils.plot_labels(self.skymap_fit_dec,self.skymap_fit_ra, reso,nPix=nPixZoom,vertical_height_xlabel=.95)
+        plotting_utils.plot_color_bar(range=[0,np.nanmax(self.skymap)], cmap="viridis", col_label=r"Skymap Prior PDF",
+                    offset=-50,labels=[0, "{0:.1e}".format(np.nanmax(self.skymap)/2),"{0:.2e}".format(np.nanmax(self.skymap))],loc=[0.90, 0.2, 0.03, 0.6])
+        name="PriorSkymap"
+        if(not format):
+            name+="Unformatted"
+        plt.savefig(plotting_location+name+".png")
+
+    def _make_posterior_fits(self,pos_skymap):
+        #internal function to be called from make_posterior_skymap
+        extra_header = [('index', self.index),
+                   #('energy_range', ),
+                   #('ns_range', ),
+                   ("Sender","IceCube Collaboration"),
+                   ("TRIGGER_EVENT",self.name),
+                   ("startmjd",self.start),
+                   ("stopmjd",self.stop)
+
+                   ]
+        #startmjd, stopmjd, 
+        hp.write_map(self.analysispath + '/' +'posterior_info.fits',m=pos_skymap,
+                    extra_header=extra_header,partial=True    
+                              
+                              )
+
+    def make_posterior_map(self, nsToTest=[1,2,3,4,5], 
+                           prior_func=lambda ns,gamma,ra,dec: 1, 
+                           plotting_location=None,
+                           custom_events=None
+                           ):
         # Posterior Approach
         # We want a function P(RA, DEC | X) where X is the neutrino data
         # Compute the entire likelihood space P(X | RA, DEC, ns, gamma)
@@ -1003,32 +1083,66 @@ class PriorFollowup(FastResponseAnalysis):
  
         #ns to test give as list 
         #Give prior as a function f(ns, gamma, ra, dec)
+            #As currently implemented,the llh will have gamma must be constant set by the self.index
+            #Prior flat in ns and spatially by default. May make sense to implement
         #TODO: flux/ns priors 
+        t1 = time.time()
+
         val=None
+        skymap = self.skymap
+        
+        
         spatial_prior = SpatialPrior(
-            self.skymap, 
+            skymap, 
             containment = self._containment,allow_neg=self._allow_neg)
+        
+        nside=self.nside
+
+        #The full sky scan with no fixing (maybe better to save this during the unblind TS stage)
+        full_scan_val = self.llh.scan(0.0,0.0, scramble = False,spatial_prior=spatial_prior,
+            time_mask = [self.duration/2., self.centertime],
+            pixel_scan=[nside, self._pixel_scan_nsigma],
+            fixed=['nsignal'],
+            inject=custom_events
+            )
+        
+
+
         for nsigT in nsToTest:
+            print('testing nsig=',nsigT)
             temp_val = self.llh.scan(0.0,0.0, scramble = False,spatial_prior=spatial_prior,
                     time_mask = [self.duration/2., self.centertime],
-                    pixel_scan=[self.nside, self._pixel_scan_nsigma],
+                    pixel_scan=[nside, self._pixel_scan_nsigma],
                     fixed=['nsignal'],
-                    nsignal=np.array([nsigT]*12*pow(self.nside,2),dtype=float)  #TODO: Check if we can do more than 1 at a time
+                    nsignal=np.array([nsigT]*12*pow(nside,2),dtype=float), 
+                    inject=custom_events
                     )
             if val is None:
                 val=temp_val
             else:
                 val=np.hstack((val,temp_val))
+        print(val.dtype.names)
         ras=val["ra"]
         decs=val["dec"]
         nss=val["nsignal"]
-        gammas=val["index"]
+                
+        if "gamma" in val.dtype.names:
+            #TODO: This is available in some, but not all, analyses -- GW vs Internal alerts
+            # should always be self.index (unless things get)
+            #  maybe "spectrum" instead
+        
+            gammas=val["gamma"]
+        
+        #gammas=val["gamma"] 
         TS_spatial_prior_0=val["TS_spatial_prior_0"]
+        idx_max=np.argmax(TS_spatial_prior_0)
+        ramax,decmax=ras[idx_max],decs[idx_max]
 
         logProbs=TS_spatial_prior_0/2 #not normalized so technically C*ln(P)
         finalProbs={}
         for i in range(len(ras)):
-            prior=1 #TODO
+            dV=1 #integration factor #TODO: implement if uneven intervals are given in ns
+            prior=prior_func(nss[i],self.index,ras[i],decs[i])*dV 
             if((ras[i],decs[i]) in finalProbs):
                 finalProbs[(ras[i],decs[i])]=logsumexp([finalProbs[(ras[i],decs[i])],logProbs[i]+np.log(prior)])
             else:
@@ -1036,45 +1150,108 @@ class PriorFollowup(FastResponseAnalysis):
         #Normalize
         totalLog=logsumexp(list(finalProbs.values())) 
         finalProbs={k:v-totalLog for k,v in finalProbs.items()}
-        outputProbHPMap=np.zeros(12*self.nside**2)
-        outputProbHPMap[hp.ang2pix(nside=self.nside,theta=np.array(ras_graph)*180/np.pi, phi=np.array(decs_graph)*180/np.pi,lonlat=True)]=np.exp(np.array(list(finalProbs.values())))
-        
-        #set 0s to nan for plotting 
-        outputProbHPMap[outputProbHPMap == 0] = np.nan
 
-        if (testingPlotsLocation is not None):
+        #Write to healpy
+        outputProbHPMap=np.zeros(12*nside**2)
+        ras_graph,decs_graph=zip(*list(finalProbs.keys()))
+        outputProbHPMap[hp.ang2pix(nside=nside,theta=np.array(ras_graph)*180/np.pi, phi=np.array(decs_graph)*180/np.pi,lonlat=True)]=np.exp(np.array(list(finalProbs.values())))
+        
+        t2 = time.time()
+        print("finished posterior calc, took {} s".format(t2-t1))
+
+        #set 0s to nan for plotting 
+        outputProbHPMapPlotting=copy.deepcopy(outputProbHPMap)
+        outputProbHPMapPlotting[outputProbHPMapPlotting == 0] = np.nan
+
+        if (plotting_location is not None):
             fig, ax=plt.subplots(1,1,figsize=(10,10))
             ras_graph,decs_graph=zip(*list(finalProbs.keys()))
             fig, ax=plt.subplots(1,1,figsize=(10,10))
             plt.sca(ax)
-            reso=3
-            nPixZoom=200
-            sizeZoomInDegs=reso/60*nPixZoom
+            reso=.1
+            sizeZoomInDegs=10
+            nPixZoom=sizeZoomInDegs/reso*60
             
-            """
-            hp.visufunc.gnomview(map=outputProbHPMap,hold=True,title="Zoomed Posterior Skymap",rot=(src_ra*180/np.pi,src_dec*180/np.pi,0),
-                xsize=nPixZoom,ysize=nPixZoom,reso=reso,bgcolor="white",badcolor="white",margins=(.01,.01,0,0),notext=True,)
-            """
-            hp.visufunc.mollview(map=outputProbHPMap,hold=True,title="Posterior Skymap",bgcolor="white",badcolor="white",rot=(180,0,0))
-            plt.savefig(testingPlotsLocation+"PosteriorMap.png")
+            
+            #hp.visufunc.gnomview(map=outputProbHPMap,hold=True,title="Zoomed Posterior Skymap",rot=(self.src_ra*180/np.pi,self.src_dec*180/np.pi,0),
+            #    xsize=nPixZoom,ysize=nPixZoom,reso=reso,bgcolor="white",badcolor="white",margins=(.01,.01,0,0),notext=True,)
+            
+            hp.visufunc.mollview(map=outputProbHPMapPlotting,hold=True,title="Posterior Skymap",bgcolor="white",badcolor="white",rot=(180,0,0))
+            hp.graticule(verbose=True)
+            
+            plt.savefig(plotting_location+"PosteriorMap.png")
+            plt.close()
+
+            #plot zoomed 
+            fig, ax=plt.subplots(1,1,figsize=(10,10))
+            plt.sca(ax)
+            hp.visufunc.gnomview(map=outputProbHPMapPlotting,hold=True,title="Posterior Skymap",rot=(ramax*180/np.pi,decmax*180/np.pi,0),
+                xsize=nPixZoom,ysize=nPixZoom,reso=reso,bgcolor="white",badcolor="grey",margins=(.01,.01,0,0),notext=True,cbar=False)
+            hp.graticule(verbose=True)
+            plotting_utils.plot_labels(decmax,ramax, reso,nPix=nPixZoom,vertical_height_xlabel=.95)
+            plotting_utils.plot_color_bar(range=[0,np.nanmax(outputProbHPMapPlotting)], cmap="viridis", col_label=r"Posterior PDF",
+                    offset=-35,labels=[0,"{0:.1e}".format(np.nanmax(outputProbHPMapPlotting)/2),"{0:.2e}".format(np.nanmax(outputProbHPMapPlotting))],loc=[0.90, 0.2, 0.03, 0.6])
+            plt.savefig(plotting_location+"PosteriorMapZoomed.png")
+            plt.close()
+
+            fig, ax=plt.subplots(1,1,figsize=(10,10))
+            plt.sca(ax)
+            hp.visufunc.gnomview(map=np.log10(outputProbHPMapPlotting),hold=True,title="Posterior Skymap (Log p)",rot=(ramax*180/np.pi,decmax*180/np.pi,0),
+                xsize=nPixZoom,ysize=nPixZoom,reso=reso,bgcolor="white",badcolor="grey",margins=(.01,.01,0,0),notext=True,cbar=False)
+            
+            hp.graticule(verbose=True)
+            plotting_utils.plot_labels(decmax,ramax, reso,nPix=nPixZoom,vertical_height_xlabel=.95)
+            plotting_utils.plot_color_bar(range=[0,np.nanmax(np.log10(outputProbHPMapPlotting))], cmap="viridis", col_label=r"Posterior PDF",
+                    offset=-35,labels=[0,"{0:.1e}".format(np.nanmax(np.log10(outputProbHPMapPlotting))/2),"{0:.2e}".format(np.nanmax(np.log10(outputProbHPMapPlotting)))],loc=[0.90, 0.2, 0.03, 0.6])           
+            plt.savefig(plotting_location+"PosteriorMapZoomedLog.png")
             plt.close()
 
 
-            for (ra,dec) in finalProbs:
+            #plot ns vs probability for some specific points, could use a cleaner method of choosing points
+            threshold_prob_for_plots=list(sorted([k for k, v in Counter(list(finalProbs.values())).items() if v == 1],reverse=True))
+            #threshold_prob_for_plots=[k for k in threshold_prob_for_plots if k>0]
+            counterJump=int(len(threshold_prob_for_plots)/30)
+            print(len(threshold_prob_for_plots),counterJump)
+
+            psToPlot=[]
+            for i in range(0,len(threshold_prob_for_plots),counterJump):
+                p=threshold_prob_for_plots[i]
+                psToPlot.append(p)
+                if (i>len(threshold_prob_for_plots)):
+                    break
+            filtered_probs = {k:v for (k,v) in finalProbs.items()
+                              if v in psToPlot}
+
+            cmap= mpl.cm.ScalarMappable(
+                norm = mpl.colors.Normalize(min(threshold_prob_for_plots),max(threshold_prob_for_plots)), 
+                cmap = plt.get_cmap('viridis'))
+                    
+            for (ra,dec) in filtered_probs:
+                #print(ra,dec)
                 total_val=finalProbs[(ra,dec)]
                 temp_val=val[(val["ra"]==ra)&(val["dec"]==dec)]
                 nss_temp=temp_val["nsignal"]
-                gammas_temp=temp_val["index"]
+                #gammas_temp=temp_val["gamma"]
                 TS_temp=temp_val["TS_spatial_prior_0"]/2
 
                 totalLog=logsumexp(TS_temp) 
                 p_temp=np.exp(TS_temp-totalLog)
-                plt.plot(nss_temp,p_temp,alpha=total_val)
-            plt.colorbar()
-            plt.xlabel("ns")
-            plt.ylabel("TS")
-            plt.savefig(testingPlotsLocation+"nsProfilePlot.png")
+                plt.plot(nss_temp,p_temp,color=cmap.to_rgba(total_val))
+
+
+            cmap.set_array([])
+            cbar=plt.colorbar(cmap)
+            cbar.set_label('Pixel Probability')
+            plt.xlabel("ns",fontsize=15)
+            plt.ylabel("probability",fontsize=15)
+            plt.savefig(plotting_location+"nsProfilePlot.png")
             plt.close()
+            
+        print("saving fits")
+        self._make_posterior_fits(outputProbHPMap)
+        #return the version with zeros rather than nan
+        t3 = time.time()
+        print("finished posterior saving, took {} s".format(t3-t1))
 
         return outputProbHPMap
 
@@ -1306,7 +1483,7 @@ class PointSourceFollowup(FastResponseAnalysis):
         self.save_items['ns'] = ns
         return ts, ns
 
-    def find_coincident_events(self):
+    def find_coincident_events(self,custom_events=None):
         r"""Find "coincident events" for the analysis.
         These are ontime events that satisfy:
         
@@ -1323,6 +1500,14 @@ class PointSourceFollowup(FastResponseAnalysis):
         temporal_weights = self.llh.temporal_model.signal(self.llh._events)
         msk = spatial_weights * energy_ratio * temporal_weights > 10
         self.coincident_events = []
+        if(custom_events!=None):
+            for ev in custom_events:
+                self.coincident_events.append({})
+                self.coincident_events[-1]['delta_psi'] = -1 
+                self.coincident_events[-1]['spatial_w'] = -1
+                self.coincident_events[-1]['energy_w'] = -1
+                for key in ['run', 'event', 'ra', 'dec', 'sigma', 'logE', 'time']:
+                    self.coincident_events[-1][key] = ev[key]
         if len(spatial_weights[msk]) > 0:
             self.coincident_events = []
             for ev, s_w, en_w in zip(self.llh._events[msk], 

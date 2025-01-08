@@ -351,8 +351,8 @@ class GWFollowup(PriorFollowup):
         plt.savefig(self.analysispath + '/' + self.analysisid + 'ts_contours.pdf',bbox_inches='tight', dpi=300)
         plt.close()
         
-    def plot_ontime(self, with_contour=True, contour_files=None, label_events=True):
-        return super().plot_ontime(with_contour=True, contour_files=contour_files, label_events=label_events)
+    def plot_ontime(self, with_contour=True, contour_files=None, label_events=True,custom_events=None):
+        return super().plot_ontime(with_contour=True, contour_files=contour_files, label_events=label_events,custom_events=custom_events)
 
     def write_circular(self):
         """
@@ -541,7 +541,7 @@ class GWFollowup(PriorFollowup):
         results = dict([('ts',ts),('ns',ns),('gamma',gamma),('ra',ra),('dec',dec)])
         return (results, events)
 
-    def find_coincident_events(self):
+    def find_coincident_events(self,custom_events=None):
         r"""
         Find "coincident events" for a skymap
         based analysis. These are ALL ontime events,
@@ -573,6 +573,27 @@ class GWFollowup(PriorFollowup):
             events['ts'][i] = self.ts_scan['TS_spatial_prior_0'][idx[0]]
             events['ns'][i] = self.ts_scan['nsignal'][idx[0]]
             events['gamma'][i] = self.ts_scan['gamma'][idx[0]]
+       
+        if(custom_events is not None):
+            '''
+            custom_events.dtype.names = 'time', 'run', 'event', 'ra', 'dec', 'azimuth', 'zenith', 'sigma', 'logE', 'subevent'
+            dtype = [('time',np.float32),('run',np.uint32),('event',np.uint32),('ra',np.float32),
+                ('dec',np.float32),('azimuth',np.float32),('zenith',np.float32),('sigma',np.float32),
+                ('logE',np.float32),('subevent',np.float64)]
+            custom_events=custom_events[['time', 'run', 'event', 'ra', 'dec', 'azimuth', 'zenith', 'sigma', 'logE', 'subevent']]
+            '''
+            custom_events = append_fields(
+                custom_events, names=['in_contour', 'ts', 'ns', 'gamma', 'B'],
+                data=np.empty((5, custom_events['ra'].size)),
+                usemask=False)
+            for i in range(custom_events['ra'].size):
+                custom_events['in_contour'][i]=True
+                custom_events['B'][i] = -1
+                custom_events['ts'][i] = -1
+                custom_events['ns'][i] = -1
+                custom_events['gamma'][i] = -1
+            events=np.concatenate([events,custom_events])
+        
 
         self.events_rec_array = events
         self.coincident_events = [dict(zip(events.dtype.names, x)) for x  in events]

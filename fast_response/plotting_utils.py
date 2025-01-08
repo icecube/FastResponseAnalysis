@@ -29,11 +29,11 @@ def plot_zoom(scan, ra, dec, title, reso=3, var="pVal", range=[0, 6],cmap=None):
         cmap = mpl.colors.ListedColormap(pdf_palette)
     hp.gnomview(scan, rot=(np.degrees(ra), np.degrees(dec), 0),
                     cmap=cmap,
+                    cbar=False,
                     max=max(scan),
                     reso=reso,
                     title=title,
                     notext=True,
-                    cbar=False
                     #unit=r""
                     )
 
@@ -41,7 +41,7 @@ def plot_zoom(scan, ra, dec, title, reso=3, var="pVal", range=[0, 6],cmap=None):
     hp.graticule(verbose=False)
     plot_labels(dec, ra, reso)
 
-def plot_color_bar(labels=[0.,2.,4.,6.], col_label=r"IceCube Event Time", range=[0,6], cmap=None, offset=-35):
+def plot_color_bar(labels=[0.,2.,4.,6.], col_label=r"IceCube Event Time", range=[0,6], cmap=None, offset=-35,loc=[0.95, 0.2, 0.03, 0.6]):
     """
     Adds a color bar to an existing healpy map
 
@@ -55,9 +55,11 @@ def plot_color_bar(labels=[0.,2.,4.,6.], col_label=r"IceCube Event Time", range=
         colormap to use. if not set default is "Blues"
     offset: int
         offset value for colorbar's label. default is -35
+    loc: float list of length 4
+        location for the colorbar axis in form [x,y,width,height]
     """
     fig = plt.gcf()
-    ax = fig.add_axes([0.95, 0.2, 0.03, 0.6])
+    ax = fig.add_axes(loc)
     labels = labels
     cb = mpl.colorbar.ColorbarBase(ax, cmap="Blues" if cmap is None else cmap,
                         #norm=mpl.colors.Normalize(vmin=range[0], vmax=range[1]), 
@@ -68,7 +70,7 @@ def plot_color_bar(labels=[0.,2.,4.,6.], col_label=r"IceCube Event Time", range=
     cb.set_ticklabels(labels)
     cb.update_ticks()
 
-def plot_labels(src_dec, src_ra, reso):
+def plot_labels(src_dec, src_ra, reso,nPix=200,vertical_height_xlabel=1):
     """
     Add labels to healpy zoom
 
@@ -82,6 +84,7 @@ def plot_labels(src_dec, src_ra, reso):
         Resolution (arcmins)
     """
     fontsize = 20
+    reso=reso*nPix/200
     plt.text(-1*np.radians(1.75*reso),np.radians(0), r"%.1f$^{\circ}$"%(np.degrees(src_dec)),
              horizontalalignment='right',
              verticalalignment='center', fontsize=fontsize)
@@ -102,7 +105,7 @@ def plot_labels(src_dec, src_ra, reso):
              verticalalignment='top', fontsize=fontsize)
     plt.text(-1*np.radians(2.35*reso), np.radians(0), r"declination", 
                 ha='center', va='center', rotation=90, fontsize=fontsize)
-    plt.text(np.radians(0), np.radians(-2.05*reso), r"right ascension", 
+    plt.text(np.radians(0), np.radians(-2.05*reso*vertical_height_xlabel), r"right ascension", 
                 ha='center', va='center', fontsize=fontsize)
 
 def plot_events(dec, ra, sigmas, src_ra, src_dec, reso, sigma_scale=5., col = 'k', constant_sigma=False,
@@ -308,8 +311,8 @@ def make_public_zoom_skymap(skymap, events, ra, dec, with_contour=True, name='te
 
     #plt.scatter(0,0, marker='*', c = 'k', s = 130, label = label_str) 
     #plt.legend(loc = 2, ncol=1, mode = 'expand', fontsize = 18.5, framealpha = 0.95)
+       
     plot_color_bar(range=[0,6], cmap=cmap, col_label='GW Map Probability', offset = -10,
-                   labels=[f'{min(skymap):.1e}',f'{max(skymap):.1e}'])
-
+                labels=[f'{min(skymap):.1e}',f'{max(skymap):.1e}'])
     plt.savefig(f'./{name}_skymap_zoom_public.png', bbox_inches='tight', dpi=300)
     plt.close()
