@@ -1319,6 +1319,16 @@ class PointSourceFollowup(FastResponseAnalysis):
             msk = results['TS'] > self.ts
             npass = len(results['TS'][msk])
             passing.append((n, npass, n_per_sig))
+        
+        if (passing[-1][1] / passing[-1][2]) < 0.92:
+            #run a few more if the last point is close to 0.9
+            for n in np.array([7., 8.]):
+                results = self.llh.do_trials(
+                    n_per_sig, src_ra=self.ra, src_dec=self.dec,
+                    injector=self.inj, mean_signal=n, poisson=True)
+                msk = results['TS'] > self.ts
+                npass = len(results['TS'][msk])
+                passing.append((n, npass, n_per_sig))
             
         signal_fluxes, passing, number = list(zip(*passing))
         signal_fluxes = np.array(signal_fluxes)
