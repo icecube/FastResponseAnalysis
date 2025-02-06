@@ -29,9 +29,9 @@ Further details are available at https://gcn.nasa.gov/missions/icecube.
 
 Properties of the coincident events are shown below.
 
- dt(s)     RA(deg)       Dec(deg)    Angular uncertainty(deg)  p-value(generic transient) p-value(Bayesian)
------------------------------------------------------------------------------------------------------
-<dt>   <ra>       <dec>        <angErr>                    <pvalue>                 <pvalue>
+| dt(s) | RA(deg)  | Dec(deg) | Angular uncertainty(deg)| p-value(generic transient)| p-value(Bayesian)     |
+|-------|----------|----------|-------------------------|---------------------------|-----------------------|
+|<dt>   | <ra>     |   <dec>  |      <angErr>           |         <pvalue>          |       <pvalue>        |
 ...
 
 where:
