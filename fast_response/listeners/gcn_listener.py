@@ -82,7 +82,7 @@ def process_gcn(payload, root):
     if alert_type == 'track':
         base_skymap_path = '/home/followup/output_plots/'
         skymap_f = glob(base_skymap_path \
-            + f'run{int(run_id):08d}.evt{int(event_id):012d}.*.fits.gz')
+            + f'run{int(run_id):08d}.evt{int(event_id):012d}.*probability.fits.gz')
         if len(skymap_f) == 0:
             print("COULD NOT FIND THE SKYMAP FILE FOR V2 TRACK ALERT EVENT")
             return
