@@ -25,7 +25,8 @@ The reported p-values can differ due to the estimated distance of the GW candida
 The distance is used as a prior in the Bayesian binary merger search, while it is not 
 taken into account in the generic transient point-like source search. The false alarm rate of these 
 coincidences can be obtained by multiplying the p-values with their corresponding GW trigger rates. 
-Further details are available at https://gcn.nasa.gov/missions/icecube.
+Further details are available at https://gcn.nasa.gov/missions/icecube. Additional details 
+and updates will be posted at https://roc.icecube.wisc.edu/public/LvkNuTrackSearch/.
 
 Properties of the coincident events are shown below.
 
