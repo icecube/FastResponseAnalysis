@@ -66,6 +66,8 @@ def process_gcn(payload, root):
     try:
         if params['Group'] == 'Burst': 
             merger_type = 'Burst'
+        elif params['Search'] == 'SSM':
+            merger_type='SSM'
         else:
             k = ['BNS','NSBH','BBH']
             probs = {j: float(params[j]) for j in k}
