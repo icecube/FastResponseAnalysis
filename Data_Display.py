@@ -13,7 +13,7 @@ import pickle
 import glob
 import os
 import datetime
-from datetime import date
+from datetime import date, timezone
 from dateutil.relativedelta import *
 from statistics import median
 from matplotlib.dates import DateFormatter
@@ -25,7 +25,6 @@ import subprocess
 
 def dial_up(who="jessie"):
         cell_tower = "/data/user/jthwaites/gw_o4/"
-#        help = "https://icecube.wisc.edu/~jthwaites/FastResponse/error_call.xml"
         subprocess.call([cell_tower+"make_call.py", f"--{who}=True", '--troubleshoot=True'])#, "--call_file", help])
 
 path = "/data/user/jthwaites/FastResponseAnalysis/output/"
@@ -90,6 +89,14 @@ event_dict = sort_mocks(mock_files=mock_files)
 
 ###now to make the plots###
 ed = event_dict
+
+###call function incase mocks get interrupted
+if (Time(datetime.datetime.now(timezone.utc)).mjd - max(Time(ed["Time_Stamp"]).mjd)) > 3600.*3/86400:
+        print(datetime.datetime.now(timezone.utc))
+        print(max(ed["Time_Stamp"]))
+        dial_up()
+        x = (Time(datetime.datetime.now(timezone.utc)).mjd - max(Time(ed["Time_Stamp"]).mjd))*24
+        print("It has been " +str(x) +" hours since last update to gw mocks.")
 
 tl = {"latency": [], "time_stamp": []} #total latency
 il = {"latency": [], "time_stamp": []} #icecube latency
@@ -161,7 +168,7 @@ ax.plot_date(unique_days, total, color = 'black')
 ax.plot_date(unique_days, preliminary, color = 'green')
 ax.plot_date(unique_days, initial, color = 'orange')
 
-now = datetime.datetime.now()
+now = datetime.datetime.now(timezone.utc)
 past = now + relativedelta(months=-2)
 
 ax.set_xlim(past, now)
@@ -185,7 +192,7 @@ ax.plot_date(tl["time_stamp"], tl["latency"], color = 'black')
 ax.plot_date(il["time_stamp"], il["latency"], color = 'cyan')
 ax.plot_date(ll["time_stamp"], ll["latency"], color = 'red')
 
-now = datetime.datetime.now()
+now = datetime.datetime.now(timezone.utc)
 past = now + relativedelta(weeks=-1)
 
 ax.set_xlim(past, now)
@@ -327,7 +334,7 @@ fontname = "/home/mromfoe/public_html/O4_followup_monitoring/A101HLVN.ttf"
 fontsize = 16
 MyFont = ImageFont.truetype(fontname, fontsize)
 
-now = Time(datetime.datetime.now()).iso
+now = Time(datetime.datetime.now(timezone.utc)).iso
 
 d1.text((2, 0), "Page Last Updated: {} UTC".format(now), 
         fill = (0, 0, 0), font = MyFont)
