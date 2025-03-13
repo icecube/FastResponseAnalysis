@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 ###For text files of timestamps & latencies from gw pipeline, go to end of script and call function
-from ast import increment_lineno
 import matplotlib
 matplotlib.use("agg")
 matplotlib.rcParams['axes.titlesize'] = 18
@@ -19,15 +18,18 @@ from statistics import median
 from matplotlib.dates import DateFormatter
 from astropy.time import Time
 import pandas as pd
+from PIL import Image, ImageDraw, ImageFont
 # from IPython.display import HTML
 # from IPython.display import display
 import subprocess
+import warnings
+warnings.filterwarnings('ignore', module='astropy._erfa')
 
 def dial_up(who="jessie"):
-        cell_tower = "/data/user/jthwaites/gw_o4/"
-        subprocess.call([cell_tower+"make_call.py", f"--{who}=True", '--troubleshoot=True'])#, "--call_file", help])
+        cell_tower = "/home/jthwaites/private/"
+        subprocess.call([cell_tower+"make_call.py", f"--{who}=True", '--troubleshoot=True'])
 
-path = "/data/user/jthwaites/FastResponseAnalysis/output/"
+path = os.environ.get('FAST_RESPONSE_OUTPUT')
 out_put = '/data/user/jthwaites/o4-mocks/'
 
 #Creating readable (and callable) files from ALL pickle files previously created in gw_gcn_listener
@@ -140,13 +142,13 @@ for k in range(1, len(ed["time_stamp"])):
         if ed["Trigger_Time"][k-1] == ed["Trigger_Time"][k]:
             continue
         else:
-            if len(glob.glob(out_put + f'/202*{id}-1-Preliminary_test/GFU_rate_plot.png'.format())) > 0:
+            if len(glob.glob(out_put + f'/202*{id}-1-Preliminary_test/GFU_rate_plot.png')) > 0:
                 p += 1
                 t += 1
-            if len(glob.glob(out_put + f'/202*{id}-2-Preliminary_test/GFU_rate_plot.png'.format())) > 0:
+            if len(glob.glob(out_put + f'/202*{id}-2-Preliminary_test/GFU_rate_plot.png')) > 0:
                 p += 1
                 t += 1
-            if len(glob.glob(out_put + f'/202*{id}-3-Initial_test/GFU_rate_plot.png'.format())) > 0:
+            if len(glob.glob(out_put + f'/202*{id}-3-Initial_test/GFU_rate_plot.png')) > 0:
                 init += 1
                 t += 1
     else:
@@ -179,7 +181,6 @@ plt.legend(["Total", "Preliminary", "Initial"], loc = "upper left")
 save_path='/home/mromfoe/public_html/O4_followup_monitoring/ReportsPerDay_liveupdate.png'
 plt.tight_layout()
 fig.savefig(save_path)
-fig.savefig("ReportsPerDay.png")
 
 ###latency for the first report###
 fig, ax= plt.subplots(figsize=(12,6))
@@ -203,7 +204,6 @@ plt.legend(["Total Latency", "IceCube Latency", "LVK Latency"], loc = "upper lef
 save_path='/home/mromfoe/public_html/O4_followup_monitoring/Latencies_by_Date_liveupdate.png'
 plt.tight_layout()
 fig.savefig(save_path)
-fig.savefig("Latencies_by_Date.png")
 
 ###Latencies by institute
 n_bins = 25
@@ -242,7 +242,6 @@ axs.grid(True, color ='black',
 save_path='/home/mromfoe/public_html/O4_followup_monitoring/Total_Latency_liveupdate.png'
 plt.tight_layout()
 fig.savefig(save_path)
-fig.savefig("Total_Latency.png")
 
 ###i3
 fig, axs = plt.subplots(figsize = (10, 7))
@@ -270,7 +269,6 @@ axs.grid(True, color ='black',
 save_path='/home/mromfoe/public_html/O4_followup_monitoring/First_IceCube_Latency_liveupdate.png'
 plt.tight_layout()
 fig.savefig(save_path)
-fig.savefig("IceCube_Latency.png")
 
 ###lvk
 fig, axs = plt.subplots(figsize = (10, 7))
@@ -292,7 +290,6 @@ axs.grid(True, color ='black',
 save_path='/home/mromfoe/public_html/O4_followup_monitoring/First_LVK_Latency_liveupdate.png'
 plt.tight_layout()
 fig.savefig(save_path)
-fig.savefig("LVK_Latency.png")
 
 ###find percentage of events we had to wait for
 wait=[]
@@ -323,11 +320,8 @@ save_path='/home/mromfoe/public_html/O4_followup_monitoring/500_sec_delay_liveup
 
 plt.tight_layout()
 fig.savefig(save_path)
-fig.savefig("500_sec_delay_new.png")
 
 ###text files for webpage
-from PIL import Image, ImageDraw, ImageFont
-
 img = Image.new('RGB', (370, 20), "white")
 d1 = ImageDraw.Draw(img)
 fontname = "/home/mromfoe/public_html/O4_followup_monitoring/A101HLVN.ttf"
@@ -424,7 +418,6 @@ def make_bg_pval_dist(fontsize=15, lower_y_bound=-3.5):
 
     save_path='/home/mromfoe/public_html/O4_followup_monitoring/mock_pvals_liveupdate.png'
     plt.savefig(save_path, dpi=200, bbox_inches='tight')
-    plt.savefig("mock_pvals.png")
     print('Figure saved to file: ', save_path)
     
 make_bg_pval_dist()
