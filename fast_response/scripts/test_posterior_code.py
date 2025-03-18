@@ -82,11 +82,12 @@ f.per_event_pvalue()
 
 results = f.save_results()
 nsToTest=[.25,.5,.75,1,1.25,1.5,1.75,2,2.25,2.50,2.75,3,3.25,3.5,3.75,4]
-f.make_posterior_map(nsToTest=nsToTest, 
+f.make_posterior_map(fluxToTest=nsToTest, 
                      prior_func=lambda ns,gamma,ra,dec: 1, 
                      plotting_location=f.analysispath + '/',
                      custom_events=injected_events)
 f.generate_report()
+f.generate_posterior_report()
 
 f.write_circular() 
 

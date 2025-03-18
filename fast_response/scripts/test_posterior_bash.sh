@@ -27,6 +27,3 @@ python test_posterior_code.py --skymap=https://gracedb.ligo.org/api/superevents/
 #S230904n-4-Update
 python test_posterior_code.py --skymap=https://gracedb.ligo.org/api/superevents/S230904n/files/bayestar.fits.gz \
                             --time=60191.21542972222 --name="S230904n_Test_Posterior" --tw=1000
-#MS240802n-3-Initial_test
-python test_posterior_code.py --skymap=https://gracedb.ligo.org/api/superevents/MS240802n/files/bayestar.fits.gz \
-                            --time=60524.544673460645 --name="MS240802n_Test_Posterior" --tw=1000

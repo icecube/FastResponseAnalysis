@@ -76,15 +76,19 @@ for delta_t in [2.*86400.]: #1000
     f.upper_limit()
     f.find_coincident_events()
     results = f.save_results()
+
     f.make_prior_map(plotting_location=f.analysispath + '/',format=True)
 
     f.generate_report()
 
     nsToTest=[.25,.5,.75,1,1.25,1.5,1.75,2,2.25,2.50,2.75,3,3.25,3.5,3.75,4,4.25,4.50,4.75,5]
-    f.make_posterior_map(nsToTest=nsToTest, 
+    #nsToTest=[1e-7,2e-7,3e-7,4e-7,5e-7, 6e-7,7e-7,8e-7]
+    f.make_posterior_map(fluxToTest=nsToTest, 
                      prior_func=lambda ns,gamma,ra,dec: 1, 
                      plotting_location=f.analysispath + '/',
+                     useFlux=False
                      )
 
+    f.generate_posterior_report()
 
     all_results[delta_t] = results
