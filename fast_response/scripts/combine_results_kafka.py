@@ -19,6 +19,7 @@ import lxml.etree
 from astropy.time import Time
 import dateutil.parser
 from datetime import datetime
+from fast_response.slack_posters.slack import slackbot
 from fast_response.web_utils import updateGW_public
 
 with open('/home/jthwaites/private/tokens/kafka_token.txt') as f:
@@ -474,7 +475,8 @@ def parse_notice(record, wait_for_llama=False, heartbeat=False):
         
     ### SAVE RESULTS ###
     if record.attrib['role']=='observation' and not heartbeat:
-        with open(os.path.join(save_location, f'{name}_collected_results.json'),'w') as f:
+        saved_results = os.path.join(save_location, f'{name}_collected_results.json')
+        with open(saved_results,'w') as f:
             json.dump(collected_results, f, indent = 6)
 
         logger.info('sending notice')
@@ -484,27 +486,14 @@ def parse_notice(record, wait_for_llama=False, heartbeat=False):
         logger.info('{}'.format(st))
 
         if status ==0:
-            with open('/home/jthwaites/private/tokens/gw_token.txt') as f:
-                my_key = f.readline()
-            
+            ## post notice to slack
             if not subthreshold:
-                channels = ['#gwnu-heartbeat', '#alerts']#, '#gwnu']
+                channels = ['#gwnu-heartbeat', '#alerts']
             else:
                 channels = ['#gwnu-heartbeat']
             for channel in channels:
-                with open(os.path.join(save_location, f'{name}_collected_results.json'),'r') as fi:
-                    response = requests.post('https://slack.com/api/files.upload',
-                                        timeout=60,
-                                        params={'token': my_key},
-                                        data={'filename':'gcn.json',
-                                            'title': f'GCN Notice for {name}',
-                                            'channels': channel},
-                                        files={'file': fi}
-                                        )
-                if response.ok is True:
-                    logger.info("GCN posted OK to {}".format(channel))
-                else:
-                    logger.info("Error posting Notice to {}!".format(channel))
+                bot = slackbot(channel)
+                bot.post_file_to_slack(title='LvkNuTrackSearch {} GCN Notice'.format(name), file_name=saved_results)
         
             collected_results['subthreshold'] = subthreshold
             try:
@@ -526,30 +515,18 @@ def parse_notice(record, wait_for_llama=False, heartbeat=False):
         else: 
             logger.info('p>0.01: no email/sms sent')
     else:
-        with open(os.path.join(save_location, f'mocks/{name}_collected_results.json'),'w') as f:
+        saved_results = os.path.join(save_location, f'mocks/{name}_collected_results.json')
+        with open(saved_results,'w') as f:
             json.dump(collected_results, f, indent = 6)
         #logger.info('sending test notice')
         #status = SendTestAlert(results = collected_results)
         #logger.info('status: {}'.format(status))
 
         #send the notice to slack (#gw-mock-heartbeat)
-        with open('/home/jthwaites/private/tokens/gw_token.txt') as f:
-            my_key = f.readline()
                 
         channel = '#gw-mock-heartbeat'
-        with open(os.path.join(save_location, f'mocks/{name}_collected_results.json'),'r') as fi:
-            response = requests.post('https://slack.com/api/files.upload',
-                                    timeout=60,
-                                    params={'token': my_key},
-                                    data={'filename':'gcn.json',
-                                          'title': f'GCN Notice for {name}',
-                                          'channels': channel},
-                                    files={'file': fi}
-                                    )
-        if response.ok is True:
-            logger.info("GCN posted OK to {}".format(channel))
-        else:
-            logger.info("Error posting Notice to {}!".format(channel))
+        bot = slackbot(channel)
+        bot.post_file_to_slack(title='LvkNuTrackSearch {} GCN Notice'.format(name), file_name=saved_results)
 
 parser = argparse.ArgumentParser(description='Combine GW-Nu results')
 parser.add_argument('--run_live', action='store_true', default=False,
