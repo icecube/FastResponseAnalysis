@@ -6,6 +6,8 @@ Jessie Thwaites, March 2025
 import os
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
+from dotenv import load_dotenv
+load_dotenv()
 
 class slackbot(object):
     """ Slackbot for sending messages
