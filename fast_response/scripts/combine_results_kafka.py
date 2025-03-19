@@ -522,8 +522,7 @@ def parse_notice(record, wait_for_llama=False, heartbeat=False):
         #status = SendTestAlert(results = collected_results)
         #logger.info('status: {}'.format(status))
 
-        #send the notice to slack (#gw-mock-heartbeat)
-                
+        #send the notice to slack
         channel = '#gw-mock-heartbeat'
         bot = slackbot(channel)
         bot.post_file_to_slack(title='LvkNuTrackSearch {} GCN Notice'.format(name), file_name=saved_results)
