@@ -8,9 +8,7 @@ matplotlib.rcParams['xtick.labelsize'] = 16
 matplotlib.rcParams['ytick.labelsize'] = 16
 import matplotlib.pyplot as plt
 import numpy as np
-import pickle
-import glob
-import os
+import pickle, glob, os
 import datetime
 from datetime import date, timezone
 from dateutil.relativedelta import *
@@ -33,7 +31,7 @@ path = os.environ.get('FAST_RESPONSE_OUTPUT')
 out_put = '/data/user/jthwaites/o4-mocks/'
 
 #Creating readable (and callable) files from ALL pickle files previously created in gw_gcn_listener
-mock_files = sorted(glob.glob(path+'PickledMocks/*MS*.pickle'))
+mock_files = sorted(glob.glob(path+'/PickledMocks/*MS*.pickle'), reverse=True)[:5000]
 
 def sort_mocks(mock_files):
     event_dict = pd.DataFrame({"Trigger_Time": [], "GCN_Alert": [], "End_Time": [],
@@ -48,7 +46,7 @@ def sort_mocks(mock_files):
                 "LVK_Latency": [], "IceCube_Latency": [], "Total_Latency": [], 
                 "Name": [], "time_stamp": [], "first": [], 
                 "last": [], "we_had_to_wait": []}
-    
+    print('Beginning to load {} mocks'.format(len(mock_files)))
     for i in mock_files:
         mocks = pd.read_pickle(f'{i}')
         ###load data from pickle files to dataframe
@@ -64,7 +62,7 @@ def sort_mocks(mock_files):
 
         ###collect timestamps of creation for mock files
         timestamp = os.path.getmtime(i)
-        datestamp = datetime.datetime.fromtimestamp(timestamp, datetime.UTC)
+        datestamp = datetime.datetime.fromtimestamp(timestamp, timezone.utc)
         loading_dict["time_stamp"] = datestamp
 
         ###is it the first or last file sent? not all events have 3 files,
@@ -86,18 +84,16 @@ def sort_mocks(mock_files):
         loading_dict["we_had_to_wait"] = delay
         event_dict = event_dict.append(loading_dict, ignore_index=True)
     return event_dict
-
 event_dict = sort_mocks(mock_files=mock_files)
+print('Done :-)')
 
 ###now to make the plots###
 ed = event_dict
 
 ###call function incase mocks get interrupted
-if (Time(datetime.datetime.now(timezone.utc)).mjd - max(Time(ed["Time_Stamp"]).mjd)) > 3600.*3/86400:
-        print(datetime.datetime.now(timezone.utc))
-        print(max(ed["Time_Stamp"]))
+if (Time(datetime.datetime.now(timezone.utc)).mjd - max(Time(ed["time_stamp"]).mjd)) > 3600.*3/86400:
         dial_up()
-        x = (Time(datetime.datetime.now(timezone.utc)).mjd - max(Time(ed["Time_Stamp"]).mjd))*24
+        x = (Time(datetime.datetime.now(timezone.utc)).mjd - max(Time(ed["time_stamp"]).mjd))*24
         print("It has been " +str(x) +" hours since last update to gw mocks.")
 
 tl = {"latency": [], "time_stamp": []} #total latency
@@ -337,37 +333,38 @@ save_path='/home/mromfoe/public_html/O4_followup_monitoring/Update_Time.png'
 img.save(save_path)
 img.save("Update_Time.png")
 
-df = pd.DataFrame({"Name": ed["Name"][:-16:-1],
-                    "Merger Time": ed["Trigger_Time"][:-16:-1],
-                    "GCN Alert": ed["GCN_Alert"][:-16:-1],
-                    "Script Finishes": ed["End_Time"][:-16:-1],
-                    "Total Latency in Seconds": ed["Total_Latency"][:-16:-1]})
+df = pd.DataFrame({"Name": ed["Name"][-15::-1],
+                    "Merger Time": ed["Trigger_Time"][-15::-1],
+                    "GCN Alert": ed["GCN_Alert"][-15::-1],
+                    "Script Finishes": ed["End_Time"][-15::-1],
+                    "Total Latency in Seconds": ed["Total_Latency"][-15::-1]})
 html1 = df.to_html()
 
 text_file1 = open("/home/mromfoe/public_html/O4_followup_monitoring/Recent_Runs.html", "w")
 text_file1.write(html1)
 text_file1.close()
-
-for event in range(len(ed)):
+df = pd.DataFrame({"Name": [],
+                "Merger Time": [],
+                "GCN Alert": [],
+                "Script Finishes": [],
+                "Total Latency in Seconds": []})
+for event in range(len(ed))[:10]:
     if ed["first"][event] == True:
-        df = pd.DataFrame({"Name": ed["Name"][event],
-                            "Merger Time": ed["Trigger_Time"][event],
-                            "GCN Alert": ed["GCN_Alert"][event],
-                            "Script Finishes": ed["End_Time"][event],
-                            "Total Latency in Seconds": ed["Total_Latency"][event]})
-
-        html2 = df.to_html()
-
-        text_file2 = open("/home/mromfoe/public_html/O4_followup_monitoring/archive.html", "w")
-        text_file2.write(html2)
-        text_file2.close()
+        entry = {"Name": ed["Name"][event],
+                "Merger Time": ed["Trigger_Time"][event],
+                "GCN Alert": ed["GCN_Alert"][event],
+                "Script Finishes": ed["End_Time"][event],
+                "Total Latency in Seconds": ed["Total_Latency"][event]}
+        df.loc[len(df)] = entry
     else:
         continue
 
-###make p-value distribution (taken directly from Jessie Thwaites)
-import matplotlib as mpl
-mpl.use('agg')
+html2 = df.to_html()
 
+text_file2 = open("/home/mromfoe/public_html/O4_followup_monitoring/archive.html", "w")
+text_file2.write(html2)
+text_file2.close()
+###make p-value distribution (taken directly from Jessie Thwaites)
 def make_bg_pval_dist(fontsize=15, lower_y_bound=-3.5):
     # function to make pval dist. lower_y_bound arg gives the exponent to set the lower y-axis 
     # limit, e.g. 10^-3
@@ -388,7 +385,7 @@ def make_bg_pval_dist(fontsize=15, lower_y_bound=-3.5):
             all_mocks[result['name']]=result['p']
     print('Done loading mocks.')
 
-    mpl.rcParams.update({'font.size':fontsize})
+    matplotlib.rcParams.update({'font.size':fontsize})
     plt.figure(figsize = (10,6), dpi=300)
     #ax.tick_params(labelsize=fontsize)
 
