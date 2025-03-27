@@ -348,7 +348,7 @@ df = pd.DataFrame({"Name": [],
                 "GCN Alert": [],
                 "Script Finishes": [],
                 "Total Latency in Seconds": []})
-for event in range(len(ed))[:10]:
+for event in range(len(ed)):
     if ed["first"][event] == True:
         entry = {"Name": ed["Name"][event],
                 "Merger Time": ed["Trigger_Time"][event],
