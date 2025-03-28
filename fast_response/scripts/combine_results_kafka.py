@@ -492,8 +492,12 @@ def parse_notice(record, wait_for_llama=False, heartbeat=False):
             else:
                 channels = ['#gwnu-heartbeat']
             for channel in channels:
-                bot = slackbot(channel)
-                bot.post_file_to_slack(title='LvkNuTrackSearch {} GCN Notice'.format(name), file_name=saved_results)
+                try: 
+                    bot = slackbot(channel)
+                    bot.post_file_to_slack(title='LvkNuTrackSearch {} GCN Notice'.format(name), file_name=saved_results)
+                except Exception as e:
+                    logger.warning('Failed to post to slack.')
+                    logger.info(e)
         
             collected_results['subthreshold'] = subthreshold
             try:
@@ -524,13 +528,17 @@ def parse_notice(record, wait_for_llama=False, heartbeat=False):
 
         #send the notice to slack
         channel = '#gw-mock-heartbeat'
-        bot = slackbot(channel)
-        bot.post_file_to_slack(title='LvkNuTrackSearch {} GCN Notice'.format(name), file_name=saved_results)
+        try:
+            bot = slackbot(channel)
+            bot.post_file_to_slack(title='LvkNuTrackSearch {} GCN Notice'.format(name), file_name=saved_results)
+        except Exception as e:
+            logger.warning('Failed to post to slack.')
+            logger.info(e)
 
 parser = argparse.ArgumentParser(description='Combine GW-Nu results')
 parser.add_argument('--run_live', action='store_true', default=False,
                     help='Run on live GCNs')
-parser.add_argument('--test_path', type=str, default=None,
+parser.add_argument('--path', type=str, default=None,
                     help='path to test xml file')
 parser.add_argument('--max_wait', type=float, default=35.,
                     help='Maximum minutes to wait for LLAMA/UML results before timeout (default=60)')
@@ -569,18 +577,19 @@ if args.run_live:
             logger.info('Done.')
 
 else:
-    if args.test_path is None:
+    if args.path is None:
         paths=glob.glob('/home/jthwaites/FastResponse/*/*xml')
         path = paths[1]
         #path = '/home/jthwaites/FastResponse/S230522n-preliminary.json,1'
     else: 
-        path = args.test_path
+        path = args.path
     
     logger.info('running on {}'.format(path))
     
     with open(path, 'r') as f:
         payload = f.read()
     try:
+        payload = payload.replace("<?xml version='1.0' encoding='UTF-8'?>","") #lxml doesn't like this line
         record = lxml.etree.fromstring(payload)
     except Exception as e:
         print(e)
