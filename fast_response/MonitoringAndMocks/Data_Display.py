@@ -85,7 +85,6 @@ def sort_mocks(mock_files):
         event_dict = event_dict.append(loading_dict, ignore_index=True)
     return event_dict
 event_dict = sort_mocks(mock_files=mock_files)
-print('Done :-)')
 
 ###now to make the plots###
 ed = event_dict
@@ -364,11 +363,12 @@ html2 = df.to_html()
 text_file2 = open("/home/mromfoe/public_html/O4_followup_monitoring/archive.html", "w")
 text_file2.write(html2)
 text_file2.close()
-###make p-value distribution (taken directly from Jessie Thwaites)
-def make_bg_pval_dist(fontsize=15, lower_y_bound=-3.5):
+
+###make p-value distribution 
+def make_bg_pval_dist(fontsize=15, lower_y_bound=-3.5, load_all=False):
     # function to make pval dist. lower_y_bound arg gives the exponent to set the lower y-axis 
     # limit, e.g. 10^-3
-    all_maps_saved_pkl=sorted(glob.glob('/data/user/jthwaites/o4-mocks/*/*.pickle'))[::-1]
+    all_maps_saved_pkl=sorted(glob.glob('/data/user/jthwaites/o4-mocks/*/*.pickle'), reverse=True)
     saved_mock_pkl=[all_maps_saved_pkl[0]]
 
     for mock in all_maps_saved_pkl:
@@ -378,7 +378,13 @@ def make_bg_pval_dist(fontsize=15, lower_y_bound=-3.5):
             saved_mock_pkl.append(mock)
 
     all_mocks={}
-    print('Loading %i mocks (may take a while)'%(len(saved_mock_pkl)))
+    #if more than 2000 found - load most recent only (otherwise takes too long)  
+    if len(saved_mock_pkl)>2000 and not load_all:
+        print('Loading most recent 2000 mocks (may take a while)')
+        saved_mock_pkl = saved_mock_pkl[0:2000]
+    else:
+        print('Loading %i mocks (may take a while)'%(len(saved_mock_pkl)))
+
     for mock in saved_mock_pkl:
         with open(mock,'rb') as f:
             result=pickle.load(f)
