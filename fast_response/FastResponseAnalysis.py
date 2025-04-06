@@ -896,6 +896,7 @@ class PriorFollowup(FastResponseAnalysis):
                 print("[run, event, ra, dec, sigma, logE, time]")
                 for e in self.llh.exp[t_mask][msk3]: 
                     print([e[k] for k in ['run', 'event', 'ra', 'dec', 'sigma', 'logE', 'time']])
+            self.nearby = self.llh.exp[t_mask][msk3]
 
         if len(events) == 0:
             coincident_events = []
@@ -1225,7 +1226,7 @@ class PointSourceFollowup(FastResponseAnalysis):
         self.save_items['ns'] = ns
         return ts, ns
 
-    def find_coincident_events(self):
+    def find_coincident_events(self, print_events=False):
         r"""Find "coincident events" for the analysis.
         These are ontime events that satisfy:
         
@@ -1253,6 +1254,20 @@ class PointSourceFollowup(FastResponseAnalysis):
                 self.coincident_events[-1]['delta_psi'] = del_psi 
                 self.coincident_events[-1]['spatial_w'] = s_w
                 self.coincident_events[-1]['energy_w'] = en_w
+
+        if print_events:
+            t_mask=(self.llh.exp['time']<=self.stop)&(self.llh.exp['time']>=self.start)
+            # print nearby events, as a check (if needed)
+            msk1 = (self.llh.exp[t_mask]['ra'] < (self.ra+np.radians(10)))*(self.llh.exp[t_mask]['ra'] > (self.ra-np.radians(10)))
+            msk2 = (self.llh.exp[t_mask]['dec'] < (self.dec+np.radians(10)))*((self.llh.exp[t_mask]['dec'] > self.dec-np.radians(10)))
+            msk3 = msk1*msk2
+            if np.count_nonzero(msk3) > 0:
+                print('Events within 10 deg of best-fit:')
+                print("[run, event, ra, dec, sigma, logE, time]")
+                for e in self.llh.exp[t_mask][msk3]: 
+                    print([e[k] for k in ['run', 'event', 'ra', 'dec', 'sigma', 'logE', 'time']])
+            self.nearby = self.llh.exp[t_mask][msk3]
+
         self.save_items['coincident_events'] = self.coincident_events
 
     def ns_scan(self, params = {'spectrum': 'dN/dE = 1.00e+00 * (E / 1.00e+03 GeV)^-2.00 [GeV^-1cm^-2s^-1]'}):
