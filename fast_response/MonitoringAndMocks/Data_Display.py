@@ -31,7 +31,7 @@ path = os.environ.get('FAST_RESPONSE_OUTPUT')
 out_put = '/data/user/jthwaites/o4-mocks/'
 
 #Creating readable (and callable) files from ALL pickle files previously created in gw_gcn_listener
-mock_files = sorted(glob.glob(path+'/PickledMocks/*MS*.pickle'), reverse=True)[:5000]
+mock_files = sorted(glob.glob(path+'/PickledMocks/*MS*.pickle'), reverse=True)[:2000]
 
 def sort_mocks(mock_files):
     event_dict = pd.DataFrame({"Trigger_Time": [], "GCN_Alert": [], "End_Time": [],
@@ -155,7 +155,7 @@ for k in range(1, len(ed["time_stamp"])):
         p = 0
         initial.append(init)
         init = 0
-
+print("Creating plots now")
 fig, ax= plt.subplots(figsize=(12,6))
 
 plt.title("Reports Per Day")
@@ -332,7 +332,7 @@ d1.text((2, 0), "Page Last Updated: {} UTC".format(now),
 save_path='/home/mromfoe/public_html/O4_followup_monitoring/Update_Time.png'
 img.save(save_path)
 img.save("Update_Time.png")
-
+print("Creating tables")
 df = pd.DataFrame({"Name": ed["Name"][-15::-1],
                     "Merger Time": ed["Trigger_Time"][-15::-1],
                     "GCN Alert": ed["GCN_Alert"][-15::-1],
@@ -365,6 +365,7 @@ text_file2 = open("/home/mromfoe/public_html/O4_followup_monitoring/archive.html
 text_file2.write(html2)
 text_file2.close()
 ###make p-value distribution (taken directly from Jessie Thwaites)
+print("Making p-value plot")
 def make_bg_pval_dist(fontsize=15, lower_y_bound=-3.5):
     # function to make pval dist. lower_y_bound arg gives the exponent to set the lower y-axis 
     # limit, e.g. 10^-3
