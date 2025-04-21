@@ -10,7 +10,6 @@ import numpy as np
 import pickle, glob, os
 from datetime import date, timezone, datetime
 from dateutil.relativedelta import *
-# from statistics import median
 from matplotlib.dates import DateFormatter
 from astropy.time import Time
 import pandas as pd
@@ -149,7 +148,7 @@ for k in range(1, len(ed["time_stamp"])):
         p = 0
         initial.append(init)
         init = 0
-print("Creating plots now")
+print("Creating plots and tables")
 fig, ax= plt.subplots(figsize=(12,6))
 
 plt.title("Reports Per Day")
@@ -318,7 +317,6 @@ plt.plot([0,5],[0,100],color='white')
 ax.text(-0.1, 15, "Page Last Updated: {} UTC".format(now))
 plt.savefig(save_path)
 
-print("Creating tables")
 df = pd.DataFrame({"Name": ed["Name"][-15::-1],
                     "Merger Time": ed["Trigger_Time"][-15::-1],
                     "GCN Alert": ed["GCN_Alert"][-15::-1],
@@ -368,7 +366,7 @@ def make_bg_pval_dist(fontsize=15, lower_y_bound=-3.5, load_all=False):
     all_mocks={}
     #if more than 1000 found - load most recent only (otherwise takes too long)  
     if len(saved_mock_pkl)>1000 and not load_all:
-        print('Loading most recent 1000 mocks (may take a while)')
+        print('Loading 1000 most recent mock p-vals (may take a while)')
         saved_mock_pkl = saved_mock_pkl[0:1000]
     else:
         print('Loading %i mocks (may take a while)'%(len(saved_mock_pkl)))
