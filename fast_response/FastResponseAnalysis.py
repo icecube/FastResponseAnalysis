@@ -1266,7 +1266,7 @@ class PointSourceFollowup(FastResponseAnalysis):
                 print("[run, event, ra, dec, sigma, logE, time]")
                 for e in self.llh.exp[t_mask][msk3]: 
                     print([e[k] for k in ['run', 'event', 'ra', 'dec', 'sigma', 'logE', 'time']])
-            self.nearby = self.llh.exp[t_mask][msk3]
+            self.nearby = self.llh.exp[t_mask]
 
         self.save_items['coincident_events'] = self.coincident_events
 
