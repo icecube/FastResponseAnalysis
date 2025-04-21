@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-###For text files of timestamps & latencies from gw pipeline, go to end of script and call function
 import matplotlib
 matplotlib.use("agg")
 matplotlib.rcParams['axes.titlesize'] = 18
@@ -8,552 +7,301 @@ matplotlib.rcParams['xtick.labelsize'] = 16
 matplotlib.rcParams['ytick.labelsize'] = 16
 import matplotlib.pyplot as plt
 import numpy as np
-import glob, os, datetime, pwd, pickle
-from datetime import date
-from statistics import median
-#from statistics import mode
+import pickle, glob, os
+from datetime import date, timezone, datetime
+from dateutil.relativedelta import *
 from matplotlib.dates import DateFormatter
 from astropy.time import Time
 import pandas as pd
-import subprocess
-import warnings
+import subprocess, warnings
 warnings.filterwarnings('ignore', module='astropy._erfa')
 
 def dial_up(who="jessie"):
-    cell_tower = "/home/jthwaites/private/"
-    subprocess.call([cell_tower+"make_call.py", f"--{who}=True", '--troubleshoot=True'])
+        cell_tower = "/home/jthwaites/private/"
+        # subprocess.call([cell_tower+"make_call.py", f"--{who}=True", '--troubleshoot=True'])
+        print('Calld')
 
-path=os.environ.get('FAST_RESPONSE_OUTPUT')
+path = os.environ.get('FAST_RESPONSE_OUTPUT')
 out_put = '/data/user/jthwaites/o4-mocks/'
 
 #Creating readable (and callable) files from ALL pickle files previously created in gw_gcn_listener
-if pwd.getpwuid(os.getuid())[0] == 'realtime':
-    Pickle_to_text = sorted(glob.glob(path+'PickledMocks/*MS*.pickle'))#+
-                            #glob.glob('/data/user/jthwaites/FastResponseAnalysis/output/PickledMocks/*MS*.pickle'))
-else:
-    Pickle_to_text = sorted(glob.glob(path+'PickledMocks/*MS*.pickle'))
+mock_files = sorted(glob.glob(path+'/PickledMocks/*MS*.pickle'), reverse=True)[:1000]
 
-all_dictionary = {'Trigger_Time': [], 'GCN_Alert': [], 'End_Time': [],
-                  'LVK_Latency': [], 'IceCube_Latency': [], 'Total_Latency': [],
-                  'We_had_to_wait:': [], 'Name': [], 'Time_Stamp': []}
-print('Number of mocks to load: {}'.format(len(Pickle_to_text)))
+def sort_mocks(mock_files):
+    event_dict = pd.DataFrame({"Trigger_Time": [], "GCN_Alert": [], "End_Time": [],
+                "LVK_Latency": [], "IceCube_Latency": [], "Total_Latency": [], 
+                "Name": [], "time_stamp": [], "first": [], 
+                "last": [], "we_had_to_wait": []})
+    ###these keys are saved in pickle files and just need to be loaded into dict
+    select_keys = ("Trigger_Time", "GCN_Alert", "End_Time", "LVK_Latency",
+                    "IceCube_Latency", "Total_Latency")
+    ###create empty list and load each value into the list which is then loaded into the dict.
+    loading_dict = {"Trigger_Time": [], "GCN_Alert": [], "End_Time": [],
+                "LVK_Latency": [], "IceCube_Latency": [], "Total_Latency": [], 
+                "Name": [], "time_stamp": [], "first": [], 
+                "last": [], "we_had_to_wait": []}
+    print('Beginning to load {} mocks'.format(len(mock_files)))
+    for i in mock_files:
+        mocks = pd.read_pickle(f'{i}')
+        ###load data from pickle files to dataframe
+        for key in select_keys:
+            mock_key = "Ligo_Latency" if key == "LVK_Latency" else key
+            loading_dict[key] = mocks[mock_key]
 
-i=0
-for file in Pickle_to_text:
-    #if i%100==0: print(i)
-    if os.path.exists(file):
-        with open(file, 'rb') as pickle_now:
-            Entries = pickle.load(pickle_now)
-        if int(Entries["Trigger_Time"]) == 59957:
-            continue #This is January 13th 2023, dates were messed up.
-        for Key in Entries.keys():
-            if Key=="Ligo_Latency":
-                all_dictionary['LVK_Latency'].append(Entries[Key])
+        ###separate name of event
+        ###file name format: gw_latency_dict_S240501dr-2-Preliminary_test.pickle
+        first_split = i.split('_')
+        second_split = first_split[-2].split('-')
+        loading_dict["Name"] = second_split[0]
+
+        ###collect timestamps of creation for mock files
+        timestamp = os.path.getmtime(i)
+        datestamp = datetime.fromtimestamp(timestamp, timezone.utc)
+        loading_dict["time_stamp"] = datestamp
+
+        ###is it the first or last file sent? not all events have 3 files,
+        ###so determinging "last" will require more work in another function below
+        if '-1-' in str(i):
+            loading_dict["first"] = True
+            loading_dict["last"] = False
+        else:
+            loading_dict["first"] = False
+        if '-3-' in str(i):
+            loading_dict["last"] = True
+        if '-2-' in str(i):
+            if len(glob.glob(path + f'PickledMocks/*{second_split[0]}-3-*'.format())) > 0:
+                loading_dict["last"] = False
             else:
-                all_dictionary[Key].append(Entries[Key])
-        all_dictionary['Name'].append(file)
-    i+=1
+                loading_dict["last"] = True
+        ###500 seconds of data must be collected before i3 can run, anything more is delay
+        delay = 500 - mocks["Ligo_Latency"]
+        loading_dict["we_had_to_wait"] = delay
+        event_dict = event_dict.append(loading_dict, ignore_index=True)
+    return event_dict
+event_dict = sort_mocks(mock_files=mock_files)
 
-for file in all_dictionary["Name"]:
-        date_format = "%Y-%m-%d"
-        c_timestamp = os.path.getmtime(file)
-        c_datestamp = datetime.datetime.utcfromtimestamp(c_timestamp)
-        all_dictionary['Time_Stamp'].append(c_datestamp)
-print('Finished loading all latencies.')
+###now to make the plots###
+ed = event_dict
 
-#Setting conditions for call to be made if script fails. Condition: if more than 3 hours pass between alerts
-if (Time(datetime.datetime.utcnow()).mjd - max(Time(all_dictionary["Time_Stamp"]).mjd)) > 3600.*3/86400:
+###call function incase mocks get interrupted
+if (Time(datetime.now(timezone.utc)).mjd - max(Time(ed["time_stamp"]).mjd)) > 3600.*3/86400:
         dial_up()
-        x = (Time(datetime.datetime.utcnow()).mjd - max(Time(all_dictionary["Time_Stamp"]).mjd))*24
+        x = (Time(datetime.now(timezone.utc)).mjd - max(Time(ed["time_stamp"]).mjd))*24
         print("It has been " +str(x) +" hours since last update to gw mocks.")
 
-#Sorting pickle files by date created and by most correct version
-if pwd.getpwuid(os.getuid())[0] == 'realtime':
-    Pickle_Files = sorted(glob.glob(path+'PickledMocks/*.pickle'))#+
-                          #glob.glob('/data/user/jthwaites/FastResponseAnalysis/output/PickledMocks/*.pickle'))
-else:
-    Pickle_Files = sorted(glob.glob(path+'PickledMocks/*.pickle'))
+tl = {"latency": [], "time_stamp": []} #total latency
+il = {"latency": [], "time_stamp": []} #icecube latency
+ll = {"latency": [], "time_stamp": []} #lvk latency
+ts_list = []
+###find the latencies associated with each institute, based only on the first map sent
+for i in range(len(ed)):
+    if ed["first"][i] == True:
+        tl["latency"].append(ed["Total_Latency"][i])
+        tl["time_stamp"].append(ed["time_stamp"][i])
+        il["latency"].append(ed["IceCube_Latency"][i])
+        il["time_stamp"].append(ed["time_stamp"][i])
+        ll["latency"].append(ed["LVK_Latency"][i])
+        ll["time_stamp"].append(ed["time_stamp"][i])
+        ###find the events that have background trials run on them (increases latency)
+        def find_ts(i, ts_list):
+            ev_name = ed["Name"][i]
+            find = glob.glob(out_put+f'/202*{ev_name}*/TS_distribution.png')
+            if len(find)>0:
+                ts_list.append(True)
+            else:
+                ts_list.append(False)
+            return ts_list
+        ts_list = find_ts(i=i, ts_list=ts_list)
+    else:
+        continue
+ts_list = np.array(ts_list)
 
-date_format = "%Y-%m-%d"
-Quality_Pickles = []
+###tally amount of reports per day
+unique_days = []
+total = []
+t = 0
+preliminary = []
+p = 0
+initial = []
+init = 0
 
-for file in Pickle_Files:
-    c_timestamp = os.path.getmtime(file)
-    c_datestamp = datetime.datetime.fromtimestamp(c_timestamp)
-    if (c_datestamp >= datetime.datetime.strptime('2022-12-05', date_format)):
-        Quality_Pickles.append(file)
-
-#Collecting the first maps created for each event for analysis
-First_Batch={'Trigger_Time': [], 'GCN_Alert': [], 'End_Time': [],
-             'LVK_Latency': [], 'IceCube_Latency': [], 'Total_Latency': [],
-             'We_had_to_wait:': [], 'Name': [], 'Time_Stamp': []}     
-if pwd.getpwuid(os.getuid())[0] == 'realtime':
-    First_Runs = sorted(glob.glob(path+'PickledMocks/*MS*-1-*.pickle'))#+
-                        #glob.glob('/data/user/jthwaites/FastResponseAnalysis/output/PickledMocks/*MS*-1-*.pickle'))
-else:
-    First_Runs = sorted(glob.glob(path+'PickledMocks/*MS*-1-*.pickle'))
-
-for file in First_Runs:
-    if os.path.exists(file):
-        with open(file, 'rb') as pickle_now:
-            Entries = pickle.load(pickle_now)
-            if int(Entries["Trigger_Time"]) == 59957:
-                continue
-            for Key in Entries.keys():
-                if Key=="Ligo_Latency":
-                    First_Batch['LVK_Latency'].append(Entries[Key])
-                else:
-                    First_Batch[Key].append(Entries[Key])        
-        First_Batch['Name'].append(file)
-
-for file in First_Batch["Name"]:
-    date_format = "%Y-%m-%d"
-    c_timestamp = os.path.getmtime(file)
-    c_datestamp = datetime.datetime.fromtimestamp(c_timestamp)
-    First_Batch['Time_Stamp'].append(c_datestamp)
-print('Finished loading 1st map latencies.')
-
-#Breakdown full name of files created so only necessary parts are saved 
-# (i.e., the code for the event and number of the map)
-pieces = [string.split('-') for string in Quality_Pickles]
-
-Puzzle_Box = {}
-
-for prefix in np.unique([pieces[i][0] for i in range(len(pieces))]):
-        Puzzle_Box[prefix]=[[],[]]
-for bit in pieces:
-        Puzzle_Box[bit[0]][0].append(int(bit[1]))
-        Puzzle_Box[bit[0]][1].append(bit[2])
-
-answer = []
-names = []
-#Finds the most recent map created for each event. This is usually '2' or '3'. 
-for key in Puzzle_Box.keys():
-        high_file=max(Puzzle_Box[key][0])
-        for i in range(len(Puzzle_Box[key][0])):
-                if Puzzle_Box[key][0][i]==high_file:
-                        answer.append(key+'-'+str(high_file)+'-'+Puzzle_Box[key][1][i])
-                        names.append(key[-9:]+'-'+str(high_file)+'-'+Puzzle_Box[key][1][i].split('.')[0])
-
-Last_Batch = {'Trigger_Time': [], 'GCN_Alert': [], 'End_Time': [],
-              'LVK_Latency': [], 'IceCube_Latency': [], 'Total_Latency': [],
-              'We_had_to_wait:': [], 'Name': [], 'Time_Stamp': []}
-
-#Make keys in dictionary callable
-for file in answer:
-    if os.path.exists(file):
-        with open(file, 'rb') as pickle_in:
-            Brine = pickle.load(pickle_in)
-            if int(Brine["Trigger_Time"]) == 59957: #This is January 13, 2023.
-                #There was an error causing multiple files to be falsely saved to this date.
-                continue 
-            for Key in Brine.keys():
-                if Key=="Ligo_Latency":
-                    Last_Batch['LVK_Latency'].append(Brine[Key])
-                else:
-                    Last_Batch[Key].append(Brine[Key])
-        Last_Batch['Name'].append(file)
-
-for file in Last_Batch["Name"]:
-        date_format = "%Y-%m-%d"
-        c_timestamp = os.path.getmtime(file)
-        c_datestamp = datetime.datetime.fromtimestamp(c_timestamp)
-        Last_Batch['Time_Stamp'].append(c_datestamp)
-print('Finished loading last map latencies')
-
-First_TS = []
-Last_TS = []
-
-def find_ts(Batch, TS_List):
-    split_names = [string.split('/') for string in Batch]
-
-    split_bits = []
-    prime_split = []
-    final_bit = []
-
-    for i in range(len(split_names)):
-        split_bits.append(split_names[i][-1])
-
-    middle_split = [string.split('.') for string in split_bits]
-
-    for i in range(len(middle_split)):
-        prime_split.append(middle_split[i][-2])
-
-    chop = [string.split('_') for string in prime_split]
-
-    for i in range(len(chop)):
-        final_bit.append(chop[i][-2]+'_'+chop[i][-1])
-
-    for i in final_bit:
-        FTS=glob.glob(out_put+f'/202*{i}/TS_distribution.png')
-        if len(FTS)>0:
-            TS_List.append(True)
+for k in range(1, len(ed["time_stamp"])):
+    if ed["time_stamp"][k-1].day == ed["time_stamp"][k].day:
+        id = ed["Name"][k]
+        if ed["Trigger_Time"][k-1] == ed["Trigger_Time"][k]:
+            continue
         else:
-            TS_List.append(False)
-            
-    TS_List = np.array(TS_List)
-    return TS_List
+            if len(glob.glob(out_put + f'/202*{id}-1-Preliminary_test/GFU_rate_plot.png')) > 0:
+                p += 1
+                t += 1
+            if len(glob.glob(out_put + f'/202*{id}-2-Preliminary_test/GFU_rate_plot.png')) > 0:
+                p += 1
+                t += 1
+            if len(glob.glob(out_put + f'/202*{id}-3-Initial_test/GFU_rate_plot.png')) > 0:
+                init += 1
+                t += 1
+    else:
+        unique_days.append(ed["time_stamp"][k-1].date())
+        total.append(t)
+        t = 0
+        preliminary.append(p)
+        p = 0
+        initial.append(init)
+        init = 0
+print("Creating plots and tables")
+fig, ax= plt.subplots(figsize=(12,6))
 
-First_TS = find_ts(Batch = First_Batch["Name"], TS_List = First_TS)
-Last_TS = find_ts(Batch = Last_Batch["Name"], TS_List = Last_TS)
+plt.title("Reports Per Day")
+plt.xlabel("Date")
+plt.ylabel("Number of Reports")
 
-#Find the outliers (those that take a long time to run/process)
-outliers_ice = []
-outliers_tot = []
+ax.plot_date(unique_days, total, color = 'black')
+ax.plot_date(unique_days, preliminary, color = 'green')
+ax.plot_date(unique_days, initial, color = 'orange')
 
-for item in range(len(First_Batch["IceCube_Latency"])):
-    if First_Batch["IceCube_Latency"][item]>=1200:
-        outliers_ice.append(First_Batch["Name"][item])
+now = datetime.now(timezone.utc)
+past = now + relativedelta(months=-2)
 
-for item in range(len(First_Batch["Total_Latency"])):
-    if First_Batch["Total_Latency"][item]>=3000:
-        outliers_tot.append(First_Batch["Name"][item])
+ax.set_xlim(past, now)
+ax.fmt_xdata = DateFormatter('%Y-%m-%d %H:%M:%S')
+plt.xticks(rotation=18, ha="right")
+plt.legend(["Total", "Preliminary", "Initial"], loc = "upper left")
 
-icecube_outliers = []
-total_outliers = []
+save_path='/home/mromfoe/public_html/O4_followup_monitoring/ReportsPerDay_liveupdate.png'
+plt.tight_layout()
+fig.savefig(save_path)
 
-def outlier_name(outlier_list, outlier_names):
-    nb = [string.split('/') for string in outlier_list]
+###latency for the first report###
+fig, ax= plt.subplots(figsize=(12,6))
 
-    out_bit=[]
+plt.title("Latency per Report by Date")
+plt.xlabel("Date")
+plt.ylabel("Latency in Seconds")
 
-    for i in range(len(nb)):
-        out_bit.append(nb[i][-1])
+ax.plot_date(tl["time_stamp"], tl["latency"], color = 'black')
+ax.plot_date(il["time_stamp"], il["latency"], color = 'cyan')
+ax.plot_date(ll["time_stamp"], ll["latency"], color = 'red')
 
-    last_bit = [string.split('_') for string in out_bit]
+now = datetime.now(timezone.utc)
+past = now + relativedelta(weeks=-1)
 
-    for i in range(len(last_bit)):
-        outlier_names.append(last_bit[i][-2])
+ax.set_xlim(past, now)
+ax.fmt_xdata = DateFormatter('%Y-%m-%d %H:%M:%S')
+plt.xticks(rotation=18, ha="right")
+plt.legend(["Total Latency", "IceCube Latency", "LVK Latency"], loc = "upper left")
 
-outlier_name(outlier_list = outliers_ice, outlier_names = icecube_outliers)
-outlier_name(outlier_list = outliers_tot, outlier_names = total_outliers)
+save_path='/home/mromfoe/public_html/O4_followup_monitoring/Latencies_by_Date_liveupdate.png'
+plt.tight_layout()
+fig.savefig(save_path)
 
-#creating dictionaries of outliers so they can be quickly and easily identified
-d_outlier_ice = {"Name": [], "Trigger Time": [], "End Time": []}
-d_outlier_tot = {"Name": [], "Trigger Time": [], "End Time": []}
-
-for n in icecube_outliers:
-        for i in range(len(First_Batch["Name"])):
-                if n in First_Batch["Name"][i]:
-                        d_outlier_ice["Name"].append(n)
-                        d_outlier_ice["Trigger Time"].append(First_Batch["Trigger_Time"][i])
-                        d_outlier_ice["End Time"].append(First_Batch["End_Time"][i])
-for n in total_outliers:
-        for i in range(len(First_Batch["Name"])):
-                if n in First_Batch["Name"][i]:
-                        d_outlier_tot["Name"].append(n)
-                        d_outlier_tot["Trigger Time"].append(First_Batch["Trigger_Time"][i])
-                        d_outlier_tot["End Time"].append(First_Batch["End_Time"][i])
-
-a = all_dictionary
-###Create pandas table to display on website
-#This table shows only the most recently received map data
-name_bits = [string.split('/') for string in all_dictionary['Name']]
-
-new_names=[]
-prime_bits=[]
-
-for i in range(len(name_bits)):
-        prime_bits.append(name_bits[i][-1])
-
-last_bit = [string.split('_') for string in prime_bits]
-
-for i in range(len(prime_bits)):
-        new_names.append(last_bit[i][-2])
-
-Merger=[]
-for i in range(len(a["Trigger_Time"])):
-        merg= Time(a["Trigger_Time"][i], format="mjd").iso
-        Merger.append(merg)
-Alert=[]
-for i in range(len(a["GCN_Alert"])):
-        aler= Time(a["GCN_Alert"][i], format="mjd").iso
-        Alert.append(aler)
-End=[]
-for i in range(len(a["End_Time"])):
-        en= Time(a["End_Time"][i], format="mjd").iso
-        End.append(en)
-
-total_late=[]
-for i in range(len(a["Total_Latency"])):
-        tot= a["Total_Latency"][i]%3600
-        total_late.append(tot)
-
-n_names= new_names[:-16:-1]
-m_merger= Merger[:-16:-1]
-a_alert= Alert[:-16:-1]
-e_end= End[:-16:-1]
-tot_late= total_late[:-16:-1]
-
-df = pd.DataFrame({"Name": n_names,
-                        "Merger Time": m_merger,
-                        "GCN Alert": a_alert,
-                        "Script Finishes": e_end,
-                        "Total Latency in Seconds": tot_late})
-html1 = df.to_html()
-
-text_file1 = open("/home/mromfoe/public_html/O4_followup_monitoring/Recent_Runs.html", "w")
-text_file1.write(html1)
-text_file1.close()
-
-###This table displays the LAST map from each event
-name_bits = [string.split('/') for string in First_Batch['Name']]
-
-FB=First_Batch
-
-new_names=[]
-prime_bits=[]
-
-for i in range(len(name_bits)):
-        prime_bits.append(name_bits[i][-1])
-
-nlast_bit = [string.split('_') for string in prime_bits]
-
-for i in range(len(prime_bits)):
-        new_names.append(nlast_bit[i][-2])
-
-Merger=[]
-for i in range(len(FB["Trigger_Time"])):
-        merg= Time(FB["Trigger_Time"][i], format="mjd").iso
-        Merger.append(merg)
-Alert=[]
-for i in range(len(FB["GCN_Alert"])):
-        aler= Time(FB["GCN_Alert"][i], format="mjd").iso
-        Alert.append(aler)
-End=[]
-for i in range(len(FB["End_Time"])):
-        en= Time(FB["End_Time"][i], format="mjd").iso
-        End.append(en)
-
-total_late=[]
-for i in range(len(FB["Total_Latency"])):
-        tot= FB["Total_Latency"][i]
-        total_late.append(tot)
-
-df = pd.DataFrame({"Name": new_names,
-                        "Merger Time": Merger,
-                        "GCN Alert": Alert,
-                        "Script Finishes": End,
-                        "Total Latency in Seconds": total_late})
-
-html2 = df.to_html()
-
-text_file2 = open("/home/mromfoe/public_html/O4_followup_monitoring/archive.html", "w")
-text_file2.write(html2)
-text_file2.close()
-
-#Create histograms of time data collected
+###Latencies by institute
 n_bins = 25
-###
+
+fig, axs = plt.subplots(figsize = (10, 7))
+plt.xlabel("Latency in Seconds: Last Bin is Overflow")
+plt.ylabel("# of GCN Alerts")
+plt.title("Total Latency: First Map")
+
+total_med = round(np.median(np.array(tl["latency"])), 2)
+bg_med = round(np.median(np.array(tl["latency"])[ts_list]), 2)
+nbg_med = round(np.median(np.array(tl["latency"])[~ts_list]), 2)
+tl["latency"] = np.array(tl["latency"])
+tl["latency"][tl["latency"] > 3000] =  3000 ###creating overflow bin
+h,b,_= axs.hist(tl["latency"], color = "c", bins = n_bins, label = "No BG Trial")
+axs.hist((np.array(tl["latency"])[ts_list]), color = "orange", bins=b, label = "BG Trial")
+
+percent_ts = []
+pt = 0
+
+for value in range(len(ts_list)):
+        if ts_list[value] > 0:
+                pt+=1
+                percent_ts.append(pt)
+percentage = round(len(percent_ts)/len(ts_list)*100, 2)
+
+plt.axvline(total_med, color = 'r', linestyle = "dashdot", label = "Median: {:.2f}".format(total_med))
+plt.axvline(bg_med, color = 'k', linestyle = 'dotted', label = "BG Trial Median: {:.2f}".format(bg_med))
+plt.axvline(nbg_med, color = 'k', linestyle = 'dashed', label = "No BG Trial Median: {:.2f}".format(nbg_med))
+plt.axvline(1, 0, linestyle = "none", label = "Percent w/ BG Trials: {:.2f} %".format(percentage))
+plt.legend(fontsize = '15')
+axs.grid(True, color ='black',
+        linestyle ='-.', linewidth = 0.5,
+        alpha = 0.7)
+
+save_path='/home/mromfoe/public_html/O4_followup_monitoring/Total_Latency_liveupdate.png'
+plt.tight_layout()
+fig.savefig(save_path)
+
+###i3
+fig, axs = plt.subplots(figsize = (10, 7))
+plt.xlabel("Latency in Seconds: Last Bin is Overflow")
+plt.ylabel("# of GCN Alerts")
+plt.title("Latency on IceCube's Side: First Map")
+
+total_med = round(np.median(np.array(il["latency"])), 2)
+bg_med = round(np.median(np.array(il["latency"])[ts_list]), 2)
+nbg_med = round(np.median(np.array(il["latency"])[~ts_list]), 2)
+il["latency"] = np.array(il["latency"])
+il["latency"][il["latency"] > 1200] =  1200 ###creating overflow bin
+h,b,_= axs.hist(il["latency"], color = "c", bins = n_bins, label = "No BG Trial")
+axs.hist((il["latency"])[ts_list], color = "orange", bins=b, label = "BG Trial")
+
+plt.axvline(total_med, color = 'r', linestyle = "dashdot", label = "Median: {:.2f}".format(total_med))
+plt.axvline(bg_med, color = 'k', linestyle = 'dotted', label = "BG Trial Median: {:.2f}".format(bg_med))
+plt.axvline(nbg_med, color = 'k', linestyle = 'dashed', label = "No BG Trial Median: {:.2f}".format(nbg_med))
+plt.axvline(1, 0, linestyle = "none", label = "Percent w/ BG Trials: {:.2f} %".format(percentage))
+plt.legend(fontsize = '15')
+axs.grid(True, color ='black',
+        linestyle ='-.', linewidth = 0.5,
+        alpha = 0.7)
+
+save_path='/home/mromfoe/public_html/O4_followup_monitoring/First_IceCube_Latency_liveupdate.png'
+plt.tight_layout()
+fig.savefig(save_path)
+
+###lvk
 fig, axs = plt.subplots(figsize = (10, 7))
 plt.xlabel("Latency in Seconds: Last Bin is Overflow")
 plt.ylabel("# of GCN Alerts")
 plt.title("Latency on LVK's Side: First Map")
-med_LVK = round(median(np.array(First_Batch['LVK_Latency'])), 2)
-First_Batch["LVK_Latency"] = np.array(First_Batch["LVK_Latency"])
-First_Batch["LVK_Latency"][First_Batch["LVK_Latency"] > 1200] =  1200
-h,b,_= axs.hist(First_Batch['LVK_Latency'], color = "r", bins = n_bins)
 
-tallest = max(h)
+total_med = round(np.median(np.array(ll["latency"])), 2)
+ll["latency"] = np.array(ll["latency"])
+ll["latency"][ll["latency"] > 1200] =  1200 ###creating overflow bin
+h,b,_= axs.hist(ll["latency"], color = "r", bins = n_bins)
 
-plt.axvline(med_LVK, color = 'k', linestyle = 'dashed', label = "LVK Median")
-plt.text(med_LVK*1.3, tallest*0.8, 'Median: {:.2f}'.format(med_LVK), fontsize = "15")
-
-plt.legend(fontsize = "18")
-
-axs.grid(b = True, color ='black',
+plt.axvline(total_med, color = 'k', linestyle = "dashdot", label = "Median: {:.2f}".format(total_med))
+plt.legend(fontsize = '15')
+axs.grid(True, color ='black',
         linestyle ='-.', linewidth = 0.5,
         alpha = 0.7)
 
 save_path='/home/mromfoe/public_html/O4_followup_monitoring/First_LVK_Latency_liveupdate.png'
 plt.tight_layout()
 fig.savefig(save_path)
-fig.savefig("LVK_Latency.png")
-plt.close()
 
-#changing to matplotlib, to avoid more imports
-#from PIL import Image, ImageDraw, ImageFont
-#img = Image.new('RGB', (370, 20), "white")
-#d1 = ImageDraw.Draw(img)
-#fontname = "/home/mromfoe/public_html/O4_followup_monitoring/A101HLVN.ttf"
-#fontsize = 16
-#MyFont = ImageFont.truetype(fontname, fontsize)
-now = Time(datetime.datetime.utcnow()).iso
-
-#d1.text((2, 0), "Page Last Updated: {} UTC".format(now), 
-#        fill = (0, 0, 0), font = MyFont)
-save_path='/home/mromfoe/public_html/O4_followup_monitoring/Update_Time.png'
-#img.save(save_path)
-#img.save("Update_Time.png")
-
-fig = plt.figure(figsize=(3.70, .20))
-ax = fig.add_axes([0, 0, 1, 1])
-plt.plot([0,5],[0,100],color='white')
-ax.text(-0.1, 15, "Page Last Updated: {} UTC".format(now))
-plt.savefig(save_path)
-
-###
-fig, axs = plt.subplots(figsize = (10, 7))
-plt.xlabel("Latency in Seconds")
-plt.ylabel("# of GCN Alerts")
-plt.title("Latency on IceCube's Side: First Map")
-med_red = round(median(np.array(First_Batch['IceCube_Latency'])), 2)
-med_blue = round(median(np.array(First_Batch['IceCube_Latency'])[~First_TS]), 2)
-med_orange = round(median(np.array(First_Batch['IceCube_Latency'])[First_TS]), 2)
-First_Batch["IceCube_Latency"] = np.array(First_Batch["IceCube_Latency"])
-First_Batch["IceCube_Latency"][First_Batch["IceCube_Latency"] > 1200] =  1200
-h,b,_= axs.hist(First_Batch['IceCube_Latency'], color = "c", bins = n_bins, label = "No BG Trial")
-axs.hist(np.array(First_Batch['IceCube_Latency'])[First_TS], color = "orange", bins = b, label = "BG Trial")
-
-percent_ts = []
-pt = 0
-
-for value in range(len(First_TS)):
-        if First_TS[value] > 0:
-                pt+=1
-                percent_ts.append(pt)
-percentage = round(len(percent_ts)/len(First_TS)*100, 2)
-
-plt.axvline(med_red, color = 'r', linestyle = "dashdot", label = "Median")
-plt.axvline(med_blue, color = 'k', linestyle = 'dashed', label = "No BG Trial Median")
-plt.axvline(med_orange, color = 'k', linestyle = 'dotted', label = "BG Trial Median")
-plt.axvline(1, 0, linestyle = "none", label = "Percent w/ BG Trials: {:.2f} %".format(percentage))
-
-tallest = max(h)
-
-plt.text(med_blue*0.15, tallest*0.8, 'No BG Median: {:.2f}'.format(med_blue), fontsize = "13")
-plt.text(med_orange*1.05, tallest*0.5, 'BG Median: {:.2f}'.format(med_orange), fontsize = "13")
-plt.text(med_red*1.1, tallest*0.55, 'Median: {:.2f}'.format(med_red), fontsize = "13")
-
-
-plt.legend(fontsize = '15')
-
-axs.grid(b = True, color ='black',
-        linestyle ='-.', linewidth = 0.5,
-        alpha = 0.7)
-
-save_path='/home/mromfoe/public_html/O4_followup_monitoring/First_IceCube_Latency_liveupdate.png'
-
-plt.tight_layout()
-fig.savefig(save_path)
-fig.savefig("First_IceCube_Latency.png")
-fig, axs = plt.subplots(figsize = (10, 7))
-plt.close()
-###
-fig, axs = plt.subplots(figsize = (10, 7))
-plt.xlabel("Latency in Seconds")
-plt.ylabel("# of GCN Alerts")
-plt.title("Latency on IceCube's Side: Last Map")
-med_red = round(median(np.array(Last_Batch['IceCube_Latency'])), 2)
-med_blue = round(median(np.array(Last_Batch['IceCube_Latency'])[~Last_TS]), 2)
-med_orange = round(median(np.array(Last_Batch['IceCube_Latency'])[Last_TS]), 2)
-Last_Batch["IceCube_Latency"] = np.array(Last_Batch["IceCube_Latency"])
-Last_Batch["IceCube_Latency"][Last_Batch["IceCube_Latency"] > 600] =  600
-h,b,_= axs.hist(Last_Batch['IceCube_Latency'], color = "c", bins= n_bins, label = "No BG Trial")
-axs.hist(np.array(Last_Batch['IceCube_Latency'])[Last_TS], color = "orange", bins= b, label = "BG Trial")
-
-percent_ts = []
-pt = 0
-
-for value in range(len(First_TS)):
-        if First_TS[value] > 0:
-                pt+=1
-                percent_ts.append(pt)
-percentage = round(len(percent_ts)/len(First_TS)*100, 2)
-
-plt.axvline(med_red, color = 'r', linestyle = "dashdot", label = "Median")
-plt.axvline(med_blue, color = 'k', linestyle = 'dashed', label = "No BG Trial Median")
-plt.axvline(med_orange, color = 'k', linestyle = 'dotted', label = "BG Trial Median")
-plt.axvline(1, 0, linestyle = "none", label = "Percent w/ BG Trials: {:.2f} %".format(percentage))
-
-tallest = max(h)
-
-plt.text(-20, tallest*0.8, 'No BG Median: {:.2f}'.format(med_blue), fontsize = "13")
-plt.text(med_orange*1.05, tallest*0.5, 'BG Median: {:.2f}'.format(med_orange), fontsize = "13")
-#plt.text(400, 150, "# of Background Trials: {:.2f}".format(sum(Last_TS)), fontsize = "15")
-plt.text(med_red*1.1, tallest*0.7, 'Median: {:.2f}'.format(med_red), fontsize = "13")
-
-plt.legend(fontsize = '18')
-
-axs.grid(b = True, color ='black',
-        linestyle ='-.', linewidth = 0.5,
-        alpha = 0.7)
-
-save_path='/home/mromfoe/public_html/O4_followup_monitoring/Last_IceCube_Latency_liveupdate.png'
-
-plt.tight_layout()
-fig.savefig(save_path)
-fig.savefig("Last_IceCube_Latency.png")
-plt.close()
-###
-
-fig, axs = plt.subplots(figsize = (10, 7),
-                        tight_layout = True)
-
-plt.xlabel("Latency in Seconds")
-plt.ylabel("# of GCN Alerts")
-plt.title("Total Latency: First Map")
-med_red = round(median(np.array(First_Batch['Total_Latency'])), 2)
-med_blue = round(median(np.array(First_Batch['Total_Latency'])[~First_TS]), 2)
-med_orange = round(median(np.array(First_Batch['Total_Latency'])[First_TS]), 2)
-First_Batch["Total_Latency"] = np.array(First_Batch["Total_Latency"])
-First_Batch["Total_Latency"][First_Batch["Total_Latency"] > 3000] =  3000
-h,b,_= axs.hist(First_Batch['Total_Latency'], color = "c", bins = n_bins, label = "No BG Trial")
-axs.hist(np.array(First_Batch['Total_Latency'])[First_TS], color = "orange", bins=b, label = "BG Trial")
-
-percent_ts = []
-pt = 0
-
-for value in range(len(First_TS)):
-        if First_TS[value] > 0:
-                pt+=1
-                percent_ts.append(pt)
-percentage = round(len(percent_ts)/len(First_TS)*100, 2)
-
-plt.axvline(med_red, color = 'r', linestyle = "dashdot", label = "Median")
-plt.axvline(med_blue, color = 'k', linestyle = 'dashed', label = "No BG Trial Median")
-plt.axvline(med_orange, color = 'k', linestyle = 'dotted', label = "BG Trial Median")
-plt.axvline(1, 0, linestyle = "none", label = "Percent w/ BG Trials: {:.2f} %".format(percentage))
-
-tallest = max(h)
-
-plt.text(-100, tallest*0.8, 'No BG Med.: {:.2f}'.format(med_blue), fontsize = "13")
-plt.text(med_orange*1.1, tallest*0.6, 'BG Med.: {:.2f}'.format(med_orange), fontsize = "13")
-plt.text(med_red*1.1, tallest*0.7, 'Median: {:.2f}'.format(med_red), fontsize = "13")
-#plt.text(4000, 175, "# of BG Trials: {:.2f}".format(sum(First_TS)), fontsize = "15")
-
-plt.legend(fontsize = '15')
-
-save_path='/home/mromfoe/public_html/O4_followup_monitoring/Total_Latency_liveupdate.png'
-
-axs.grid(b = True, color ='black',
-        linestyle ='-.', linewidth = 0.5,
-        alpha = 0.7)
-
-plt.tight_layout()
-fig.savefig(save_path)
-fig.savefig("First_Total_Latency.png")
-
-###
+###find percentage of events we had to wait for
 wait=[]
 w=0
-for value in range(len(First_Batch["We_had_to_wait:"])):
-        if First_Batch["We_had_to_wait:"][value] > 0:
+first_delay = []
+for f in range(len(ed["first"])):
+    if ed["first"][f]==True:
+        first_delay.append(ed["we_had_to_wait"][f])
+        if ed["we_had_to_wait"][f] > 0:
                 w+=1
                 wait.append(w)
-percentage = round(len(wait)/len(First_Batch["We_had_to_wait:"])*100, 2)
-
+percentage = round(len(wait)/len(first_delay)*100, 2)
 fig, axs = plt.subplots(figsize = (10, 7))
 plt.xlabel("Seconds of Delay")
 plt.ylabel("# of GCN Alerts")
-plt.title("500 Second Delay")
-h,b,_= axs.hist(First_Batch['We_had_to_wait:'], bins = np.linspace(-2000, 500, num=25))
+plt.title("500 Second Delay - First Map")
+h,b,_= axs.hist(first_delay, bins = np.linspace(-2000, 500, num=25))
 
 plt.axvline(0, color = 'k', linestyle = "solid", label = "We waited for items to the righ")
 
 plt.legend(['We waited for: {:.2f}'.format(percentage)+'%'], fontsize = '18')
 
-axs.grid(b = True, color ='black',
+axs.grid(True, color ='black',
         linestyle ='-.', linewidth = 0.5,
         alpha = 0.7)
 
@@ -561,180 +309,54 @@ save_path='/home/mromfoe/public_html/O4_followup_monitoring/500_sec_delay_liveup
 
 plt.tight_layout()
 fig.savefig(save_path)
-fig.savefig("500_sec_delay.png")
 
-###Comparison of latencies for each day.
-fig, ax= plt.subplots(figsize=(12,6))
+###text files for webpage
+fig = plt.figure(figsize=(3.70, .20))
+ax = fig.add_axes([0, 0, 1, 1])
+plt.plot([0,5],[0,100],color='white')
+ax.text(-0.1, 15, "Page Last Updated: {} UTC".format(now))
+plt.savefig(save_path)
 
-ax.plot_date(First_Batch["Time_Stamp"], First_Batch["LVK_Latency"], color = 'red')
-ax.plot_date(First_Batch["Time_Stamp"], First_Batch["IceCube_Latency"], color = 'cyan')
-ax.plot_date(First_Batch["Time_Stamp"], First_Batch["Total_Latency"], color = 'black')
+df = pd.DataFrame({"Name": ed["Name"][-15::-1],
+                    "Merger Time": ed["Trigger_Time"][-15::-1],
+                    "GCN Alert": ed["GCN_Alert"][-15::-1],
+                    "Script Finishes": ed["End_Time"][-15::-1],
+                    "Total Latency in Seconds": ed["Total_Latency"][-15::-1]})
+html1 = df.to_html()
 
-ax.fmt_xdata = DateFormatter('%Y-%m-%d %H:%M:%S')
-plt.xticks(rotation=18, ha="right")
+text_file1 = open("/home/mromfoe/public_html/O4_followup_monitoring/Recent_Runs.html", "w")
+text_file1.write(html1)
+text_file1.close()
+df = pd.DataFrame({"Name": [],
+                "Merger Time": [],
+                "GCN Alert": [],
+                "Script Finishes": [],
+                "Total Latency in Seconds": []})
+for event in range(len(ed)):
+    if ed["first"][event] == True:
+        entry = {"Name": ed["Name"][event],
+                "Merger Time": ed["Trigger_Time"][event],
+                "GCN Alert": ed["GCN_Alert"][event],
+                "Script Finishes": ed["End_Time"][event],
+                "Total Latency in Seconds": ed["Total_Latency"][event]}
+        df.loc[len(df)] = entry
+    else:
+        continue
 
-plt.ylim(0, 6000)
+html2 = df.to_html()
 
-plt.title("Latencies by Date")
-plt.legend(["LVK Latency", "IceCube Latency", "Total Latency"])
-plt.xlabel("Date")
-plt.ylabel("Latency in Seconds")
+text_file2 = open("/home/mromfoe/public_html/O4_followup_monitoring/archive.html", "w")
+text_file2.write(html2)
+text_file2.close()
 
-save_path='/home/mromfoe/public_html/O4_followup_monitoring/Latencies_by_Date_liveupdate.png'
-
-plt.tight_layout()
-fig.savefig(save_path)
-fig.savefig("Latencies_by_Date.png")
-
-###Zoomed in view
-
-fig, ax= plt.subplots(figsize=(12,6))
-
-ax.plot_date(First_Batch["Time_Stamp"], First_Batch["LVK_Latency"], color = 'red')
-ax.plot_date(First_Batch["Time_Stamp"], First_Batch["IceCube_Latency"], color = 'cyan')
-ax.plot_date(First_Batch["Time_Stamp"], First_Batch["Total_Latency"], color = 'black')
-
-ax.fmt_xdata = DateFormatter('%Y-%m-%d %H:%M:%S')
-plt.xticks(rotation=18, ha="right")
-
-plt.ylim(0, 2000)
-
-plt.title("Latencies by Date (Zoomed in)")
-plt.legend(["LVK Latency", "IceCube Latency", "Total Latency"])
-plt.xlabel("Date")
-plt.ylabel("Latency in Seconds")
-
-save_path='/home/mromfoe/public_html/O4_followup_monitoring/Zoomed_Latencies_by_Date_liveupdate.png'
-
-plt.tight_layout()
-fig.savefig(save_path)
-fig.savefig("Zoomed_Latencies_by_Date.png")
-
-###Number of reports per day
-a = all_dictionary
-
-perday = []
-unique_days = []
-init = []
-prelim = []
-update = []
-n = 0
-t = 0
-p = 0
-u = 0
-for i in range(1, len(all_dictionary["Time_Stamp"])):
-        if a["Time_Stamp"][i-1].day == a["Time_Stamp"][i].day:
-                n += 1
-                if "Preliminary" in a["Name"][i]:
-                        p += 1
-                if "Initial" in a["Name"][i]:
-                        t += 1
-                if "Update" in a["Name"][i]:
-                        u += 1
-                
-        else:
-                unique_days.append(a["Time_Stamp"][i-1].date())
-                perday.append(n)
-                n = 0
-                init.append(t)
-                t = 0
-                prelim.append(p)
-                p = 0
-                update.append(u)
-                u = 0
-
-fig, ax= plt.subplots(figsize=(12,6))
-
-ax.plot_date(unique_days, perday, color = 'black')
-ax.plot_date(unique_days, prelim, color = 'cyan')
-ax.plot_date(unique_days, init, color = 'green')
-ax.plot_date(unique_days, update, color = 'red')
-
-ax.fmt_xdata = DateFormatter('%Y-%m-%d')
-plt.xticks(rotation=18, ha="right")
-
-plt.legend(["Total", "Preliminary", "Initial", "Update"], loc = "upper left")
-
-plt.title("Reports per Day")
-plt.xlabel("Date")
-plt.ylabel("Number of Reports")
-plt.ylim([0,70])
-
-save_path='/home/mromfoe/public_html/O4_followup_monitoring/ReportsPerDay_liveupdate.png'
-
-plt.tight_layout()
-fig.savefig(save_path)
-fig.savefig("ReportsPerDay.png")
-
-###Find average time between mocks/runs
-
-time_average = []
-for i in range(len(First_Batch["Trigger_Time"]))[:-1]:
-        delta_t = First_Batch["Trigger_Time"][i+1] - First_Batch["Trigger_Time"][i]
-        time_average.append(delta_t*86400)
-
-fig, axs = plt.subplots(figsize = (10, 7))
-
-plt.xlabel("Time Between Runs in Seconds")
-plt.ylabel("# of Runs")
-plt.title("Average Delta T")
-
-time_average = np.array(time_average)
-time_average[time_average > 8000] =  8000
-h,b,_= axs.hist(time_average, bins= np.linspace(0, 8000, 25))
-med_delta = median(time_average)
-
-tallest = max(h)
-
-plt.axvline(med_delta, color = 'k', linestyle = 'dashed', label = "Median Delta T")
-plt.text(med_delta*1.3, tallest*0.8, 'Median: {:.2f}'.format(med_delta), fontsize = "15")
-
-plt.legend(fontsize = "18")
-
-axs.grid(b = True, color ='black',
-        linestyle ='-.', linewidth = 0.5,
-        alpha = 0.7)
-
-plt.tight_layout()
-fig.savefig("Linear_Delta_T.png")
-
-time_average_too = []
-for i in range(len(First_Batch["Time_Stamp"]))[:-1]:
-        delta_t = Time(First_Batch["Time_Stamp"][i+1]).mjd - Time(First_Batch["Time_Stamp"][i]).mjd
-        time_average_too.append(delta_t*86400)
-
-fig, axs = plt.subplots(figsize = (10, 7))
-
-plt.xlabel("Time Between Runs in Seconds")
-plt.ylabel("# of Runs")
-plt.title("Average Delta T")
-
-time_average_too = np.array(time_average_too)
-time_average_too[time_average_too > 8000] =  8000
-h,b,_= axs.hist(time_average_too, bins= np.linspace(0, 8000, 25))
-med_delta = median(time_average_too);
-
-tallest = max(h)
-
-plt.axvline(med_delta, color = 'k', linestyle = 'dashed', label = "Median Delta T")
-plt.text(med_delta*1.3, tallest*0.8, 'Median: {:.2f}'.format(med_delta), fontsize = "15")
-
-plt.legend(fontsize = "18")
-
-axs.grid(b = True, color ='black',
-        linestyle ='-.', linewidth = 0.5,
-        alpha = 0.7)
-
-plt.tight_layout()
-fig.savefig("Linear_Delta_T_TIMESTAMP.png")
-
-###p value plot
-def make_bg_pval_dist(fontsize=15, lower_y_bound=-3.5, load_all = False):
-    # function to make pval hist. lower_y_bound arg gives the exponent to set the lower y-axis 
+###make p-value distribution
+print("making p-value plot")
+def make_bg_pval_dist(fontsize=15, lower_y_bound=-3.5, load_all=False):
+    # function to make pval dist. lower_y_bound arg gives the exponent to set the lower y-axis 
     # limit, e.g. 10^-3
-    all_maps_saved_pkl=sorted(glob.glob('/data/user/jthwaites/o4-mocks/*/*.pickle'))[::-1]
+    all_maps_saved_pkl=sorted(glob.glob('/data/user/jthwaites/o4-mocks/*/*.pickle'), reverse=True)
     saved_mock_pkl=[all_maps_saved_pkl[0]]
-         
+
     for mock in all_maps_saved_pkl:
         event_name=mock.split('-')[-3]
         event_name=event_name.split('/')[-1]
@@ -742,19 +364,17 @@ def make_bg_pval_dist(fontsize=15, lower_y_bound=-3.5, load_all = False):
             saved_mock_pkl.append(mock)
 
     all_mocks={}
-    #if more than 2000 found - load most recent only (otherwise takes too long)  
-    if len(saved_mock_pkl)>2000 and not load_all:
-        print('Loading most recent 2000 mocks (may take a while)')
-        saved_mock_pkl = saved_mock_pkl[0:2000]
+    #if more than 1000 found - load most recent only (otherwise takes too long)  
+    if len(saved_mock_pkl)>1000 and not load_all:
+        print('Loading 1000 most recent mock p-vals (may take a while)')
+        saved_mock_pkl = saved_mock_pkl[0:1000]
     else:
         print('Loading %i mocks (may take a while)'%(len(saved_mock_pkl)))
-    i=0
+
     for mock in saved_mock_pkl:
         with open(mock,'rb') as f:
             result=pickle.load(f)
-            #print('skipped {}'.format(mock))
             all_mocks[result['name']]=result['p']
-        i+=1
     print('Done loading mocks.')
 
     matplotlib.rcParams.update({'font.size':fontsize})
@@ -771,8 +391,8 @@ def make_bg_pval_dist(fontsize=15, lower_y_bound=-3.5, load_all = False):
     #uniform_bins=np.logspace(lower_y_bound,0.,int(abs(lower_y_bound*7))+1) #evenly spaced bins in logspace
     #plt.step(uniform_bins[1:], np.diff(uniform_bins), label = 'Uniform p-value expectation', lw = 3.)
     plt.step(p_x_vals[1:], np.diff(p_x_vals), label = 'Uniform p-value distribution', lw = 3.)
-    plt.plot([0.1,0.1], [10**lower_y_bound, 1e0],linestyle='dotted', label=f'{lt_10per*100.:.2f}% of p-values $<$ 0.1')
-    plt.plot([0.01, 0.01], [10**lower_y_bound, 1e0], linestyle='dashed',label=f'{lt_1per*100.:.2f}% of p-values $<$ 0.01')
+    plt.plot([0.1,0.1], [10**lower_y_bound, 1e0],linestyle='dotted', label=f'{lt_10per*100.:.2f} \% of p-values $<$ 0.1')
+    plt.plot([0.01, 0.01], [10**lower_y_bound, 1e0], linestyle='dashed',label=f'{lt_1per*100.:.2f} \% of p-values $<$ 0.01')
 
     plt.xscale('log')
     plt.yscale('log')
@@ -787,21 +407,6 @@ def make_bg_pval_dist(fontsize=15, lower_y_bound=-3.5, load_all = False):
 
     save_path='/home/mromfoe/public_html/O4_followup_monitoring/mock_pvals_liveupdate.png'
     plt.savefig(save_path, dpi=200, bbox_inches='tight')
-    plt.savefig("mock_pvals.png")
     print('Figure saved to file: ', save_path)
     
 make_bg_pval_dist()
-
-def readtimes():
-        a = all_dictionary
-
-        file_object = open('MilestoneTimes.txt', "w+")
-        file_object.write('\n' +"Trigger Time=" +repr(a["Trigger_Time"]) +'\n' +"GCN Alert=" +repr(a["GCN_Alert"]) 
-                        +'\n'  +"End Time=" +repr(a["End_Time"]))
-        file_object.close()
-
-        file_object = open('GWLatency.txt', "w+")
-        file_object.write('\n' +"LVK Latency=" +repr(a["LVK_Latency"]) +'\n' +"IceCube Latency=" 
-                +repr(a["IceCube_Latency"]) +'\n'+ "Total Latency=" +repr(a["Total_Latency"]) +'\n' 
-                +"We had to wait..." +repr(a["We_had_to_wait:"]) +"seconds." +'\n')
-        file_object.close()
