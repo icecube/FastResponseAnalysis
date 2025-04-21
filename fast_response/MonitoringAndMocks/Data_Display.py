@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-###For text files of timestamps & latencies from gw pipeline, go to end of script and call function
 import matplotlib
 matplotlib.use("agg")
 matplotlib.rcParams['axes.titlesize'] = 18
@@ -9,29 +8,25 @@ matplotlib.rcParams['ytick.labelsize'] = 16
 import matplotlib.pyplot as plt
 import numpy as np
 import pickle, glob, os
-import datetime
-from datetime import date, timezone
+from datetime import date, timezone, datetime
 from dateutil.relativedelta import *
-from statistics import median
+# from statistics import median
 from matplotlib.dates import DateFormatter
 from astropy.time import Time
 import pandas as pd
-from PIL import Image, ImageDraw, ImageFont
-# from IPython.display import HTML
-# from IPython.display import display
-import subprocess
-import warnings
+import subprocess, warnings
 warnings.filterwarnings('ignore', module='astropy._erfa')
 
 def dial_up(who="jessie"):
         cell_tower = "/home/jthwaites/private/"
-        subprocess.call([cell_tower+"make_call.py", f"--{who}=True", '--troubleshoot=True'])
+        # subprocess.call([cell_tower+"make_call.py", f"--{who}=True", '--troubleshoot=True'])
+        print('Calld')
 
 path = os.environ.get('FAST_RESPONSE_OUTPUT')
 out_put = '/data/user/jthwaites/o4-mocks/'
 
 #Creating readable (and callable) files from ALL pickle files previously created in gw_gcn_listener
-mock_files = sorted(glob.glob(path+'/PickledMocks/*MS*.pickle'), reverse=True)[:2000]
+mock_files = sorted(glob.glob(path+'/PickledMocks/*MS*.pickle'), reverse=True)[:1000]
 
 def sort_mocks(mock_files):
     event_dict = pd.DataFrame({"Trigger_Time": [], "GCN_Alert": [], "End_Time": [],
@@ -62,7 +57,7 @@ def sort_mocks(mock_files):
 
         ###collect timestamps of creation for mock files
         timestamp = os.path.getmtime(i)
-        datestamp = datetime.datetime.fromtimestamp(timestamp, timezone.utc)
+        datestamp = datetime.fromtimestamp(timestamp, timezone.utc)
         loading_dict["time_stamp"] = datestamp
 
         ###is it the first or last file sent? not all events have 3 files,
@@ -90,9 +85,9 @@ event_dict = sort_mocks(mock_files=mock_files)
 ed = event_dict
 
 ###call function incase mocks get interrupted
-if (Time(datetime.datetime.now(timezone.utc)).mjd - max(Time(ed["time_stamp"]).mjd)) > 3600.*3/86400:
+if (Time(datetime.now(timezone.utc)).mjd - max(Time(ed["time_stamp"]).mjd)) > 3600.*3/86400:
         dial_up()
-        x = (Time(datetime.datetime.now(timezone.utc)).mjd - max(Time(ed["time_stamp"]).mjd))*24
+        x = (Time(datetime.now(timezone.utc)).mjd - max(Time(ed["time_stamp"]).mjd))*24
         print("It has been " +str(x) +" hours since last update to gw mocks.")
 
 tl = {"latency": [], "time_stamp": []} #total latency
@@ -111,7 +106,7 @@ for i in range(len(ed)):
         ###find the events that have background trials run on them (increases latency)
         def find_ts(i, ts_list):
             ev_name = ed["Name"][i]
-            find = glob.glob(out_put+f'/202*{ev_name}*/TS_distribution.png'.format())
+            find = glob.glob(out_put+f'/202*{ev_name}*/TS_distribution.png')
             if len(find)>0:
                 ts_list.append(True)
             else:
@@ -165,7 +160,7 @@ ax.plot_date(unique_days, total, color = 'black')
 ax.plot_date(unique_days, preliminary, color = 'green')
 ax.plot_date(unique_days, initial, color = 'orange')
 
-now = datetime.datetime.now(timezone.utc)
+now = datetime.now(timezone.utc)
 past = now + relativedelta(months=-2)
 
 ax.set_xlim(past, now)
@@ -188,7 +183,7 @@ ax.plot_date(tl["time_stamp"], tl["latency"], color = 'black')
 ax.plot_date(il["time_stamp"], il["latency"], color = 'cyan')
 ax.plot_date(ll["time_stamp"], ll["latency"], color = 'red')
 
-now = datetime.datetime.now(timezone.utc)
+now = datetime.now(timezone.utc)
 past = now + relativedelta(weeks=-1)
 
 ax.set_xlim(past, now)
@@ -208,9 +203,9 @@ plt.xlabel("Latency in Seconds: Last Bin is Overflow")
 plt.ylabel("# of GCN Alerts")
 plt.title("Total Latency: First Map")
 
-total_med = round(median(np.array(tl["latency"])), 2)
-bg_med = round(median(np.array(tl["latency"])[ts_list]), 2)
-nbg_med = round(median(np.array(tl["latency"])[~ts_list]), 2)
+total_med = round(np.median(np.array(tl["latency"])), 2)
+bg_med = round(np.median(np.array(tl["latency"])[ts_list]), 2)
+nbg_med = round(np.median(np.array(tl["latency"])[~ts_list]), 2)
 tl["latency"] = np.array(tl["latency"])
 tl["latency"][tl["latency"] > 3000] =  3000 ###creating overflow bin
 h,b,_= axs.hist(tl["latency"], color = "c", bins = n_bins, label = "No BG Trial")
@@ -244,9 +239,9 @@ plt.xlabel("Latency in Seconds: Last Bin is Overflow")
 plt.ylabel("# of GCN Alerts")
 plt.title("Latency on IceCube's Side: First Map")
 
-total_med = round(median(np.array(il["latency"])), 2)
-bg_med = round(median(np.array(il["latency"])[ts_list]), 2)
-nbg_med = round(median(np.array(il["latency"])[~ts_list]), 2)
+total_med = round(np.median(np.array(il["latency"])), 2)
+bg_med = round(np.median(np.array(il["latency"])[ts_list]), 2)
+nbg_med = round(np.median(np.array(il["latency"])[~ts_list]), 2)
 il["latency"] = np.array(il["latency"])
 il["latency"][il["latency"] > 1200] =  1200 ###creating overflow bin
 h,b,_= axs.hist(il["latency"], color = "c", bins = n_bins, label = "No BG Trial")
@@ -271,7 +266,7 @@ plt.xlabel("Latency in Seconds: Last Bin is Overflow")
 plt.ylabel("# of GCN Alerts")
 plt.title("Latency on LVK's Side: First Map")
 
-total_med = round(median(np.array(ll["latency"])), 2)
+total_med = round(np.median(np.array(ll["latency"])), 2)
 ll["latency"] = np.array(ll["latency"])
 ll["latency"][ll["latency"] > 1200] =  1200 ###creating overflow bin
 h,b,_= axs.hist(ll["latency"], color = "r", bins = n_bins)
@@ -317,20 +312,12 @@ plt.tight_layout()
 fig.savefig(save_path)
 
 ###text files for webpage
-img = Image.new('RGB', (370, 20), "white")
-d1 = ImageDraw.Draw(img)
-fontname = "/home/mromfoe/public_html/O4_followup_monitoring/A101HLVN.ttf"
-fontsize = 16
-MyFont = ImageFont.truetype(fontname, fontsize)
+fig = plt.figure(figsize=(3.70, .20))
+ax = fig.add_axes([0, 0, 1, 1])
+plt.plot([0,5],[0,100],color='white')
+ax.text(-0.1, 15, "Page Last Updated: {} UTC".format(now))
+plt.savefig(save_path)
 
-now = Time(datetime.datetime.now(timezone.utc)).iso
-
-d1.text((2, 0), "Page Last Updated: {} UTC".format(now), 
-        fill = (0, 0, 0), font = MyFont)
-
-save_path='/home/mromfoe/public_html/O4_followup_monitoring/Update_Time.png'
-img.save(save_path)
-img.save("Update_Time.png")
 print("Creating tables")
 df = pd.DataFrame({"Name": ed["Name"][-15::-1],
                     "Merger Time": ed["Trigger_Time"][-15::-1],
@@ -379,10 +366,10 @@ def make_bg_pval_dist(fontsize=15, lower_y_bound=-3.5, load_all=False):
             saved_mock_pkl.append(mock)
 
     all_mocks={}
-    #if more than 2000 found - load most recent only (otherwise takes too long)  
-    if len(saved_mock_pkl)>2000 and not load_all:
-        print('Loading most recent 2000 mocks (may take a while)')
-        saved_mock_pkl = saved_mock_pkl[0:2000]
+    #if more than 1000 found - load most recent only (otherwise takes too long)  
+    if len(saved_mock_pkl)>1000 and not load_all:
+        print('Loading most recent 1000 mocks (may take a while)')
+        saved_mock_pkl = saved_mock_pkl[0:1000]
     else:
         print('Loading %i mocks (may take a while)'%(len(saved_mock_pkl)))
 
