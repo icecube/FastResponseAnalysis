@@ -52,7 +52,7 @@ def sort_mocks(mock_files):
         ###separate name of event
         ###file name format: gw_latency_dict_S240501dr-2-Preliminary_test.pickle
         first_split = i.split('_')
-        second_split = first_split[3].split('-')
+        second_split = first_split[-2].split('-')
         loading_dict["Name"] = second_split[0]
 
         ###collect timestamps of creation for mock files
