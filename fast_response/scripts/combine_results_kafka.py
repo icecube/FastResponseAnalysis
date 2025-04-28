@@ -19,6 +19,7 @@ import lxml.etree
 from astropy.time import Time
 import dateutil.parser
 from datetime import datetime
+from fast_response.slack_posters.slack import slackbot
 from fast_response.web_utils import updateGW_public
 
 with open('/home/jthwaites/private/tokens/kafka_token.txt') as f:
@@ -88,7 +89,9 @@ def SendTestAlert(results=None):
 def format_ontime_events_uml(events, event_mjd):
     ontime_events={}
     for event in events:
-        ontime_events[event['event']]={
+        unique_id = '{}_{}'.format(int(event['run']), int(event['event']))
+        ontime_events[unique_id]={
+            'id':[unique_id],
             'event_dt' : round((event['time']-event_mjd)*86400., 2),
             'localization':{
                 'ra' : round(np.rad2deg(event['ra']), 2),
@@ -100,15 +103,17 @@ def format_ontime_events_uml(events, event_mjd):
             #'event_pval_generic' : round(event['pvalue'],4)
         }
         if event['pvalue'] < 0.0001:
-            ontime_events[event['event']]['event_pval_generic'] = float('{:.1e}'.format(event['pvalue']))
+            ontime_events[unique_id]['event_pval_generic'] = float('{:.1e}'.format(event['pvalue']))
         else:
-            ontime_events[event['event']]['event_pval_generic'] = round(event['pvalue'],4)
+            ontime_events[unique_id]['event_pval_generic'] = round(event['pvalue'],4)
     return ontime_events
 
 def format_ontime_events_llama(events):
     ontime_events={}
     for event in events:
-        ontime_events[event['i3event']] = {
+        unique_id = '{}_{}'.format(int(event['i3run']), int(event['i3event']))
+        ontime_events[unique_id] = {
+            'id':[unique_id],
             'event_dt' : round(event['dt'],2),
             'localization':{
                 'ra' : round(event['ra'], 2),
@@ -120,9 +125,9 @@ def format_ontime_events_llama(events):
             #'event_pval_bayesian': round(event['p_value'],4)
         }
         if event['p_value'] < 0.0001:
-            ontime_events[event['i3event']]['event_pval_bayesian'] = float('{:.1e}'.format(event['p_value']))
+            ontime_events[unique_id]['event_pval_bayesian'] = float('{:.1e}'.format(event['p_value']))
         else:
-            ontime_events[event['i3event']]['event_pval_bayesian'] = round(event['p_value'],4)
+            ontime_events[unique_id]['event_pval_bayesian'] = round(event['p_value'],4)
     return ontime_events
 
 def combine_events(uml_ontime, llama_ontime):
@@ -196,7 +201,7 @@ def parse_notice(record, wait_for_llama=False, heartbeat=False):
         return
 
     collected_results = {}
-    collected_results["$schema"]= "https://gcn.nasa.gov/schema/v4.1.0/gcn/notices/icecube/lvk_nu_track_search.schema.json"
+    collected_results["$schema"]= "https://gcn.nasa.gov/schema/v4.2.0/gcn/notices/icecube/lvk_nu_track_search.schema.json"
     collected_results["type"]= "IceCube LVK Alert Nu Track Search"
 
     eventtime = record.find('.//ISOTime').text
@@ -470,7 +475,8 @@ def parse_notice(record, wait_for_llama=False, heartbeat=False):
         
     ### SAVE RESULTS ###
     if record.attrib['role']=='observation' and not heartbeat:
-        with open(os.path.join(save_location, f'{name}_collected_results.json'),'w') as f:
+        saved_results = os.path.join(save_location, f'{name}_collected_results.json')
+        with open(saved_results,'w') as f:
             json.dump(collected_results, f, indent = 6)
 
         logger.info('sending notice')
@@ -480,27 +486,18 @@ def parse_notice(record, wait_for_llama=False, heartbeat=False):
         logger.info('{}'.format(st))
 
         if status ==0:
-            with open('/home/jthwaites/private/tokens/gw_token.txt') as f:
-                my_key = f.readline()
-            
+            ## post notice to slack
             if not subthreshold:
-                channels = ['#gwnu-heartbeat', '#alerts']#, '#gwnu']
+                channels = ['#gwnu-heartbeat', '#alerts']
             else:
                 channels = ['#gwnu-heartbeat']
             for channel in channels:
-                with open(os.path.join(save_location, f'{name}_collected_results.json'),'r') as fi:
-                    response = requests.post('https://slack.com/api/files.upload',
-                                        timeout=60,
-                                        params={'token': my_key},
-                                        data={'filename':'gcn.json',
-                                            'title': f'GCN Notice for {name}',
-                                            'channels': channel},
-                                        files={'file': fi}
-                                        )
-                if response.ok is True:
-                    logger.info("GCN posted OK to {}".format(channel))
-                else:
-                    logger.info("Error posting skymap to {}!".format(channel))
+                try: 
+                    bot = slackbot(channel)
+                    bot.post_file_to_slack(title='LvkNuTrackSearch {} GCN Notice'.format(name), file_name=saved_results)
+                except Exception as e:
+                    logger.warning('Failed to post to slack.')
+                    logger.info(e)
         
             collected_results['subthreshold'] = subthreshold
             try:
@@ -519,54 +516,29 @@ def parse_notice(record, wait_for_llama=False, heartbeat=False):
             except:
                 logger.warning('Failed to send email/SMS notification.')
 
-            # try:
-            #     if params['Group'] == 'Burst': 
-            #         merger_type = 'Burst'
-            #     else:
-            #         k = ['BNS','NSBH','BBH']
-            #         probs = {j: float(params[j]) for j in k}
-            #         merger_type = max(zip(probs.values(), probs.keys()))[1]
-            # except:
-            #     logger.info('Could not determine type of event')
-            #     merger_type = None
-
-            # try:
-            #     subprocess.call(['/home/jthwaites/private/make_call.py', f'--type={merger_type}', '--call_anyway'])
-            # except Exception as e:
-            #     logger.warning('Call for p<0.01 failed.')
-
         else: 
             logger.info('p>0.01: no email/sms sent')
     else:
-        with open(os.path.join(save_location, f'mocks/{name}_collected_results.json'),'w') as f:
+        saved_results = os.path.join(save_location, f'mocks/{name}_collected_results.json')
+        with open(saved_results,'w') as f:
             json.dump(collected_results, f, indent = 6)
         #logger.info('sending test notice')
         #status = SendTestAlert(results = collected_results)
         #logger.info('status: {}'.format(status))
 
-        #send the notice to slack (#gw-mock-heartbeat)
-        with open('/home/jthwaites/private/tokens/gw_token.txt') as f:
-            my_key = f.readline()
-                
+        #send the notice to slack
         channel = '#gw-mock-heartbeat'
-        with open(os.path.join(save_location, f'mocks/{name}_collected_results.json'),'r') as fi:
-            response = requests.post('https://slack.com/api/files.upload',
-                                    timeout=60,
-                                    params={'token': my_key},
-                                    data={'filename':'gcn.json',
-                                          'title': f'GCN Notice for {name}',
-                                          'channels': channel},
-                                    files={'file': fi}
-                                    )
-        if response.ok is True:
-            logger.info("GCN posted OK to {}".format(channel))
-        else:
-            logger.info("Error posting skymap to {}!".format(channel))
+        try:
+            bot = slackbot(channel)
+            bot.post_file_to_slack(title='LvkNuTrackSearch {} GCN Notice'.format(name), file_name=saved_results)
+        except Exception as e:
+            logger.warning('Failed to post to slack.')
+            logger.info(e)
 
 parser = argparse.ArgumentParser(description='Combine GW-Nu results')
 parser.add_argument('--run_live', action='store_true', default=False,
                     help='Run on live GCNs')
-parser.add_argument('--test_path', type=str, default=None,
+parser.add_argument('--path', type=str, default=None,
                     help='path to test xml file')
 parser.add_argument('--max_wait', type=float, default=35.,
                     help='Maximum minutes to wait for LLAMA/UML results before timeout (default=60)')
@@ -605,18 +577,19 @@ if args.run_live:
             logger.info('Done.')
 
 else:
-    if args.test_path is None:
+    if args.path is None:
         paths=glob.glob('/home/jthwaites/FastResponse/*/*xml')
         path = paths[1]
         #path = '/home/jthwaites/FastResponse/S230522n-preliminary.json,1'
     else: 
-        path = args.test_path
+        path = args.path
     
     logger.info('running on {}'.format(path))
     
     with open(path, 'r') as f:
         payload = f.read()
     try:
+        payload = payload.replace("<?xml version='1.0' encoding='UTF-8'?>","") #lxml doesn't like this line
         record = lxml.etree.fromstring(payload)
     except Exception as e:
         print(e)
