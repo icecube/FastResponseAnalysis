@@ -1,0 +1,70 @@
+\documentclass[titlepage]{article}
+\usepackage{tikz}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{grffile}
+\usepackage{longtable}
+\usepackage[margin=1.0in]{geometry}
+
+\setlength{\parindent}{0cm} 
+\include{r_posterior}
+
+\newcommand{\degree}{$^{\circ}$}
+\begin{document}
+
+\begin{titlepage}
+  \centering
+  \vspace{4cm}
+  {\huge\bfseries IceCube Fast-Response \\ Posterior Supplemental Report\par}
+  \vspace{1cm}
+  {\LARGE For Internal Use Only\par}
+  \vfill
+  {\Large Source Name: \\ \itshape\sourcename\par}
+  \vspace{0.5cm}
+  {\Large Observation Date(s):\\ \obsdate \par}
+  \vfill
+  \vspace{1cm} 
+  {\Large Report Generated On:\\ \reportdate \par}
+\end{titlepage}
+
+
+\pagebreak
+\section{Results}
+
+{
+  \centering
+  {\Large Prior Zoomed}
+
+  \includegraphics[width=0.9\textwidth]{\PriorSkymap}
+
+  
+}
+\section{Posterior Maps}
+
+{
+  \centering
+  {\Large Posterior Skymap}
+
+  \includegraphics[width=0.9\textwidth]{\PosteriorSkymap}
+  \includegraphics[width=0.9\textwidth]{\PosteriorSkymapZoom}
+  \includegraphics[width=0.9\textwidth]{\PosteriorSkymapZoomWNeutrinos}
+
+  
+}
+\pagebreak
+
+{
+  \centering
+  {\Large $N_s$ Profile Plot}
+
+  \includegraphics[width=0.9\textwidth]{\NsProfilePlot}
+
+  
+}
+  
+
+
+
+\vfill
+
+\end{document}

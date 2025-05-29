@@ -70,7 +70,7 @@ def plot_color_bar(labels=[0.,2.,4.,6.], col_label=r"IceCube Event Time", range=
     cb.set_ticklabels(labels)
     cb.update_ticks()
 
-def plot_labels(src_dec, src_ra, reso,nPix=200,vertical_height_xlabel=1):
+def plot_labels(src_dec, src_ra, reso,nPix=200,label_scale=1):
     """
     Add labels to healpy zoom
 
@@ -103,14 +103,45 @@ def plot_labels(src_dec, src_ra, reso,nPix=200,vertical_height_xlabel=1):
     plt.text(np.radians(-reso),np.radians(-1.75*reso), r"%.1f$^{\circ}$"%(reso+np.degrees(src_ra)),
              horizontalalignment='center',
              verticalalignment='top', fontsize=fontsize)
-    plt.text(-1*np.radians(2.35*reso), np.radians(0), r"declination", 
+    plt.text(-1*np.radians(2.35*reso*label_scale), np.radians(0), r"declination", 
                 ha='center', va='center', rotation=90, fontsize=fontsize)
-    plt.text(np.radians(0), np.radians(-2.05*reso*vertical_height_xlabel), r"right ascension", 
+    plt.text(np.radians(0), np.radians(-2.05*reso*label_scale), r"right ascension", 
                 ha='center', va='center', fontsize=fontsize)
+
+def plot_events2(dec,ra,sigmas, src_ra, src_dec, reso, sigma_scale=5., col = 'k', constant_sigma=False,
+                    same_marker=False, energy_size=False, with_mark=True, with_dash=False,
+                    label='',resolution=0):
+    def compute_ang_err(ra,dec,sigma):
+        dec = np.pi/2 - dec
+        sigma = np.rad2deg(sigma)
+        delta, step, bins = 0, 0, 0
+        delta= sigma/180.0*np.pi
+        step = 1./np.sin(delta)/20.
+        bins = int(360./step)
+        Theta = np.zeros(bins+1, dtype=np.double)
+        Phi = np.zeros(bins+1, dtype=np.double)
+        # define the contour
+        for j in range(0,bins):
+                phi = j*step/180.*np.pi
+                vx = np.cos(phi)*np.sin(ra)*np.sin(delta) + np.cos(ra)*(np.cos(delta)*np.sin(dec) + np.cos(dec)*np.sin(delta)*np.sin(phi))
+                vy = np.cos(delta)*np.sin(dec)*np.sin(ra) + np.sin(delta)*(-np.cos(ra)*np.cos(phi) + np.cos(dec)*np.sin(ra)*np.sin(phi))
+                vz = np.cos(dec)*np.cos(delta) - np.sin(dec)*np.sin(delta)*np.sin(phi)
+                Theta[j], Phi[j] = hp.vec2ang(np.array([vx, vy, vz]))
+
+        Theta[bins] = Theta[0]
+        Phi[bins] = Phi[0]
+
+        return Theta, Phi
+    
+    for i in range(len(ra)):
+        ev_contour = compute_ang_err(ra[i],dec[i],sigmas[i])
+        hp.projplot(ev_contour[0], ev_contour[1], linewidth=1.75, color=col[0],
+                    linestyle="solid",coord='C')
+        
 
 def plot_events(dec, ra, sigmas, src_ra, src_dec, reso, sigma_scale=5., col = 'k', constant_sigma=False,
                     same_marker=False, energy_size=False, with_mark=True, with_dash=False,
-                    label=''):
+                    label='',resolution=0.025):
     """
     Adds events to a healpy zoom plot. Events are expected to be from self.llh.exp
 
@@ -149,7 +180,7 @@ def plot_events(dec, ra, sigmas, src_ra, src_dec, reso, sigma_scale=5., col = 'k
 
     if sigma_scale is not None:
         sigma = np.degrees(sigmas)/sigma_scale
-        sizes = 5200*sigma**2
+        sizes = 5200*np.power(resolution/.025,.5)*sigma**2
         if constant_sigma:
             sizes = 20*np.ones_like(sizes)
         if with_dash:
