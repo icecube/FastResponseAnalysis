@@ -1310,7 +1310,7 @@ class PriorFollowup(FastResponseAnalysis):
                     constant_sigma=False, same_marker=True, energy_size=True, col = ["red"]*len(events["dec"]),
             resolution=reso
             )
-            plotting_utils.plot_events2(np.radians(-36.61),np.radians(243.28), np.radians(.3), 
+            plotting_utils.plot_events2([np.radians(-36.61)],[np.radians(243.28)], [np.radians(.3)], 
                                         ramax,decmax, 2*6, sigma_scale=1.0,
                     constant_sigma=False, same_marker=True, energy_size=True, col = ["yellow"]) #plot the cascade
             plt.savefig(plotting_location+"PosteriorMapZoomedWithEvents.png")
@@ -1375,7 +1375,7 @@ class PriorFollowup(FastResponseAnalysis):
                     constant_sigma=False, same_marker=True, energy_size=True, col = ["red"]*len(events["dec"]),
             resolution=reso
             )
-            plotting_utils.plot_events2(np.radians(-36.61),np.radians(243.28), np.radians(.3), 
+            plotting_utils.plot_events2([np.radians(-36.61)],[np.radians(243.28)], [np.radians(.3)], 
                                         ramax,decmax, 2*6, sigma_scale=1.0,
                     constant_sigma=False, same_marker=True, energy_size=True, col = ["yellow"]) #plot the cascade
             plt.savefig(plotting_location+"PosteriorMapZoomed1DegWithEvents.png")
@@ -1396,10 +1396,12 @@ class PriorFollowup(FastResponseAnalysis):
                 obj.set_fontsize(30)
             plotting_utils.plot_color_bar(range=[0,np.nanmax(outputProbHPMapPlotting)], cmap="viridis", col_label=r"Posterior PDF",
                     offset=-40,labels=[0,"{0:.1e}".format(np.nanmax(outputProbHPMapPlotting)/2),"{0:.2e}".format(np.nanmax(outputProbHPMapPlotting))],loc=[0.86, 0.2, 0.03, 0.6])
-            theta, phi =plotting_utils.plot_contours([.9],outputProbHPMap)
+            print("90 contour",theta,phi)
             hp.projplot(theta[0], phi[0], linewidth=2., c='k')
             for i in range(1, len(theta)):
                 hp.projplot(theta[i], phi[i], linewidth=2., c='k', label=None)
+            theta, phi =plotting_utils.plot_contours([.9],outputProbHPMap)
+
             plt.savefig(plotting_location+"PosteriorMapZoomed1Deg.png")
             plt.close()
 
