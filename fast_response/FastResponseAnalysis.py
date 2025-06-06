@@ -578,7 +578,7 @@ class FastResponseAnalysis(object):
         try:
             self.plot_skymap_zoom(with_contour=with_contour, contour_files=contour_files)
         except Exception as e:
-            print('Failed to make skymap zoom plot')
+            print(f'Failed to make skymap zoom plot: {e}')
 
         try:
             self.plot_skymap(with_contour=with_contour, contour_files=contour_files, label_events=label_events) 
@@ -623,7 +623,7 @@ class FastResponseAnalysis(object):
             skymap = np.zeros(hp.nside2npix(self._nside))
             ra = self.ra
             dec = self.dec
-            label_str = self.name
+            label_str = self.name.replace('_', ' ')
             cmap = mpl.colors.ListedColormap([(1.,1.,1.)] * 50)
 
         plotting_utils.plot_zoom(skymap, ra, dec, "", range = [0,10], reso=reso, cmap = cmap)

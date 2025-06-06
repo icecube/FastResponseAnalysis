@@ -214,6 +214,7 @@ class MultiFastResponseAnalysis(FastResponseAnalysis):
         for _ds in self.datasets:
             _base = _ds.split('_')[0] # convention: version after underscore
             _base = _base.replace('Online', '') # not necessary for legend
+            _base = _base.replace('Greco', 'GRECO') # some prefer this
             labels.append(f'{_base} Event')
         return super().plot_skymap(labels=labels, **kwargs)
 
