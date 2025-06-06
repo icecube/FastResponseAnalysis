@@ -80,7 +80,7 @@ class FastResponseAnalysis(object):
             self._float_index = not self._fix_index
         
         if seed is not None:
-            self.llh_seed(seed)
+            self.llh_seed = seed
         if outdir is None:
             outdir = os.environ.get('FAST_RESPONSE_OUTPUT')
             if outdir is None:
