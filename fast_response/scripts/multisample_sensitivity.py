@@ -5,7 +5,7 @@ r'''Script to initiate fast reponse
     Date: 2021
     '''
 
-from fast_response.MultiExternalFollowup import MultiFollowup, GFUFollowup, GrecoFollowup
+from fast_response.MultiExternalFollowup import MultiFollowup, GFUFollowup, GrecoFollowup, DNNFollowup
 import argparse
 import subprocess
 import warnings
@@ -33,6 +33,8 @@ def calculate_sensitivity(args):
         followups.append(GFUFollowup)
     if 'Greco' in args.dataset:
         followups.append(GrecoFollowup)
+    if 'DNN' in args.dataset:
+        followups.append(DNNFollowup)
     MultiFollowup._followups = followups
 
     for attr in ['index']:

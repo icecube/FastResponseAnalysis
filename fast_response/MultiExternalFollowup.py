@@ -19,6 +19,13 @@ class GrecoFollowup(PointSourceFollowup):
     #_season_names = [f"IC86, 20{y:02d}" for y in range(12, 22+1)]
     _floor = np.radians(0.2) # can change this!
     # extended/GRB-style LLH?
+
+class DNNFollowup(PointSourceFollowup):
+    _dataset = "DNNCascades_v001p01" # TODO switch to "online" version
+    _season_names = [f"IC86, 20{y:02d}" for y in range(18, 19+1)]
+    _floor = np.radians(1.5) # can change this!
+    _jitter = 3. # common default for DNN analyses
+    # Need to add analysis cuts? That's something SKATE analysers would know.
     
 #or any other number of definitions
 

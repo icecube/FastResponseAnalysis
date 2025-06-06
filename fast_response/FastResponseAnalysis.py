@@ -58,6 +58,7 @@ class FastResponseAnalysis(object):
     _season_names = [f"IC86, 201{y}" for y in range(1, 10)]
     _nb_days = 10
     _ncpu = 5
+    _jitter = False
 
     def __init__(self, name, tstart, tstop,
                  skipped=None, seed=None,
@@ -342,6 +343,7 @@ class FastResponseAnalysis(object):
             ncpu=self._ncpu,               # use 10 CPUs when computing trials
             scramble=scramble,             # set to False for unblinding
             timescramble=True,             # not just RA scrambling
+            jitter=self._jitter,           # depends on sample
             llh_model=llh_model,           # likelihood model
             temporal_model=box,            # use box for temporal model
             nsource_bounds=(0., 1e3),      # bounds on fitted ns

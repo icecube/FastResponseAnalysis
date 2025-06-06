@@ -15,6 +15,7 @@ import numpy.lib.recfunctions as rf
 from astropy.time           import Time
 from scipy.special          import erfinv
 from matplotlib.lines       import Line2D
+from scipy                  import sparse
 
 from skylab.datasets        import Datasets
 from skylab.llh_models      import EnergyLLH
@@ -55,6 +56,7 @@ class MultiAlertFollowup(AlertFollowup, MultiPriorFollowup):
     # attributes that are identical for each analysis produced by one followup class
     # will be broadcast to the constituent analyses
     # this is clunky, but more explicit than some dir(...) shenanigans
+    # and excludes _season_names and _jitter which are not the same
     static_attributes = ['_verbose',
                          '_index',
                          '_float_index',
