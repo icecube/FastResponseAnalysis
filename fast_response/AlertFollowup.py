@@ -85,7 +85,9 @@ class AlertFollowup(PriorFollowup):
             highest sensitivity within the 90% contour of the skymap
         """
 
-        with open(f'{self._sens_dir}ideal_ps_sensitivity_deltaT_{self.duration:.2e}_50CL.pkl', 'rb') as f:
+        filename = os.path.join(self._sens_dir, f'ideal_ps_sensitivity_deltaT_{self.duration:.2e}_50CL.pkl')
+
+        with open(filename, 'rb') as f:
             ideal = pickle.load(f, encoding='bytes')
         delta_t = self.duration * 86400.
         src_theta, src_phi = hp.pix2ang(self.nside, self.ipix_90)
@@ -103,7 +105,9 @@ class AlertFollowup(PriorFollowup):
         """
         fig, ax = plt.subplots()
 
-        with open(f'{self._sens_dir}ideal_ps_sensitivity_deltaT_{self.duration:.2e}_50CL.pkl', 'rb') as f:
+        filename = os.path.join(self._sens_dir, f'ideal_ps_sensitivity_deltaT_{self.duration:.2e}_50CL.pkl')
+
+        with open(filename, 'rb') as f:
             ideal = pickle.load(f, encoding='bytes')
         delta_t = self.duration * 86400.
         plt.plot(ideal[b'sinDec'], np.array(ideal[b'sensitivity'])*delta_t*1e6, lw=3, ls='-', 
