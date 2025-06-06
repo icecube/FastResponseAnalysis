@@ -203,12 +203,8 @@ class MultiFastResponseAnalysis(FastResponseAnalysis):
         limited to fields used for plotting and amended with a field for the dataset."""
         if not hasattr(self, '_llh_exp'):
             exp = {enum:_llh.exp for enum, _llh in self.llh._samples.items()}
-            merged_dtype = np.dtype([('run', '<i4'), ('event', '<i4'), ('time', '<f4'), ('ra', '<f4'), ('dec', '<f4'), ('sigma', '<f4'), ('enum', '<i4')])
             for enum, _exp in exp.items():
-                _exp = rf.drop_fields(_exp, [_field for _field in _exp.dtype.names if _field not in merged_dtype.names])
-                _exp = rf.append_fields(_exp, 'enum', np.full( _exp.size, enum))
-                _exp = _exp.astype(merged_dtype)
-                exp[enum] = _exp
+                exp[enum] = self.unify_exp_array(_exp, enum=enum)
             self._llh_exp = np.concatenate([exp[enum] for enum in exp])
         return self._llh_exp
     

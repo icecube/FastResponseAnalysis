@@ -160,18 +160,35 @@ class FastResponseAnalysis(object):
     def llh_seed(self, x):
         self._llh_seed = x
 
+    def unify_exp_array(self, _exp, enum=0):
+        """Turns a rec array into same fields, order and precision.
+        """
+        merged_dtype = np.dtype([('run', '<i4'), ('event', '<i4'), ('time', '<f8'), ('ra', '<f4'), ('dec', '<f4'), ('sigma', '<f4'), ('enum', '<i4')])
+        
+        # Drop those not needed
+        _exp = rf.drop_fields(_exp, [_field for _field in _exp.dtype.names if _field not in merged_dtype.names])
+        # And add enum
+        _exp = rf.append_fields(_exp, 'enum', np.full( _exp.size, enum))
+
+        # align order of fields to desired dtype
+        aligned_dtype = np.dtype([(name, _exp.dtype[name]) for name in merged_dtype.names])
+        _aligned = np.zeros(_exp.shape, dtype=aligned_dtype)
+        for field in aligned_dtype.names:
+            _aligned[field] = _exp[field]
+
+        # then cast to uniform precision
+        _cast = _aligned.astype(merged_dtype)
+        return _cast
+
+
     @property
     def llh_exp(self):
         """Returns a flat array of experimental data loaded into the LLH,
         limited to fields used for plotting and amended with an enum=0."""
         if not hasattr(self, '_llh_exp'):
             exp = self.llh.exp
-            merged_dtype = np.dtype([('run', '<i4'), ('event', '<i4'), ('time', '<f4'), ('ra', '<f4'), ('dec', '<f4'), ('sigma', '<f4'), ('enum', '<i4')])
-            exp = rf.drop_fields(exp, [_field for _field in exp.dtype.names if _field not in merged_dtype.names])
-            enum = 0
-            exp = rf.append_fields(exp, 'enum', np.full( exp.size, enum))
-            exp = exp.astype(merged_dtype)
-            self._llh_exp = exp
+            llh_exp = self.unify_exp_array(exp, enum=0)
+            self._llh_exp = llh_exp
         return self._llh_exp
     
     
