@@ -56,11 +56,18 @@ def calculate_sensitivity(args):
           f.analysisid,
           f.analysispath,
          )
-    f.initialize_injector()
+    if args.eband is None:
+        f.initialize_injector()
+    else:
+        halfwidth = np.sqrt(10**args.ewidth)
+        f.initialize_injector(e_range=(args.eband/halfwidth, args.eband*halfwidth))
+    
 
     dataset_string = '+'.join(sorted(f.datasets))
-
-    label = f'{f.dec:.03f}_{args.duration}_{f._index}_{dataset_string}'
+    if args.eband is None:
+        label = f'{f.dec:.03f}_{args.duration}_{f._index}_{dataset_string}'
+    else:
+        label = f'{f.dec:.03f}_{args.duration}_{args.eband:.0f}_{dataset_string}'
     outpath = {_r:os.path.join(outdir[_r], f'{label}.npy') for _r in results}
     if os.path.exists(outpath['trials']):
         trials = np.load(outpath['trials'])
@@ -100,6 +107,12 @@ if __name__ == "__main__":
                         help="Source extension in degrees")
     parser.add_argument('--index', type=float, default=None,
                         help="Spectral index to assume in LLH and injected hypothesis")
+    parser.add_argument('--eband', default=None, type=float,
+                        help='Determine differential sensitivity within an energy band',
+                        )
+    parser.add_argument('--ewidth', default=0.5, type=float,
+                        help='Energy band width in decades',
+                        )
     parser.add_argument('--skip-events', default=None,
                         type= lambda z:[ tuple(int(y) for y in x.split(':')) for x in z.split(',')],
                         help="Event to exclude from the analyses, eg."
