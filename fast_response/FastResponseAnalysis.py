@@ -896,6 +896,7 @@ class PriorFollowup(FastResponseAnalysis):
                 print("[run, event, ra, dec, sigma, logE, time]")
                 for e in self.llh.exp[t_mask][msk3]: 
                     print([e[k] for k in ['run', 'event', 'ra', 'dec', 'sigma', 'logE', 'time']])
+            self.nearby = self.llh.exp[t_mask][msk3]
 
         if len(events) == 0:
             coincident_events = []
@@ -1106,7 +1107,10 @@ class PriorFollowup(FastResponseAnalysis):
         plt.axvline(median_max_dec, c = sns.xkcd_rgb['dark navy blue'], alpha = 0.75, label = "Median (max dec.)", ls = '--')
         plt.xlim(1e1, 1e8)
         plt.legend(loc=4, fontsize=18)
-        plt.savefig(self.analysispath + '/central_90_dNdE.png',bbox_inches='tight')
+        try: 
+            plt.savefig(self.analysispath + '/central_90_dNdE.png',bbox_inches='tight')
+        except: 
+            print('Failed to save dNdE plot')
 
         self.energy_range = (np.min([low_5_min_dec, low_5_max_dec]),
                              np.max([high_5_min_dec, high_5_max_dec]))
@@ -1222,7 +1226,7 @@ class PointSourceFollowup(FastResponseAnalysis):
         self.save_items['ns'] = ns
         return ts, ns
 
-    def find_coincident_events(self):
+    def find_coincident_events(self, print_events=False):
         r"""Find "coincident events" for the analysis.
         These are ontime events that satisfy:
         
@@ -1250,6 +1254,20 @@ class PointSourceFollowup(FastResponseAnalysis):
                 self.coincident_events[-1]['delta_psi'] = del_psi 
                 self.coincident_events[-1]['spatial_w'] = s_w
                 self.coincident_events[-1]['energy_w'] = en_w
+
+        if print_events:
+            t_mask=(self.llh.exp['time']<=self.stop)&(self.llh.exp['time']>=self.start)
+            # print nearby events, as a check (if needed)
+            msk1 = (self.llh.exp[t_mask]['ra'] < (self.ra+np.radians(10)))*(self.llh.exp[t_mask]['ra'] > (self.ra-np.radians(10)))
+            msk2 = (self.llh.exp[t_mask]['dec'] < (self.dec+np.radians(10)))*((self.llh.exp[t_mask]['dec'] > self.dec-np.radians(10)))
+            msk3 = msk1*msk2
+            if np.count_nonzero(msk3) > 0:
+                print('Events within 10 deg of best-fit:')
+                print("[run, event, ra, dec, sigma, logE, time]")
+                for e in self.llh.exp[t_mask][msk3]: 
+                    print([e[k] for k in ['run', 'event', 'ra', 'dec', 'sigma', 'logE', 'time']])
+            self.nearby = self.llh.exp[t_mask]
+
         self.save_items['coincident_events'] = self.coincident_events
 
     def ns_scan(self, params = {'spectrum': 'dN/dE = 1.00e+00 * (E / 1.00e+03 GeV)^-2.00 [GeV^-1cm^-2s^-1]'}):
@@ -1316,6 +1334,16 @@ class PointSourceFollowup(FastResponseAnalysis):
             msk = results['TS'] > self.ts
             npass = len(results['TS'][msk])
             passing.append((n, npass, n_per_sig))
+        
+        if (passing[-1][1] / passing[-1][2]) < 0.92:
+            #run a few more if the last point is close to 0.9
+            for n in np.array([7., 8.]):
+                results = self.llh.do_trials(
+                    n_per_sig, src_ra=self.ra, src_dec=self.dec,
+                    injector=self.inj, mean_signal=n, poisson=True)
+                msk = results['TS'] > self.ts
+                npass = len(results['TS'][msk])
+                passing.append((n, npass, n_per_sig))
             
         signal_fluxes, passing, number = list(zip(*passing))
         signal_fluxes = np.array(signal_fluxes)

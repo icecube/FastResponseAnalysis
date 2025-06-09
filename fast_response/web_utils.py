@@ -37,7 +37,7 @@ mpl.rcParams['ytick.major.size'] = 5
 ###############################################################################
 
 
-def updateFastResponseWeb(analysis, gw=False):
+def updateFastResponseWeb(analysis, gw=False, update = False):
     r"""
     Create analysis specific page, and update
     plots with information from all analyses
@@ -49,15 +49,18 @@ def updateFastResponseWeb(analysis, gw=False):
     gw : bool
         Indicate if event is a GWFollowup (uses GW-specific results page and dataframe). Default False
     """
-    updateDataFrame(analysis, gw=gw)
+    updateDataFrame(analysis, gw=gw, update=update)
     createFastResponsePage(analysis, gw=gw)
     if gw:
         updateGWTable(analysis)
     else:
         updateFastResponseTable(analysis)
+    if update: 
+        print('INFO: Update flag raised')
+        print('WARNING: Remove duplicate entry in index.html manually')
     updateFastResponsePlots(gw=gw)
 
-def updateDataFrame(analysis, gw=False, make_df=False):
+def updateDataFrame(analysis, gw=False, make_df=False, update=False):
     r"""
     Read in official Fast Response Dataframe,
     add these results, save DataFrame
@@ -108,7 +111,7 @@ def updateDataFrame(analysis, gw=False, make_df=False):
                 analysis['ns'], pd.Timestamp(Time(analysis['start'], format='mjd').iso), 
                 pd.Timedelta(analysis['stop'] - analysis['start'], unit='day'),
                 ext, None, analysis['ts'], evid, upper_lim, analysis['energy_range']]
-    if analysis['name'] in df.index:
+    if (analysis['name'] in df.index) and not update:
         num = np.count_nonzero(df.index == analysis['name'])
         analysis['name'] += '_{}'.format(num)
     df.loc[analysis['name']] = new_list

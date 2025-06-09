@@ -55,13 +55,11 @@ def process_gcn(payload, root):
     event_id = params['event_id']
     run_id = params['run_id']
     event_mjd = Time(eventtime, format='isot').mjd
-    try:
-        bot.send_message(f'Listener found {alert_type} type alert, {event_name} \n'+
-                    'Waiting 1 day to run FRA', 'blanket_blob')
-        print(' - slack message sent \n')
-    except Exception as e:
-        print(e)
-        print('Cannot post to slack (testing?)')
+
+    # send message to slack with alert info
+    bot = slackbot('fra-shifting')
+    message =f'Listener found {alert_type} type alert, {event_name}. Waiting 1 day to run FRA'
+    bot.post_short_msg(message)
 
     if alert_type == 'cascade':
         command = analysis_path + 'run_cascade_followup.py'
@@ -82,7 +80,7 @@ def process_gcn(payload, root):
     if alert_type == 'track':
         base_skymap_path = '/home/followup/output_plots/'
         skymap_f = glob(base_skymap_path \
-            + f'run{int(run_id):08d}.evt{int(event_id):012d}.*.fits.gz')
+            + f'run{int(run_id):08d}.evt{int(event_id):012d}.*probability.fits.gz')
         if len(skymap_f) == 0:
             print("COULD NOT FIND THE SKYMAP FILE FOR V2 TRACK ALERT EVENT")
             return
@@ -135,22 +133,20 @@ def process_gcn(payload, root):
             if shifters['start'][i]<datetime.utcnow()<shifters['stop'][i]:
                 on_shift+='<@{}> '.format(shifters['slack_id'][i])
         link = 'https://user-web.icecube.wisc.edu/~jthwaites/FastResponse/webpage/output/'
-        wp_link_1000 = '{}{}_{}_1.0e+03_s.html'.format(link, eventtime[0:10].replace('-','_'),event_name)
+        start_1000 = Time(event_mjd -500./86400., format='mjd').iso
+        wp_link_1000 = '{}{}_{}_1.0e+03_s.html'.format(link, start_1000[:10].replace('-','_'),event_name)
         
-        day_before = '{}'.format(int(eventtime[8:10])-1)
-        if len(day_before)==1: day_before='0'+day_before
-        str_2d = '{}_{}'.format(eventtime[0:7].replace('-','_'),day_before)
-        wp_link_2d   = '{}{}_{}_1.7e+05_s.html'.format(link, str_2d, event_name)
-        bot.send_message(f'Done running FRA for {alert_type} alert, {event_name}.\n '+ on_shift +'on shift',
-                         'blanket_blob')
+        start_2d = Time(event_mjd-1., format='mjd').iso
+        wp_link_2d   = '{}{}_{}_1.7e+05_s.html'.format(link, start_2d[:10].replace('-','_'), event_name)
+        done_message = f'Done running FRA for {alert_type} alert, {event_name}.\n '+ on_shift +'on shift'
+
         if doc:
-            bot.send_message("-Results for 1000s: <{}|link> \n-Results for 2d: <{}|link>".format(
-                              wp_link_1000, wp_link_2d),
-                             'blanket_blob')
-        print(' - slack message sent \n')
+            done_message = done_message + "\n - Results for 1000s: <{}|link>\n - Results for 2d: <{}|link>".format(
+                              wp_link_1000, wp_link_2d)
+
+        bot.post_short_msg(done_message)
     except Exception as e:
         print(e)
-        print('No slack message sent.')
 
 if __name__ == '__main__':
     import os, subprocess
@@ -183,20 +179,8 @@ if __name__ == '__main__':
                         help='flag to raise to push results to internal webpage')
     args = parser.parse_args()
 
-    #for now, testing
-    #with open('../slack_posters/internal_alert_slackbot.txt') as f:
-    #        channel = f.readline()
-    #        webhook = f.readline()
-    #        bot_name = f.readline()
-    #bot = slackbot(channel, bot_name, webhook)
-
     if args.run_live:
         print("Listening for GCNs . . . ")
-        with open('../slack_posters/internal_alert_slackbot.txt') as f:
-            channel = f.readline().rstrip('\n')
-            webhook = f.readline().rstrip('\n')
-            bot_name = f.readline().rstrip('\n')
-        bot = slackbot(channel, bot_name, webhook)
         gcn.listen(handler=process_gcn)
     else:
         try:

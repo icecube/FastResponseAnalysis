@@ -315,7 +315,7 @@ fig = plt.figure(figsize=(3.70, .20))
 ax = fig.add_axes([0, 0, 1, 1])
 plt.plot([0,5],[0,100],color='white')
 ax.text(-0.1, 15, "Page Last Updated: {} UTC".format(now))
-plt.savefig(save_path)
+plt.savefig('/home/mromfoe/public_html/O4_followup_monitoring/Update_Time.png')
 
 df = pd.DataFrame({"Name": ed["Name"][-15::-1],
                     "Merger Time": ed["Trigger_Time"][-15::-1],

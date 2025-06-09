@@ -13,6 +13,9 @@ Track Followups (Gold and Bronze)
 .. autoclass:: fast_response.AlertFollowup.TrackFollowup
    :members:
 
+.. autoclass:: fast_response.AlertFollowup.TrackFollowupLLH
+   :members:
+
 Cascade Followups
 -------------------------
 .. autoclass:: fast_response.AlertFollowup.CascadeFollowup

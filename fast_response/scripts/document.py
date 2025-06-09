@@ -18,6 +18,8 @@ parser.add_argument('--path', type=str,default=None,
                     help='Path to analysis')
 parser.add_argument('--gw', action = 'store_true', default=False,
                     help='save GW ')
+parser.add_argument('--update', action='store_true', default=False,
+                    help='Raise to update values (e.g. if more bkg trials are run)')
 args = parser.parse_args()
 
 analysis_path = os.path.join(args.path, '')
@@ -29,9 +31,9 @@ if username == 'realtime': username='jthwaites'
 
 if args.gw:
     subprocess.call(['cp','-r', results['analysispath'],
-        '/home/{}/public_html/FastResponse/gw-webpage/output/{}'.format(username, results['analysisid'])])
+        '/home/{}/public_html/FastResponse/gw-webpage/output'.format(username)])
 else: 
     subprocess.call(['cp','-r', results['analysispath'],
-        '/home/{}/public_html/FastResponse/webpage/output/{}'.format(username, results['analysisid'])])
+        '/home/{}/public_html/FastResponse/webpage/output'.format(username)])
 
-web_utils.updateFastResponseWeb(results, gw=args.gw)
+web_utils.updateFastResponseWeb(results, gw=args.gw, update=args.update)

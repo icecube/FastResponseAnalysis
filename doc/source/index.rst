@@ -49,6 +49,7 @@ Contents
    reports
    web_utils
    plotting
+   slack
 
 Index
 ==================

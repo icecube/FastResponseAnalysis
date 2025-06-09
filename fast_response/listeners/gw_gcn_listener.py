@@ -66,6 +66,8 @@ def process_gcn(payload, root):
     try:
         if params['Group'] == 'Burst': 
             merger_type = 'Burst'
+        elif params['Search'] == 'SSM':
+            merger_type='SSM'
         else:
             k = ['BNS','NSBH','BBH']
             probs = {j: float(params[j]) for j in k}
@@ -189,14 +191,10 @@ def process_gcn(payload, root):
             wp_link = 'https://user-web.icecube.wisc.edu/~jthwaites/FastResponse/gw-webpage/output/'+\
                       '{}.html'.format(analysis_start[0:10].replace('-','_')+'_'+name)
             slack_message = "UML GW analysis finished running for event {}: <{}|link>.".format(name, wp_link) 
-            with open('../slack_posters/internal_alert_slackbot.txt') as f:
-                chan = f.readline().rstrip('\n')
-                webhook = f.readline().rstrip('\n')
-                bot_name = f.readline().rstrip('\n')
 
             for channel in ['#fra-shifting','#gwnu-heartbeat']:
-                bot = slackbot(channel, bot_name, webhook)
-                bot.send_message(slack_message,'gw')
+                bot = slackbot(channel)
+                bot.post_short_msg(slack_message)
             
         except Exception as e:
             print('Failed to push to (private) webpage.')
