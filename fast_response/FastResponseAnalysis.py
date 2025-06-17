@@ -1029,12 +1029,9 @@ class PriorFollowup(FastResponseAnalysis):
                         plotting_location=None,
                         format=True
                            ):
-        #TODO: Document
         """
         Generates a zoomed in skymap around the best fit location from the maximum likelihood analysis        
         """
-
-
         #Format the skymap if told to format (usually formatted at construction so shouldn't change anything)
         if(format):
             skymap = self.format_skymap(self.skymap)
@@ -1049,9 +1046,7 @@ class PriorFollowup(FastResponseAnalysis):
         nPixZoom=sizeZoomInDegs/reso*60
         hp.visufunc.gnomview(map=np.log10(skymap),hold=True,title="Prior Skymap",rot=(np.degrees(self.skymap_fit_ra),np.degrees(self.skymap_fit_dec),0),
             xsize=nPixZoom,ysize=nPixZoom,reso=reso,bgcolor="white",badcolor="white",margins=(.02,.02,.05,0),notext=True,cbar=False)
-        #hp.visufunc.cartview(map=np.log10(skymap),hold=True,title="Prior Skymap",rot=(np.degrees(self.skymap_fit_ra),np.degrees(self.skymap_fit_dec),0),
-        #    lonra=[np.degrees(self.skymap_fit_ra)-5,np.degrees(self.skymap_fit_ra)+5],latra=[np.degrees(self.skymap_fit_dec)-5,np.degrees(self.skymap_fit_dec)+5],bgcolor="white",badcolor="white",margins=(.01,.01,0,0),notext=True,)
-        
+            
         hp.graticule(verbose=True)
         plotting_utils.plot_labels(self.skymap_fit_dec,self.skymap_fit_ra, reso,nPix=nPixZoom,label_scale=.97)
         
@@ -1072,8 +1067,9 @@ class PriorFollowup(FastResponseAnalysis):
             name+="Unformatted"
         plt.savefig(plotting_location+name+".png")
 
-    def _make_posterior_fits(self,pos_skymap):
+    def _make_posterior_fits(self):
         #internal function to be called from make_posterior_skymap
+        #saves the skymaps as a fits file
         extra_header = [('index', self.index),
                    #('energy_range', ),
                    #('ns_range', ),
@@ -1084,10 +1080,11 @@ class PriorFollowup(FastResponseAnalysis):
 
                    ]
         #startmjd, stopmjd, 
-        hp.write_map(self.analysispath + '/' +'posterior_info.fits',m=pos_skymap,
+        hp.write_map(self.analysispath + '/' +'posterior_info.fits',m=self.PosteriorSkymap,
                     extra_header=extra_header,partial=True    
                               
                               )
+   
         
     def fluxToAverageNs(self,flux):
         if(self.inj==None):
@@ -1116,14 +1113,13 @@ class PriorFollowup(FastResponseAnalysis):
         #flux/ns to test: given as list  
         #Give prior as a function f(ns, gamma, ra, dec)
             #As currently implemented,the llh will have gamma must be constant set by the self.index
-            #Prior flat in ns and spatially by default. May make sense to implement
+            #Prior flat in ns and spatially by default. 
 
         #plotting_location is the directory where plots should be output
         #custom events will be injected
         #useFlux determines whether fluxToTest is treated as ns or flux
 
 
-        #TODO: flux/ns priors 
         t1 = time.time()
         val=None
         skymap = self.skymap
@@ -1134,17 +1130,7 @@ class PriorFollowup(FastResponseAnalysis):
             containment = self._containment,allow_neg=self._allow_neg)
         
         nside=self.nside
-
-        #The full sky scan with no fixing (maybe better to save this during the unblind TS stage)
-        #Can be removed for speed
-        full_scan_val = self.llh.scan(0.0,0.0, scramble = False,spatial_prior=spatial_prior,
-            time_mask = [self.duration/2., self.centertime],
-            pixel_scan=[nside, self._pixel_scan_nsigma],
-            fixed=['nsignal'],
-            inject=custom_events
-            )
-        
-        decs_list=full_scan_val["dec"]
+        decs_list = hp.pix2ang(nside, np.arange(hp.nside2npix(nside)))
 
 
         test_flux=1e-17
@@ -1158,13 +1144,11 @@ class PriorFollowup(FastResponseAnalysis):
 
 
         for fluxT in mean_flux_arr:
-            #print('testing flux=',fluxT)
             temp_val = self.llh.scan(0.0,0.0, scramble = False,spatial_prior=spatial_prior,
                     time_mask = [self.duration/2., self.centertime],
                     pixel_scan=[nside, self._pixel_scan_nsigma],
                     fixed=['nsignal'],
                     nsignal=np.array([fluxT*conversion for conversion in nsPerFluxArr],dtype=float), 
-                    #nsignal=np.array([fluxToTest*nsPerFlux for nsPerFlux in nsPerFluxArr],dtype=float), 
 
                     inject=custom_events
                     )
@@ -1172,24 +1156,19 @@ class PriorFollowup(FastResponseAnalysis):
                 val=temp_val
             else:
                 val=np.hstack((val,temp_val))
-        #print(val.dtype.names)
         ras=val["ra"]
         decs=val["dec"]
         nss=val["nsignal"]
-                
+    
+        #Placeholder: not required in fixed index analyses, but future improvements could expand this
         if "gamma" in val.dtype.names:
-            #TODO: This is available in some, but not all, analyses -- GW vs Internal alerts
-            # should always be self.index (unless things get)
-            #  maybe "spectrum" instead
-        
             gammas=val["gamma"]
         
-        #gammas=val["gamma"] 
         TS_spatial_prior_0=val["TS_spatial_prior_0"]
         idx_max=np.argmax(TS_spatial_prior_0)
         ramax,decmax=ras[idx_max],decs[idx_max]
 
-        logProbs=TS_spatial_prior_0/2 #not normalized so technically C*ln(P)
+        logProbs=TS_spatial_prior_0/2 
         finalProbs={}
 
 
@@ -1211,17 +1190,16 @@ class PriorFollowup(FastResponseAnalysis):
                 print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
                 exit()
             for i in range(1,len(nss_temp)):
-                #trapizoid wall
-                #+(P[i]+P[i-1])/2*prior(center)
-                ns_val=(nss_temp[i]+nss_temp[i-1])/2
-                deltaNs=nss_temp[i]-nss_temp[i-1]
+                #add prior*likelihood*dFlux at each value
+                ns_val=(nss_temp[i]+nss_temp[i-1])/2 #
+                deltaNs=nss_temp[i]-nss_temp[i-1] 
                 prior=prior_func(ns_val,self.index,pix[0],pix[1])
                 finalProbs[pix]=logsumexp([finalProbs[pix],logsumexp([probs_temp[i],probs_temp[i-1]])+np.log(prior)+np.log(deltaNs/2)])
             
         #Normalize
         totalLog=logsumexp(list(finalProbs.values())) 
         finalProbs={k:v-totalLog for k,v in finalProbs.items()}
-        print("N_pixels",len(finalProbs))
+        print("N_pixels in posterior",len(finalProbs))
         #Write to healpy
         outputProbHPMap=np.zeros(12*nside**2)
         ras_graph,decs_graph=zip(*list(finalProbs.keys()))
@@ -1244,9 +1222,6 @@ class PriorFollowup(FastResponseAnalysis):
             sizeZoomInDegs=10
             nPixZoom=sizeZoomInDegs/reso*60
             
-            
-            #hp.visufunc.gnomview(map=outputProbHPMap,hold=True,title="Zoomed Posterior Skymap",rot=(self.src_ra*180/np.pi,self.src_dec*180/np.pi,0),
-            #    xsize=nPixZoom,ysize=nPixZoom,reso=reso,bgcolor="white",badcolor="white",margins=(.01,.01,0,0),notext=True,)
             
             hp.visufunc.mollview(map=outputProbHPMapPlotting,hold=True,title="Posterior Skymap",
                                  bgcolor="white",badcolor="white",rot=(180,0,0),)
@@ -1363,10 +1338,13 @@ class PriorFollowup(FastResponseAnalysis):
                 obj.set_fontsize(30)
             plotting_utils.plot_color_bar(range=[0,np.nanmax(outputProbHPMapPlotting)], cmap="viridis", col_label=r"Posterior PDF",
                     offset=-40,labels=[0,"{0:.1e}".format(np.nanmax(outputProbHPMapPlotting)/2),"{0:.2e}".format(np.nanmax(outputProbHPMapPlotting))],loc=[0.86, 0.2, 0.03, 0.6])
+            
             theta, phi =plotting_utils.plot_contours([.9],outputProbHPMap)
             hp.projplot(theta[0], phi[0], linewidth=2., c='k')
             for i in range(1, len(theta)):
                 hp.projplot(theta[i], phi[i], linewidth=2., c='k', label=None)            
+            for i in range(0, len(theta)):
+                print(">>>",list(theta[i]),list(phi[i]))
             events = self.llh.exp
             events = events[(events['time'] < self.stop) & (events['time'] > self.start)]
 
@@ -1396,12 +1374,12 @@ class PriorFollowup(FastResponseAnalysis):
                 obj.set_fontsize(30)
             plotting_utils.plot_color_bar(range=[0,np.nanmax(outputProbHPMapPlotting)], cmap="viridis", col_label=r"Posterior PDF",
                     offset=-40,labels=[0,"{0:.1e}".format(np.nanmax(outputProbHPMapPlotting)/2),"{0:.2e}".format(np.nanmax(outputProbHPMapPlotting))],loc=[0.86, 0.2, 0.03, 0.6])
-            print("90 contour",theta,phi)
+            theta, phi =plotting_utils.plot_contours([.9],outputProbHPMap)
+
             hp.projplot(theta[0], phi[0], linewidth=2., c='k')
             for i in range(1, len(theta)):
                 hp.projplot(theta[i], phi[i], linewidth=2., c='k', label=None)
-            theta, phi =plotting_utils.plot_contours([.9],outputProbHPMap)
-
+            
             plt.savefig(plotting_location+"PosteriorMapZoomed1Deg.png")
             plt.close()
 
@@ -1450,12 +1428,13 @@ class PriorFollowup(FastResponseAnalysis):
             plt.close()
             
         print("saving fits")
-        self._make_posterior_fits(outputProbHPMap)
+
         #return the version with zeros rather than nan
         t3 = time.time()
         print("finished posterior saving, took {} s".format(t3-t1))
 
-        return outputProbHPMap
+        self.PosteriorSkymap=outputProbHPMap
+        self._make_posterior_fits()
 
 
 

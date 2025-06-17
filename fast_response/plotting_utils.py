@@ -107,11 +107,7 @@ def plot_labels(src_dec, src_ra, reso,nPix=200,label_scale=1):
                 ha='center', va='center', rotation=90, fontsize=fontsize)
     plt.text(np.radians(0), np.radians(-2.05*reso*label_scale), r"right ascension", 
                 ha='center', va='center', fontsize=fontsize)
-
-def plot_events2(dec,ra,sigmas, src_ra, src_dec, reso, sigma_scale=5., col = 'k', constant_sigma=False,
-                    same_marker=False, energy_size=False, with_mark=True, with_dash=False,
-                    label='',resolution=0):
-    def compute_ang_err(ra,dec,sigma):
+def compute_ang_err(ra,dec,sigma):
         dec = np.pi/2 - dec
         sigma = np.rad2deg(sigma)
         delta, step, bins = 0, 0, 0
@@ -132,7 +128,10 @@ def plot_events2(dec,ra,sigmas, src_ra, src_dec, reso, sigma_scale=5., col = 'k'
         Phi[bins] = Phi[0]
 
         return Theta, Phi
-    
+def plot_events2(dec,ra,sigmas, src_ra, src_dec, reso, sigma_scale=5., col = 'k', constant_sigma=False,
+                    same_marker=False, energy_size=False, with_mark=True, with_dash=False,
+                    label='',resolution=0):
+    #plot based on explicitly determined contours rather than using the s parameter. 
     for i in range(len(ra)):
         ev_contour = compute_ang_err(ra[i],dec[i],sigmas[i])
         hp.projplot(ev_contour[0], ev_contour[1], linewidth=1.75, color=col[0],
