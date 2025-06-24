@@ -5,5 +5,5 @@ Slack Posters
 
 slackbot class
 --------------------------------
-.. autoclass:: fast_response.slack_posters.slack
+.. autoclass:: fast_response.slack_posters.slack.slackbot
    :members:

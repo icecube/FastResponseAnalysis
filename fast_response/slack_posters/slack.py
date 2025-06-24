@@ -15,7 +15,7 @@ class slackbot(object):
     Parameters
     ----------
     channel: str
-        Channel name to use in message
+        Channel name to post message
     """
 
     def __init__(self, channel_name):
@@ -33,8 +33,8 @@ class slackbot(object):
         
         Parameters
         ----------
-        channel: str
-            Channel name
+        channel_name: str
+            Name of the channel to send to
         """
         
         chan_ids={}
