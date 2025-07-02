@@ -317,11 +317,11 @@ plt.plot([0,5],[0,100],color='white')
 ax.text(-0.1, 15, "Page Last Updated: {} UTC".format(now))
 plt.savefig('/home/mromfoe/public_html/O4_followup_monitoring/Update_Time.png')
 
-df = pd.DataFrame({"Name": ed["Name"][-15::-1],
-                    "Merger Time": ed["Trigger_Time"][-15::-1],
-                    "GCN Alert": ed["GCN_Alert"][-15::-1],
-                    "Script Finishes": ed["End_Time"][-15::-1],
-                    "Total Latency in Seconds": ed["Total_Latency"][-15::-1]})
+df = pd.DataFrame({"Name": ed["Name"][:15],
+                    "Merger Time": ed["Trigger_Time"][:15],
+                    "GCN Alert": ed["GCN_Alert"][:15],
+                    "Script Finishes": ed["End_Time"][:15],
+                    "Total Latency in Seconds": ed["Total_Latency"][:15]})
 html1 = df.to_html()
 
 text_file1 = open("/home/mromfoe/public_html/O4_followup_monitoring/Recent_Runs.html", "w")
