@@ -415,7 +415,7 @@ class FastResponseAnalysis(object):
                 bins = np.linspace(0., 25., 30)
             
             plt.hist(self.tsd, bins= bins, 
-                    label="Background Scrambles", density=True)
+                    label="{} Background Scrambles".format(len(self.tsd)), density=True)
             if self.ts >= -500.:
                 plt.axvline(self.ts, color = 'k', label = "Observed TS")
             else: 
