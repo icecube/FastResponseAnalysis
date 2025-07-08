@@ -16,10 +16,9 @@ import pandas as pd
 import subprocess, warnings
 warnings.filterwarnings('ignore', module='astropy._erfa')
 
-def dial_up(who="jessie"):
+def dial_up():
         cell_tower = "/home/jthwaites/private/"
-        # subprocess.call([cell_tower+"make_call.py", f"--{who}=True", '--troubleshoot=True'])
-        print('Calld')
+        subprocess.call([cell_tower+"make_call.py", '--troubleshoot=True'])
 
 path = os.environ.get('FAST_RESPONSE_OUTPUT')
 out_put = '/data/user/jthwaites/o4-mocks/'
