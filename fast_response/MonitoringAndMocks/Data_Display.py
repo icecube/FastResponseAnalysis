@@ -24,7 +24,7 @@ path = os.environ.get('FAST_RESPONSE_OUTPUT')
 out_put = '/data/user/jthwaites/o4-mocks/'
 
 #Creating readable (and callable) files from ALL pickle files previously created in gw_gcn_listener
-mock_files = sorted(glob.glob(path+'/PickledMocks/*MS*.pickle'), reverse=True)[:1000]
+mock_files = sorted(glob.glob(path+'/PickledMocks/*MS*.pickle'), reverse=True)[:2000]
 
 def sort_mocks(mock_files):
     event_dict = pd.DataFrame({"Trigger_Time": [], "GCN_Alert": [], "End_Time": [],
@@ -159,7 +159,7 @@ ax.plot_date(unique_days, preliminary, color = 'green')
 ax.plot_date(unique_days, initial, color = 'orange')
 
 now = datetime.now(timezone.utc)
-past = now + relativedelta(months=-2)
+past = now + relativedelta(months=-1)
 
 ax.set_xlim(past, now)
 ax.fmt_xdata = DateFormatter('%Y-%m-%d %H:%M:%S')
