@@ -390,8 +390,8 @@ def make_bg_pval_dist(fontsize=15, lower_y_bound=-3.5, load_all=False):
     #uniform_bins=np.logspace(lower_y_bound,0.,int(abs(lower_y_bound*7))+1) #evenly spaced bins in logspace
     #plt.step(uniform_bins[1:], np.diff(uniform_bins), label = 'Uniform p-value expectation', lw = 3.)
     plt.step(p_x_vals[1:], np.diff(p_x_vals), label = 'Uniform p-value distribution', lw = 3.)
-    plt.plot([0.1,0.1], [10**lower_y_bound, 1e0],linestyle='dotted', label=f'{lt_10per*100.:.2f} \% of p-values $<$ 0.1')
-    plt.plot([0.01, 0.01], [10**lower_y_bound, 1e0], linestyle='dashed',label=f'{lt_1per*100.:.2f} \% of p-values $<$ 0.01')
+    plt.plot([0.1,0.1], [10**lower_y_bound, 1e0],linestyle='dotted', label=f'{lt_10per*100.:.2f}% of p-values $<$ 0.1')
+    plt.plot([0.01, 0.01], [10**lower_y_bound, 1e0], linestyle='dashed',label=f'{lt_1per*100.:.2f}% of p-values $<$ 0.01')
 
     plt.xscale('log')
     plt.yscale('log')
