@@ -293,7 +293,8 @@ def parse_notice(record, wait_for_llama=False, heartbeat=False):
                         if record.attrib['role']=='observation' and not heartbeat:
                             try: 
                                 subprocess.call(['/home/jthwaites/private/make_call.py', 
-                                                 '--troubleshoot_gcn=True', '--missing_llama=True'])
+                                                 '--troubleshoot_gcn=True', '--missing_llama=True',
+                                                 f'--name={name}'])
                             except:
                                 logger.warning('Failed to send alert to shifters: Issue finding LLAMA results. ')
                     if llama_results_finished:
@@ -302,7 +303,8 @@ def parse_notice(record, wait_for_llama=False, heartbeat=False):
                         if record.attrib['role']=='observation' and not heartbeat:
                             try: 
                                 subprocess.call(['/home/jthwaites/private/make_call.py', 
-                                                 '--troubleshoot_gcn=True', '--missing_uml=True'])
+                                                 '--troubleshoot_gcn=True', '--missing_uml=True',
+                                                 f'--name={name}'])
                             except:
                                 logger.warning('Failed to send alert to shifters: Issue finding UML results. ')
                 else:
@@ -311,7 +313,8 @@ def parse_notice(record, wait_for_llama=False, heartbeat=False):
 
                     if record.attrib['role']=='observation' and not heartbeat:
                         err_msg = ['/home/jthwaites/private/make_call.py', '--troubleshoot_gcn=True', 
-                                   '--missing_llama=True']
+                                   '--missing_llama=True',
+                                   f'--name={name}']
                         if not subthreshold: err_msg.append('--missing_uml=True')
                         
                         try: 

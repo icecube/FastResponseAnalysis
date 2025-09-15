@@ -78,7 +78,7 @@ def process_gcn(payload, root):
     
     if root.attrib['role']=='observation' and not mock:
         ## Call everyone because it's a real event!
-        call_command=['/home/jthwaites/private/make_call.py']
+        call_command=['/home/jthwaites/private/make_call.py', f'--name={name}']
     
         call_args = ['--justin']
         for arg in call_args:
