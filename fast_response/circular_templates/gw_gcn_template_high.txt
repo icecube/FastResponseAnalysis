@@ -36,10 +36,11 @@ Properties of the coincident events are shown below.
 ...
 
 where:
-dt = Time of track event minus time of GW trigger (sec)
+dt = Time of track event minus time of GW trigger (sec).
 Angular uncertainty = Angular uncertainty of track event: the radius of a circle 
      representing 90% CL containment by area.
-p-value = the p-value for this specific track event from each search.
+p-value = the p-value for this specific track event from each search. 
+     Event p-values are provided when the per-event p-value is less than 0.1 in either search.
 
 The IceCube Neutrino Observatory is a cubic-kilometer neutrino detector operating at the 
 geographic South Pole, Antarctica. The IceCube realtime alert point of contact can be 
