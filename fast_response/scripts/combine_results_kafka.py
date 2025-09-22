@@ -187,7 +187,7 @@ def parse_notice(record, wait_for_llama=False, heartbeat=False):
         if int(params['Significant'])==0: 
             subthreshold=True
             logger.warning('low-significance alert found. ')
-    if params['Group'] == 'Burst' or params["Pipeline"] =='CWB':
+    if params['Group'] == 'Burst' or params["Pipeline"] =='CWB' or params["Pipeline"]=='aframe':
         wait_for_llama = False
         m = 'Significant' if not subthreshold else 'Subthreshold'
         logger.warning('{} burst or CWB alert found. '.format(m))
