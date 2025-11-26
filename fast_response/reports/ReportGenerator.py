@@ -231,7 +231,7 @@ class ReportGenerator(object):
                 for event in self.analysis.coincident_events:
                     event_table+=[
                         ("Run:Event",'{}:{}'.format(event['run'], event['event'])),
-                        ("Time","{}".format(
+                        ("Time (MJD)","{}".format(
                             event['time'])),
                         (r'$\alpha$, $\delta$',"{:3.2f}\degree, {:+3.2f}\degree"
                             .format(np.rad2deg(event['ra']), np.rad2deg(event['dec']))),

@@ -16,16 +16,15 @@ import pandas as pd
 import subprocess, warnings
 warnings.filterwarnings('ignore', module='astropy._erfa')
 
-def dial_up(who="jessie"):
+def dial_up():
         cell_tower = "/home/jthwaites/private/"
-        # subprocess.call([cell_tower+"make_call.py", f"--{who}=True", '--troubleshoot=True'])
-        print('Calld')
+        subprocess.call([cell_tower+"make_call.py", '--troubleshoot=True'])
 
 path = os.environ.get('FAST_RESPONSE_OUTPUT')
 out_put = '/data/user/jthwaites/o4-mocks/'
 
 #Creating readable (and callable) files from ALL pickle files previously created in gw_gcn_listener
-mock_files = sorted(glob.glob(path+'/PickledMocks/*MS*.pickle'), reverse=True)[:1000]
+mock_files = sorted(glob.glob(path+'/PickledMocks/*MS*.pickle'), reverse=True)[:2000]
 
 def sort_mocks(mock_files):
     event_dict = pd.DataFrame({"Trigger_Time": [], "GCN_Alert": [], "End_Time": [],
@@ -160,7 +159,7 @@ ax.plot_date(unique_days, preliminary, color = 'green')
 ax.plot_date(unique_days, initial, color = 'orange')
 
 now = datetime.now(timezone.utc)
-past = now + relativedelta(months=-2)
+past = now + relativedelta(months=-1)
 
 ax.set_xlim(past, now)
 ax.fmt_xdata = DateFormatter('%Y-%m-%d %H:%M:%S')
@@ -317,11 +316,11 @@ plt.plot([0,5],[0,100],color='white')
 ax.text(-0.1, 15, "Page Last Updated: {} UTC".format(now))
 plt.savefig('/home/mromfoe/public_html/O4_followup_monitoring/Update_Time.png')
 
-df = pd.DataFrame({"Name": ed["Name"][-15::-1],
-                    "Merger Time": ed["Trigger_Time"][-15::-1],
-                    "GCN Alert": ed["GCN_Alert"][-15::-1],
-                    "Script Finishes": ed["End_Time"][-15::-1],
-                    "Total Latency in Seconds": ed["Total_Latency"][-15::-1]})
+df = pd.DataFrame({"Name": ed["Name"][:15],
+                    "Merger Time": ed["Trigger_Time"][:15],
+                    "GCN Alert": ed["GCN_Alert"][:15],
+                    "Script Finishes": ed["End_Time"][:15],
+                    "Total Latency in Seconds": ed["Total_Latency"][:15]})
 html1 = df.to_html()
 
 text_file1 = open("/home/mromfoe/public_html/O4_followup_monitoring/Recent_Runs.html", "w")
@@ -391,8 +390,8 @@ def make_bg_pval_dist(fontsize=15, lower_y_bound=-3.5, load_all=False):
     #uniform_bins=np.logspace(lower_y_bound,0.,int(abs(lower_y_bound*7))+1) #evenly spaced bins in logspace
     #plt.step(uniform_bins[1:], np.diff(uniform_bins), label = 'Uniform p-value expectation', lw = 3.)
     plt.step(p_x_vals[1:], np.diff(p_x_vals), label = 'Uniform p-value distribution', lw = 3.)
-    plt.plot([0.1,0.1], [10**lower_y_bound, 1e0],linestyle='dotted', label=f'{lt_10per*100.:.2f} \% of p-values $<$ 0.1')
-    plt.plot([0.01, 0.01], [10**lower_y_bound, 1e0], linestyle='dashed',label=f'{lt_1per*100.:.2f} \% of p-values $<$ 0.01')
+    plt.plot([0.1,0.1], [10**lower_y_bound, 1e0],linestyle='dotted', label=f'{lt_10per*100.:.2f}% of p-values $<$ 0.1')
+    plt.plot([0.01, 0.01], [10**lower_y_bound, 1e0], linestyle='dashed',label=f'{lt_1per*100.:.2f}% of p-values $<$ 0.01')
 
     plt.xscale('log')
     plt.yscale('log')

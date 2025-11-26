@@ -1,4 +1,4 @@
-astropy==2.0.16
+astropy==4.3.1
 atomicwrites==1.4.0
 attrs==19.3.0
 backports.functools-lru-cache==1.6.1
@@ -10,6 +10,7 @@ healpy==1.13.0
 kiwisolver==1.1.0
 matplotlib==2.2.5
 meander==0.0.3
+mhealpy==0.2.3
 more-itertools==5.0.0
 numpy==1.21.5
 numexpr==2.8.1
