@@ -82,6 +82,10 @@ def plot_labels(src_dec, src_ra, reso,nPix=200,label_scale=1):
         Right Ascension value at the center of the plot (best-fit RA or source RA)
     reso: float
         Resolution (arcmins)
+    nPix: int
+        number of pixels. Determines size of plot
+    label_scale: float
+        Determines size of the labels
     """
     fontsize = 20
     reso=reso*nPix/200
@@ -128,14 +132,27 @@ def compute_ang_err(ra,dec,sigma):
         Phi[bins] = Phi[0]
 
         return Theta, Phi
-def plot_events2(dec,ra,sigmas, src_ra, src_dec, reso, sigma_scale=5., col = 'k', constant_sigma=False,
-                    same_marker=False, energy_size=False, with_mark=True, with_dash=False,
-                    label='',resolution=0):
+def plot_events2(dec,ra,sigmas, col = 'k'):
+    """
+        Fixed version of plot_events
+        Adds events to a healpy zoom plot. 
+
+        Parameters
+        -----------
+        dec: float array
+            Array of declination values for each event
+        ra: float array
+            Array of Right Ascension values for each event
+        sigmas: float array
+            Angular error (circularized) to be plotted. Usually a 90% CL angular error
+   
+    """
     #plot based on explicitly determined contours rather than using the s parameter. 
     for i in range(len(ra)):
         ev_contour = compute_ang_err(ra[i],dec[i],sigmas[i])
         hp.projplot(ev_contour[0], ev_contour[1], linewidth=1.75, color=col[0],
                     linestyle="solid",coord='C')
+        
         
 
 def plot_events(dec, ra, sigmas, src_ra, src_dec, reso, sigma_scale=5., col = 'k', constant_sigma=False,

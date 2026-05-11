@@ -1016,8 +1016,15 @@ class PriorFollowup(FastResponseAnalysis):
                         plotting_location=None,
                         format=True
                            ):
-        """
-        Generates a zoomed in skymap around the best fit location from the maximum likelihood analysis        
+        r"""
+        Generates a zoomed in skymap plot around the best fit location from the maximum likelihood analysis        
+        
+        Parameters
+        ----------------
+        plotting_location: string
+            location to output plots
+        format: boolean
+            whether to format the skymap
         """
         #Format the skymap if told to format (usually formatted at construction so shouldn't change anything)
         if(format):
@@ -1057,8 +1064,11 @@ class PriorFollowup(FastResponseAnalysis):
         plt.savefig(plotting_location+name+".png")
 
     def _make_posterior_fits(self):
-        #internal function to be called from make_posterior_skymap
-        #saves the skymaps as a fits file
+        r"""
+        Save the posterior skymap as a fits
+        Internal function for make_posterior_skymap
+        """
+
         extra_header = [('index', self.index),
                    #('energy_range', ),
                    #('ns_range', ),
@@ -1070,17 +1080,24 @@ class PriorFollowup(FastResponseAnalysis):
                    ]
         #startmjd, stopmjd, 
         hp.write_map(self.analysispath + '/' +'posterior_info.fits',m=self.PosteriorSkymap,
-                    extra_header=extra_header,partial=True    
-                              
-                              )
+                    extra_header=extra_header,partial=True)
    
         
     def fluxToAverageNs(self,flux):
+        """
+            Wrapper to derive the conversion from flux to average ns for a skymap
+        """
         if(self.inj==None):
             self.initialize_injector()
         return self.inj.flux2mu(flux)    
     
     def fluxToNs_decDependent(self,flux,dec):
+        r"""
+            Compute the conversion between a flux at declination dec to ns
+            
+            flux: float
+            dec: float
+        """
         mean_signal=self.fluxToAverageNs(flux)
         acceptance_weights = self.inj.relative_signal_acceptance(np.sin(dec))
         num=[np.array(np.around(w * mean_signal / float(self.prior.nprior)),
@@ -1095,21 +1112,34 @@ class PriorFollowup(FastResponseAnalysis):
                            custom_events=None,
                            useFlux=False
                            ):
+        
+        r"""
+            Creates a posterior map for a prior skymap analysis
+
+            Parameters
+            ----------------
+            fluxToTest: list of floats
+            prior_func:function
+                A function that defines the prior on the physical hypothesis f(ns, gamma, ra, dec)
+                As currently implemented,the llh will have a gamma that constant set by the self.index
+                Prior flat in ns and spatially by default. 
+            plotting_location: string 
+                Location to pleace the plor the 
+            custom events: array
+                Custom event to injecte
+            useFlux: boolean
+                determines whether fluxToTest is treated as ns or flux
+                If true, determine the ns by multiplying by a declination/index dependent flux to ns factor
+            ----------------
+        """
         # Posterior Approach
         # We want a function P(RA, DEC | X) where X is the neutrino data
         # Compute the entire likelihood space P(X | RA, DEC, ns, gamma)
         # Apply Bayes rule, marginalize over nuisance parameters to get P(RA, DEC | X)
- 
-        #flux/ns to test: given as list  
-        #Give prior as a function f(ns, gamma, ra, dec)
-            #As currently implemented,the llh will have gamma must be constant set by the self.index
-            #Prior flat in ns and spatially by default. 
 
-        #plotting_location is the directory where plots should be output
-        #custom events will be injected
-        #useFlux determines whether fluxToTest is treated as ns or flux
-    
-        t1 = time.time()
+
+
+        t1 = time.time()    
         val=None
         skymap = self.skymap
         
@@ -1181,15 +1211,14 @@ class PriorFollowup(FastResponseAnalysis):
             
         #Normalize
         totalLog=logsumexp(list(finalProbs.values())) 
-        #finalProbs={k:v-totalLog for k,v in finalProbs.items()}
-        print("N_pixels in posterior",len(finalProbs))
+        finalProbs={k:v-totalLog for k,v in finalProbs.items()}
         #Write to healpy
         outputProbHPMap=np.zeros(12*nside**2)
         ras_graph,decs_graph=zip(*list(finalProbs.keys()))
         outputProbHPMap[hp.ang2pix(nside=nside,theta=np.array(ras_graph)*180/np.pi, phi=np.array(decs_graph)*180/np.pi,lonlat=True)]=np.exp(np.array(list(finalProbs.values())))
         outputProbHPMap=outputProbHPMap/np.sum(outputProbHPMap)
         t2 = time.time()
-        print("finished posterior calc, took {} s".format(t2-t1))
+        print("Finished posterior calc, took {} s".format(t2-t1))
 
         #set 0s to nan for plotting 
         outputProbHPMapPlotting=copy.deepcopy(outputProbHPMap)
@@ -1197,6 +1226,7 @@ class PriorFollowup(FastResponseAnalysis):
 
         #Add Plotting
         if (plotting_location is not None):
+            print("Plotting Posterior Results")
             fig, ax=plt.subplots(1,1,figsize=(10,10))
             ras_graph,decs_graph=zip(*list(finalProbs.keys()))
             fig, ax=plt.subplots(1,1,figsize=(10,10))
@@ -1365,7 +1395,6 @@ class PriorFollowup(FastResponseAnalysis):
             threshold_prob_for_plots=list(sorted([k for k, v in Counter(list(finalProbs.values())).items() if v == 1],reverse=True))
             #threshold_prob_for_plots=[k for k in threshold_prob_for_plots if k>0]
             counterJump=max(int(len(threshold_prob_for_plots)/30),5)
-            print(len(threshold_prob_for_plots),counterJump)
 
             psToPlot=[]
             for i in range(0,len(threshold_prob_for_plots),counterJump):
@@ -1401,7 +1430,6 @@ class PriorFollowup(FastResponseAnalysis):
             plt.close()
             
         print("saving fits")
-
         #return the version with zeros rather than nan
         t3 = time.time()
         print("finished posterior saving, took {} s".format(t3-t1))

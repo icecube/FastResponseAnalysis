@@ -371,5 +371,4 @@ class CascadeFollowup(AlertFollowup):
     _fix_index = True
     _float_index = not _fix_index
     _index = 2.5
-    _nside = 512
 
