@@ -24,7 +24,11 @@ consumer = Consumer(client_id=client_id,
                     client_secret=client_secret,
                     config={'max.poll.interval.ms':1800000})
 
-consumer.subscribe(['gcn.notices.icecube.gold_bronze_track_alerts'])
+#consumer.subscribe(['gcn.notices.icecube.gold_bronze_track_alerts'])
+# stick with voevent for now for all 3
+consumer.subscribe(['gcn.classic.voevent.ICECUBE_ASTROTRACK_BRONZE',
+                    'gcn.classic.voevent.ICECUBE_ASTROTRACK_GOLD',
+                    'gcn.classic.voevent.ICECUBE_CASCADE'])
 
 def process_gcn(record): #payload,root
     analysis_path = os.environ.get('FAST_RESPONSE_SCRIPTS')
@@ -44,10 +48,10 @@ def process_gcn(record): #payload,root
     # Read all of the VOEvent parameters from the "What" section.
     params = {elem.attrib['name']:
               elem.attrib['value']
-              for elem in root.iterfind('.//Param')}
+              for elem in record.iterfind('.//Param')}
 
     stream = params['Stream']
-    eventtime = root.find('.//ISOTime').text
+    eventtime = record.find('.//ISOTime').text
     if stream == '26':
         print("INCOMING ALERT: ",datetime.utcnow())
         print("Detected cascade type alert, running cascade followup. . . ")
@@ -188,7 +192,9 @@ if __name__ == '__main__':
                     print(message.error())
                     continue
                 value = message.value()
-                print(value)
+                print('Found GCN on topic {}'.format(message.topic()))
+                notice = lxml.etree.fromstring(value.decode('utf-8').encode('ascii'))
+                parse_notice(notice)
     else:
         try:
             import fast_response
