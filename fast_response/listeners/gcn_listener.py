@@ -209,10 +209,10 @@ if __name__ == '__main__':
             payload = open(sample_skymap_path \
                 + 'sample_astrotrack_alert_2021.xml', 'rb').read()
             root = lxml.etree.fromstring(payload)
-            process_gcn(payload, root)
+            process_gcn(root)
         else:
             print("Running on sample cascade . . . ")
             payload = open(sample_skymap_path \
                 + 'sample_cascade.txt', 'rb').read()
             root = lxml.etree.fromstring(payload)
-            process_gcn(payload, root)
+            process_gcn(root)
