@@ -4,15 +4,29 @@
     Author: Alex Pizzuto
     Date:   July 2020
 '''
+import os, subprocess, time, pwd, argparse
+import healpy as hp
+import numpy as np
+import lxml.etree
+from astropy.time import Time
+from datetime import datetime
+from dateutil.parser import parse
+from glob import glob
+from fast_response.slack_posters.slack import slackbot
+import pandas as pd
+from gcn_kafka import Consumer
 
-from itertools import count
-import gcn
-@gcn.handlers.include_notice_types(
-        gcn.notice_types.ICECUBE_ASTROTRACK_GOLD,
-        gcn.notice_types.ICECUBE_ASTROTRACK_BRONZE,
-        gcn.notice_types.ICECUBE_CASCADE)
+with open('/home/jthwaites/private/tokens/kafka_token.txt') as f:
+    client_id = f.readline().rstrip('\n')
+    client_secret = f.readline().rstrip('\n')
 
-def process_gcn(payload, root):
+consumer = Consumer(client_id=client_id,
+                    client_secret=client_secret,
+                    config={'max.poll.interval.ms':1800000})
+
+consumer.subscribe(['gcn.notices.icecube.gold_bronze_track_alerts'])
+
+def process_gcn(record): #payload,root
     analysis_path = os.environ.get('FAST_RESPONSE_SCRIPTS')
     if analysis_path is None:
         try:
@@ -149,19 +163,6 @@ def process_gcn(payload, root):
         print(e)
 
 if __name__ == '__main__':
-    import os, subprocess
-    import healpy as hp
-    import numpy as np
-    import lxml.etree
-    import argparse
-    from astropy.time import Time
-    from datetime import datetime
-    from dateutil.parser import parse
-    import time
-    from glob import glob
-    from fast_response.slack_posters.slack import slackbot
-    import pandas as pd
-    import pwd
 
     username = pwd.getpwuid(os.getuid())[0]
     #default for if to document or not: only way to check reports on realtime 
@@ -180,14 +181,19 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     if args.run_live:
-        print("Listening for GCNs . . . ")
-        gcn.listen(handler=process_gcn)
+        print("Listening for IC Alert GCNs . . . ")
+        while True:
+            for message in consumer.consume(timeout=1):
+                if message.error():
+                    print(message.error())
+                    continue
+                value = message.value()
+                print(value)
     else:
         try:
             import fast_response
             sample_skymap_path=os.path.dirname(fast_response.__file__) +'/sample_skymaps/'
         except Exception as e:
-            #future: possibly point to FRA on /data/ana/ 
             print(e)
             print('Cannot find path to sample skymaps')
             exit()
