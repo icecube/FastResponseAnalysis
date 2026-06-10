@@ -59,6 +59,7 @@ class FastResponseAnalysis(object):
     _nb_days = 10
     _ncpu = 5
     _jitter = False
+    _background_days = 6 # if not using archival data, get_data() will prepend this duration to load
 
     def __init__(self, name, tstart, tstop,
                  skipped=None, seed=None,
@@ -217,9 +218,10 @@ class FastResponseAnalysis(object):
         
         
         if self.start < livetime_range[0]:
-           raise ValueError(f'Followup start MJD {self.start} earlier than first season {self._season_names[0]}, MJD {livetime_range}')
+           raise ValueError(f'Followup start MJD {self.start} earlier than first archival season {self._season_names[0]}, MJD {livetime_range}')
         if self.dataset.startswith('GFUOnline_v001p02'):
             livetime_range = (livetime_range[0], 59215) # default behavior
+        # 1) if [start, stop] falls within the archival livetime:
         if self.stop < livetime_range[1]:
         # FIXME this breaks the default behaviour of shimming in 2020 GFU
             if self._verbose:
@@ -230,6 +232,7 @@ class FastResponseAnalysis(object):
                 grl = dset.grl(season)
                 exps.append(exp)
                 grls.append(grl)
+            # 1a) legacy behaviour, these are added to GFU archival
             # TODO this relies on the assumption the archival GFU is equal to the default
             if (self.stop > 58933.0) and self.dataset.startswith('GFUOnline_v001p02'):
                 # Add local 2020 if need be
@@ -247,15 +250,18 @@ class FastResponseAnalysis(object):
                     self._floor)
                 exps.append(exp_new)
                 grls.append(grl)
+            # concatenate the rest
             exp = np.concatenate(exps)
             grl = np.concatenate(grls)
             # TODO discuss: for new analyses, can replace with new GFU?
             # TODO discuss: can replace this v001p02 + /data/user/ with a Skylab dataset definition?
+        # 2) use the livestream method to grab fresh events
         else:
             if self._verbose:
                 print("Recent time: querying the i3live database")
+            # (default) retrieve a fixed off-time window before the analysis window
             if livestream_start is None or livestream_stop is None:
-                livestream_start = self.start - 6.
+                livestream_start = self.start - self._background_days
                 livestream_stop = self.stop
             exp, mc, livetime, grl = dset.livestream(
                 livestream_start, livestream_stop,
