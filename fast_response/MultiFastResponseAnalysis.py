@@ -106,7 +106,7 @@ class MultiFastResponseAnalysis(FastResponseAnalysis):
             # initialize with analysis specific args and kwargs
             # such as source properties, or override settings
             
-            # get tstart, tstop, ra, dec, and other config
+            # get tstart, tstop, ra, dec / skymap, and other config
             _analysis = _followup(*args, **_kwargs)
             self.analyses.append(_analysis)
 
@@ -273,7 +273,6 @@ class MultiPriorFollowup(PriorFollowup, MultiFastResponseAnalysis):
             seed = self.llh_seed)
         temporal_model = {enum:_llh.temporal_model for enum,_llh in self.llh._samples.items()}
         inj.fill(
-            self.dec,
             self.llh.exp,
             self.llh.mc,
             self.llh.livetime,
@@ -290,7 +289,11 @@ class MultiPriorFollowup(PriorFollowup, MultiFastResponseAnalysis):
     # FIXME my code breaks this: initialize_llh only constructs MultiPSLLH
     
     def make_dNdE(self):
-        self.super().make_dNdE()
+        r"""Make an E^-2 or E^-2.5 dNdE with the central 90% 
+        for the minimum and maximum declinations on the skymap
+        for multiple datasets
+        """
+        raise NotImplementedError("would be easier if we shared more plotting methods")
 
 class MultiPointSourceFollowup(PointSourceFollowup, MultiFastResponseAnalysis):
     
