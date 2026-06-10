@@ -29,6 +29,20 @@ class DNNFollowup(PointSourceFollowup):
     
 #or any other number of definitions
 
+class DNNOnlineFollowup(PointSourceFollowup):
+    _dataset = "DNNCascadesOnline_v001p01"
+    _season_names = ["livestream"]
+    _floor = np.radians(1.5) # can change this!
+    _jitter = 3. # common default for DNN analyses
+    _background_days = 100.
+    # Need to add analysis cuts? That's something SKATE analysers would know.
+
+class DNNIceManFollowup(PointSourceFollowup):
+    _dataset = "DNNCascadesIceMan_v001p00" 
+    # limited to one season ON PURPOSE for better comparison with DNNOnline
+    _season_names = [f"IC86, 20{y:02d}" for y in range(18, 18+1)]
+    _jitter = 3. # common default for DNN analyses
+
 class MultiFollowup(MultiPointSourceFollowup):
     '''
     Class for external point-source or extended source followup.
