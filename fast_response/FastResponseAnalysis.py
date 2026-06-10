@@ -596,6 +596,8 @@ class FastResponseAnalysis(object):
             plots the 90% containment contour of a skymap (default False)
         contour_files: string
             text file containing skymap contours to be plotted (default None)
+        reso: float or 'auto'
+            resolution to zoom in, degrees (default 3.0)
 
         """
         
@@ -606,13 +608,10 @@ class FastResponseAnalysis(object):
         # then this method needs to know nothing of enum
         events = events[(events['time'] < self.stop) & (events['time'] > self.start)]
 
-        col_num = 5000
-        seq_palette = sns.color_palette("icefire", col_num)
-        lscmap = mpl.colors.ListedColormap(seq_palette)
+        if reso == 'auto':
+            reso = plotting_utils.auto_reso(events)
 
-        rel_t = np.array((events['time'] - self.start) * col_num / (self.stop - self.start), dtype = int)
-        cols = np.array([seq_palette[j] for j in rel_t])
-
+        # plot skymap if given:
         if self.skymap is not None:
             skymap = self.skymap
             ra = self.skymap_fit_ra
@@ -629,18 +628,19 @@ class FastResponseAnalysis(object):
         plotting_utils.plot_zoom(skymap, ra, dec, "", range = [0,10], reso=reso, cmap = cmap)
         
 
+        # remove skipped event:
         if self.skipped is not None:
             try:
                 msk = events['run'] == int(self.skipped[0][0])
                 msk *= events['event'] == int(self.skipped[0][1])
                 # TODO here we don't know which sample the skipped event came from...
+                # TODO and strictly speaking, supply subevent and check that too
                 plotting_utils.plot_events(self.skipped_event['dec'], self.skipped_event['ra'], 
                     self.skipped_event['sigma']*self._angScale, 
                     ra, dec, 2*6, sigma_scale=1.0, constant_sigma=False, 
                     same_marker=True, energy_size=True, col = 'grey', 
                     with_dash=True)
                 events = events[~msk]
-                cols = cols[~msk]
             except:
                 print("Removed event not in GFU")
                 # TODO print the actual dataset name
@@ -651,17 +651,21 @@ class FastResponseAnalysis(object):
         else:
             #Long time windows means don't plot contours
             sigma_scale = None
+        # FIXME this is ignored?
 
         for enum in np.unique(events['enum']): # not adding pandas as dependency
             _mask = events['enum'] == enum
             _events = events[_mask]
+            _style = plotting_utils.skymap_style[enum]
+            _cols = cols[_mask]
             if self._verbose:
                 print(f'Found {_events.size} on-time events from {self.datasets[enum]}')
             plotting_utils.plot_events(_events['dec'], _events['ra'], _events['sigma']*self._angScale,
-                ra, dec, 2*6,
+                ra, dec, 2*6, # this reso positional arg is not used
                 sigma_scale=reso/3.,
                 constant_sigma=False, same_marker=True, energy_size=True,
-                col = cols[_mask], kw_style=plotting_utils.skymap_style[enum],
+                col = _cols,
+                kw_style=plotting_utils.skymap_style[enum],
                 )
 
         # plotting_utils.plot_events(events['dec'], events['ra'], events['sigma']*self._angScale,
@@ -703,7 +707,7 @@ class FastResponseAnalysis(object):
         plt.close()
 
     def plot_skymap(self, with_contour=False, contour_files=None, label_events=False,
-                    labels=['GFU Event'],
+                    labels=['GFU Event'], distinct_colorbars=False,
                     show=False,
                     ):
         r""" Make skymap with event localization and all
@@ -724,17 +728,16 @@ class FastResponseAnalysis(object):
         events = self.llh_exp
         events = events[(events['time'] < self.stop) & (events['time'] > self.start)]
 
-        col_num = 5000
-        seq_palette = sns.color_palette("icefire", col_num)
-        lscmap = mpl.colors.ListedColormap(seq_palette)
-
-        rel_t = np.array((events['time'] - self.start) * col_num / (self.stop - self.start), dtype = int)
-        cols = np.array([seq_palette[j] for j in rel_t])
-
         # Set color map and plot skymap
         pdf_palette = sns.color_palette("Blues", 500)
         cmap = mpl.colors.ListedColormap(pdf_palette)
         cmap.set_under("w")
+
+        # Obtain color maps for event times
+        if distinct_colorbars:
+            tcmap = plotting_utils.TimeColormap(self.start, self.stop, n_maps=events['enum'].max()+1)
+        else:
+            tcmap = plotting_utils.TimeColormap(self.start, self.stop, n_maps=1)
 
         if self.skymap is None:
             skymap = np.zeros(hp.nside2npix(self._nside))
@@ -780,17 +783,17 @@ class FastResponseAnalysis(object):
 
         # plot events on sky with error contours
         handles=[]
-        # TODO change markers and label accordingly in loop
-        # (then the combination of both plots has a complete legend)
-        # inside this method, using enum from self.llh_exp?
-        # or re-factor this method, so it can be used from MultiFRA?
+        # TODO is this implementation ok?
+        # or re-factor this method, so it can be used from MultiFRA, knowing about the samples before?
         for enum in np.unique(events['enum']):
             _mask = events['enum'] == enum
             _style = plotting_utils.skymap_style[enum]
             _label = labels[enum]
-            hp.projscatter(theta[_mask], phi[_mask], c=cols[_mask],
+            hp.projscatter(theta[_mask], phi[_mask],
+                           c=tcmap(events['time'][_mask], enum),
                            marker=_style['marker'],
                            label=_label,
+                           s=128,
                            coord='C', zorder=5)
             handles.append(Line2D([0], [0], marker=_style['marker'], ls='None', label=_label))
         
@@ -802,18 +805,20 @@ class FastResponseAnalysis(object):
             for i in range(events['ra'].size):
                 _enum = events['enum'][i]
                 _style = plotting_utils.skymap_style[_enum]
+                _col = tcmap(events['time'][i], _enum)[0]
                 my_contour = plotting_utils.contour(events['ra'][i], 
                                     events['dec'][i],sigma_90[i], self._nside)
                 hp.projplot(my_contour[0], my_contour[1], linewidth=2., 
-                                    color=cols[i], linestyle=_style['linestyle'],
+                                    color=_col, linestyle=_style['linestyle'],
                                     coord='C', zorder=5)
 
         if self.skymap is None:
+            label_str = self.name.replace('_', ' ')
             src_theta = np.pi/2. - self.dec
             src_phi = self.ra
             hp.projscatter(src_theta, src_phi, c = 'k', marker = '*',
-                                label = self.name, coord='C', s=350)
-            handles.append(Line2D([0], [0], marker='*', c='k', ls='None', label=self.name))
+                                label = label_str, coord='C', s=350)
+            handles.append(Line2D([0], [0], marker='*', c='k', ls='None', label=label_str))
 
         if contour_files is not None:
             cont_ls = ['solid', 'dashed']

@@ -6,11 +6,45 @@ import matplotlib as mpl
 import meander
 from copy import copy
 
-skymap_style = [dict(linestyle='solid', marker='x', alpha=1.0),
-                dict(linestyle='dotted', marker='+', alpha=1.0),
-                dict(linestyle='dashed', marker='2', alpha=1.0),
+skymap_style = [dict(linestyle='solid',   marker='x', alpha=1.0),
+                dict(linestyle='dotted',  marker='+', alpha=1.0),
+                dict(linestyle='dashed',  marker='2', alpha=1.0),
                 dict(linestyle='dashdot', marker='d', alpha=1.0),
                 ]
+
+class TimeColormap:
+    """
+    Class to colorize events in a skymap, optionally with a distinct sample per palette.
+    """
+    def __init__(self, start, stop, n_maps=3):
+        self.norm = mpl.colors.Normalize(vmin=start, vmax=stop)
+        cmaps = []
+        if n_maps == 1:
+            cmaps = [mpl.colors.ListedColormap(sns.color_palette('icefire', 512))]
+        elif n_maps<4:
+            dhue = 360/n_maps
+            hues = np.mod(136 + np.arange(0, 360, dhue), 360)
+            for i,hue in enumerate(hues):
+                cmaps.append(sns.diverging_palette(hue, (hue+dhue/1.5)%360, l=75, center="dark", as_cmap=True))
+        else:
+            raise ValueError("Generating more than 5 color maps will be hard to distinguish")
+        self.cmaps = cmaps
+        self.n_maps = n_maps
+
+    def get_cmap(self, i):
+        if self.n_maps == 1:
+            return self.cmaps[0]
+        elif i < self.n_maps:
+            return self.cmaps[i]
+        else:
+            raise ValueError("Have not configured enough color maps")
+    
+    def __call__(self, times, enum):
+        t = np.atleast_1d(times)
+        x = self.norm(t)
+        cmap = self.get_cmap(enum)
+        return cmap(x)
+
 
 def plot_zoom(scan, ra, dec, title, reso=3, var="pVal", range=[0, 6],cmap=None):
     """
@@ -112,6 +146,7 @@ def plot_labels(src_dec, src_ra, reso):
     plt.text(np.radians(0), np.radians(-2.05*reso), r"right ascension", 
                 ha='center', va='center', fontsize=fontsize)
 
+# FIXME reso here is not used
 def plot_events(dec, ra, sigmas, src_ra, src_dec, reso, sigma_scale=5., col = 'k', constant_sigma=False,
                     same_marker=False, energy_size=False, with_mark=True, with_dash=False, kw_style={},
                     label=''):
@@ -177,6 +212,11 @@ def plot_events(dec, ra, sigmas, src_ra, src_dec, reso, sigma_scale=5., col = 'k
     if with_mark:
         hp.projscatter(np.pi/2-dec, ra, marker=marker, linewidth=2, 
             edgecolor=col, facecolor=col, s=60, alpha=1.0)
+
+def auto_reso(events):
+    raise NotImplementedError('plot is ill defined')
+    #return 3.
+    
 
 def load_plotting_settings():
     """
