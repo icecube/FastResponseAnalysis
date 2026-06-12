@@ -1,11 +1,11 @@
-r'''Script to initiate fast reponse
-    followups.
+'''Script to calculate sensitivities of analyses defined
+in the fast_response framework.
 
-    Author: Alex Pizzuto
-    Date: 2021
+    Author: Christoph Raab
+    Date: 2025
     '''
 
-from fast_response.MultiExternalFollowup import MultiFollowup, GFUFollowup, GrecoFollowup, DNNFollowup
+from fast_response.MultiExternalFollowup import MultiFollowup, GFUFollowup, GrecoFollowup, DNNFollowup, DNNOnlineFollowup, DNNIceManFollowup
 import argparse
 import subprocess
 import warnings
@@ -24,6 +24,8 @@ def calculate_sensitivity(args):
     outdir = {}
     for _r in results:
         _outdir = os.path.join(args.out, _r)
+        if _r == 'sensitivity':
+            _outdir = os.path.join(_outdir, f"{args.alpha}_{args.beta}")
         if not os.path.exists(_outdir):
             os.makedirs(_outdir)
         outdir[_r] = _outdir
@@ -34,11 +36,14 @@ def calculate_sensitivity(args):
     if 'Greco' in args.dataset:
         followups.append(GrecoFollowup)
     if 'DNN' in args.dataset:
-        followups.append(DNNFollowup)
+        followups.append(DNNOnlineFollowup)
+    if "IceMan" in args.dataset:
+        followups.append(DNNIceManFollowup)
     MultiFollowup._followups = followups
 
-    for attr in ['index']:
+    for attr in ['index', 'fix_index']:
         setattr(MultiFollowup, f'_{attr}', getattr(args, attr))
+    MultiFollowup._float_index = not MultiFollowup._fix_index
     
     
     f = MultiFollowup(
@@ -75,7 +80,7 @@ def calculate_sensitivity(args):
     else:
         trials = None
 
-    sensitivity, trials, weights = f.llh.weighted_sensitivity(0.5, 0.9, f.inj,
+    sensitivity, trials, weights = f.llh.weighted_sensitivity(args.alpha, args.beta, f.inj,
                          src_ra = f.ra, src_dec = f.dec,
                          eps=args.eps,
                          n_iter=args.n_iter,
@@ -91,13 +96,16 @@ if __name__ == "__main__":
     warnings.filterwarnings("ignore")
     log.basicConfig(level=log.ERROR)
 
-    parser = argparse.ArgumentParser(description='Fast Response Analysis')
+    parser = argparse.ArgumentParser(description='Fast Response Analysis sensitivity')
     parser.add_argument('--name', type=str, default="test inherit sensitivity",
                         help='Name of the source (do not use underscores or LaTeX will be mad!)')
     parser.add_argument('--ra', default=None, type=float,
                         help='Right ascension (in degrees)')
     parser.add_argument('--dec', default=None, type=float,
                         help='Declination (in degrees)')
+    parser.add_argument("--alpha", default=0.5, type=float)
+    parser.add_argument("--beta", default=0.9, type=float)
+    parser.add_argument('--fix_index', action='store_true', help='Fix the spectral index during fitting')
     parser.add_argument('--duration', default=10, type=float,
                         help='Duration of followup [days]')
     parser.add_argument('--start', type=str, required=False,
@@ -106,7 +114,7 @@ if __name__ == "__main__":
     parser.add_argument('--extension', type=float, default=None,
                         help="Source extension in degrees")
     parser.add_argument('--index', type=float, default=None,
-                        help="Spectral index to assume in LLH and injected hypothesis")
+                        help="Spectral index to assume in injected hypothesis")
     parser.add_argument('--eband', default=None, type=float,
                         help='Determine differential sensitivity within an energy band',
                         )
