@@ -688,7 +688,7 @@ class FastResponseAnalysis(object):
                 cont = np.loadtxt(c_file, skiprows=1)
                 cont_ra = cont.T[0]
                 cont_dec = cont.T[1]
-                label = 'Millipede 50\%, 90\% (160427A syst.)' \
+                label = 'Millipede 50%, 90% (160427A syst.)' \
                     if contour_counter == 0 else ''
                 hp.projplot(np.pi/2. - cont_dec, cont_ra, linewidth=3., 
                     color='k', linestyle=cont_ls[contour_counter], coord='C', 
@@ -845,8 +845,8 @@ class FastResponseAnalysis(object):
             ### plot 90% containment contour of PDF
             levels = [0.9]
             theta, phi = plotting_utils.plot_contours(levels, probs)
-            hp.projplot(theta[0], phi[0], linewidth=2., c='k', label='Skymap (90\% cont.)')
-            handles.append(Line2D([0], [0], lw=2, c='k', label=r"Skymap (90\% cont.)"))
+            hp.projplot(theta[0], phi[0], linewidth=2., c='k', label='Skymap (90% cont.)')
+            handles.append(Line2D([0], [0], lw=2, c='k', label=r"Skymap (90% cont.)"))
             for i in range(1, len(theta)):
                 hp.projplot(theta[i], phi[i], linewidth=2., c='k')
         
@@ -1288,7 +1288,7 @@ class PriorFollowup(FastResponseAnalysis):
         low_5_min_dec = np.interp(0.05, cdf, a[1][:-1])
         median_min_dec = np.interp(0.5, cdf, a[1][:-1])
         high_5_min_dec = np.interp(0.95, cdf, a[1][:-1])
-        plt.axvspan(low_5_min_dec, high_5_min_dec, color = sns.xkcd_rgb['windows blue'], alpha = 0.25, label="Central 90\%")
+        plt.axvspan(low_5_min_dec, high_5_min_dec, color = sns.xkcd_rgb['windows blue'], alpha = 0.25, label="Central 90%")
         lab = 'Median (min dec.)'
         plt.axvline(median_min_dec, c = sns.xkcd_rgb['windows blue'], alpha = 0.75, label = lab)
 
@@ -1419,7 +1419,10 @@ class PointSourceFollowup(FastResponseAnalysis):
             print("TS = {}".format(ts))
             print("ns = {}".format(ns))
             for par, val in params.items():
-                print(f"{par} = {val:.3f}")
+                if isinstance(val, float):
+                    print(f"{par} = {val:.3f}")
+                else:
+                    print(f"{par} = {val}")
             print("\n\n")
         self.ts, self.ns = ts, ns
         self.save_items['ts'] = ts
@@ -1619,7 +1622,7 @@ class PointSourceFollowup(FastResponseAnalysis):
         high_5 = np.interp(0.95, cdf, a[1][:-1])
         self.low5 = low_5
         self.high5 = high_5
-        plt.axvspan(low_5, high_5, color = sns.xkcd_rgb['windows blue'], alpha = 0.25, label="Central 90\%")
+        plt.axvspan(low_5, high_5, color = sns.xkcd_rgb['windows blue'], alpha = 0.25, label="Central 90%")
         lab = 'Median'
         plt.axvline(median, c = sns.xkcd_rgb['windows blue'], alpha = 0.75, label = lab)
         plt.xlim(1e1, 1e8)

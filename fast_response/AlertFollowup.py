@@ -118,7 +118,7 @@ class AlertFollowup(PriorFollowup):
         src_dec = np.unique(src_dec)
         src_dec = np.sin(src_dec)
         ax.axvspan(src_dec.min(), src_dec.max(), alpha=0.3, color=sns.xkcd_rgb['light navy blue'],
-                label='90\% contour region')
+                label='90% contour region')
         plt.text(0.05, 3e1, 'Min sens.: {:.1e}'.format(self.sens_range[0]) + r' GeV cm$^{-2}$')
         plt.text(0.05, 1.5e1, 'Max sens.: {:.1e}'.format(self.sens_range[1]) + r' GeV cm$^{-2}$')
         plt.grid(which='both', alpha=0.2, zorder=1)
@@ -312,7 +312,7 @@ class TrackFollowup(AlertFollowup):
         elif percentage == 0.5:
             msk = (skymap < 22.2) * (skymap > 0.)
         else:
-            raise ValueError('Must use 50\% or 90\% containment for alert events')
+            raise ValueError('Must use 50% or 90% containment for alert events')
         msk *= ~np.isnan(skymap)
         msk *= ~np.isinf(skymap)
         ipix = np.asarray(indices[msk], dtype=int)

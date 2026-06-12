@@ -396,7 +396,7 @@ class MultiPointSourceFollowup(PointSourceFollowup, MultiFastResponseAnalysis):
             plt.axvspan(low_5, high_5,
                         color = color, linestyle = style['linestyle'],
                         linewidth = 2.,
-                        alpha = 0.25, label="Central 90\%")
+                        alpha = 0.25, label="Central 90%")
             lab = 'Median'
             plt.axvline(median,
                         c = color, linestyle = style['linestyle'],
