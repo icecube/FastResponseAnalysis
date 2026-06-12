@@ -2,11 +2,12 @@ r''' General Fast Response Analysis Class.
 
     Author: Alex Pizzuto
     Date: 2021
-    '''
+'''
 
 from abc import abstractmethod
 import os, sys, time, subprocess
 import pickle, dateutil.parser, logging, warnings
+from pathlib import Path
 
 import h5py
 import healpy                 as hp
@@ -17,6 +18,7 @@ import matplotlib.pyplot      as plt
 import numpy.lib.recfunctions as rf
 from astropy.time           import Time
 from scipy.special          import erfinv
+from scipy                  import sparse
 from matplotlib.lines       import Line2D
 
 from skylab.datasets        import Datasets
@@ -876,6 +878,13 @@ class PriorFollowup(FastResponseAnalysis):
     _containment = 0.99
     _allow_neg = False
     _nside = 256
+    _bg_dir = './'
+    _bg_format = '_'.join([
+    'precomputed_trials_delta_t_{delta_t:.2e}',
+    'nside_{nside}',
+    'index_{index}',
+    '{lookup}',
+    ])
 
     def __init__(self, name, skymap_path, tstart, tstop, skipped=None, seed=None,
                  outdir=None, save=True, extension=None):
@@ -998,6 +1007,72 @@ class PriorFollowup(FastResponseAnalysis):
         tsd = np.asarray(tsd, dtype=float)
         self.tsd = tsd
         self.save_items['tsd'] = tsd
+
+    def load_background_trials(self, ntrials=None, rate=None, month=None):
+        """Produce background trials based on precomputed all-sky scans 
+        stored in sparse matrices produced by fast_response/precomputed_background/...
+            precompute_ts.py (or its variants)
+            glob_precomputed_trials.py (or its variants)
+
+
+        Parameters
+        ----------
+        ntrials : int, optional
+            Number of trials to return, by default return as many as available.
+        rate : float, optional
+            rate in mHz to look up
+        month : int, optional
+            month to look up
+
+        Raises
+        ------
+        TypeError
+            if neither month nor rate are supplied
+        """
+        if not ((rate is None) ^ (month is None)):
+            raise TypeError("Need to supply either rate or month")
+        
+        # Assemble variables for the background file
+        filename = self._bg_format.format(
+            delta_t = self.duration * 86400.,
+            nside = self.nside,
+            index = self._index,
+            lookup = f"{rate:.2f}_mHz" if month is None else f"{month:02d}",
+        )
+        bg_files = list(Path(self._bg_dir).glob(filename))
+        if not bg_files:
+            raise FileNotFoundError(f"Did not find precomputed bg {filename} in {self._bg_dir}")
+        # TODO also concatenate in here; then the glob script becomes superfluous
+        # Load sparse matrix of background scans
+        pre_ts_array = sparse.load_npz(bg_files[0])
+        if hp.npix2nside(pre_ts_array.shape[1]) != self.nside:
+            # Should be ensured by file name but better check
+            raise ValueError(f"Loaded precomputed bg has nside != {self.nside}")
+        # Combine with prior as in GWFollowup
+        ts_prior = pre_ts_array.copy()
+        ts_norm = np.log(np.amax(self.skymap))
+        # skymap was already reduced to the analysis nside upon loading
+        # FIXME reduction vs. interpolation??
+        # TODO better way than to introduce inf's by log-ging the skymap?
+        ts_prior.data += 2.*(np.log(self.skymap[pre_ts_array.indices]) - ts_norm)
+        ts_prior.data[~np.isfinite(ts_prior.data)] = 0. # TODO discuss whether this applies. Not sure why inconsistent.
+        ts_prior.data[ts_prior.data < 0] = 0.
+        # Take the maximum per entry
+        tsd = ts_prior.max(axis=1).toarray()[:,0]
+        # Explicitly skip
+        empty = np.array([_ts.size==0 for _ts in pre_ts_array])
+        tsd[empty] = -np.inf # FIXME why does it set these to -inf instead of 0?
+        self.tsd = tsd
+        if ntrials is None:
+            return tsd
+        elif ntrials <= self.tsd.size:
+            return tsd[:ntrials]
+        else:
+            raise ValueError(f"Could not load {ntrials} precomputed trials, only have {self.tsd.size}")
+
+
+
+        
 
     def find_coincident_events(self, exp=None):
         r"""Find coincident events for a skymap
