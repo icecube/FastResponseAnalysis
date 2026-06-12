@@ -1,0 +1,113 @@
+# This file, job.sub specifies a "job" for the cluster
+# based on the tutorial in
+# https://events.icecube.wisc.edu/event/167/contributions/9470/attachments/7274/9266/Using%20Madison%20Computing.pdf
+# and the wiki pages
+# https://wiki.icecube.wisc.edu/index.php/Condor/BestPractices
+# https://wiki.icecube.wisc.edu/index.php/Condor/DAGMan
+
+
+################
+# General settings
+################
+
+# Name/path of executable we want to run.
+# This needs to have executable permission in the file system,
+# so on the command line run
+# chmod +x physics.py
+#executable = multisample_sensitivity.sh
+# you can also use a wrapper script that handles surrounding tasks:
+executable = job_alma9.sh
+
+# Can change the working directory
+#initialdir     = /data/user/$ENV(USER)/Cluster/
+
+# Any arguments you'd put on the command line after your executable
+#arguments = inputfile.i3 # or an HTCondor variable like $(inputfile) if using DAGMan
+# or for job.sh, the wrapper example provided here, it would be
+arguments = $(args)
+
+# We can transfer files from here to wherever the job runs.
+#transfer_input_files = inputfile.i3 # or physics.py,inputfile.i3 # or $(inputfile)
+#+FileSystemDomain = "foo"
+
+
+################
+# General settings
+################
+
+
+# Need to set this to write .out and .err files on /scratch/
+should_transfer_files = YES
+#when_to_transfer_output = ON_EXIT_OR_EVICT # also transfer if job is evicted or removed
+
+#this is where the log, out, err files will live
+scratchdir     = /scratch/$ENV(USER)/fast_response/
+# Before submitting, run
+# mkdir -p /scratch/${USER}/fast_response
+
+# The cluster writes a log file for the job, "I've submitted..."
+# This will have frequent writes, so don't put it on a network file system which can't handle that much load
+# but instead in the scratch directory on the execution node's local disk.
+log = $(scratchdir)/job.$(ClusterId).$(ProcId).log
+
+# Output of the script written to the console (stdout)
+output = $(scratchdir)/job.$(ClusterId).$(ProcId).out
+
+# The same, but for error messages (stderr)
+error = $(scratchdir)/job.$(ClusterId).$(ProcId).err
+
+# Do you want to get emails about your job status?
+#notification = never
+
+################
+# Computing resources
+################
+#
+# What you're requesting your job to run on.
+# Only ask for as much as necessary, or your job might never find a place to run.
+request_cpus = 2
+request_memory = 7GB
+request_disk = 1GB
+# You can also request GPUs!
+#request_gpus = 1
+
+
+################
+# Extra tricks
+################
+
+# normally, jobs are limited to 48 hours
+# but you can ask for more, if needed:
+#AccountingGroup="1_week.$ENV(USER)"
+
+# condor_rm makes the tray call Finish() at the end of the current frame:
+#remove_kill_sig = SIGINT
+#kill_sig = SIGINT
+
+# This option takes all your env variables from your current session
+# so if you want, you can run env-shell.sh before submitting
+#getenv         = true
+
+################
+# Let's go!
+################
+
+# We're running 1 job
+#queue 1
+#
+
+queue args from jobs.txt
+
+# With this file complete and stored in some subdirectory of
+# /data/user/yourusername or /home/yourusername, now you can:
+# 1a. From cobalt or the Jupyterhub terminal, ssh submit-1
+# (which is a machine from which we submit)
+# 1b. or from your own machine, ssh submit
+# 2. Run
+# mkdir -p /scratch/${USER}/logs
+# to make sure your scratch directory exists
+# 3. condor_submit job.sub
+# (you might want to organise this with names and directories)
+# 4. Check the status with condor_q -better-analyze
+# 5. See your output, error, and log files appear
+
