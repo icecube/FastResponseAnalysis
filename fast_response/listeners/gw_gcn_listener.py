@@ -21,9 +21,7 @@ from astropy.time import Time
 from datetime import datetime
 from fast_response.slack_posters.slack import slackbot
 
-logger = logging.getLogger()
-logger.setLevel(logging.INFO)
-logger.warning("Connecting to GCN as Consumer")
+print("Connecting to GCN as Consumer")
 
 with open('/home/jthwaites/private/tokens/kafka_token.txt') as f:
     client_id = f.readline().rstrip('\n')
@@ -43,23 +41,21 @@ consumer.subscribe(['gcn.classic.voevent.LVC_EARLY_WARNING',
                     'gcn.classic.voevent.LVC_UPDATE'])
 
 def process_gcn(record): #payload, root):
-
     AlertTime=datetime.utcnow().isoformat()
-    log_file.flush()
     analysis_path = os.environ.get('FAST_RESPONSE_SCRIPTS')
+
     if analysis_path is None:
         try:
             import fast_response
             analysis_path = os.path.join(os.path.dirname(fast_response.__file__),'scripts/')
         except Exception as e:
-            print(e)
+            logger.error('Error finding FRA package!!')
             print('###########################################################################')
             print('CANNOT FIND ENVIRONMENT VARIABLE POINTING TO REALTIME FAST RESPONSE PACKAGE\n')
             print('You can either (1) install fast_response via pip or ')
             print('(2) put \'export FAST_RESPONSE_SCRIPTS=/path/to/fra/scripts\' in your bashrc')
             print('###########################################################################')
-            log_file.flush()
-            exit()
+            raise Exception(e)
 
     # Read all of the VOEvent parameters from the "What" section.
     params = {elem.attrib['name']:
@@ -71,20 +67,16 @@ def process_gcn(record): #payload, root):
     if 'Significant' in params.keys():
         if int(params['Significant'])==0: 
             #not significant, do not run
-            print(f'Found a subthreshold event {name}')
+            logger.warning(f'Found a subthreshold event {name}')
             record.attrib['role']='test'
-            log_file.flush()
-            #return
     else:
         # O3 does not have this parameter, this should only happen for testing
-        print('No significance parameter found in LVK GCN.')
-        log_file.flush()
+        logger.warning('No significance parameter found in LVK GCN.')
     # if this is the listener for real events and it gets a mock (or low signficance), skip it
     if not mock and record.attrib['role']!='observation':
         return
     
-    print('\n' +'INCOMING ALERT FOUND: ',datetime.utcnow())
-    log_file.flush()
+    logger.warning('\n' +'INCOMING ALERT FOUND: ',datetime.utcnow())
 
     #get type of event (burst, bbh, nsbh, bns)
     try:
@@ -97,7 +89,7 @@ def process_gcn(record): #payload, root):
             probs = {j: float(params[j]) for j in k}
             merger_type = max(zip(probs.values(), probs.keys()))[1]
     except:
-        print('Could not determine type of event')
+        logger.warning('Could not determine type of event')
         merger_type = None
     
     if record.attrib['role']=='observation' and not mock:
@@ -112,24 +104,20 @@ def process_gcn(record): #payload, root):
             
         try:
             subprocess.call(call_command)
-            #print('Call here.')
         except Exception as e:
-            print('Call failed.')
-            print(e)
-            log_file.flush()
+            logger.error('Call failed!')
+            logger.error(e)
             
     # want heartbeat listener not to run on real events, otherwise it overwrites the main listener output
     if mock and record.attrib['role']=='observation':
-        print('Listener in heartbeat mode found real event. Returning...')
-        log_file.flush()
+        logger.info('Listener in heartbeat mode found real event. Skipping...')
         return
     
     # Read trigger time of event
     eventtime = record.find('.//ISOTime').text
     event_mjd = Time(eventtime, format='isot').mjd
-    print(f'Alert MJD: {event_mjd}')
-    print('GW merger time: %s \n' % Time(eventtime, format='isot').iso)
-    log_file.flush()
+    logger.info(f'Alert MJD: {event_mjd}')
+    logger.info('GW merger time: %s \n' % Time(eventtime, format='isot').iso)
 
     current_mjd = Time(datetime.utcnow(), scale='utc').mjd
     needed_delay = 1000./84600./2.
@@ -140,10 +128,9 @@ def process_gcn(record): #payload, root):
     FiveHundred_delay = (needed_delay - current_delay)*86400.
 
     while current_delay < needed_delay:
-        print("Need to wait another {:.1f} seconds before running".format(
+        logger.info("Need to wait another {:.1f} seconds before running".format(
             (needed_delay - current_delay)*86400.)
             )
-        log_file.flush()
         time.sleep((needed_delay - current_delay)*86400.)
         current_mjd = Time(datetime.utcnow(), scale='utc').mjd
         current_delay = current_mjd - event_mjd
@@ -167,8 +154,7 @@ def process_gcn(record): #payload, root):
             wget.download(new_map, out=os.path.join(os.environ.get('FAST_RESPONSE_OUTPUT'),f'skymaps/{name}_{map_type}{suffix}'))
             skymap=os.path.join(os.environ.get('FAST_RESPONSE_OUTPUT'),f'skymaps/{name}_{map_type}{suffix}')
         except:
-            print('Failed to download flat-resolution skymap. Trying to convert MOC map')
-            log_file.flush()
+            logger.warning('Failed to download flat-resolution skymap. Trying to convert MOC map')
 
             try:
                 filename=skymap.split('/')[-1]
@@ -178,24 +164,22 @@ def process_gcn(record): #payload, root):
                                 '--skymap', new_output])
                 if os.path.exists(new_output.replace('multiorder','converted')):
                     skymap = new_output.replace('multiorder','converted')
-                    print('Successfully converted map: {}'.format(skymap))
-                    log_file.flush()
+                    logger.info('Successfully converted map: {}'.format(skymap))
                 else:
                     raise Exception('Failed to convert map.')
             except:
-                print('Failed to get skymap in correct format! \nDownload skymap and then re-run script with')
-                print(f'args:  --time {event_mjd} --name {name} --skymap PATH_TO_SKYMAP')
-                log_file.flush()
+                logger.error('Failed to get skymap in correct format! \nDownload skymap and then re-run script with' +\
+                            f'args:  --time {event_mjd} --name {name} --skymap PATH_TO_SKYMAP')
                 return
 
     if record.attrib['role'] != 'observation':
         name=name+'_test'
-        print('Running on scrambled data')
-        log_file.flush()
+        logger.info('Running on scrambled data')
     command = os.path.join(analysis_path, 'run_gw_followup.py')
 
-    print('Running {}'.format(command))
-    log_file.flush()
+    logger.info('Running {}'.format(command))
+    #### FOR NOW: testing
+    return
 
     subprocess.call([command, '--skymap={}'.format(skymap), 
         '--time={}'.format(str(event_mjd)), 
@@ -221,9 +205,8 @@ def process_gcn(record): #payload, root):
                 bot.post_short_msg(slack_message)
             
         except Exception as e:
-            print('Failed to push to (private) webpage.')
-            print(e)
-            log_file.flush()
+            logger.error('Failed to push to (private) webpage.')
+            logger.error(e)
 
     endtime=datetime.utcnow().isoformat()
     alert_mjd = Time(AlertTime, format='isot').mjd
@@ -260,8 +243,7 @@ def process_gcn(record): #payload, root):
         subprocess.call(['mv',output, '/data/user/jthwaites/o4-mocks/'])
         output = '/data/user/jthwaites/o4-mocks/' + eventtime[0:10].replace('-','_')+'_'+name
     
-    print('Output directory: ',output)
-    log_file.flush()
+    logger.info('Output directory: ',output)
 
 if __name__ == '__main__':
 
@@ -271,7 +253,7 @@ if __name__ == '__main__':
     parser.add_argument('--heartbeat', action = 'store_true', default=False,
                         help='Run the listener as a heartbeat, running on mock LVK events only (default=False)')
     parser.add_argument('--log_path', default='/home/jthwaites/public_html/FastResponse/', type=str,
-                        help='Redirect output to a log file with this path')
+                        help='Redirect output to a log file with this path. Note: this is only used when running live')
     parser.add_argument('--test_path', default='S191216ap_update.xml', type=str,
                         help='Skymap for use in testing listener')
     parser.add_argument('--test_o3', default=False, action='store_true',
@@ -283,25 +265,21 @@ if __name__ == '__main__':
     else:
         logfile=os.path.join(args.log_path,'log.log')
 
-    print(f'Logging to file: {logfile}')
-    original_stdout=sys.stdout
-    log_file = open(logfile, "a+")
-    sys.stdout=log_file
-    sys.stderr=log_file
-
     if args.run_live:
-        print("Listening for GCNs . . . ")
-        log_file.flush()
+        print(f'Logging to file: {logfile}')
+        logger = logging.getLogger()
+        logging.basicConfig(filename=logfile, level=logging.INFO)
+        logger.warning("Listening for GCNs . . . ")
 
         mock=args.heartbeat
-        print('Starting heartbeat listener') if mock else print('Running on REAL events only')
-        log_file.flush()
+        logger.info('Starting heartbeat listener') if mock else logger.info('Running on REAL events only')
         
         gcn.listen(handler=process_gcn)
 
-    else: 
-        print("Offline testing . . . ")
-        log_file.flush()
+    else:
+        logger = logging.getLogger()
+        logger.setLevel(logging.INFO)
+        logger.warning("Offline testing . . . ")
         
         ### FOR OFFLINE TESTING
         try:
@@ -309,7 +287,8 @@ if __name__ == '__main__':
             #sample_skymap_path='/data/user/jthwaites/o3-gw-skymaps/'
             sample_skymap_path=os.path.join(os.path.dirname(fast_response.__file__),'sample_skymaps/')
         except Exception as e:
-            print(e)
+            logger.error('Failed to find sample skymap paths!')
+            logger.error(e)
             sample_skymap_path='/data/user/jthwaites/o3-gw-skymaps/'
         
         #payload = open(os.path.join(sample_skymap_path,args.test_path), 'rb').read()
