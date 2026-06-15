@@ -267,14 +267,24 @@ if __name__ == '__main__':
 
     if args.run_live:
         print(f'Logging to file: {logfile}')
+        #logging.basicConfig(filename=logfile, level=logging.INFO, filemode='a+')
+        
         logger = logging.getLogger()
-        logging.basicConfig(filename=logfile, level=logging.INFO)
+        logger.setLevel(logging.INFO)
         logger.warning("Listening for GCNs . . . ")
 
         mock=args.heartbeat
         logger.info('Starting heartbeat listener') if mock else logger.info('Running on REAL events only')
         
-        gcn.listen(handler=process_gcn)
+        while True:
+            for message in consumer.consume(timeout=1):
+                if message.error():
+                    logger.warning(message.error())
+                    continue
+                value = message.value()
+                logger.warning('Found GCN on topic {}'.format(message.topic()))
+                notice = lxml.etree.fromstring(value.decode('utf-8').encode('ascii'))
+                parse_notice(notice)
 
     else:
         logger = logging.getLogger()
