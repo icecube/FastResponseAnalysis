@@ -1,9 +1,14 @@
+#!/usr/bin/env python
+
 ''' Script to automatically receive GCN notices for IceCube
     alert events and run followup accordingly
 
-    Author: Alex Pizzuto
-    Date:   July 2020
+    Author: Alex Pizzuto, Jessie Thwaites
+    Updated Date:   June 2026
 '''
+
+import logging
+from gcn_kafka import Consumer
 import os, subprocess, time, pwd, argparse
 import healpy as hp
 import numpy as np
@@ -14,15 +19,22 @@ from dateutil.parser import parse
 from glob import glob
 from fast_response.slack_posters.slack import slackbot
 import pandas as pd
-from gcn_kafka import Consumer
+
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+logger.warning("Connecting to GCN as Consumer")
 
 with open('/home/jthwaites/private/tokens/kafka_token.txt') as f:
     client_id = f.readline().rstrip('\n')
     client_secret = f.readline().rstrip('\n')
 
+domain = 'gcn.nasa.gov'
+
 consumer = Consumer(client_id=client_id,
                     client_secret=client_secret,
-                    config={'max.poll.interval.ms':1800000})
+                    domain='gcn.nasa.gov',
+                    #config={'max.poll.interval.ms':1800000},
+                   )
 
 #consumer.subscribe(['gcn.notices.icecube.gold_bronze_track_alerts'])
 # stick with voevent for now for all 3
@@ -37,13 +49,13 @@ def process_gcn(record): #payload,root
             import fast_response
             analysis_path = os.path.dirname(fast_response.__file__) + '/scripts/'
         except Exception as e:
-            print(e)
+            logger.error('Error finding FRA package!!')
             print('###########################################################################')
             print('CANNOT FIND ENVIRONMENT VARIABLE POINTING TO REALTIME FAST RESPONSE PACKAGE\n')
             print('You can either (1) install fast_response via pip or ')
             print('(2) put \'export FAST_RESPONSE_SCRIPTS=/path/to/fra/scripts\' in your bashrc')
             print('###########################################################################')
-            exit()
+            raise Exception(e)
 
     # Read all of the VOEvent parameters from the "What" section.
     params = {elem.attrib['name']:
@@ -53,8 +65,8 @@ def process_gcn(record): #payload,root
     stream = params['Stream']
     eventtime = record.find('.//ISOTime').text
     if stream == '26':
-        print("INCOMING ALERT: ",datetime.utcnow())
-        print("Detected cascade type alert, running cascade followup. . . ")
+        logger.warning("INCOMING ALERT: ",datetime.utcnow())
+        logger.warning("Detected cascade type alert, running cascade followup. . . ")
         alert_type='cascade'
         event_name='IceCube-Cascade_{}{}{}'.format(eventtime[2:4],eventtime[5:7],eventtime[8:10])
 
@@ -67,8 +79,8 @@ def process_gcn(record): #payload,root
         if int(params['Rev']) !=0:
             return
         
-        print("INCOMING ALERT: ",datetime.utcnow())
-        print("Found track type alert, running track followup. . . ")
+        logger.warning("INCOMING ALERT: ",datetime.utcnow())
+        logger.warning("Found track type alert, running track followup. . . ")
 
     event_id = params['event_id']
     run_id = params['run_id']
@@ -88,7 +100,7 @@ def process_gcn(record): #payload,root
     needed_delay = 1.
     current_delay = current_mjd - event_mjd
     while current_delay < needed_delay:
-        print("Need to wait another {:.1f} seconds before running".format(
+        logger.info("Need to wait another {:.1f} seconds before running".format(
             (needed_delay - current_delay)*86400.)
             )
         time.sleep((needed_delay - current_delay)*86400.)
@@ -100,12 +112,12 @@ def process_gcn(record): #payload,root
         skymap_f = glob(base_skymap_path \
             + f'run{int(run_id):08d}.evt{int(event_id):012d}.*probability.fits.gz')
         if len(skymap_f) == 0:
-            print("COULD NOT FIND THE SKYMAP FILE FOR V2 TRACK ALERT EVENT")
+            logger.error("COULD NOT FIND THE SKYMAP FILE FOR V2 TRACK ALERT EVENT")
             return
         elif len(skymap_f) == 1:
             skymap = skymap_f[0]
         else:
-            print("TOO MANY OPTIONS FOR THE SKYMAP FILE FOR V2 TRACK ALERT EVENT")
+            logger.error("TOO MANY OPTIONS FOR THE SKYMAP FILE FOR V2 TRACK ALERT EVENT")
             return
     
     #checking for events on the same day: looks for existing output files from previous runs
@@ -116,13 +128,17 @@ def process_gcn(record): #payload,root
     elif count_dir==2: suffix='B'
     elif count_dir==4: suffix='C'
     else: 
-        print("COULD NOT DETERMINE EVENT SUFFIX")
-        print("check for other events on the same day and re-run with args:")
-        print('--skymap={} --time={} --alert_id={}'.format(skymap, str(event_mjd), run_id+':'+event_id)) 
+        logger.error("COULD NOT DETERMINE EVENT SUFFIX")
+        logger.error("check for other events on the same day and re-run with args:")
+        logger.error('--skymap={} --time={} --alert_id={}'.format(skymap, str(event_mjd), run_id+':'+event_id)) 
         return
     
-    print('\nRunning {} --skymap={} --time={} --alert_id={} --suffix={}'.format(
+    logger.info('\nRunning {} --skymap={} --time={} --alert_id={} --suffix={}'.format(
         command, skymap, str(event_mjd), run_id+':'+event_id, suffix))
+    # for now, since we are still modernizing... just dump params and return
+    print(params)
+    return
+
     subprocess.call([command, '--skymap={}'.format(skymap), 
         '--time={}'.format(str(event_mjd)), 
         '--alert_id={}'.format(run_id+':'+event_id),
@@ -141,7 +157,7 @@ def process_gcn(record): #payload,root
             subprocess.call([analysis_path+'document.py', '--path', dir_2d[0]])
             doc=True
         except:
-            print('Failed to document to private webpage')
+            logger.warning('Failed to document to private webpage')
 
     try: 
         shifters = pd.read_csv(os.path.join(analysis_path,'../slack_posters/fra_shifters.csv'), 
@@ -164,11 +180,13 @@ def process_gcn(record): #payload,root
 
         bot.post_short_msg(done_message)
     except Exception as e:
-        print(e)
+        logger.warning('Failed to push to private webpage')
+        logger.warning(e)
 
 if __name__ == '__main__':
 
     username = pwd.getpwuid(os.getuid())[0]
+
     #default for if to document or not: only way to check reports on realtime 
     if username == 'realtime': 
         document = True
@@ -185,14 +203,14 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     if args.run_live:
-        print("Listening for IC Alert GCNs . . . ")
+        logger.warning("Listening for IC Alert GCNs . . . ")
         while True:
             for message in consumer.consume(timeout=1):
                 if message.error():
-                    print(message.error())
+                    logger.warning(message.error())
                     continue
                 value = message.value()
-                print('Found GCN on topic {}'.format(message.topic()))
+                logger.warning('Found GCN on topic {}'.format(message.topic()))
                 notice = lxml.etree.fromstring(value.decode('utf-8').encode('ascii'))
                 parse_notice(notice)
     else:
@@ -200,18 +218,17 @@ if __name__ == '__main__':
             import fast_response
             sample_skymap_path=os.path.dirname(fast_response.__file__) +'/sample_skymaps/'
         except Exception as e:
-            print(e)
-            print('Cannot find path to sample skymaps')
-            exit()
+            logger.error('Cannot find path to sample skymaps')
+            raise Exception(e)
         
         if not args.test_cascade:
-            print("Running on sample track . . . ")
+            logger.info("Running on sample track . . . ")
             payload = open(sample_skymap_path \
                 + 'sample_astrotrack_alert_2021.xml', 'rb').read()
             root = lxml.etree.fromstring(payload)
             process_gcn(root)
         else:
-            print("Running on sample cascade . . . ")
+            logger.info("Running on sample cascade . . . ")
             payload = open(sample_skymap_path \
                 + 'sample_cascade.txt', 'rb').read()
             root = lxml.etree.fromstring(payload)
