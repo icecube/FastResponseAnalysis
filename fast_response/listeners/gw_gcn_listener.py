@@ -3,22 +3,46 @@
 ''' Script to automatically receive GCN alerts and get LIGO skymaps 
     to run realtime neutrino follow-up
 
-    Author: Raamis Hussain, updated by Jessie Thwaites, MJ Romfoe
-    Date:   March 2023
+    Author: Raamis Hussain, Jessie Thwaites, MJ Romfoe
+    Updated Date: June 2026
 '''
 
-import gcn
-import sys
-import pickle
+#import gcn
+import logging
+from gcn_kafka import Consumer
+import sys, pickle, os, subprocess, pwd
 from dateutil.parser import parse
 from dateutil.relativedelta import relativedelta
+import healpy as hp
+import numpy as np
+import lxml.etree
+import argparse, time, wget
+from astropy.time import Time
+from datetime import datetime
+from fast_response.slack_posters.slack import slackbot
 
-@gcn.handlers.include_notice_types(
-    gcn.notice_types.LVC_PRELIMINARY,
-    gcn.notice_types.LVC_INITIAL,
-    gcn.notice_types.LVC_UPDATE)
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+logger.warning("Connecting to GCN as Consumer")
 
-def process_gcn(payload, root):
+with open('/home/jthwaites/private/tokens/kafka_token.txt') as f:
+    client_id = f.readline().rstrip('\n')
+    client_secret = f.readline().rstrip('\n')
+
+consumer = Consumer(client_id=client_id,
+                    client_secret=client_secret,
+                    domain='gcn.nasa.gov',
+                    #config={'max.poll.interval.ms':1800000},
+                   )
+
+consumer.subscribe(['gcn.classic.voevent.LVC_EARLY_WARNING',
+                    'gcn.classic.voevent.LVC_INITIAL',
+                    'gcn.classic.voevent.LVC_PRELIMINARY',
+                    'gcn.classic.voevent.LVC_RETRACTION',
+                    #'gcn.classic.voevent.LVC_TEST',
+                    'gcn.classic.voevent.LVC_UPDATE'])
+
+def process_gcn(record): #payload, root):
 
     AlertTime=datetime.utcnow().isoformat()
     log_file.flush()
@@ -40,15 +64,15 @@ def process_gcn(payload, root):
     # Read all of the VOEvent parameters from the "What" section.
     params = {elem.attrib['name']:
               elem.attrib['value']
-              for elem in root.iterfind('.//Param')}
-    name = root.attrib['ivorn'].split('#')[1]
+              for elem in record.iterfind('.//Param')}
+    name = record.attrib['ivorn'].split('#')[1]
     
     # only run on significant events
     if 'Significant' in params.keys():
         if int(params['Significant'])==0: 
             #not significant, do not run
             print(f'Found a subthreshold event {name}')
-            root.attrib['role']='test'
+            record.attrib['role']='test'
             log_file.flush()
             #return
     else:
@@ -56,7 +80,7 @@ def process_gcn(payload, root):
         print('No significance parameter found in LVK GCN.')
         log_file.flush()
     # if this is the listener for real events and it gets a mock (or low signficance), skip it
-    if not mock and root.attrib['role']!='observation':
+    if not mock and record.attrib['role']!='observation':
         return
     
     print('\n' +'INCOMING ALERT FOUND: ',datetime.utcnow())
@@ -76,7 +100,7 @@ def process_gcn(payload, root):
         print('Could not determine type of event')
         merger_type = None
     
-    if root.attrib['role']=='observation' and not mock:
+    if record.attrib['role']=='observation' and not mock:
         ## Call everyone because it's a real event!
         call_command=['/home/jthwaites/private/make_call.py', f'--name={name}']
     
@@ -95,13 +119,13 @@ def process_gcn(payload, root):
             log_file.flush()
             
     # want heartbeat listener not to run on real events, otherwise it overwrites the main listener output
-    if mock and root.attrib['role']=='observation':
+    if mock and record.attrib['role']=='observation':
         print('Listener in heartbeat mode found real event. Returning...')
         log_file.flush()
         return
     
     # Read trigger time of event
-    eventtime = root.find('.//ISOTime').text
+    eventtime = record.find('.//ISOTime').text
     event_mjd = Time(eventtime, format='isot').mjd
     print(f'Alert MJD: {event_mjd}')
     print('GW merger time: %s \n' % Time(eventtime, format='isot').iso)
@@ -164,7 +188,7 @@ def process_gcn(payload, root):
                 log_file.flush()
                 return
 
-    if root.attrib['role'] != 'observation':
+    if record.attrib['role'] != 'observation':
         name=name+'_test'
         print('Running on scrambled data')
         log_file.flush()
@@ -184,7 +208,7 @@ def process_gcn(payload, root):
                           analysis_start[0:10].replace('-','_')+'_'+name)
     #update webpages
     webpage_update = os.path.join(analysis_path,'document.py')
-    if not mock and root.attrib['role'] == 'observation':
+    if not mock and record.attrib['role'] == 'observation':
         try:
             subprocess.call([webpage_update,  '--gw', f'--path={output}'])
 
@@ -214,7 +238,7 @@ def process_gcn(payload, root):
                     'Ligo_Latency': Ligo_late_sec, 'IceCube_Latency': Ice_late_sec, 'Total_Latency': Total_late_sec,
                     'We_had_to_wait:': FiveHundred_delay}
     
-    save_dir = 'latency_o4' if root.attrib['role']=='observation' else 'PickledMocks'
+    save_dir = 'latency_o4' if record.attrib['role']=='observation' else 'PickledMocks'
 
     #check for directory to save pickle files and create if needed 
     if not os.path.exists(os.path.join(os.environ.get('FAST_RESPONSE_OUTPUT'),save_dir)):
@@ -227,11 +251,11 @@ def process_gcn(payload, root):
             pickle.dump(gw_latency, file, protocol=pickle.HIGHEST_PROTOCOL)
     
     #save xml and skymap, for later
-    et = lxml.etree.ElementTree(root)
+    et = lxml.etree.ElementTree(record)
     et.write(os.path.join(output, '{}-{}-{}.xml'.format(params['GraceID'], 
                         params['Pkt_Ser_Num'], params['AlertType'])), pretty_print=True)
 
-    if root.attrib['role'] != 'observation':
+    if record.attrib['role'] != 'observation':
         # Move mocks to a seperate folder to avoid swamping FRA output folder
         subprocess.call(['mv',output, '/data/user/jthwaites/o4-mocks/'])
         output = '/data/user/jthwaites/o4-mocks/' + eventtime[0:10].replace('-','_')+'_'+name
@@ -240,28 +264,13 @@ def process_gcn(payload, root):
     log_file.flush()
 
 if __name__ == '__main__':
-    import os, subprocess, pwd
-    import healpy as hp
-    import numpy as np
-    import lxml.etree
-    import argparse
-    import time
-    from astropy.time import Time
-    from datetime import datetime
-    from fast_response.slack_posters.slack import slackbot
-    import wget
-
-    output_path = '/home/jthwaites/public_html/FastResponse/'
-    #output_path=os.environ.get('FAST_RESPONSE_OUTPUT')
-    #if output_path==None:
-    #    output_path=os.getcwd()
 
     parser = argparse.ArgumentParser(description='FRA GW followup')
     parser.add_argument('--run_live', action='store_true', default=False,
                         help='Run on live GCNs')
     parser.add_argument('--heartbeat', action = 'store_true', default=False,
                         help='Run the listener as a heartbeat, running on mock LVK events only (default=False)')
-    parser.add_argument('--log_path', default=output_path, type=str,
+    parser.add_argument('--log_path', default='/home/jthwaites/public_html/FastResponse/', type=str,
                         help='Redirect output to a log file with this path')
     parser.add_argument('--test_path', default='S191216ap_update.xml', type=str,
                         help='Skymap for use in testing listener')
@@ -305,12 +314,12 @@ if __name__ == '__main__':
         
         #payload = open(os.path.join(sample_skymap_path,args.test_path), 'rb').read()
         payload = open(args.test_path,'rb').read()
-        root = lxml.etree.fromstring(payload) 
+        record = lxml.etree.fromstring(payload) 
 
         mock=args.heartbeat
         #test runs on scrambles, observation runs on unblinded data
         if not args.test_o3:
-            root.attrib['role']='test'
+            record.attrib['role']='test'
             mock=True
 
-        process_gcn(payload, root)
+        process_gcn(record)
