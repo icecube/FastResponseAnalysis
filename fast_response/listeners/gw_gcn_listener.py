@@ -40,6 +40,15 @@ consumer.subscribe(['gcn.classic.voevent.LVC_EARLY_WARNING',
                     #'gcn.classic.voevent.LVC_TEST',
                     'gcn.classic.voevent.LVC_UPDATE'])
 
+# make a new logging.FileHandler that can flush as we go
+class LogFileWriter(logging.FileHandler):
+    '''Make a new logging handler that uses a file
+    and flushes all messges to the file as they are written
+    '''
+    def emit(self, record):
+        super().emit(record)
+        self.flush()
+
 def process_gcn(record): #payload, root):
     AlertTime=datetime.utcnow().isoformat()
     analysis_path = os.environ.get('FAST_RESPONSE_SCRIPTS')
@@ -267,30 +276,35 @@ if __name__ == '__main__':
 
     if args.run_live:
         print(f'Logging to file: {logfile}')
-        #logging.basicConfig(filename=logfile, level=logging.INFO, filemode='a+')
-        
+         
         logger = logging.getLogger()
         logger.setLevel(logging.INFO)
+        # adds the logfile as an additional logger. this will also log to stout
+        logger.addHandler(LogFileWriter(logfile, mode='a+'))
         logger.warning("Listening for GCNs . . . ")
 
         mock=args.heartbeat
         logger.info('Starting heartbeat listener') if mock else logger.info('Running on REAL events only')
         
-        while True:
-            for message in consumer.consume(timeout=1):
-                if message.error():
-                    logger.warning(message.error())
-                    continue
-                value = message.value()
-                logger.warning('Found GCN on topic {}'.format(message.topic()))
-                notice = lxml.etree.fromstring(value.decode('utf-8').encode('ascii'))
-                parse_notice(notice)
+        try:
+            while True:
+                for message in consumer.consume(timeout=1):
+                    if message.error():
+                        logger.warning(message.error())
+                        continue
+                    value = message.value()
+                    logger.warning('Found GCN on topic {}'.format(message.topic()))
+                    notice = lxml.etree.fromstring(value.decode('utf-8').encode('ascii'))
+                    parse_notice(notice)
+        except KeyboardInterrupt:
+            # make sure the logfile gets shutdown correctly and file closed
+            logger.shutdown()
 
     else:
         logger = logging.getLogger()
         logger.setLevel(logging.INFO)
         logger.warning("Offline testing . . . ")
-        
+       
         ### FOR OFFLINE TESTING
         try:
             import fast_response
