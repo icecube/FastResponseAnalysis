@@ -36,8 +36,7 @@ consumer = Consumer(client_id=client_id,
 consumer.subscribe(['gcn.classic.voevent.LVC_EARLY_WARNING',
                     'gcn.classic.voevent.LVC_INITIAL',
                     'gcn.classic.voevent.LVC_PRELIMINARY',
-                    'gcn.classic.voevent.LVC_RETRACTION',
-                    #'gcn.classic.voevent.LVC_TEST',
+                    #'gcn.classic.voevent.LVC_RETRACTION',
                     'gcn.classic.voevent.LVC_UPDATE'])
 
 # make a new logging.FileHandler that can flush as we go
@@ -279,8 +278,10 @@ if __name__ == '__main__':
          
         logger = logging.getLogger()
         logger.setLevel(logging.INFO)
+        filelogger = LogFileWriter(logfile, mode='a+')
+        filelogger.setFormatter(logging.Formatter(fmt='[%(asctime)s] %(levelname)s %(message)s', datefmt='%Y/%m/%d %H:%M:%S'))
         # adds the logfile as an additional logger. this will also log to stout
-        logger.addHandler(LogFileWriter(logfile, mode='a+'))
+        logger.addHandler(filelogger)
         logger.warning("Listening for GCNs . . . ")
 
         mock=args.heartbeat
@@ -295,10 +296,10 @@ if __name__ == '__main__':
                     value = message.value()
                     logger.warning('Found GCN on topic {}'.format(message.topic()))
                     notice = lxml.etree.fromstring(value.decode('utf-8').encode('ascii'))
-                    parse_notice(notice)
+                    process_gcn(notice)
         except KeyboardInterrupt:
             # make sure the logfile gets shutdown correctly and file closed
-            logger.shutdown()
+            logging.shutdown()
 
     else:
         logger = logging.getLogger()
