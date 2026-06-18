@@ -36,8 +36,10 @@ consumer = Consumer(client_id=client_id,
 consumer.subscribe(['gcn.classic.voevent.LVC_EARLY_WARNING',
                     'gcn.classic.voevent.LVC_INITIAL',
                     'gcn.classic.voevent.LVC_PRELIMINARY',
-                    #'gcn.classic.voevent.LVC_RETRACTION',
-                    'gcn.classic.voevent.LVC_UPDATE'])
+                    'gcn.classic.voevent.LVC_RETRACTION',
+                    'gcn.classic.voevent.LVC_UPDATE',
+                    'igwn.gwalert'
+                   ])
 
 # make a new logging.FileHandler that can flush as we go
 class LogFileWriter(logging.FileHandler):
@@ -279,7 +281,7 @@ if __name__ == '__main__':
         logger = logging.getLogger()
         logger.setLevel(logging.INFO)
         filelogger = LogFileWriter(logfile, mode='a+')
-        filelogger.setFormatter(logging.Formatter(fmt='[%(asctime)s] %(levelname)s %(message)s', datefmt='%Y/%m/%d %H:%M:%S'))
+        filelogger.setFormatter(logging.Formatter(fmt='[%(asctime)s] %(levelname)s\t %(message)s', datefmt='%Y/%m/%d %H:%M:%S'))
         # adds the logfile as an additional logger. this will also log to stout
         logger.addHandler(filelogger)
         logger.warning("Listening for GCNs . . . ")
@@ -293,10 +295,11 @@ if __name__ == '__main__':
                     if message.error():
                         logger.warning(message.error())
                         continue
-                    value = message.value()
+                    value = message.value().decode('utf-8')
+                    value = value.replace("<?xml version='1.0' encoding='UTF-8'?>","") #lxml doesn't like this line
                     logger.warning('Found GCN on topic {}'.format(message.topic()))
-                    notice = lxml.etree.fromstring(value.decode('utf-8').encode('ascii'))
-                    process_gcn(notice)
+                    notice = lxml.etree.fromstring(value)
+                    #process_gcn(notice)
         except KeyboardInterrupt:
             # make sure the logfile gets shutdown correctly and file closed
             logging.shutdown()

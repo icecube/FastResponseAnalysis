@@ -209,10 +209,10 @@ if __name__ == '__main__':
                 if message.error():
                     logger.warning(message.error())
                     continue
-                value = message.value()
+                value = message.value().decode('utf-8')
+                value = value.replace("<?xml version='1.0' encoding='UTF-8'?>","") #lxml doesn't like this line
                 logger.warning('Found GCN on topic {}'.format(message.topic()))
-                notice = lxml.etree.fromstring(value.decode('utf-8').encode('ascii'))
-                parse_notice(notice)
+                notice = lxml.etree.fromstring(value)
     else:
         try:
             import fast_response
