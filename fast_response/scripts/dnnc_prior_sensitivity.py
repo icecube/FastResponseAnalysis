@@ -42,7 +42,7 @@ def fit_source(followup, seed, **kwargs):
     llh.set_rng_seed(seed)
 
     val = llh.scan(
-        0.0,0.0, scramble=True, spatial_prior=spatial_prior,
+        0.0,0.0, scramble=True, seed=seed, spatial_prior=spatial_prior,
         time_mask = [followup.duration/2., followup.centertime],
         pixel_scan=[followup.nside, followup._pixel_scan_nsigma],
         inject=inject,
