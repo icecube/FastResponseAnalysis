@@ -72,6 +72,10 @@ f = MultiFollowup('Precompute_trials_test', 0,0,
 assert f.scramble
 f._ncpu = 2
 
+outdir = os.path.join(args.outdir, 'precomputed_trials/', "+".join(f.datasets))
+if not os.path.exists(outdir):
+    os.makedirs(outdir, exist_ok=True)
+
 for i, enum in enumerate(f.llh._samples):
     _llh = f.llh._samples[enum]
     print(i, _llh.nbackground, _llh.on_livetime*86400)

@@ -254,6 +254,10 @@ class MultiPriorFollowup(PriorFollowup, MultiFastResponseAnalysis):
 
         # then prepare LLH and store prior-specific attributes
         super().__init__(*args, **kwargs)
+        # precomputed sensitivity and trial can have a generic path
+        # but actually specified by the configured datasets
+        self._bg_dir = os.path.join(self._bg_dir, "+".join(self.datasets))
+        self._sens_dir = os.path.join(self._sens_dir, "+".join(self.datasets))
 
     def __str__(self):
         string = super().__str__().rstrip()
