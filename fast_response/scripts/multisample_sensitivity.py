@@ -80,12 +80,22 @@ def calculate_sensitivity(args):
     else:
         trials = None
 
-    sensitivity, trials, weights = f.llh.weighted_sensitivity(args.alpha, args.beta, f.inj,
-                         src_ra = f.ra, src_dec = f.dec,
-                         eps=args.eps,
-                         n_iter=args.n_iter,
-                         n_bckg=args.ntrials,
-                         trials = trials,
+    if trials is not None:
+        bg_ts = trials["TS"][trials["n_inj"] == 0]
+        TSval = np.percentile(bg_ts, 100 * (1 - args.alpha))
+    else:
+        TSval = None
+
+    sensitivity, trials, weights = f.llh.weighted_sensitivity(
+        args.alpha,
+        args.beta,
+        f.inj,
+        TSval = TSval,
+        src_ra = f.ra, src_dec = f.dec,
+        eps=args.eps,
+        n_iter=args.n_iter,
+        n_bckg=args.ntrials,
+        trials = trials,
                          )
     np.save(outpath['trials'], trials)
     np.save(outpath['sensitivity'], sensitivity)
