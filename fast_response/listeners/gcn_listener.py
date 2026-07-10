@@ -209,8 +209,9 @@ if __name__ == '__main__':
                 if message.error():
                     logger.warning(message.error())
                     continue
-                value = message.value().decode('utf-8')
-                value = value.replace("<?xml version='1.0' encoding='UTF-8'?>","") #lxml doesn't like this line
+                # value = message.value().decode('utf-8')
+                # value = value.replace("<?xml version='1.0' encoding='UTF-8'?>","") #lxml doesn't like this line
+                value = message.value()
                 logger.warning('Found GCN on topic {}'.format(message.topic()))
                 notice = lxml.etree.fromstring(value)
     else:
