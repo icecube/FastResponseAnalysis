@@ -58,6 +58,7 @@ while True:
             print(message.error())
             continue
         value = message.value()
+        logger.warning('Found GCN on topic {}'.format(message.topic()))
         
         alert_dict = json.loads(value.decode('utf-8'))
         print(json.dumps(alert_dict, indent=2))
