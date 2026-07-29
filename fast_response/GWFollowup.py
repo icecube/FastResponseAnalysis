@@ -38,6 +38,9 @@ class GWFollowup(PriorFollowup):
     _season_names = ['IC86, 2017', 'IC86, 2018', 'IC86, 2019']
     _nb_days = 5.
     _ncpu = 10
+    _background_days = 6. # Background window, can adjust per dataset
+    _sens_dir = '/data/ana/analyses/NuSources/2023_realtime_gw_analysis/' \
+            +  'fast_response/ps_sensitivities'
 
     def __init__(self, name, skymap_path, tstart, tstop, skipped=None, seed=None,
                  outdir=None, save=True, extension=None):
@@ -203,7 +206,7 @@ class GWFollowup(PriorFollowup):
         t0 = Time(datetime.datetime.utcnow()).mjd
 
         if self.stop > t0 + 60./86400.:
-            self.get_data(livestream_start=self.start-6., livestream_stop=self.start)
+            self.get_data(livestream_start=self.start-self._background_days, livestream_stop=self.start)
             print('Loading off-time data')
         elif self.exp is None:
             dset = Datasets[self.dataset]
@@ -591,6 +594,23 @@ class GWFollowup(PriorFollowup):
         self.save_items['sens_range'] = sens_range
         self.make_dec_pdf()
 
+    def load_ps_sensitivities(self):
+        sens_pickle = f'{self._sens_dir}/ps_sensitivities_deltaT_{self.duration*86400.:.2e}s.pkl'
+        from os.path import isfile
+        if isfile(sens_pickle):
+            with open(sens_pickle, 'rb') as f:
+                saved_sens=pickle.load(f)
+                dec_range=saved_sens['dec']
+                sens=saved_sens['sens_flux']
+            return dec_range, sens
+        
+        sens_npy = f"{self._sens_dir}/deltaT_{self.duration*86400:.2e}_index_{self.index:.1f}.npy"
+        if isfile(sens_npy):
+            saved_sens = np.load(sens_npy)
+            return saved_sens['dec'], saved_sens['flux'] 
+        raise FileNotFoundError(f"Could find neither {sens_pickle} nor {sens_npy}")
+
+
     def ps_sens_range(self):
         r""" 
         Compute minimum and maximum sensitivities within
@@ -604,20 +624,7 @@ class GWFollowup(PriorFollowup):
             highest sensitivity within dec range
         """
         
-        sens_dir = '/data/ana/analyses/NuSources/2023_realtime_gw_analysis/' \
-                +  'fast_response/ps_sensitivities'
-
-        with open(f'{sens_dir}/ps_sensitivities_deltaT_{self.duration*86400.:.2e}s.pkl','rb') as f:
-            saved_sens=pickle.load(f)
-            dec_range=saved_sens['dec']
-            sens=saved_sens['sens_flux']
-        #dec_range = np.linspace(-85,85,35)
-        #sens = [1.15, 1.06, .997, .917, .867, .802, .745, .662,
-        #        .629, .573, .481, .403, .332, .250, .183, .101,
-        #        .035, .0286, .0311, .0341, .0361, .0394, .0418,
-        #        .0439, .0459, .0499, .0520, .0553, .0567, .0632,
-        #        .0679, .0732, .0788, .083, .0866]
-
+        dec_range, sens = self.load_ps_sensitivities()
         src_theta, src_phi = hp.pix2ang(self.nside, self.ipix_90)
         src_dec = np.pi/2. - src_theta
         src_dec = np.unique(src_dec)
@@ -708,21 +715,10 @@ class GWFollowup(PriorFollowup):
 
         sinDec_bins = np.linspace(-1,1,30)
         bin_centers = (sinDec_bins[:-1] + sinDec_bins[1:]) / 2
-        
-        sens_dir = '/data/ana/analyses/NuSources/2023_realtime_gw_analysis/' \
-                +  'fast_response/ps_sensitivities'
-        
-        with open(f'{sens_dir}/ps_sensitivities_deltaT_{self.duration*86400.:.2e}s.pkl','rb') as f:
-            saved_sens=pickle.load(f)
-            dec_range=np.sin(saved_sens['dec']*np.pi/180)
-            sens=saved_sens['sens_flux']
 
-        #dec_range = np.linspace(-1,1,35)
-        #sens = [1.15, 1.06, .997, .917, .867, .802, .745, .662,
-        #        .629, .573, .481, .403, .332, .250, .183, .101,
-        #        .035, .0286, .0311, .0341, .0361, .0394, .0418,
-        #        .0439, .0459, .0499, .0520, .0553, .0567, .0632,
-        #        .0679, .0732, .0788, .083, .0866]
+        dec_range, sens = self.load_ps_sensitivities()
+        sindec_range = np.sin(np.deg2rad(dec_range))
+
         sens = np.array(sens)
 
         pixels = np.arange(len(self.skymap))
@@ -748,7 +744,7 @@ class GWFollowup(PriorFollowup):
 
         ax2 = ax1.twinx()  # instantiate a second axes that shares the same x-axis
         ax2.set_ylabel('E$^2$F (GeVcm$^2$)')  # we already handled the x-label with ax1
-        ax2.plot(dec_range, sens, color='C1', label='PS Sensitivity')
+        ax2.plot(sindec_range, sens, color='C1', label='PS Sensitivity')
         ax2.set_yscale('log')
         ax2.set_xlim(-1,1)
         ax2.tick_params(axis='y')
