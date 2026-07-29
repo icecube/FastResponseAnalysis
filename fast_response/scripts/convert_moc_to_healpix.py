@@ -12,7 +12,7 @@ import argparse
 parser = argparse.ArgumentParser(description='GW Followup')
 parser.add_argument('--skymap', type=str, default=None,
                     help='path to skymap (should be the *.multiorder.fits downloaded from GraceDB)')
-parser.add_argument('--nside', type=str, default=512,
+parser.add_argument('--nside', type=int, default=512,
                     help='nside to be used with the skymap (default=512)')
 args = parser.parse_args()
 
@@ -28,4 +28,5 @@ m = mhp.HealpixMap(data=s, uniq=skymap['UNIQ'])
 new_map = m.rasterize(args.nside, 'NESTED')
 
 # save the new map
-new_map.write_map(args.skymap.replace('multiorder','converted'), overwrite=True)
+outfile = args.skymap[:args.skymap.find('.fits')] + '.converted.fits'
+new_map.write_map(outfile, overwrite=True)
