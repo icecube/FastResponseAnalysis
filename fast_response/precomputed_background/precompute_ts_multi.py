@@ -13,7 +13,7 @@ from numpy.lib.recfunctions import append_fields
 from scipy import sparse
 from glob import glob
 
-from fast_response.MultiExternalFollowup import MultiFollowup, GFUFollowup, GrecoFollowup, DNNFollowup, DNNOnlineFollowup
+from fast_response.MultiExternalFollowup import MultiFollowup, GFUFollowup, GrecoFollowup, DNNFollowup, DNNOnlineFollowup, DNNIceManFollowup
 
 parser = argparse.ArgumentParser(description='Precompute MultiAlertFollowup BG trials')
 parser.add_argument('--deltaT', type=float, default=1000.,
@@ -45,6 +45,8 @@ if 'Greco' in args.dataset:
     followups.append(GrecoFollowup)
 if 'DNN' in args.dataset:
     followups.append(DNNOnlineFollowup)
+if 'IceMan' in args.dataset:
+    followups.append(DNNIceManFollowup)
 MultiFollowup._followups = followups
 
 for attr in ['index', 'fix_index']:
@@ -52,10 +54,6 @@ for attr in ['index', 'fix_index']:
 MultiFollowup._float_index = not MultiFollowup._fix_index
 
 
-
-outdir = os.path.join(args.outdir, 'alert_precomputed_trials/')
-if not os.path.exists(outdir):
-    os.makedirs(outdir, exist_ok=True)
 
 # use the signal window to select events, as much as the desired time window
 # TODO could this be better to include more events?
