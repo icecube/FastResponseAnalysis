@@ -1061,7 +1061,8 @@ class PriorFollowup(FastResponseAnalysis):
         tsd = ts_prior.max(axis=1).toarray()[:,0]
         # Explicitly skip
         empty = np.array([_ts.size==0 for _ts in pre_ts_array])
-        tsd[empty] = -np.inf # FIXME why does it set these to -inf instead of 0?
+        # tsd[empty] = -np.inf # FIXME why does it set these to -inf instead of 0?
+        tsd[empty] = 0 # new convention: 0 for empty trial
         self.tsd = tsd
         if ntrials is None:
             return tsd
