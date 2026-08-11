@@ -3,8 +3,8 @@
 ''' Script to automatically receive GCN notices for IceCube
     alert events and run followup accordingly
 
-    Author: Alex Pizzuto, Jessie Thwaites
-    Updated Date:   June 2026
+    Author: Alex Pizzuto, Jessie Thwaites, Alicia Mand
+    Updated Date:   August 2026
 '''
 
 import logging
@@ -183,6 +183,23 @@ def process_gcn(record): #payload,root
         logger.warning('Failed to push to private webpage')
         logger.warning(e)
 
+def post_error(): 
+    analysis_path = os.environ.get('FAST_RESPONSE_SCRIPTS')
+    bot = slackbot('fra-shifting')
+    message = "Error processing alert information. Please run FRA manually in 24 hours."
+    try: 
+        shifters = pd.read_csv(os.path.join(analysis_path, '../slack_posters/fra_shifters.csv'), parse_dates=[0,1])
+        on_shift = ''
+        for i in shifters.index:
+            if shifters['start'][i]<datetime.utcnow()<shifters['stop'][i]: 
+                on_shift+='<@{}> '.format(shifters['slack_id'][i])
+        error_message = f"{message} {on_shift} on shift."
+        bot.post_short_msg(error_message)
+    except Exception as e: 
+        logger.warning("Failed to post error message")
+        logger.warning(e)
+    return 
+
 if __name__ == '__main__':
 
     username = pwd.getpwuid(os.getuid())[0]
@@ -198,6 +215,8 @@ if __name__ == '__main__':
                         help='Run on live GCNs')
     parser.add_argument('--test_cascade', default=False, action='store_true',
                         help='When testing, raise to run a cascade, else track')
+    parser.add_argument('--test_error', default=False, action='store_true', 
+                        help='When testing, raise to post an error message')
     parser.add_argument('--document', action='store_true', default=document,
                         help='flag to raise to push results to internal webpage')
     args = parser.parse_args()
@@ -214,6 +233,12 @@ if __name__ == '__main__':
                 value = message.value()
                 logger.warning('Found GCN on topic {}'.format(message.topic()))
                 notice = lxml.etree.fromstring(value)
+                try: 
+                    process_gcn(notice)
+                except Exception as e:
+                    post_error()
+                    logger.warning("Could not process GCN: ", e) 
+
     else:
         try:
             import fast_response
@@ -221,14 +246,16 @@ if __name__ == '__main__':
         except Exception as e:
             logger.error('Cannot find path to sample skymaps')
             raise Exception(e)
-        
-        if not args.test_cascade:
+        if args.test_error: 
+            post_error()
+
+        if not args.test_cascade and not args.test_error:
             logger.info("Running on sample track . . . ")
             payload = open(sample_skymap_path \
                 + 'sample_astrotrack_alert_2021.xml', 'rb').read()
             root = lxml.etree.fromstring(payload)
             process_gcn(root)
-        else:
+        elif args.test_cascade and not args.test_error:
             logger.info("Running on sample cascade . . . ")
             payload = open(sample_skymap_path \
                 + 'sample_cascade.txt', 'rb').read()
