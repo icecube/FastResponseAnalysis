@@ -17,11 +17,11 @@ class OnlyDNNOnlineFollowup(PriorFollowup):
     'low_stats.npz',
     ])
     _dataset = "DNNCascadesOnline_v001p01"
-    _season_names = ["livestream"]
+    _season_names = [f"IC86, 20{y:02d}" for y in range(24, 25+1)]
     _floor = np.radians(1.5) # can change this!
     _jitter = 3. # common default for DNN analyses
-    _background_days = 100.
-    # Need to add analysis cuts? That's something SKATE analysers would know.
+    _background_days = 60.
+    _nb_days = 60.
 
 class OnlyIceManFollowup(PriorFollowup):
     _dataset = "DNNCascadesIceMan_v001p00" 
