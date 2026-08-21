@@ -53,7 +53,7 @@ class MultiFollowup(MultiPointSourceFollowup):
 
     '''
     _followups = [GFUFollowup, GrecoFollowup] # more consistent
-    _fix_index = True
+    _fix_index = False
     _float_index = not _fix_index
     _index = 2.5
     

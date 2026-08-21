@@ -6,7 +6,7 @@ from .FastResponseAnalysis import PriorFollowup
 import numpy as np
 
 class OnlyDNNOnlineFollowup(PriorFollowup):
-    _base_dir = "/data/user/chraab/fast_response/multisample/variable_jitter_new_environment"
+    _base_dir = "/data/user/chraab/fast_response/multisample/extended_archival_floating"
     _sens_dir = join(_base_dir, "precomputed_sensitivity")
     _bg_dir = join(_base_dir, "precomputed_trials")
     _bg_format = '_'.join([
@@ -31,7 +31,7 @@ class OnlyIceManFollowup(PriorFollowup):
 
 
 class DNNOnlineFollowup(MultiPriorFollowup):
-    _base_dir = "/data/user/chraab/fast_response/multisample/variable_jitter_new_environment"
+    _base_dir = "/data/user/chraab/fast_response/multisample/extended_archival_floating"
     _sens_dir = join(_base_dir, "precomputed_sensitivity/")
     _bg_dir = join(_base_dir, "precomputed_trials/")
     _bg_format = '_'.join([
@@ -42,13 +42,13 @@ class DNNOnlineFollowup(MultiPriorFollowup):
     'low_stats.npz',
     ])
     _followups = [OnlyDNNOnlineFollowup]
-    _fix_index = True # TODO check if this is what they do
+    _fix_index = False
     _float_index = not _fix_index
     _index = 2.0
-    _nside = 64
+    _nside = 128
 
 class IceManFollowup(MultiPriorFollowup):
-    _base_dir = "/data/user/chraab/fast_response/multisample/variable_jitter_new_environment"
+    _base_dir = "/data/user/chraab/fast_response/multisample/extended_archival_floating"
     _sens_dir = join(_base_dir, "precomputed_sensitivity/")
     _bg_dir = join(_base_dir, "precomputed_trials/")
     _bg_format = '_'.join([
@@ -59,14 +59,14 @@ class IceManFollowup(MultiPriorFollowup):
     'low_stats.npz',
     ])
     _followups = [OnlyIceManFollowup]
-    _fix_index = True # TODO check if this is what they do
+    _fix_index = False 
     _float_index = not _fix_index
     _index = 2.0
-    _nside = 64
+    _nside = 128
     
 class MultiGWFollowup(MultiPriorFollowup):
     _followups = [GFUFollowup, OnlyDNNOnlineFollowup]
-    _fix_index = True # TODO check if this is what they do
+    _fix_index = False
     _float_index = not _fix_index
     _index = 2.0
     
