@@ -136,9 +136,8 @@ def process_gcn(record): #payload,root
     
     logger.info('\nRunning {} --skymap={} --time={} --alert_id={} --suffix={}'.format(
         command, skymap, str(event_mjd), run_id+':'+event_id, suffix))
-    # for now, since we are still modernizing... just dump params and return
+
     print(params)
-    return
 
     subprocess.call([command, '--skymap={}'.format(skymap), 
         '--time={}'.format(str(event_mjd)), 
