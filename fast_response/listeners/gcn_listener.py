@@ -29,10 +29,11 @@ with open('/home/jthwaites/private/tokens/kafka_token.txt') as f:
     client_secret = f.readline().rstrip('\n')
 
 domain = 'gcn.nasa.gov'
-
+config = {'broker.address.family': 'v4'}
 consumer = Consumer(client_id=client_id,
                     client_secret=client_secret,
                     domain='gcn.nasa.gov',
+                    config=config,
                     #config={'max.poll.interval.ms':1800000},
                    )
 
