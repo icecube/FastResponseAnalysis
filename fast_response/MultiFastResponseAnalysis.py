@@ -14,6 +14,7 @@ import os, sys, time, subprocess
 import pickle, dateutil.parser, logging, warnings
 from argparse import Namespace
 from copy import deepcopy
+from collections import defaultdict
 
 import h5py
 import healpy                 as hp
@@ -297,7 +298,58 @@ class MultiPriorFollowup(PriorFollowup, MultiFastResponseAnalysis):
         for the minimum and maximum declinations on the skymap
         for multiple datasets
         """
-        raise NotImplementedError("would be easier if we shared more plotting methods")
+        min_dec, max_dec = self.dec_skymap_range()
+        low5 = []
+        high5 = []
+        fig, ax = plt.subplots(figsize = (8,5))
+        fig.set_facecolor('white')
+        # iterate over dataset
+        
+        for enum in self.llh._samples:
+            llh = self.llh._samples[enum]
+            dataset = self.datasets[enum].replace('_', ' ')
+            style = plotting_utils.skymap_style[enum]
+            color = sns.xkcd_rgb['windows blue']
+
+            energy_range = defaultdict(list)
+
+            # then iterate over the min- and max- declination of the skymap
+            for (dec_label, dec) in [
+                ("min. dec", min_dec),
+                ("max. dec", max_dec),
+            ]:
+                label = ""
+                if len(self.analyses)==1:
+                    label = dec_label
+                else:
+                    label = " ".join((dec_label, dataset))
+
+                # obtain the quantities for this dataset
+                energy_band = plotting_utils.get_energy_band(llh.mc, self.index, dec,
+                                                            half_width=5., coverage=0.9)
+                # then make the plot, differentiating by linestyle
+                plotting_utils.plot_energy_band(**energy_band, color=color, linestyle=style["linestyle"],
+                                                label_prefix=label)
+                for key in ["low", "high", "median"]:
+                    energy_range[key].append(energy_band[key])
+            
+            low5.append(np.min(energy_range["low"]))
+            high5.append(np.max(energy_range["high"]))
+            
+            
+        plt.yscale('log')
+        plt.xscale('log')
+        plt.grid(which = 'major', alpha = 0.25)
+        plt.xlabel('Energy (GeV)', fontsize = 24)
+
+        plt.xlim(1e1, 1e8)
+        plt.legend(loc=4, fontsize=18)
+        plt.savefig(self.analysispath + '/central_90_dNdE.png',bbox_inches='tight')
+
+        self.low5 = low5
+        self.high5 = high5
+        self.energy_range =  tuple(zip(self.low5, self.high5))
+        self.save_items['energy_range'] = self.energy_range
 
 class MultiPointSourceFollowup(PointSourceFollowup, MultiFastResponseAnalysis):
     
@@ -364,8 +416,6 @@ class MultiPointSourceFollowup(PointSourceFollowup, MultiFastResponseAnalysis):
         self.save_items['coincident_events'] = self.coincident_events
 
     def make_dNdE(self):
-        # easier if calculation and plotting were separate methods...
-        # but how to do it is already laid out in FRA_ifelse
         r"""Make an E^-2 or E^-2.5 dNdE with the central 90% 
         for the most relevant declination band 
         (+/- 5 deg around source dec)
@@ -379,36 +429,18 @@ class MultiPointSourceFollowup(PointSourceFollowup, MultiFastResponseAnalysis):
             llh = self.llh._samples[enum]
             dataset = self.datasets[enum].replace('_', ' ')
             style = plotting_utils.skymap_style[enum]
-            dec_mask_1 = llh.mc['dec'] > self.dec - (5. * np.pi / 180.)
-            dec_mask_2 = llh.mc['dec'] < self.dec + (5. * np.pi / 180.)
-            dec_mask_3, dec_mask_4 = None, None
-            dec_mask = dec_mask_1 * dec_mask_2
+            color = sns.xkcd_rgb['windows blue']
+
+            # obtain the quantities for this dataset
+            energy_band = plotting_utils.get_energy_band(llh.mc, self.index, self.dec,
+                                                         half_width=5., coverage=0.9)
+            # then make the plot, differentiating by linestyle
+            plotting_utils.plot_energy_band(**energy_band, color=color, linestyle=style["linestyle"],
+                                            label_prefix=dataset)
             
+            low5.append(energy_band["low"])
+            high5.append(energy_band["high"])
             
-            lab = dataset
-            #color = f'C{enum+1}'
-            color = color = sns.xkcd_rgb['windows blue']
-            delta_gamma = -1. * self.index + 1.
-            a = plt.hist(llh.mc['trueE'][dec_mask], bins = np.logspace(1., 8., 50), 
-                    weights = llh.mc['ow'][dec_mask] * np.power(llh.mc['trueE'][dec_mask], delta_gamma) / llh.mc['trueE'][dec_mask], 
-                    histtype = 'step', linewidth = 2., color = color, label = lab)
-            cdf = np.cumsum(a[0]) / np.sum(a[0])
-            low_5 = np.interp(0.05, cdf, a[1][:-1])
-            median = np.interp(0.5, cdf, a[1][:-1])
-            high_5 = np.interp(0.95, cdf, a[1][:-1])
-        
-            plt.axvspan(low_5, high_5,
-                        color = color, linestyle = style['linestyle'],
-                        linewidth = 2.,
-                        alpha = 0.25, label="Central 90%")
-            lab = 'Median'
-            plt.axvline(median,
-                        c = color, linestyle = style['linestyle'],
-                        linewidth = 2.,
-                        alpha = 0.75, label = lab)
-            low5.append(low_5)
-            high5.append(high_5)
-            print('{} 90% Central Energy Range: {}, {} GeV'.format(dataset, round(low_5), round(high_5)))
             
         plt.yscale('log')
         plt.xscale('log')
@@ -422,7 +454,6 @@ class MultiPointSourceFollowup(PointSourceFollowup, MultiFastResponseAnalysis):
         self.low5 = low5
         self.high5 = high5
         self.save_items['energy_range'] = tuple(zip(self.low5, self.high5))
-        return
 
     def write_circular(self):
         raise NotImplemented('This method is not implemented for the parent class, either.')
