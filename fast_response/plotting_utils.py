@@ -377,3 +377,53 @@ def make_public_zoom_skymap(skymap, events, ra, dec, with_contour=True, name='te
 
     plt.savefig(f'./{name}_skymap_zoom_public.png', bbox_inches='tight', dpi=300)
     plt.close()
+
+def get_energy_band(mc, index, dec, half_width=5., coverage=0.9):
+        """Get the weighted true energy distribution and 90% band
+        for a given declination, coupled out from make_dNdE to be used
+        by multiple plotting methods"""
+        
+        dec_mask_1 = mc['dec'] > dec - np.deg2rad(half_width)
+        dec_mask_2 = mc['dec'] < dec + np.deg2rad(half_width)
+        dec_mask = dec_mask_1 & dec_mask_2
+        
+        delta_gamma = -1. * index + 1. # TODO I don't understand why we add a power of E then divide it out again
+
+        a = np.histogram(mc['trueE'][dec_mask], bins = np.logspace(1., 8., 50), 
+                weights = mc['ow'][dec_mask] * np.power(mc['trueE'][dec_mask], delta_gamma) / mc['trueE'][dec_mask], 
+        )
+        
+        cdf = np.cumsum(a[0]) / np.sum(a[0])
+        low = np.interp((1 - coverage)/2, cdf, a[1][:-1])
+        median = np.interp(0.5, cdf, a[1][:-1])
+        high = np.interp((1 + coverage)/2, cdf, a[1][:-1])
+        return {'histogram':a, 'low': low, 'median': median, 'high': high}
+
+
+def plot_energy_band(histogram=None, low=None, median=None, high=None, quantile=0.9,
+                     color=sns.xkcd_rgb['windows blue'],
+                     linestyle="solid",
+                     label_prefix=""):   
+    if histogram:
+        plt.stairs(histogram[0], histogram[1], fill=False,
+                linewidth = 2., color = color, label = label_prefix)
+            
+    plt.yscale('log')
+    plt.xscale('log')
+    plt.grid(which = 'major', alpha = 0.25)
+    plt.xlabel('Energy (GeV)', fontsize = 24)
+
+    if low is not None and high is not None:
+        plt.axvspan(low, high, color=color, alpha = 0.25,
+                    label=" ".join((label_prefix, f"Central {quantile:.0%}")),
+                    linestyle = linestyle,
+                    linewidth = 2.,
+                    )
+    if median:
+        plt.axvline(median, c=color, alpha=0.75,
+                    linestyle = linestyle,
+                    linewidth = 2.,
+                    label=" ".join((label_prefix, "Median")),
+        )
+    plt.xlim(1e1, 1e8)
+    
