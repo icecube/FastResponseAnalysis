@@ -309,14 +309,14 @@ class MultiPriorFollowup(PriorFollowup, MultiFastResponseAnalysis):
             llh = self.llh._samples[enum]
             dataset = self.datasets[enum].replace('_', ' ')
             style = plotting_utils.skymap_style[enum]
-            color = sns.xkcd_rgb['windows blue']
 
             energy_range = defaultdict(list)
 
             # then iterate over the min- and max- declination of the skymap
-            for (dec_label, dec) in [
-                ("min. dec", min_dec),
-                ("max. dec", max_dec),
+            for (dec_label, dec, color) in [
+                ("min. dec", min_dec, sns.xkcd_rgb['windows blue']),
+                ("max. dec", max_dec, sns.xkcd_rgb['dark navy blue']),
+
             ]:
                 label = ""
                 if len(self.analyses)==1:
