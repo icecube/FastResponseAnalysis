@@ -198,6 +198,18 @@ class MultiFastResponseAnalysis(FastResponseAnalysis):
         # else:
         #     raise TypeError(f'trying to set analyses with {type(x)}')
 
+    # We share an LLH seed
+    @property
+    def llh_seed(self):
+        return self._llh_seed
+
+    # when setting a new one, broadcast it
+    @llh_seed.setter
+    def llh_seed(self, value):
+        self._llh_seed = value
+        #self.llh.set_rng_seed(value) # this won't work as seed gets value before we have llh
+        
+
     @property
     def llh_exp(self):
         """Returns a flat array of experimental data loaded across the used dataset(s) loaded into the LLH,

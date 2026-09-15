@@ -58,7 +58,7 @@ class FastResponseAnalysis(object):
     _angScale = 2.145966
     _llh_seed = 1
     _season_names = [f"IC86, 201{y}" for y in range(1, 10)]
-    _nb_days = 10
+    _nb_days = 10 # BG window around analysis window used to estimate BG rate.
     _ncpu = 5
     _jitter = False
     _background_days = 6 # if not using archival data, get_data() will prepend this duration to load
@@ -162,6 +162,9 @@ class FastResponseAnalysis(object):
         return self._llh_seed
     @llh_seed.setter
     def llh_seed(self, x):
+        # FIXME the llh does not get initialized again
+        # so this does not repeat the initial scramble
+        # FIXME what would be a consistent way to set_rng_seed on the LLH's if they exist?
         self._llh_seed = x
 
     def unify_exp_array(self, _exp, enum=0):
@@ -1112,14 +1115,14 @@ class PriorFollowup(FastResponseAnalysis):
         self.coincident_events = coincident_events
         self.save_items['coincident_events'] = coincident_events
 
-    def unblind_TS(self, custom_events=None):
+    def unblind_TS(self, scramble: bool=False):
         r""" Unblind TS, either sky scan for spatial prior,
         or just at one location for a point source
 
         Parameters
         -----------
-        custom_events: array
-            specific events for use in scan (UNUSED)
+        scramble: bool
+            Let the LLH scramble with its current RNG seed before unblinding
         
         Returns
         -----------
@@ -1140,7 +1143,10 @@ class PriorFollowup(FastResponseAnalysis):
         t1 = time.time()
         print("Starting scan")
         val = self.llh.scan(
-            0.0,0.0, scramble = False, spatial_prior=spatial_prior,
+            0.0,0.0,
+            # if scrambling, llh.scan() takes a seed from its own kwargs
+            scramble = scramble, seed=self.llh_seed,
+            spatial_prior=spatial_prior,
             time_mask = [self.duration/2., self.centertime],
             pixel_scan=[self.nside, self._pixel_scan_nsigma]
         )
@@ -1167,7 +1173,7 @@ class PriorFollowup(FastResponseAnalysis):
             self.scanned_pixels = hp.ang2pix(
                 self.nside, np.pi/2. - val['dec'], val['ra']
             )
-        except Exception as e:
+        except Exception as e: # TODO be more specific, eg empty scan
             print(e)
             ts, ns = 0., 0.
             if self._float_index:
@@ -1399,7 +1405,7 @@ class PointSourceFollowup(FastResponseAnalysis):
             temporal_model=self.llh.temporal_model)
         self.inj = inj
 
-    def unblind_TS(self):
+    def unblind_TS(self, scramble: bool=False):
         r""" Unblind TS at one location for a point source
 
         Returns
@@ -1411,7 +1417,7 @@ class PointSourceFollowup(FastResponseAnalysis):
         """ 
         # Fix the case of getting best-fit gamma
         # TODO: What if gamma is floated
-        ts, ns = self.llh.fit_source(src_ra=self.ra, src_dec=self.dec)
+        ts, ns = self.llh.fit_source(src_ra=self.ra, src_dec=self.dec, scramble=scramble)
         params = ns.copy()
         params.pop('nsignal')
         self.ns_params = params
