@@ -1,15 +1,28 @@
 #!/usr/bin/env python
+"""
+This module allows combining precomputed background sky scans
+from multiple files saves as SciPy sparse matrices.
+This is based on glob_precomputed_trials.py but generalized
+in the assumptions on the file name pattern, so it can be used 
+with different conventions, the only requirement that they contain
+some seed index in the form `seed_*`.
+Running as a script, it will save the combined maps again as a sparse matrix.
+"""
 
+import logging
 from glob import glob
 import healpy as hp
 from scipy import sparse
 import time
 import argparse
 import os
+import sys
 
-parser = argparse.ArgumentParser(description='Glob precomp trials')
+logger = logging.getLogger(__name__)
+
+parser = argparse.ArgumentParser(description='Glob precomputed trials')
 parser.add_argument('--dir',type=str, default='./',
-                    help='directory for where trials are, will save globbed npz inside same ')
+                    help='directory for where trials are, will save globbed npz inside same')
 parser.add_argument('--nside',type=int, default=256,
                     help='nside used when running trials (default 256)')
 
@@ -28,31 +41,33 @@ def sort_by_glob_file(files):
         sorted[outfile].append(_file)
     return sorted
 
+def load_maps(fn):
+    return sparse.load_npz(fn)
 
-    
-def glob_allsky_scans(files, out, nside):
-    print(f'Creating {os.path.basename(out)}')
+def concatenate_maps(files, nside) -> sparse.csr_matrix:
     files = [fn for fn in files if f"nside_{nside}" in fn]
-    print('Found {} files to load'.format(len(files)))
-    if len(files)==0: return None
-    print('Nside: {}'.format(nside))
+    logger.info('Found {} files to load'.format(len(files)))
+    if len(files)==0:
+        return None
+    logger.info('Nside: {}'.format(nside))
     npix = hp.nside2npix(nside)
-    print('Starting to load at {}'.format(time.ctime()))    
+    logger.info('Starting to load at {}'.format(time.ctime()))    
     maps = sparse.csr_matrix((0, npix), dtype=float)
-    for f in files:
-        scan = sparse.load_npz(f)
+    for fn in files:
+        scan = load_maps(fn)
         maps = sparse.vstack((maps, scan))
-        print('.', end=' ')
-    print('')
+    return maps
 
+def save_maps(maps, out):
+    logger.info(f'Creating {os.path.basename(out)}')
     # Change format of sparse array
-    print("Starting to change from COO to CSR at {}".format(time.ctime()))
+    logger.info("Starting to change from COO to CSR at {}".format(time.ctime()))
+    # NOTE: I am not sure we need to keep this; maps are already CSR
     scans = maps.tocsr()
-    print("Finished at {}".format(time.ctime()))
-    
+    logger.info("Finished at {}".format(time.ctime()))
     # Save the sparse array
     sparse.save_npz(out, scans)
-    return maps
+
 
 def main(args):
     """
@@ -61,9 +76,13 @@ def main(args):
     # separate alert and GW trials by directory
     files = sorted(glob(os.path.join(args.dir, '*seed_*.npz')))
     for outfile, filegroup in sort_by_glob_file(files).items():
-        maps = glob_allsky_scans(filegroup, outfile, args.nside)
+        maps = concatenate_maps(filegroup, args.nside)
+        save_maps(maps, outfile)
         del maps
-    print ('done')
+    logger.info('done')
+    return 0
 
-args = parser.parse_args()
-main(args)
+if __name__ == "__main__":
+    args = parser.parse_args()
+    logger.setLevel(logging.INFO)
+    sys.exit(main(args))

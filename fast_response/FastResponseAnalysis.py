@@ -35,6 +35,7 @@ from . import web_utils
 from . import sensitivity_utils
 from . import plotting_utils
 from .reports import FastResponseReport
+from .precomputed_background.glob_precomputed_trials_multi import concatenate_maps
 
 mpl.use('agg')
 current_palette = sns.color_palette('colorblind', 10)
@@ -1016,6 +1017,9 @@ class PriorFollowup(FastResponseAnalysis):
         stored in sparse matrices produced by fast_response/precomputed_background/...
             precompute_ts.py (or its variants)
             glob_precomputed_trials.py (or its variants)
+        Generalizing the method from GWFollowup.run_background_trials used for durations > 1 day, except
+            - relying on the precomputed scans to have been concatenated into one file already
+            - setting TS=0 in empty trials according to the new convention
 
 
         Parameters
@@ -1045,9 +1049,9 @@ class PriorFollowup(FastResponseAnalysis):
         bg_files = list(Path(self._bg_dir).glob(filename))
         if not bg_files:
             raise FileNotFoundError(f"Did not find precomputed bg {filename} in {self._bg_dir}")
-        # TODO also concatenate in here; then the glob script becomes superfluous
+        
         # Load sparse matrix of background scans
-        pre_ts_array = sparse.load_npz(bg_files[0])
+        pre_ts_array = concatenate_maps(bg_files, self.nside)
         if hp.npix2nside(pre_ts_array.shape[1]) != self.nside:
             # Should be ensured by file name but better check
             raise ValueError(f"Loaded precomputed bg has nside != {self.nside}")
@@ -1055,7 +1059,6 @@ class PriorFollowup(FastResponseAnalysis):
         ts_prior = pre_ts_array.copy()
         ts_norm = np.log(np.amax(self.skymap))
         # skymap was already reduced to the analysis nside upon loading
-        # FIXME reduction vs. interpolation??
         # TODO better way than to introduce inf's by log-ging the skymap?
         ts_prior.data += 2.*(np.log(self.skymap[pre_ts_array.indices]) - ts_norm)
         ts_prior.data[~np.isfinite(ts_prior.data)] = 0. # TODO discuss whether this applies. Not sure why inconsistent.
@@ -1064,7 +1067,6 @@ class PriorFollowup(FastResponseAnalysis):
         tsd = ts_prior.max(axis=1).toarray()[:,0]
         # Explicitly skip
         empty = np.array([_ts.size==0 for _ts in pre_ts_array])
-        # tsd[empty] = -np.inf # FIXME why does it set these to -inf instead of 0?
         tsd[empty] = 0 # new convention: 0 for empty trial
         self.tsd = tsd
         if ntrials is None:
