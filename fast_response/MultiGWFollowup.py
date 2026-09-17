@@ -14,7 +14,7 @@ class OnlyDNNOnlineFollowup(PriorFollowup):
     'nside_{nside}',
     'index_{index}',
     '{lookup}',
-    'low_stats.npz',
+    'seed_*npz',
     ])
     _dataset = "DNNCascadesOnline_v001p01"
     _season_names = [f"IC86, 20{y:02d}" for y in range(24, 25+1)]
@@ -39,7 +39,7 @@ class DNNOnlineFollowup(MultiPriorFollowup):
     'nside_{nside}',
     'index_{index}',
     '{lookup}',
-    'low_stats.npz',
+    'seed_*npz',
     ])
     _followups = [OnlyDNNOnlineFollowup]
     _fix_index = False
@@ -56,7 +56,7 @@ class IceManFollowup(MultiPriorFollowup):
     'nside_{nside}',
     'index_{index}',
     '{lookup}',
-    'low_stats.npz',
+    'seed_*npz',
     ])
     _followups = [OnlyIceManFollowup]
     _fix_index = False 

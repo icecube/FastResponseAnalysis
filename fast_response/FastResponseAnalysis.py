@@ -35,7 +35,7 @@ from . import web_utils
 from . import sensitivity_utils
 from . import plotting_utils
 from .reports import FastResponseReport
-from .precomputed_background.glob_precomputed_trials_multi import concatenate_maps
+from .precomputed_background import glob_precomputed_trials_multi as pt
 
 mpl.use('agg')
 current_palette = sns.color_palette('colorblind', 10)
@@ -888,6 +888,7 @@ class PriorFollowup(FastResponseAnalysis):
     'nside_{nside}',
     'index_{index}',
     '{lookup}',
+    '*', # individual analyses will need to specify here whether they glob them on the fly or have a single file
     ])
 
     def __init__(self, name, skymap_path, tstart, tstop, skipped=None, seed=None,
@@ -1046,12 +1047,17 @@ class PriorFollowup(FastResponseAnalysis):
             index = self._index,
             lookup = f"{rate:.2f}_mHz" if month is None else f"{month:02d}",
         )
-        bg_files = list(Path(self._bg_dir).glob(filename))
+        bg_files = list(map(str, Path(self._bg_dir).glob(filename)))
         if not bg_files:
             raise FileNotFoundError(f"Did not find precomputed bg {filename} in {self._bg_dir}")
+        glob_file = pt.get_glob_file(bg_files[0])
         
         # Load sparse matrix of background scans
-        pre_ts_array = concatenate_maps(bg_files, self.nside)
+        if os.path.exists(glob_file):
+            pre_ts_array = pt.load_maps(glob_file)
+        else:
+            pre_ts_array = pt.concatenate_maps(bg_files, self.nside)
+            pt.save_maps(pre_ts_array, glob_file)
         if hp.npix2nside(pre_ts_array.shape[1]) != self.nside:
             # Should be ensured by file name but better check
             raise ValueError(f"Loaded precomputed bg has nside != {self.nside}")
