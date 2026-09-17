@@ -1,5 +1,5 @@
-'''Script to calculate sensitivities of analyses defined
-in the fast_response framework.
+#!/usr/bin/env python
+'''Script to get BG TS distributions and derived TS thresholds.
 
     Author: Christoph Raab
     Date: 2026
@@ -69,15 +69,13 @@ def run_trials(args):
           f.analysispath,
          )
     
-    f.initialize_injector()
 
+    # single-sample
     month = Time(args.start).datetime.month
-    # FIXME Horrible! do better than hardcoding this
-    rate = [
-        0.22, 0.22, 0.22, 0.21,
-        0.21, 0.21, 0.21, 0.2 ,
-        0.22, 0.23, 0.22, 0.23,
-        ][month - 1]
+    llh = f.llh._samples[0]
+    # use the estimate provided by the temporal model
+    # from the background window(s): (temporal model has estimated it from +/- 60 days)
+    rate = round(1000 * llh.nbackground / (llh.on_livetime * 86400), 2)
     bg_ts = f.load_background_trials(rate=rate, ntrials=args.ntrials)
 
     results_list = []
@@ -116,7 +114,7 @@ if __name__ == "__main__":
     parser.add_argument('--duration', default=1000./86400, type=float,
                         help='Duration of followup [days]')
     parser.add_argument('--start', type=str, required=False,
-                        default='2025-06-01',
+                        default='2026-06-30',
                         help="Start time of the analysis in ISO format")
     parser.add_argument('--index', type=float, default=2.0,
                         help="Spectral index to assume in injected hypothesis")
@@ -124,8 +122,10 @@ if __name__ == "__main__":
                         type= lambda z:[ tuple(int(y) for y in x.split(':')) for x in z.split(',')],
                         help="Event to exclude from the analyses, eg."
                         "Example --skip-events=127853:67093193")
-    parser.add_argument('--ntrials', default=100000, type=int,
-                        help="Number of background trials to load")
+    parser.add_argument('--ntrials', default=None, type=int,
+                        help="Number of background trials to load, default all available")
+    parser.add_argument('--seed', default=100000, type=int,
+                            help="RNG seed for the LLH")
     parser.add_argument('--out', default='/data/user/chraab/Output/fast_response/multisample/inherit/')
     
     args = parser.parse_args()
