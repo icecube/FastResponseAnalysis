@@ -7,13 +7,13 @@ config = dict(
     script='/data/user/chraab/metaprojects/realtime/FastResponseAnalysis/fast_response/precomputed_background/precompute_ts_multi.py',
     deltaT=1000,
     dataset="DNN",
-    ntrials=100,
-    bkg=[0.20, 0.21, 0.22, 0.23, 0.24],
-    seed=list(range(20001+10000, 20001+100000, 1000)),
-    nside=64,
-    fix_index='',
+    ntrials=1000,
+    bkg=[0.20],
+    seed=list(range(0, 100000 + 1, 1000)),
+    nside=128,
     index=2,
-    outdir='/data/user/chraab/fast_response/multisample/variable_jitter_new_environment',
+    outdir='/data/user/chraab/fast_response/multisample/extended_archival',
+    start = '2026-06-30',
 )
 if 'fix_index' not in config:
     config['outdir'] += '_floating'

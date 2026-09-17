@@ -27,7 +27,7 @@ parser.add_argument("--bkg", default=[0.206], type=float, nargs='+',
                         help="Expected background rates in mHz (default 6.4, 4.6)")
 parser.add_argument('--seed', default=1, type=int, 
                         help='Unique seed for running on the cluster')
-parser.add_argument('--nside', default=64, type=int, 
+parser.add_argument('--nside', default=128, type=int, 
                         help='Skymap nside to scan')
 parser.add_argument('--outdir',type=str, default=os.environ.get('FAST_RESPONSE_OUTPUT', './'),
                         help='Output directory to save npz (default = FAST_RESPONSE_OUTPUT env variable or cwd)')

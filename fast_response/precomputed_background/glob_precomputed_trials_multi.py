@@ -17,6 +17,10 @@ import time
 import argparse
 import os
 import sys
+try:
+    from tqdm import tqdm
+except ImportError:
+    tqdm = lambda x:x
 
 logger = logging.getLogger(__name__)
 
@@ -53,7 +57,7 @@ def concatenate_maps(files, nside) -> sparse.csr_matrix:
     npix = hp.nside2npix(nside)
     logger.info('Starting to load at {}'.format(time.ctime()))    
     maps = sparse.csr_matrix((0, npix), dtype=float)
-    for fn in files:
+    for fn in tqdm(files):
         scan = load_maps(fn)
         maps = sparse.vstack((maps, scan))
     return maps

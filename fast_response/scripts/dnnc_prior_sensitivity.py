@@ -72,7 +72,7 @@ def do_trials(followup, n_iter=10, **kwargs):
 
 def weighted_sensitivity(followup, bg_ts, alpha, beta, n_iter=100, trials=[]):
     ts = np.percentile(bg_ts, 100*(1-alpha))
-    for _mu in range(1, 5):
+    for _mu in range(1, 7):
         _trials = do_trials(followup, n_iter=n_iter, mean_signal=_mu, poisson=True)
         trials.append(_trials)
     # bg_trials = np.empty((bg_ts.size,), dtype=trials[0].dtype)
