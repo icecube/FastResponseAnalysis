@@ -4,10 +4,9 @@
     to run realtime neutrino follow-up
 
     Author: Raamis Hussain, Jessie Thwaites, MJ Romfoe
-    Updated Date: June 2026
+    Last Updated: Sept 2026
 '''
 
-#import gcn
 import logging
 from gcn_kafka import Consumer
 import sys, pickle, os, subprocess, pwd
@@ -15,11 +14,13 @@ from dateutil.parser import parse
 from dateutil.relativedelta import relativedelta
 import healpy as hp
 import numpy as np
-import lxml.etree
 import argparse, time, wget
 from astropy.time import Time
 from datetime import datetime
+import fast_response
 from fast_response.slack_posters.slack import slackbot
+from fast_response.slack_posters.logger_util import FRA_Logger
+import json
 
 print("Connecting to GCN as Consumer")
 
@@ -30,33 +31,16 @@ with open('/home/jthwaites/private/tokens/kafka_token.txt') as f:
 consumer = Consumer(client_id=client_id,
                     client_secret=client_secret,
                     domain='gcn.nasa.gov',
-                    #config={'max.poll.interval.ms':1800000},
                    )
 
-consumer.subscribe(['gcn.classic.voevent.LVC_EARLY_WARNING',
-                    'gcn.classic.voevent.LVC_INITIAL',
-                    'gcn.classic.voevent.LVC_PRELIMINARY',
-                    'gcn.classic.voevent.LVC_RETRACTION',
-                    'gcn.classic.voevent.LVC_UPDATE',
-                    'igwn.gwalert'
-                   ])
+consumer.subscribe(['igwn.gwalert'])
 
-# make a new logging.FileHandler that can flush as we go
-class LogFileWriter(logging.FileHandler):
-    '''Make a new logging handler that uses a file
-    and flushes all messges to the file as they are written
-    '''
-    def emit(self, record):
-        super().emit(record)
-        self.flush()
-
-def process_gcn(record): #payload, root):
+def process_gcn(params, mock=False): 
     AlertTime=datetime.utcnow().isoformat()
     analysis_path = os.environ.get('FAST_RESPONSE_SCRIPTS')
 
     if analysis_path is None:
         try:
-            import fast_response
             analysis_path = os.path.join(os.path.dirname(fast_response.__file__),'scripts/')
         except Exception as e:
             logger.error('Error finding FRA package!!')
@@ -67,42 +51,43 @@ def process_gcn(record): #payload, root):
             print('###########################################################################')
             raise Exception(e)
 
-    # Read all of the VOEvent parameters from the "What" section.
-    params = {elem.attrib['name']:
-              elem.attrib['value']
-              for elem in record.iterfind('.//Param')}
-    name = record.attrib['ivorn'].split('#')[1]
+    name = params['superevent_id'] + '-' + params['alert_type'].lower()
+    params['role'] = 'observation' if params['event']['search'] is not 'MDC' else 'test'
     
     # only run on significant events
-    if 'Significant' in params.keys():
-        if int(params['Significant'])==0: 
-            #not significant, do not run
+    if 'significant' in params['event']:
+        if not params['event']['significant']: 
+            #not significant, do not run on real data
             logger.warning(f'Found a subthreshold event {name}')
-            record.attrib['role']='test'
+            params['role']='test'
     else:
         # O3 does not have this parameter, this should only happen for testing
         logger.warning('No significance parameter found in LVK GCN.')
     # if this is the listener for real events and it gets a mock (or low signficance), skip it
-    if not mock and record.attrib['role']!='observation':
+    if not mock and params['role']!='observation':
+        return
+    # want heartbeat listener not to run on real events, otherwise it overwrites the main listener output
+    if mock and params['role']=='observation':
+        logger.info('Listener in heartbeat mode found real event. Skipping...')
         return
     
     logger.warning('\n' +'INCOMING ALERT FOUND: ',datetime.utcnow())
 
     #get type of event (burst, bbh, nsbh, bns)
     try:
-        if params['Group'] == 'Burst': 
+        if params['event']['group'] == 'Burst': 
             merger_type = 'Burst'
-        elif params['Search'] == 'SSM':
+        elif params['event']['search'] == 'SSM':
             merger_type='SSM'
         else:
             k = ['BNS','NSBH','BBH']
-            probs = {j: float(params[j]) for j in k}
+            probs = {j: float(params['event']['classification'][j]) for j in k}
             merger_type = max(zip(probs.values(), probs.keys()))[1]
     except:
         logger.warning('Could not determine type of event')
         merger_type = None
     
-    if record.attrib['role']=='observation' and not mock:
+    if params['role']=='observation' and not mock:
         ## Call everyone because it's a real event!
         call_command=['/home/jthwaites/private/make_call.py', f'--name={name}']
     
@@ -117,17 +102,12 @@ def process_gcn(record): #payload, root):
         except Exception as e:
             logger.error('Call failed!')
             logger.error(e)
-            
-    # want heartbeat listener not to run on real events, otherwise it overwrites the main listener output
-    if mock and record.attrib['role']=='observation':
-        logger.info('Listener in heartbeat mode found real event. Skipping...')
-        return
     
     # Read trigger time of event
-    eventtime = record.find('.//ISOTime').text
+    eventtime = params['event']['time']
     event_mjd = Time(eventtime, format='isot').mjd
     logger.info(f'Alert MJD: {event_mjd}')
-    logger.info('GW merger time: %s \n' % Time(eventtime, format='isot').iso)
+    logger.info('GW merger time: {} \n'.format(Time(eventtime, format='isot').iso))
 
     current_mjd = Time(datetime.utcnow(), scale='utc').mjd
     needed_delay = 1000./84600./2.
@@ -145,7 +125,8 @@ def process_gcn(record): #payload, root):
         current_mjd = Time(datetime.utcnow(), scale='utc').mjd
         current_delay = current_mjd - event_mjd
 
-    skymap = params['skymap_fits']
+    skymap_base = 'https://gracedb.ligo.org/api/superevents/{}/files/'.format(params['superevent_id'])
+    skymap = skymap_base + params['event']['skymap_filename']
 
     # Multiorder Coverage (MOC) map links are distributed over the GCNs. 
     # Download flattened (normal healpy) map from GraceDB
@@ -182,7 +163,7 @@ def process_gcn(record): #payload, root):
                             f'args:  --time {event_mjd} --name {name} --skymap PATH_TO_SKYMAP')
                 return
 
-    if record.attrib['role'] != 'observation':
+    if params['role'] != 'observation':
         name=name+'_test'
         logger.info('Running on scrambled data')
     command = os.path.join(analysis_path, 'run_gw_followup.py')
@@ -191,18 +172,19 @@ def process_gcn(record): #payload, root):
     #### FOR NOW: testing
     return
 
-    subprocess.call([command, '--skymap={}'.format(skymap), 
+    subprocess.call([
+        command, 
+        '--skymap={}'.format(skymap), 
         '--time={}'.format(str(event_mjd)), 
-        '--name={}'.format(name)]
-        #'--allow_neg_ts=True']
-        )
+        '--name={}'.format(name)
+    ])
     
     analysis_start = Time(event_mjd - 500./86400., format='mjd').iso
     output = os.path.join(os.environ.get('FAST_RESPONSE_OUTPUT'),
                           analysis_start[0:10].replace('-','_')+'_'+name)
     #update webpages
     webpage_update = os.path.join(analysis_path,'document.py')
-    if not mock and record.attrib['role'] == 'observation':
+    if not mock and params['role'] == 'observation':
         try:
             subprocess.call([webpage_update,  '--gw', f'--path={output}'])
 
@@ -231,7 +213,7 @@ def process_gcn(record): #payload, root):
                     'Ligo_Latency': Ligo_late_sec, 'IceCube_Latency': Ice_late_sec, 'Total_Latency': Total_late_sec,
                     'We_had_to_wait:': FiveHundred_delay}
     
-    save_dir = 'latency_o4' if record.attrib['role']=='observation' else 'PickledMocks'
+    save_dir = 'latency_o4' if params['role']=='observation' else 'PickledMocks'
 
     #check for directory to save pickle files and create if needed 
     if not os.path.exists(os.path.join(os.environ.get('FAST_RESPONSE_OUTPUT'),save_dir)):
@@ -243,12 +225,11 @@ def process_gcn(record): #payload, root):
         with open(os.path.join(os.environ.get('FAST_RESPONSE_OUTPUT'), f'{save_dir}/gw_latency_dict_{name}.pickle'), 'wb') as file:
             pickle.dump(gw_latency, file, protocol=pickle.HIGHEST_PROTOCOL)
     
-    #save xml and skymap, for later
-    et = lxml.etree.ElementTree(record)
-    et.write(os.path.join(output, '{}-{}-{}.xml'.format(params['GraceID'], 
-                        params['Pkt_Ser_Num'], params['AlertType'])), pretty_print=True)
-
-    if record.attrib['role'] != 'observation':
+    #save notice for later
+    with open(os.path.join(output, '{}.json'.format(name)), "w") as f:
+        f.write(json.dumps(params, indent=2))
+    
+    if params['role'] != 'observation':
         # Move mocks to a seperate folder to avoid swamping FRA output folder
         subprocess.call(['mv',output, '/data/user/jthwaites/o4-mocks/'])
         output = '/data/user/jthwaites/o4-mocks/' + eventtime[0:10].replace('-','_')+'_'+name
@@ -263,7 +244,7 @@ if __name__ == '__main__':
     parser.add_argument('--heartbeat', action = 'store_true', default=False,
                         help='Run the listener as a heartbeat, running on mock LVK events only (default=False)')
     parser.add_argument('--log_path', default='/home/jthwaites/public_html/FastResponse/', type=str,
-                        help='Redirect output to a log file with this path. Note: this is only used when running live')
+                        help='Include output to a log file with this path. Note: this is only used when running live')
     parser.add_argument('--test_path', default='S191216ap_update.xml', type=str,
                         help='Skymap for use in testing listener')
     parser.add_argument('--test_o3', default=False, action='store_true',
@@ -278,12 +259,7 @@ if __name__ == '__main__':
     if args.run_live:
         print(f'Logging to file: {logfile}')
          
-        logger = logging.getLogger()
-        logger.setLevel(logging.INFO)
-        filelogger = LogFileWriter(logfile, mode='a+')
-        filelogger.setFormatter(logging.Formatter(fmt='[%(asctime)s] %(levelname)s\t %(message)s', datefmt='%Y/%m/%d %H:%M:%S'))
-        # adds the logfile as an additional logger. this will also log to stout
-        logger.addHandler(filelogger)
+        logger = FRA_Logger(file=logfile)
         logger.warning("Listening for GCNs . . . ")
 
         mock=args.heartbeat
@@ -296,37 +272,34 @@ if __name__ == '__main__':
                         logger.warning(message.error())
                         continue
                     value = message.value().decode('utf-8')
-                    value = value.replace("encoding='UTF-8'","") #lxml doesn't like this line
                     logger.warning('Found GCN on topic {}'.format(message.topic()))
-                    notice = lxml.etree.fromstring(value)
-                    #process_gcn(notice)
+                    notice = json.loads(value)
+                    process_gcn(notice,mock=mock)
         except KeyboardInterrupt:
             # make sure the logfile gets shutdown correctly and file closed
             logging.shutdown()
 
     else:
-        logger = logging.getLogger()
-        logger.setLevel(logging.INFO)
+        logger = FRA_Logger()
         logger.warning("Offline testing . . . ")
        
-        ### FOR OFFLINE TESTING
-        try:
-            import fast_response
-            #sample_skymap_path='/data/user/jthwaites/o3-gw-skymaps/'
-            sample_skymap_path=os.path.join(os.path.dirname(fast_response.__file__),'sample_skymaps/')
-        except Exception as e:
-            logger.error('Failed to find sample skymap paths!')
-            logger.error(e)
-            sample_skymap_path='/data/user/jthwaites/o3-gw-skymaps/'
-        
-        #payload = open(os.path.join(sample_skymap_path,args.test_path), 'rb').read()
-        payload = open(args.test_path,'rb').read()
-        record = lxml.etree.fromstring(payload) 
+        # see if we've been passed an absolute path.
+        if os.path.exists(args.test_path):
+            test_file = args.test_path
+        else:
+            test_file = os.path.join(os.environ.get('I3_SRC'),'realtime_scripts/resources/test', args.test_path)
+            # if it still isn't found, exit
+            if not os.path.exists(test_file):
+                logger.error('Failed to find test file at {}. Check path and try again'.format(test_file))
+                sys.exit()
+
+        logger.info('Running offline on file: {}'.format(test_file))
+        params = json.loads(test_file))
 
         mock=args.heartbeat
         #test runs on scrambles, observation runs on unblinded data
         if not args.test_o3:
-            record.attrib['role']='test'
+            params['event']['search'] = 'MDC'
             mock=True
 
-        process_gcn(record)
+        process_gcn(params, mock=mock)
