@@ -3,8 +3,7 @@
 import logging
 from gcn_kafka import Consumer
 from icecube import realtime_tools
-import json
-import argparse
+import json, argparse
 
 parser = argparse.ArgumentParser(description='test listener for icecube kafka fra/llama results')
 parser.add_argument('--test_domain', action='store_true', default=False,
@@ -16,6 +15,9 @@ parser.add_argument('--save_out', action='store_true', default=False,
 parser.add_argument('--classic', action='store_true', default=False,
                     help='listen to the voevent streams from gcn rather than the kafka')
 args = parser.parse_args()
+
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
 
 if args.use_prod:
     token = '/home/jthwaites/private/tokens/real_icecube_kafka_prod.txt'
@@ -31,9 +33,13 @@ if args.test_domain:
 else:
     domain = 'gcn.nasa.gov'
 
+config = {'broker.address.family': 'v4', 
+          'log_level': 0}
 consumer = Consumer(client_id=client_id,
                     client_secret=client_secret,
-                    domain=domain)
+                    domain=domain,
+                    config = config
+                   )
 
 # choose topics to listen to
 if args.classic:
@@ -44,12 +50,10 @@ if args.classic:
 else:
     topics =['gcn.notices.icecube.gold_bronze_track_alerts',
              'gcn.notices.icecube.test.gold_bronze_track_alerts',
-             'gcn.notices.icecube.lvk_nu_track_search']
+             'gcn.notices.icecube.lvk_nu_track_search',
+             'igwn.gwalert']
 
 consumer.subscribe(topics)
-
-logger = logging.getLogger()
-logger.setLevel(logging.INFO)
 logger.warning("checking for alerts, connecting to GCN")#.format(topic))
 
 while True:
@@ -59,11 +63,24 @@ while True:
             continue
         value = message.value()
         logger.warning('Found GCN on topic {}'.format(message.topic()))
-        
-        alert_dict = json.loads(value.decode('utf-8'))
-        print(json.dumps(alert_dict, indent=2))
 
-        if args.save_out:
-            with open('test_alert.json', 'w') as f:
-                json.dump(alert_dict, f)
-    
+        try:
+            if args.classic:
+                alert_xml = value.decode('utf-8') #.encode('ascii')
+                print(alert_xml)
+                if args.save_out:
+                    with open('test_alert.xml', 'w') as f:
+                        f.write(alert_xml)
+            else:
+                alert_dict = json.loads(value.decode('utf-8'))
+                if args.save_out:
+                    with open('test_alert.json', 'w') as f:
+                        json.dump(alert_dict, f)
+                if 'skymap' in alert_dict:
+                    alert_dict.pop('skymap', None)
+                print(json.dumps(alert_dict, indent=2))
+
+        except Exception as e:
+            print('Caught exception when decoding: ', e, '\nSkipping...')
+            continue
+        

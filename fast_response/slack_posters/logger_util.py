@@ -33,7 +33,8 @@ class FRA_Logger(object):
         logger.setLevel(logging.INFO)
 
         self.logger_format(**fmt_kwargs)
-        logger.setFormatter(self.logger_fmt)
+        logging.basicConfig(format=self.logger_fmt)
+        
         if file and os.path.dirname(file):
             if not os.path.exists(os.path.dirname(file)):
                 raise Exception('Unable to find parent directory for log file!')
