@@ -28,9 +28,15 @@ with open('/home/jthwaites/private/tokens/kafka_token.txt') as f:
     client_id = f.readline().rstrip('\n')
     client_secret = f.readline().rstrip('\n')
 
+config = {'broker.address.family': 'v4', 
+          'log_level': 0,
+          'max.poll.interval.ms': 1800000,
+         }
+
 consumer = Consumer(client_id=client_id,
                     client_secret=client_secret,
                     domain='gcn.nasa.gov',
+                    config=config,
                    )
 
 consumer.subscribe(['igwn.gwalert'])
@@ -52,8 +58,14 @@ def process_gcn(params, mock=False):
             raise Exception(e)
 
     name = params['superevent_id'] + '-' + params['alert_type'].lower()
-    params['role'] = 'observation' if params['event']['search'] is not 'MDC' else 'test'
-    
+    if params['alert_type'].lower() == 'retraction':
+        print('Error! Listener does not run on Retractions. Returning...')
+        return
+    params['role'] = 'observation' if 'MS' in params['superevent_id'] else 'test'
+    if 'search' in params['event']: # one more check to identify mocks or testing
+        if params['event']['search'] == 'MDC':
+            params['role'] = 'test'
+
     # only run on significant events
     if 'significant' in params['event']:
         if not params['event']['significant']: 
@@ -71,8 +83,7 @@ def process_gcn(params, mock=False):
         logger.info('Listener in heartbeat mode found real event. Skipping...')
         return
     
-    logger.warning('\n' +'INCOMING ALERT FOUND: ',datetime.utcnow())
-
+    logger.warning('\nINCOMING ALERT FOUND: {}'.format(datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')))
     #get type of event (burst, bbh, nsbh, bns)
     try:
         if params['event']['group'] == 'Burst': 
@@ -169,8 +180,6 @@ def process_gcn(params, mock=False):
     command = os.path.join(analysis_path, 'run_gw_followup.py')
 
     logger.info('Running {}'.format(command))
-    #### FOR NOW: testing
-    return
 
     subprocess.call([
         command, 
@@ -259,7 +268,7 @@ if __name__ == '__main__':
     if args.run_live:
         print(f'Logging to file: {logfile}')
          
-        logger = FRA_Logger(file=logfile)
+        logger = FRA_Logger(file=logfile).logger
         logger.warning("Listening for GCNs . . . ")
 
         mock=args.heartbeat
@@ -274,6 +283,9 @@ if __name__ == '__main__':
                     value = message.value().decode('utf-8')
                     logger.warning('Found GCN on topic {}'.format(message.topic()))
                     notice = json.loads(value)
+                    if notice['alert_type'].lower() == 'retraction':
+                        # retractions do not have some required quantities, and should not be run
+                        continue
                     process_gcn(notice,mock=mock)
         except KeyboardInterrupt:
             # make sure the logfile gets shutdown correctly and file closed
@@ -294,7 +306,7 @@ if __name__ == '__main__':
                 sys.exit()
 
         logger.info('Running offline on file: {}'.format(test_file))
-        params = json.loads(test_file))
+        params = json.loads(test_file)
 
         mock=args.heartbeat
         #test runs on scrambles, observation runs on unblinded data
