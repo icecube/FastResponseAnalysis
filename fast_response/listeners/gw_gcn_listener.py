@@ -57,9 +57,9 @@ def process_gcn(params, mock=False):
             print('###########################################################################')
             raise Exception(e)
 
-    name = params['superevent_id'] + '-' + params['alert_type'].lower()
+    name = params['superevent_id'] + '-'+ +params['time_created'].replace(':','').replace('-','') + '-' + params['alert_type'].lower()
     if params['alert_type'].lower() == 'retraction':
-        print('Error! Listener does not run on Retractions. Returning...')
+        logger.warning('Listener does not run on Retractions. Skipping...')
         return
     params['role'] = 'observation' if 'MS' in params['superevent_id'] else 'test'
     if 'search' in params['event']: # one more check to identify mocks or testing
@@ -243,7 +243,7 @@ def process_gcn(params, mock=False):
         subprocess.call(['mv',output, '/data/user/jthwaites/o4-mocks/'])
         output = '/data/user/jthwaites/o4-mocks/' + eventtime[0:10].replace('-','_')+'_'+name
     
-    logger.info('Output directory: ',output)
+    logger.info('Output directory: {}'.format(output))
 
 if __name__ == '__main__':
 
