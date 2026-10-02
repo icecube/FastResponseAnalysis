@@ -178,7 +178,7 @@ class FastResponseAnalysis(object):
     def unify_exp_array(self, _exp, enum=0):
         """Turns a rec array into same fields, order and precision.
         """
-        merged_dtype = np.dtype([('run', '<i4'), ('event', '<i4'), ('time', '<f8'), ('ra', '<f4'), ('dec', '<f4'), ('sigma', '<f4'), ('enum', '<i4')])
+        merged_dtype = np.dtype([('run', '<i4'), ('event', '<i4'), ('time', '<f8'), ('ra', '<f4'), ('dec', '<f4'), ('sinDec', '<f4'),  ('sigma', '<f4'), ('logE', '<f4'), ('enum', '<i4')])
         
         # Drop those not needed
         _exp = rf.drop_fields(_exp, [_field for _field in _exp.dtype.names if _field not in merged_dtype.names])
@@ -1090,6 +1090,7 @@ class PriorFollowup(FastResponseAnalysis):
         if hp.npix2nside(pre_ts_array.shape[1]) != self.nside:
             # Should be ensured by file name but better check
             raise ValueError(f"Loaded precomputed bg has nside != {self.nside}")
+        
         # Combine with prior as in GWFollowup
         ts_prior = pre_ts_array.copy()
         ts_norm = np.log(np.amax(self.skymap))
@@ -1106,7 +1107,7 @@ class PriorFollowup(FastResponseAnalysis):
         self.tsd = tsd
         if ntrials is None:
             return tsd
-        elif ntrials <= self.tsd.size:
+        elif ntrials < self.tsd.size:
             return tsd[:ntrials]
         else:
             raise ValueError(f"Could not load {ntrials} precomputed trials, only have {self.tsd.size}")
@@ -1121,7 +1122,7 @@ class PriorFollowup(FastResponseAnalysis):
         90% contour of the skymap
         """
         t_mask=(self.llh_exp['time']<=self.stop)&(self.llh_exp['time']>=self.start)
-        events = self.llh_exp[t_mask]
+        events = np.copy(self.llh_exp[t_mask])
         # Using the new llh_exp property
         exp_theta = 0.5*np.pi - events['dec']
         exp_phi   = events['ra']

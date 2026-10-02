@@ -297,9 +297,6 @@ class MultiPriorFollowup(PriorFollowup, MultiFastResponseAnalysis):
         self.inj = inj
         self.save_items['E0'] = self.inj.E0
     
-    #def find_coincident_events(self):
-    # No implementation needed since replacing self.llh.exp with self.llh_exp
-    # TODO get feedback if that change is acceptable
 
     # TODO why does run_background_trials call initialize_llh to init a new LLH with scrambled data?
     # is there no scrambling within the trials?
@@ -416,9 +413,10 @@ class MultiPointSourceFollowup(PointSourceFollowup, MultiFastResponseAnalysis):
         ['run', 'event', 'ra', 'dec', 'sigma', 'logE', 'time']
         added Delta Psi, spatial weight, energy weight, sample enum.
         '''
-        # TODO ideally samples should not overlap, however GFU and Greco do. 
-        # decide whether to require de-duplication at analysis level,
-        # or in this table (and record tuples in enum column).
+        # NOTE ideally samples should not overlap and this is prevented by configuring the dataset
+        # if not, duplicates will appear appear here twice
+        # (which is a warning that the combined LLH is iffy)
+
         for enum, _ana in enumerate(self.analyses):
             _ana.find_coincident_events(ns_params = self.ns_params)
             for _event in _ana.coincident_events:
