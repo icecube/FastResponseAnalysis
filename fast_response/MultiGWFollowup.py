@@ -5,6 +5,7 @@ from .FastResponseAnalysis import PriorFollowup
 
 import numpy as np
 import numpy.lib.recfunctions as rf
+import healpy as hp
 
 # These methods are very similar to (Multi)PriorFollowup
 # but GW analyses make some particular choices we want to reproduce here

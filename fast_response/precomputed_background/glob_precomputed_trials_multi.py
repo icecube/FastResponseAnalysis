@@ -48,7 +48,7 @@ def sort_by_glob_file(files):
 def load_maps(fn):
     return sparse.load_npz(fn)
 
-def concatenate_maps(files, nside) -> sparse.csr_matrix:
+def concatenate_maps(files, nside, max_ntrials=None) -> sparse.csr_matrix:
     files = [fn for fn in files if f"nside_{nside}" in fn]
     logger.info('Found {} files to load'.format(len(files)))
     if len(files)==0:
@@ -60,6 +60,8 @@ def concatenate_maps(files, nside) -> sparse.csr_matrix:
     for fn in tqdm(files):
         scan = load_maps(fn)
         maps = sparse.vstack((maps, scan))
+        if max_ntrials is not None and maps.shape[0] > max_ntrials:
+            return maps
     return maps
 
 def save_maps(maps, out):
