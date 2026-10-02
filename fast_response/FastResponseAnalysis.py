@@ -140,6 +140,8 @@ class FastResponseAnalysis(object):
         self.exp = None
         self.llh = self.initialize_llh(skipped=skipped, scramble=self.scramble)
         self.inj = None
+        # not yet unblinded or loaded BG trials:
+        self.ts, self.tsd = None, None
 
     @property
     def dataset(self):
@@ -148,6 +150,11 @@ class FastResponseAnalysis(object):
     @dataset.setter
     def dataset(self, x):
         self._dataset = x
+
+    @property
+    def datasets(self):
+        """Returns the datasets used"""
+        return [self.dataset]
 
     @property
     def index(self):
@@ -216,8 +223,10 @@ class FastResponseAnalysis(object):
             print("Grabbing data")
 
         dset = Datasets[self.dataset]
+        
         livetime_range = (dset.grl(self._season_names[0])['start'].min(),
                           dset.grl(self._season_names[-1])['stop'].max())
+    
         # TODO change this if the used GFU ever gets updated, or replace with end of GRL
         # TODO clean up the if-else while preserving default behaviour
         #if self.stop < 58933.0: 
@@ -238,8 +247,8 @@ class FastResponseAnalysis(object):
                 grl = dset.grl(season)
                 exps.append(exp)
                 grls.append(grl)
-            # 1a) legacy behaviour, these are added to GFU archival
             # TODO this relies on the assumption the archival GFU is equal to the default
+            # 1a) legacy behaviour, these are added to GFU archival
             if (self.stop > 58933.0) and self.dataset.startswith('GFUOnline_v001p02'):
                 # Add local 2020 if need be
                 # TODO: Need to figure out what to do for zenith_smoothed
@@ -284,7 +293,6 @@ class FastResponseAnalysis(object):
             reference_season = self._season_names[0]
         sinDec_bins = dset.sinDec_bins(reference_season)
         energy_bins = dset.energy_bins(reference_season)
-
         self.exp = exp
         self.mc = mc
         self.grl = grl
@@ -908,6 +916,7 @@ class PriorFollowup(FastResponseAnalysis):
             probs = hdf_data['PROBDENSITY'][()]
             area = 4*np.pi/probs.size
             probs *= area
+            # FIXME the below should be redundant with self.format_skymap(skymap)
             skymap = hp.pixelfunc.ud_grade(
                 probs, self._nside, power=-2,
                 order_in='NESTED', order_out='RING'
@@ -920,6 +929,15 @@ class PriorFollowup(FastResponseAnalysis):
         self.ra, self.dec, self.extension = None, None, extension
         self.save_items['skymap'] = skymap
 
+    # FIXME initialize_llh in GWFollowup mostly just waits (we do this different)
+    # BUT
+    # - does llh.set_temporal_model(box) instead of passing it to PSLLH constructor which does the same
+    # - does NOT set timescramble=True
+    # - (also not through the update_timescramble kwarg)
+    # ...so then does it even use the time scrambling?
+    # ...(should it? maybe I'm getting something wrong about the ontime)
+    # => but I guess it shouldn't matter because GWFollowup.llh is never used for trials.
+
     def __str__(self):
         int_str = super().__str__()
         int_str += ' '*10 + 'Skymap file:' + self.skymap_path
@@ -928,7 +946,7 @@ class PriorFollowup(FastResponseAnalysis):
 
     def format_skymap(self, skymap):
         r"""Method to up or downgrade nside of a skymap to 
-        the nside used in the analysis
+        the nside used in the analysis. Normalizes the sum to 1.
 
         Parameters
         -----------
@@ -940,6 +958,7 @@ class PriorFollowup(FastResponseAnalysis):
         skymap: array
             Healpix skymap, with correct nside for use in FRA
         """
+        # FIXME ud_grade vs. get_interp_val?
         if hp.pixelfunc.get_nside(skymap) != self._nside:
             skymap = hp.pixelfunc.ud_grade(skymap, self._nside, power=-2)
             skymap = skymap/skymap.sum()
@@ -1018,7 +1037,7 @@ class PriorFollowup(FastResponseAnalysis):
         self.tsd = tsd
         self.save_items['tsd'] = tsd
 
-    def load_background_trials(self, ntrials=None, rate=None, month=None):
+    def load_background_trials(self, ntrials=None, rate=None, month=None) -> np.ndarray:
         """Produce background trials based on precomputed all-sky scans 
         stored in sparse matrices produced by fast_response/precomputed_background/...
             precompute_ts.py (or its variants)
@@ -1041,6 +1060,11 @@ class PriorFollowup(FastResponseAnalysis):
         ------
         TypeError
             if neither month nor rate are supplied
+
+        Returns
+        -------
+        tsd : np.ndarray
+            Background TS values
         """
         if not ((rate is None) ^ (month is None)):
             raise TypeError("Need to supply either rate or month")
@@ -1091,27 +1115,19 @@ class PriorFollowup(FastResponseAnalysis):
 
         
 
-    def find_coincident_events(self, exp=None):
+    def find_coincident_events(self):
         r"""Find coincident events for a skymap
         based analysis. These are ontime events that are also in the 
         90% contour of the skymap
         """
         t_mask=(self.llh_exp['time']<=self.stop)&(self.llh_exp['time']>=self.start)
         events = self.llh_exp[t_mask]
-        # Using the llh_exp property -- TODO get feedback if they mind
+        # Using the new llh_exp property
         exp_theta = 0.5*np.pi - events['dec']
         exp_phi   = events['ra']
         exp_pix   = hp.ang2pix(self.nside, exp_theta, exp_phi)
         overlap   = np.isin(exp_pix, self.ipix_90)
         events = events[overlap]
-
-        # print nearby events, as a check (if needed)
-        # msk1 = (self.llh.exp[t_mask]['ra'] < (self.skymap_fit_ra+np.radians(5)))*(self.llh.exp[t_mask]['ra'] > (self.skymap_fit_ra-np.radians(5)))
-        # msk2 = (self.llh.exp[t_mask]['dec'] < (self.skymap_fit_dec+np.radians(5)))*((self.llh.exp[t_mask]['dec'] > self.skymap_fit_dec-np.radians(5)))
-        # msk3 = msk1*msk2
-        # print('Nearby events:')
-        # print("[run, event, ra, dec, sigma, logE, time]")
-        # for e in self.llh.exp[t_mask][msk3]: print([e[k] for k in ['run', 'event', 'ra', 'dec', 'sigma', 'logE', 'time']])
 
         if len(events) == 0:
             coincident_events = []
@@ -1215,6 +1231,40 @@ class PriorFollowup(FastResponseAnalysis):
             return ts, ns, gamma_fit
         else:
             return ts, ns
+
+    # Moved from GWFollowup: will work also for Multi*Followups due to llh.scan using the `enum` field in custom_events.
+    def per_event_scan(self, custom_events):
+        """Runs the all-sky scan for only one (or certain) events on the sky
+
+        Parameters
+        ------------
+        custom_events: masked array
+            Ontime event(s) loaded in Skylab to use when running the all sky scan.
+            Must have the field "enum" if used with a Multi*Followup.
+        
+        Returns
+        -----------
+        ts: float
+            best-fit TS using only this event
+        p: float
+            p-value for the given event(s)
+        
+        """
+        from skylab.priors import SpatialPrior
+
+        spatial_prior = SpatialPrior(self.skymap, containment = self._containment, allow_neg=self._allow_neg)
+        val = self.llh.scan(
+            0.0,0.0, scramble = False, spatial_prior=spatial_prior,
+            time_mask = [self.duration/2., self.centertime],
+            pixel_scan=[self.nside, self._pixel_scan_nsigma],
+            custom_events=custom_events
+        )
+        if val['TS'].size == 0:
+            ts = -1.*np.inf # FIXME why is the convention different than during unblind_TS?
+        else:
+            ts = val['TS_spatial_prior_0'].max()
+        p = np.count_nonzero(self.tsd >= ts) / float(len(self.tsd))
+        return ts, p
 
     def upper_limit(self):
         """ UPPER LIMIT WITH SPATIAL PRIOR NOT YET IMPLEMENTED
@@ -1471,6 +1521,9 @@ class PointSourceFollowup(FastResponseAnalysis):
         ns_params: dict
             Fit parameters to use for weight calculation, e.g. if fit happened in MultiPointSourceFollowup
         """
+        # TODO spatial weight means that cascades are never "coincident"
+        # (different story in PriorFollowup - then resolution plays no role)
+        # can have an overfluctuation in 30 days without a coincidence!
         if ns_params is None:
             ns_params = self.ns_params
         spatial_weights = self.llh.llh_model.signal(
