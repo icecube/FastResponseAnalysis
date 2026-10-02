@@ -985,6 +985,11 @@ class PriorFollowup(FastResponseAnalysis):
         ntrials: int
             number of trials to run (default 1000)
         """ 
+        # If they are already loaded, no need to run new ones; maybe being called from calc_pvalue
+        if self.tsd is not None:
+            if self.tsd.size >= ntrials:
+                return self.tsd[:ntrials]
+        # Else assume we're calling this method because we WANT to run new ones.
         tsd = []
         spatial_prior = SpatialPrior(self.skymap, containment = self._containment, allow_neg=self._allow_neg)
 
