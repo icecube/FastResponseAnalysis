@@ -42,6 +42,7 @@ consumer = Consumer(client_id=client_id,
 consumer.subscribe(['igwn.gwalert'])
 
 def process_gcn(params, mock=False): 
+    error_bot = slackbot('fra-shifting')
     AlertTime=datetime.utcnow().isoformat()
     analysis_path = os.environ.get('FAST_RESPONSE_SCRIPTS')
 
@@ -168,8 +169,12 @@ def process_gcn(params, mock=False):
                     skymap = new_output.replace('multiorder','converted')
                     logger.info('Successfully converted map: {}'.format(skymap))
                 else:
+                    if not mock:
+                        error_bot.post_short_msg(f"Failed to convert GW skymap, {error_bot.get_shifter_id()} on shift!")
                     raise Exception('Failed to convert map.')
             except:
+                if not mock:
+                    error_bot.post_short_msg(f"Failed to get skymap in correct format for GW alert, {error_bot.get_shifter_id()} on shift!")
                 logger.error('Failed to get skymap in correct format! \nDownload skymap and then re-run script with' +\
                             f'args:  --time {event_mjd} --name {name} --skymap PATH_TO_SKYMAP')
                 return
@@ -206,6 +211,7 @@ def process_gcn(params, mock=False):
                 bot.post_short_msg(slack_message)
             
         except Exception as e:
+            error_bot.post_short_msg(f"Failed to push to private webpage, {error_bot.get_shifter_id()} on shift!")
             logger.error('Failed to push to (private) webpage.')
             logger.error(e)
 
