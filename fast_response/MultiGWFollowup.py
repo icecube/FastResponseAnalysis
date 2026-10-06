@@ -7,9 +7,19 @@ import numpy as np
 import numpy.lib.recfunctions as rf
 import healpy as hp
 
+import logging
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+
 # These methods are very similar to (Multi)PriorFollowup
 # but GW analyses make some particular choices we want to reproduce here
 class MultiGWFollowup(MultiPriorFollowup):
+
+    # Defaults adopted from GWFollowup, different to PriorFollowup
+    _pixel_scan_nsigma = 3.0
+    _allow_neg = True
+    _containment = None
 
     def find_coincident_events(self):
         r"""
@@ -28,6 +38,7 @@ class MultiGWFollowup(MultiPriorFollowup):
         t_mask=(self.llh_exp['time'] <= self.stop) & (self.llh_exp['time'] >= self.start)
         events = self.llh_exp[t_mask]
         ontime_pix = hp.ang2pix(self.nside, 0.5*np.pi - events['dec'], events['ra'])
+        logger.debug(f"nside={self.nside} on-time events ipix={ontime_pix}")
         overlap    = np.isin(ontime_pix, self.ipix_90)
 
         events = rf.append_fields(
