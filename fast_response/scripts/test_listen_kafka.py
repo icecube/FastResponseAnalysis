@@ -54,7 +54,7 @@ else:
              'igwn.gwalert']
 
 consumer.subscribe(topics)
-logger.warning("checking for alerts, connecting to GCN")#.format(topic))
+logger.warning("checking for alerts, connecting to GCN")
 
 while True:
     for message in consumer.consume(timeout=1):
@@ -66,7 +66,7 @@ while True:
 
         try:
             if args.classic:
-                alert_xml = value.decode('utf-8') #.encode('ascii')
+                alert_xml = value.decode('utf-8')
                 print(alert_xml)
                 if args.save_out:
                     with open('test_alert.xml', 'w') as f:
