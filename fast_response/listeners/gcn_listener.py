@@ -44,7 +44,8 @@ consumer.subscribe(['gcn.classic.voevent.ICECUBE_ASTROTRACK_BRONZE',
                     'gcn.classic.voevent.ICECUBE_ASTROTRACK_GOLD',
                     'gcn.classic.voevent.ICECUBE_CASCADE'])
 
-def process_gcn(record): #payload,root
+def process_gcn(record): 
+    bot = slackbot('fra-shifting')
     analysis_path = os.environ.get('FAST_RESPONSE_SCRIPTS')
     if analysis_path is None:
         try:
@@ -52,7 +53,7 @@ def process_gcn(record): #payload,root
             analysis_path = os.path.dirname(fast_response.__file__) + '/scripts/'
         except Exception as e:
             logger.error('Error finding FRA package!!')
-            post_error("Error finding FRA package")
+            bot.post_short_msg(f"Eror finding FRA package, {bot.get_shifter_id()} on shift!")
             print('###########################################################################')
             print('CANNOT FIND ENVIRONMENT VARIABLE POINTING TO REALTIME FAST RESPONSE PACKAGE\n')
             print('You can either (1) install fast_response via pip or ')
@@ -90,7 +91,6 @@ def process_gcn(record): #payload,root
     event_mjd = Time(eventtime, format='isot').mjd
 
     # send message to slack with alert info
-    bot = slackbot('fra-shifting')
     message =f'Listener found {alert_type} type alert, {event_name}. Waiting 1 day to run FRA'
     bot.post_short_msg(message)
 
@@ -139,8 +139,6 @@ def process_gcn(record): #payload,root
     logger.info('\nRunning {} --skymap={} --time={} --alert_id={} --suffix={}'.format(
         command, skymap, str(event_mjd), run_id+':'+event_id, suffix))
 
-    print(params)
-
     subprocess.call([command, '--skymap={}'.format(skymap), 
         '--time={}'.format(str(event_mjd)), 
         '--alert_id={}'.format(run_id+':'+event_id),
@@ -159,16 +157,11 @@ def process_gcn(record): #payload,root
             subprocess.call([analysis_path+'document.py', '--path', dir_2d[0]])
             doc=True
         except:
-            post_error("Failed to run document command")
+            bot.post_short_msg(f"Failed to run document command, {bot.get_shifter_id()} on shift!")
             logger.warning('Failed to document to private webpage')
 
     try: 
-        shifters = pd.read_csv(os.path.join(analysis_path,'../slack_posters/fra_shifters.csv'), 
-                               parse_dates=[0,1])
-        on_shift=''
-        for i in shifters.index:
-            if shifters['start'][i]<datetime.utcnow()<shifters['stop'][i]:
-                on_shift+='<@{}> '.format(shifters['slack_id'][i])
+        on_shift = bot.get_shifter_id()
         link = 'https://user-web.icecube.wisc.edu/~jthwaites/FastResponse/webpage/output/'
         start_1000 = Time(event_mjd -500./86400., format='mjd').iso
         wp_link_1000 = '{}{}_{}_1.0e+03_s.html'.format(link, start_1000[:10].replace('-','_'),event_name)
@@ -183,29 +176,9 @@ def process_gcn(record): #payload,root
 
         bot.post_short_msg(done_message)
     except Exception as e:
-        post_error("Failed to push results to private webpage")
+        bot.post_short_msg(f"Failed to push results to private webpage, {bot.get_shifter_id()} on shift!")
         logger.warning('Failed to push to private webpage')
         logger.warning(e)
-
-def post_error(errMsg=None): 
-    analysis_path = os.environ.get('FAST_RESPONSE_SCRIPTS')
-    bot = slackbot('fra-shifting')
-    if errMsg != None: 
-        message = errMsg
-    else: 
-        message = "ERROR in FRA, please check internal listener!"
-    try: 
-        shifters = pd.read_csv(os.path.join(analysis_path, '../slack_posters/fra_shifters.csv'), parse_dates=[0,1])
-        on_shift = ''
-        for i in shifters.index:
-            if shifters['start'][i] < datetime.utcnow() < shifters['stop'][i]: 
-                on_shift+='<@{}> '.format(shifters['slack_id'][i])
-        error_message = f"{message} {on_shift} on shift."
-        bot.post_short_msg(error_message)
-    except Exception as e: 
-        logger.warning("Failed to post error message")
-        logger.warning(e)
-    return 
 
 if __name__ == '__main__':
 
@@ -235,15 +208,15 @@ if __name__ == '__main__':
                 if message.error():
                     logger.warning(message.error())
                     continue
-                # value = message.value().decode('utf-8')
-                # value = value.replace("<?xml version='1.0' encoding='UTF-8'?>","") #lxml doesn't like this line
                 value = message.value()
                 logger.warning('Found GCN on topic {}'.format(message.topic()))
                 notice = lxml.etree.fromstring(value)
                 try: 
                     process_gcn(notice)
                 except Exception as e:
-                    post_error("Could not process GCN")
+                    # Need instance of slackbot to post error 
+                    bot = slackbot('fra-shifting')
+                    bot.post_short_msg(f"Could not process GCN, {bot.get_shifter_id()} on shift!")
                     logger.warning("Could not process GCN: ", e) 
 
     else:
@@ -251,11 +224,12 @@ if __name__ == '__main__':
             import fast_response
             sample_skymap_path=os.path.dirname(fast_response.__file__) +'/sample_skymaps/'
         except Exception as e:
-            post_error("Cannot find path to sample skymaps")
             logger.error('Cannot find path to sample skymaps')
             raise Exception(e)
         if args.test_error: 
-            post_error()
+            # Need instance of slackbot to post error 
+            bot = slackbot('fra-shifting')
+            bot.post_short_msg(f"Testing error, {bot.get_shifter_id()} on shift!")
 
         if not args.test_cascade and not args.test_error:
             logger.info("Running on sample track . . . ")

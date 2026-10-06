@@ -4,6 +4,8 @@ Jessie Thwaites, March 2025
 """
 
 import os
+import pandas as pd
+from datetime import datetime
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 from dotenv import load_dotenv
@@ -49,6 +51,20 @@ class slackbot(object):
         else:
             print('ERROR!  Channel name not found in channel_ids')
             return None
+
+    def get_shifter_id(self):
+        analysis_path = os.environ.get('FAST_RESPONSE_SCRIPTS')
+        on_shift = ''
+        try: 
+            shifters = pd.read_csv(os.path.join(analysis_path,'../slack_posters/fra_shifters.csv'), 
+                                parse_dates=[0,1])
+            for i in shifters.index:
+                if shifters['start'][i]<datetime.utcnow()<shifters['stop'][i]:
+                    on_shift+='<@{}> '.format(shifters['slack_id'][i]) 
+        except Exception as e: 
+            print(f"Error finding shifters: {e}")
+
+        return on_shift
 
     def post_block_to_slack(self, message_dict, title='Test', header=False):
         """
@@ -140,7 +156,7 @@ class slackbot(object):
             
         except SlackApiError as e:
             print(f"Error posting message: {e}")
-
+ 
     def post_file_to_slack(self, title = "results file", file_name=None):
         """
         Post a file to a slack channel
