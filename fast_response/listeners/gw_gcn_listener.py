@@ -57,7 +57,7 @@ def process_gcn(params, mock=False):
             print('###########################################################################')
             raise Exception(e)
 
-    name = params['superevent_id'] + '-'+ +params['time_created'].replace(':','').replace('-','') + '-' + params['alert_type'].lower()
+    name = params['superevent_id'] + '-'+ params['time_created'].replace(':','').replace('-','') + '-' + params['alert_type'].lower()
     if params['alert_type'].lower() == 'retraction':
         logger.warning('Listener does not run on Retractions. Skipping...')
         return
