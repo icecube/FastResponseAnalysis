@@ -26,7 +26,7 @@ class GWFollowup(PriorFollowup):
     Class for followup of a GW. By default, fits the index in the LLH. Built on the
     PriorFollowup class for skymap-based analyses
     """
-
+    # TODO child class for GFU instead of already setting defaults here
     _dataset = 'GFUOnline_v001p02'
     _fix_index = False
     _float_index = True
@@ -119,7 +119,8 @@ class GWFollowup(PriorFollowup):
             if month is None:
                 # month = datetime.datetime.utcnow().month
                 month = Time(self.centertime, format='mjd').datetime.month
-
+            # FIXME replace hardcoded paths
+            # TODO make new subclass for GFU
             bg_trial_dir = '/data/ana/analyses/NuSources/' \
                 + '2021_v2_alert_stacking_FRA/fast_response/gw_precomputed_trials/'
 
@@ -284,7 +285,7 @@ class GWFollowup(PriorFollowup):
             days=self._nb_days,
             signal=BoxProfile(self.start, self.stop))
 
-        llh.set_temporal_model(box)
+        llh.set_temporal_model(box) # FIXME without update_timescramble?
 
         return llh
     
@@ -594,23 +595,6 @@ class GWFollowup(PriorFollowup):
         self.save_items['sens_range'] = sens_range
         self.make_dec_pdf()
 
-    def load_ps_sensitivities(self):
-        sens_pickle = f'{self._sens_dir}/ps_sensitivities_deltaT_{self.duration*86400.:.2e}s.pkl'
-        from os.path import isfile
-        if isfile(sens_pickle):
-            with open(sens_pickle, 'rb') as f:
-                saved_sens=pickle.load(f)
-                dec_range=saved_sens['dec']
-                sens=saved_sens['sens_flux']
-            return dec_range, sens
-        
-        sens_npy = f"{self._sens_dir}/deltaT_{self.duration*86400:.2e}_index_{self.index:.1f}.npy"
-        if isfile(sens_npy):
-            saved_sens = np.load(sens_npy)
-            return saved_sens['dec'], saved_sens['flux'] 
-        raise FileNotFoundError(f"Could find neither {sens_pickle} nor {sens_npy}")
-
-
     def ps_sens_range(self):
         r""" 
         Compute minimum and maximum sensitivities within
@@ -676,38 +660,7 @@ class GWFollowup(PriorFollowup):
         self.coincident_events = [dict(zip(self.events_rec_array.dtype.names, x)) for x  in self.events_rec_array]
         self.save_items['coincident_events'] = self.coincident_events
 
-    def per_event_scan(self, custom_events):
-        """Runs the all-sky scan for only one (or certain) events on the sky
-
-        Parameters
-        ------------
-        custom_events: masked array
-            Ontime event(s) loaded in Skylab to use when running the all sky scan
-        
-        Returns
-        -----------
-        ts: float
-            best-fit TS using only this event
-        p: float
-            p-value for the given event(s)
-        
-        """
-        from skylab.priors import SpatialPrior
-
-        spatial_prior = SpatialPrior(self.skymap, containment = self._containment, allow_neg=self._allow_neg)
-        val = self.llh.scan(
-            0.0,0.0, scramble = False, spatial_prior=spatial_prior,
-            time_mask = [self.duration/2., self.centertime],
-            pixel_scan=[self.nside, self._pixel_scan_nsigma],
-            custom_events=custom_events
-        )
-        if val['TS'].size == 0:
-            ts = -1.*np.inf
-        else:
-            ts = val['TS_spatial_prior_0'].max()
-        p = np.count_nonzero(self.tsd >= ts) / float(len(self.tsd))
-        return ts, p
-
+    
     def make_dec_pdf(self):
         r""" 
         Plot PDF of source declination overlaid with IceCube's point source sensitivity

@@ -39,30 +39,31 @@ from .precomputed_background import glob_precomputed_trials_multi as pt
 
 mpl.use('agg')
 current_palette = sns.color_palette('colorblind', 10)
-logging.getLogger().setLevel(logging.ERROR)
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.WARNING)
 warnings.simplefilter("ignore", UserWarning)
 warnings.simplefilter("ignore", RuntimeWarning)
 
-class FastResponseAnalysis(object):
+class FastResponseAnalysis:
     """ 
     Object to do realtime followup analyses of 
     astrophysical transients with arbitrary event
     localization
     """
-    _dataset = None
+    _dataset = "GFUOnline_v001p02"
     _fix_index = True
     _float_index = not _fix_index
     _index_range = [1., 4.]
     _index = 2.0
-    _floor = np.radians(0.2)
+    _floor = np.radians(0.2) # applied to the dataset at load time
     _verbose = True
-    _angScale = 2.145966
+    _angScale = 2.145966 # converting sigma to 90% circular error
     _llh_seed = 1
-    _season_names = [f"IC86, 201{y}" for y in range(1, 10)]
+    _season_names = [f"IC86, 201{y}" for y in range(1, 10)] # applies to GFU
     _nb_days = 10 # BG window around analysis window used to estimate BG rate.
     _ncpu = 5
     _jitter = False
-    _background_days = 6 # if not using archival data, get_data() will prepend this duration to load
+    _background_days = 6 # if not using exclusively archival data, get_data() will prepend this duration to [start, stop].
 
     def __init__(self, name, tstart, tstop,
                  skipped=None, seed=None,
@@ -72,9 +73,11 @@ class FastResponseAnalysis(object):
                  fix_index=None,
                  dataset=None,
                  ):
-        logging.debug('FastResponseAnalysis.__init__')
+        logger.debug('FastResponseAnalysis.__init__')
         self.name = name
 
+         # overriding defaults in the constructor
+         # e.g. when broadcasting from a MultiFRA
         if index is not None:
             self._index = float(index)
         if dataset is not None:
@@ -112,10 +115,8 @@ class FastResponseAnalysis(object):
                 self.analysispath))
             subprocess.call(['rm', '-r', self.analysispath])
             subprocess.call(['mkdir', self.analysispath])
-            # sys.exit()
         elif self.save_output:
-            subprocess.call(['mkdir', self.analysispath])
-            #os.makedirs(self.analysispath, exist_ok=False) if creating parent directories is ok
+            os.makedirs(self.analysispath, exist_ok=True) # create parent dir's if needed
 
         if 'test' in self.name.lower():
             self.scramble = True
@@ -235,7 +236,7 @@ class FastResponseAnalysis(object):
         if self.start < livetime_range[0]:
            raise ValueError(f'Followup start MJD {self.start} earlier than first archival season {self._season_names[0]}, MJD {livetime_range}')
         if self.dataset.startswith('GFUOnline_v001p02'):
-            livetime_range = (livetime_range[0], 59215) # default behavior
+            livetime_range = (livetime_range[0], 59215) # legacy default behavior
         # 1) if [start, stop] falls within the archival livetime:
         if self.stop < livetime_range[1]:
         # FIXME this breaks the default behaviour of shimming in 2020 GFU
@@ -247,8 +248,8 @@ class FastResponseAnalysis(object):
                 grl = dset.grl(season)
                 exps.append(exp)
                 grls.append(grl)
-            # TODO this relies on the assumption the archival GFU is equal to the default
-            # 1a) legacy behaviour, these are added to GFU archival
+            # 1a) legacy behaviour for GFU, these are added to GFU archival
+            # NOTE have to change when updating GFU dataset.
             if (self.stop > 58933.0) and self.dataset.startswith('GFUOnline_v001p02'):
                 # Add local 2020 if need be
                 # TODO: Need to figure out what to do for zenith_smoothed
@@ -898,11 +899,12 @@ class PriorFollowup(FastResponseAnalysis):
     '{lookup}',
     '*', # individual analyses will need to specify here whether they glob them on the fly or have a single file
     ])
+    _sens_dir = None
 
     def __init__(self, name, skymap_path, tstart, tstop, skipped=None, seed=None,
                  outdir=None, save=True, extension=None):
 
-        logging.debug('PriorFollowup.__init__')
+        logger.debug('PriorFollowup.__init__')
 
         super().__init__(name, tstart, tstop, skipped=skipped, seed=seed,
                        outdir=outdir, save=save, extension=extension)
@@ -1172,6 +1174,7 @@ class PriorFollowup(FastResponseAnalysis):
         pixels = np.arange(len(self.skymap))
         t1 = time.time()
         print("Starting scan")
+        logger.debug(f"with nside={self.nside}, nsigma={self._pixel_scan_nsigma}, containment={self._containment}")
         val = self.llh.scan(
             0.0,0.0,
             # if scrambling, llh.scan() takes a seed from its own kwargs
@@ -1310,6 +1313,22 @@ class PriorFollowup(FastResponseAnalysis):
           
         return np.asarray(ipix,dtype=int)
 
+    def load_ps_sensitivities(self):
+        sens_pickle = f'{self._sens_dir}/ps_sensitivities_deltaT_{self.duration*86400.:.2e}s.pkl'
+        from os.path import isfile
+        if isfile(sens_pickle):
+            with open(sens_pickle, 'rb') as f:
+                saved_sens=pickle.load(f)
+                dec_range=saved_sens['dec']
+                sens=saved_sens['sens_flux']
+            return dec_range, sens
+        
+        sens_npy = f"{self._sens_dir}/deltaT_{self.duration*86400:.2e}_index_{self.index:.1f}.npy"
+        if isfile(sens_npy):
+            saved_sens = np.load(sens_npy)
+            return saved_sens['dec'], saved_sens['flux'] 
+        raise FileNotFoundError(f"Could find neither {sens_pickle} nor {sens_npy}")
+
     def dec_skymap_range(self):
         r""" Compute minimum and maximum declinations within
         of the 90% contour of a given skymap
@@ -1397,12 +1416,12 @@ class PointSourceFollowup(FastResponseAnalysis):
     Class for point-source or extended source followup
     i.e. there is a fixed location on the sky, not a healpy skymap
     """
-    logging.debug('PointSourceFollowup.__init__')
+    logger.debug('PointSourceFollowup.__init__')
     
     _nside = 256
     def __init__(self, name, ra, dec, tstart, tstop, extension=None,
                  skipped=None, outdir=None, save=True, seed=None):
-        logging.debug('PointSourceFollowup.__init__')
+        logger.debug('PointSourceFollowup.__init__')
         super().__init__(name, tstart, tstop, skipped=skipped, seed=seed,
                        outdir=outdir, save=save, extension=extension)
 
