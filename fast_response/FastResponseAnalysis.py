@@ -66,7 +66,7 @@ class FastResponseAnalysis:
     _background_days = 6 # if not using exclusively archival data, get_data() will prepend this duration to [start, stop].
 
     def __init__(self, name, tstart, tstop,
-                 skipped=None, seed=None,
+                 skipped=None, seed=1,
                  outdir=None, save=True,
                  extension=None,
                  index=None,
@@ -86,8 +86,8 @@ class FastResponseAnalysis:
             self._fix_index = fix_index
             self._float_index = not self._fix_index
         
-        if seed is not None:
-            self.llh_seed = seed
+        self.llh_seed = seed
+        
         if outdir is None:
             outdir = os.environ.get('FAST_RESPONSE_OUTPUT')
             if outdir is None:
@@ -135,7 +135,6 @@ class FastResponseAnalysis:
         self.extension = extension
         if self.extension is not None:
             self.extension = np.deg2rad(self.extension)
-        self.llh_seed = seed if seed is not None else 1
         self.skipped = skipped
         self.skipped_event = None
         self.exp = None
@@ -171,9 +170,8 @@ class FastResponseAnalysis:
         return self._llh_seed
     @llh_seed.setter
     def llh_seed(self, x):
-        # FIXME the llh does not get initialized again
-        # so this does not repeat the initial scramble
-        # FIXME what would be a consistent way to set_rng_seed on the LLH's if they exist?
+        # NOTE this can be used for subsequent scrambles
+        # but will no repeat the scramble from initialize_llh
         self._llh_seed = x
 
     def unify_exp_array(self, _exp, enum=0):
@@ -1268,8 +1266,8 @@ class PriorFollowup(FastResponseAnalysis):
     def upper_limit(self):
         """ UPPER LIMIT WITH SPATIAL PRIOR NOT YET IMPLEMENTED
         """
-        print("Upper limit with spatial prior not yet implemented")
-        pass
+        raise NotImplementedError("No upper limit in PriorFollowup, use scripts.")
+        
 
     def ipixs_in_percentage(self, percentage):
         """Finding ipix indices confined in a given percentage.
