@@ -224,33 +224,29 @@ class FastResponseAnalysis:
             print("Grabbing data")
 
         dset = Datasets[self.dataset]
-        
-        livetime_range = (dset.grl(self._season_names[0])['start'].min(),
+
+        archival_range = (dset.grl(self._season_names[0])['start'].min(),
                           dset.grl(self._season_names[-1])['stop'].max())
+        if self.dataset.startswith('GFUOnline'):
+            archival_range = (archival_range[0], 59215) # NOTE legacy default behavior; change if extending GFU seasons.
     
-        # TODO change this if the used GFU ever gets updated, or replace with end of GRL
-        # TODO clean up the if-else while preserving default behaviour
-        #if self.stop < 58933.0: 
+        if self.start < archival_range[0]:
+           raise ValueError(f'Followup start MJD {self.start} earlier than first archival season {self._season_names[0]}, MJD {archival_range[0]}')
         
-        
-        if self.start < livetime_range[0]:
-           raise ValueError(f'Followup start MJD {self.start} earlier than first archival season {self._season_names[0]}, MJD {livetime_range}')
-        if self.dataset.startswith('GFUOnline_v001p02'):
-            livetime_range = (livetime_range[0], 59215) # legacy default behavior
-        # 1) if [start, stop] falls within the archival livetime:
-        if self.stop < livetime_range[1]:
-        # FIXME this breaks the default behaviour of shimming in 2020 GFU
+        # 1) if [start, stop] falls within the archival livetime...
+        elif self.stop < archival_range[1]:
             if self._verbose:
                 print("Old times, just grabbing archival data")
+            # 1a) include those seasons:
             exps, grls = [], []
             for season in self._season_names:
                 exp, mc, livetime = dset.season(season, floor=self._floor)
                 grl = dset.grl(season)
                 exps.append(exp)
                 grls.append(grl)
-            # 1a) legacy behaviour for GFU, these are added to GFU archival
+            # 1b) legacy behaviour for GFU, also add 2020 data (not overlapping with IC86, 2019)
             # NOTE have to change when updating GFU dataset.
-            if (self.stop > 58933.0) and self.dataset.startswith('GFUOnline_v001p02'):
+            if (self.stop > 58933.0) and self.dataset.startswith('GFUOnline'):
                 # Add local 2020 if need be
                 # TODO: Need to figure out what to do for zenith_smoothed
                 exp_new = np.load(
@@ -269,12 +265,11 @@ class FastResponseAnalysis:
             # concatenate the rest
             exp = np.concatenate(exps)
             grl = np.concatenate(grls)
-            # TODO discuss: for new analyses, can replace with new GFU?
-            # TODO discuss: can replace this v001p02 + /data/user/ with a Skylab dataset definition?
+            
         # 2) use the livestream method to grab fresh events
         else:
             if self._verbose:
-                print("Recent time: querying the i3live database")
+                print("Recent time: querying the database")
             # (default) retrieve a fixed off-time window before the analysis window
             if livestream_start is None or livestream_stop is None:
                 livestream_start = self.start - self._background_days
