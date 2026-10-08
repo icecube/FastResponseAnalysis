@@ -163,9 +163,9 @@ class GWFollowup(PriorFollowup):
 
         t1 = Time(datetime.datetime.utcnow()).mjd
         if ((t1-self.stop)*86400.)>5000.:
-            #if it's been long enough, only load 2000s
-            print('Loading 2000s of data after the time window')
-            t1 = self.stop + 2000./86400. 
+            #if it's been long enough, only load 5000s
+            print('Loading 5000s of data after the time window')
+            t1 = self.stop + 5000./86400. 
         exp_long, livetime_long, grl_long = self.dset.livestream(
             self.start,
             t1,
@@ -179,8 +179,8 @@ class GWFollowup(PriorFollowup):
         if exp_long[mask].size > 0:
             check_passed = True
             print('Found {} events after end of time window'.format(exp_long[mask].size))
-        # elif Time(datetime.datetime.utcnow()).mjd > (self.stop + 5000./86400.):
-        #     raise Exception('No events found 2000 seconds after GW event.')
+        elif Time(datetime.datetime.utcnow()).mjd > (self.stop + 5000./86400.):
+            raise Exception('No events found 5000 seconds after GW event.')
         
         return check_passed
 
