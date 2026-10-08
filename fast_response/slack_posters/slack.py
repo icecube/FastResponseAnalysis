@@ -26,10 +26,32 @@ class slackbot(object):
         self.botname = 'fra-alert-bot'
         self.icon='https://upload.wikimedia.org/wikipedia/commons/5/5d/Penguu_%28Adelie_Penguin%29.png'
 
-        self.channel_id = realtime_tools.slackapp_tools.get_channel_id(self.channel_name)
+        channel_id = self.get_chan_id(channel_name)
         if channel_id is not None:
             self.channel_id = channel_id
             self.channel_name = channel_name
+
+    def get_chan_id(self, channel_name):
+        """ Get the channel ID for posting to a slack channel
+        
+        Parameters
+        ----------
+        channel_name: str
+            Name of the channel to send to
+        """
+        
+        chan_ids={}
+        with open('/home/jthwaites/private/tokens/slack_chan_ids.txt','r') as f:
+            for line in f.readlines():
+                ch = line.replace('\n','').replace("'",'').split(':')
+                chan_ids[ch[0]] = ch[1]
+        if channel_name[0] == '#':
+            channel_name = channel_name[1:]
+        if channel_name in chan_ids:
+            return chan_ids[channel_name]
+        else:
+            print('ERROR!  Channel name not found in channel_ids')
+            return None
 
     def get_shifter_id(self):
         analysis_path = os.environ.get('FAST_RESPONSE_SCRIPTS')
@@ -83,7 +105,7 @@ class slackbot(object):
         if self.channel_name is None:
             print('No channel specified, posting to test_messaging')
             self.channel_name = 'test_messaging'
-            self.channel_id = realtime_tools.slackapp_tools.get_channel_id(self.channel_name)
+            self.channel_id = self.get_chan_id(self.channel_name)
         if self.channel_id is None:
             # should never get here, but if it does... exit
             print('Channel ID not found, exiting')
@@ -117,7 +139,7 @@ class slackbot(object):
         if self.channel_name is None:
             print('No channel specified, posting to test_messaging')
             self.channel_name = 'test_messaging'
-            self.channel_id = realtime_tools.slackapp_tools.get_channel_id(self.channel_name)
+            self.channel_id = self.get_chan_id(self.channel_name)
         if self.channel_id is None:
             # should never get here, but if it does... exit
             print('Channel ID not found, exiting')
@@ -155,7 +177,7 @@ class slackbot(object):
         if self.channel_name is None:
             print('No channel specified, posting to test_messaging')
             self.channel_name = 'test_messaging'
-            self.channel_id = realtime_tools.slackapp_tools.get_channel_id(self.channel_name)
+            self.channel_id = self.get_chan_id(self.channel_name)
         if self.channel_id is None:
             # should never get here, but if it does... exit
             print('Channel ID not found, exiting')
