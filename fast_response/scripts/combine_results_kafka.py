@@ -209,8 +209,8 @@ def parse_notice(params, wait_for_llama=False, heartbeat=False):
         return
 
     collected_results = {}
-    collected_results["$schema"]= "https://gcn.nasa.gov/schema/v4.2.0/gcn/notices/icecube/lvk_nu_track_search.schema.json"
-    collected_results["type"]= "IceCube LVK Alert Nu Track Search"
+    collected_results["$schema"]= "https://gcn.nasa.gov/schema/v[VERS]/gcn/notices/icecube/lvk_nu_search.schema.json"
+    collected_results["type"]= "IceCube LVK Alert Nu Followup"
 
     eventtime = record.find('.//ISOTime').text
     event_mjd = Time(eventtime, format='isot').mjd
@@ -221,8 +221,12 @@ def parse_notice(params, wait_for_llama=False, heartbeat=False):
 
     logger.info("{} alert found, processing GCN".format(name))
     collected_results['ref_ID'] = name.split('-')[0]
-    collected_results['reference']= {"gcn.notices.LVK.alert": name}
-    
+    collected_results['reference'] = {
+            "gcn.notices.LVK.alert": name,
+            "skymap_filename": params['event']['skymap_filename'],
+            }
+    collected_results['pipeline'] = "HE Tracks"
+
     ### WAIT ###
     # wait until the 500s has elapsed for data
     current_mjd = Time(datetime.utcnow(), scale='utc').mjd
