@@ -2,20 +2,20 @@
 
 import logging
 from datetime import datetime
-import socket
-import requests
-import healpy as hp
+#import socket
+#import requests
+#import healpy as hp
 import matplotlib as mpl
 mpl.use('agg')
 import matplotlib.pyplot as plt
 import io, time, os, glob, subprocess
-import urllib.request, urllib.error, urllib.parse
+#import urllib.request, urllib.error, urllib.parse
 import argparse
 import json, pickle
 from gcn_kafka import Consumer
 #from icecube import realtime_tools
 import numpy as np
-import lxml.etree
+#import lxml.etree
 from astropy.time import Time
 import dateutil.parser
 from datetime import datetime
@@ -35,10 +35,7 @@ consumer = Consumer(client_id=client_id,
                     config=config)
 
 # Subscribe to topics to receive alerts
-consumer.subscribe(['gcn.classic.voevent.LVC_PRELIMINARY',
-                    'gcn.classic.voevent.LVC_INITIAL',
-                    'gcn.classic.voevent.LVC_UPDATE'])
-#consumer.subscribe(['igwn.gwalert'])
+consumer.subscribe(['igwn.gwalert'])
 
 def SendAlert(results=None):
         from gcn_kafka import Producer
@@ -165,32 +162,39 @@ def combine_events(uml_ontime, llama_ontime):
 
     return coinc_events
 
-def parse_notice(record, wait_for_llama=False, heartbeat=False):
+def parse_notice(params, wait_for_llama=False, heartbeat=False):
     logger = logging.getLogger()
+    fra_bot = slackbot('fra-shifting')
 
-    if record.attrib['role']!='observation':
+    params['role'] = 'observation' if 'MS' in params['superevent_id'] else 'test'
+    # Make sure that event parameters are included! else, post an error
+    if  params['event'] is None:
+        logger.warning('No event params found in notice!')
+        fra_bot.post_short_msg('Combine_results_kafka: error finding event params in notice for {}!'.format(params['superevent_id']))
+        return
+
+    if 'search' in params['event']: # one more check to identify mocks or testing
+        if params['event']['search'] == 'MDC':
+            params['role'] = 'test'
+
+    if params['role']!='observation':
         fra_results_location = '/data/user/jthwaites/o4-mocks/'
         if not heartbeat:
-            logger.warning('found test event - not in mock mode. returning')
+            logger.info('found test event - not in mock mode. returning')
             return
         else:
-            logger.warning('found test event')
+            logger.info('found test event')
     else:
         logger.warning('ALERT FOUND')
         fra_results_location = os.environ.get('FAST_RESPONSE_OUTPUT')
     
-    ### GENERAL PARAMETERS ###
-    #read event information
-    params = {elem.attrib['name']:
-              elem.attrib['value']
-              for elem in record.iterfind('.//Param')}
-
-    # ignore subthreshold, only run on significant events
+    # check if the event is Significant
     subthreshold=False
-    if 'Significant' in params.keys():
-        if int(params['Significant'])==0: 
-            subthreshold=True
-            logger.warning('low-significance alert found. ')
+    if not params['event']['significant']:
+        logger.warning('low-significance alert found.')
+        subthreshold=True
+
+    #### TO HERE #####
     if params['Group'] == 'Burst' or params["Pipeline"] =='CWB' or params["Pipeline"]=='aframe':
         wait_for_llama = False
         m = 'Significant' if not subthreshold else 'Subthreshold'
@@ -534,13 +538,12 @@ def parse_notice(record, wait_for_llama=False, heartbeat=False):
         #logger.info('status: {}'.format(status))
 
         #send the notice to slack
-        channel = '#gw-mock-heartbeat'
         try:
-            bot = slackbot(channel)
+            bot = slackbot('gw-mock-heartbeat')
             bot.post_file_to_slack(title='LvkNuTrackSearch {} GCN Notice'.format(name), file_name=saved_results)
         except Exception as e:
             logger.warning('Failed to post to slack.')
-            logger.info(e)
+            logger.warning(e)
 
 parser = argparse.ArgumentParser(description='Combine GW-Nu results')
 parser.add_argument('--run_live', action='store_true', default=False,
@@ -561,46 +564,38 @@ logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 logger.warning("combine_results starting, connecting to GCN")
 
-#fra_results_location = os.environ.get('FAST_RESPONSE_OUTPUT')#'/data/user/jthwaites/o4-mocks/'
 llama_results_location = '/home/followup/lvk_dropbox/'
-#llama_results_location = '/home/azhang/public_html/llama/json/'
-#save_location = '/home/followup/lvk_followup_output/' #where to save final json
 save_location = args.save_dir
-
 max_wait = args.max_wait
-#wait_for_llama = args.wait_for_llama
 
 if args.run_live:
     logger.info('running on live GCNs')
     while True:
         for message in consumer.consume(timeout=1):
-            value = message.value()
-            if '<' not in value.decode('utf-8')[0]:
-                #sometimes, we'll get error messages - these make the code fail. skip them
-                logger.warning(value.decode('utf-8'))
+            if message.error():
+                logger.warning(message.error())
                 continue
-            notice = lxml.etree.fromstring(value.decode('utf-8').encode('ascii'))
-            parse_notice(notice, wait_for_llama=args.wait_for_llama, heartbeat = args.heartbeat)
+            value = message.value().decode('utf-8')
+            logger.warning('Found GCN on topic {}'.format(message.topic()))
+            notice = json.loads(value)
+            if notice['alert_type'].lower() == 'retraction':
+                # retractions are not run
+                continue
+            process_gcn(notice, wair_for_llama=args.wait_for_llama, heartbeat=args.heartbeat)
             logger.info('Done.')
 
 else:
     if args.path is None:
-        paths=glob.glob('/home/jthwaites/FastResponse/*/*xml')
-        path = paths[1]
-        #path = '/home/jthwaites/FastResponse/S230522n-preliminary.json,1'
-    else: 
-        path = args.path
+        raise Exception('Must give a path if not running live!')
     
     logger.info('running on {}'.format(path))
     
-    with open(path, 'r') as f:
-        payload = f.read()
     try:
-        payload = payload.replace("<?xml version='1.0' encoding='UTF-8'?>","") #lxml doesn't like this line
-        record = lxml.etree.fromstring(payload)
+        notice = json.loads(args.path)
     except Exception as e:
         print(e)
         exit()
     
-    parse_notice(record, wait_for_llama=args.wait_for_llama, heartbeat=args.heartbeat)
-logger.info("done")
+    parse_notice(notice, wait_for_llama=args.wait_for_llama, heartbeat=args.heartbeat)
+
+logger.info("Done.")
