@@ -213,9 +213,7 @@ def plot_events(dec, ra, sigmas, src_ra, src_dec, reso, sigma_scale=5., col = 'k
         hp.projscatter(np.pi/2-dec, ra, marker=marker, linewidth=2, 
             edgecolor=col, facecolor=col, s=60, alpha=1.0)
 
-def auto_reso(events):
-    raise NotImplementedError('plot is ill defined')
-    #return 3.
+
     
 
 def load_plotting_settings():
@@ -227,7 +225,8 @@ def load_plotting_settings():
     mpl.rcdefaults()
 
     mpl.use('agg')
-    mpl.rcParams['text.usetex'] = True
+    old_mpl = int(mpl.__version__.split(".")[0]) < 3
+    mpl.rcParams['text.usetex'] = old_mpl # no longer needed
     try:
         mpl.rcParams['text.latex.unicode'] = True
     except:

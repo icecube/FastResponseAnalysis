@@ -886,7 +886,7 @@ class PriorFollowup(FastResponseAnalysis):
     ])
     _sens_dir = None
 
-    def __init__(self, name, skymap_path, tstart, tstop, skipped=None, seed=None,
+    def __init__(self, name, skymap_path, tstart, tstop, skipped=None, seed=1,
                  outdir=None, save=True, extension=None):
 
         logger.debug('PriorFollowup.__init__')
@@ -1362,7 +1362,7 @@ class PointSourceFollowup(FastResponseAnalysis):
     
     _nside = 256
     def __init__(self, name, ra, dec, tstart, tstop, extension=None,
-                 skipped=None, outdir=None, save=True, seed=None):
+                 skipped=None, outdir=None, save=True, seed=1):
         logger.debug('PointSourceFollowup.__init__')
         super().__init__(name, tstart, tstop, skipped=skipped, seed=seed,
                        outdir=outdir, save=save, extension=extension)
