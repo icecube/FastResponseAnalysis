@@ -134,19 +134,6 @@ class MultiFastResponseAnalysis(FastResponseAnalysis):
         # need to save event in self.save_items
         raise NotImplementedError('remove_event not appropriate for MultiFastResponseAnalysis')
     
-    # These properties are initialized for the base class
-    # could do something meaningful
-    @property
-    def skipped_event(self):
-        return self._skipped_event
-    # TODO could be a property
-    # that retrieves unique skipped_event from constituent analyses
-    # IF it was actually skipped - i.e. need to make to save_items...
-    @skipped_event.setter
-    def skipped_event(self, x):
-        self._skipped_event = x
-    # TODO make something meaningful of this
-
     @property
     def mc(self):
         return self.llh.mc
@@ -265,7 +252,6 @@ class MultiPriorFollowup(PriorFollowup, MultiFastResponseAnalysis):
         self.inj = inj
         self.save_items['E0'] = self.inj.E0
     
-    # TODO combining MC across samples?
     def make_dNdE(self):
         r"""Make an E^-2 or E^-2.5 dNdE with the central 90% 
         for the minimum and maximum declinations on the skymap

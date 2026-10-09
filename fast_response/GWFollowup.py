@@ -119,8 +119,7 @@ class GWFollowupBase(PriorFollowup):
             if month is None:
                 # month = datetime.datetime.utcnow().month
                 month = Time(self.centertime, format='mjd').datetime.month
-            # FIXME replace hardcoded paths
-            # TODO make new subclass for GFU
+            
             bg_trial_dir = '/data/ana/analyses/NuSources/' \
                 + '2021_v2_alert_stacking_FRA/fast_response/gw_precomputed_trials/'
 

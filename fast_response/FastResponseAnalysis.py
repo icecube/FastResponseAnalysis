@@ -619,6 +619,13 @@ class FastResponseAnalysis:
         events = self.llh_exp # single array spanning all datasets
         events = events[(events['time'] < self.stop) & (events['time'] > self.start)]
 
+        col_num = 5000
+        seq_palette = sns.color_palette("icefire", col_num)
+        lscmap = mpl.colors.ListedColormap(seq_palette)
+
+        rel_t = np.array((events['time'] - self.start) * col_num / (self.stop - self.start), dtype = int)
+        cols = np.array([seq_palette[j] for j in rel_t])
+
         # plot skymap if given:
         if self.skymap is not None:
             skymap = self.skymap
@@ -641,14 +648,13 @@ class FastResponseAnalysis:
             try:
                 msk = events['run'] == int(self.skipped[0][0])
                 msk *= events['event'] == int(self.skipped[0][1])
-                # TODO here we don't know which sample the skipped event came from...
-                # TODO and strictly speaking, supply subevent and check that too
                 plotting_utils.plot_events(self.skipped_event['dec'], self.skipped_event['ra'], 
                     self.skipped_event['sigma']*self._angScale, 
                     ra, dec, 2*6, sigma_scale=1.0, constant_sigma=False, 
                     same_marker=True, energy_size=True, col = 'grey', 
                     with_dash=True)
                 events = events[~msk]
+                cols = cols[~msk]
             except:
                 print("Removed event not in dataset")
 
@@ -657,7 +663,7 @@ class FastResponseAnalysis:
         else:
             #Long time windows means don't plot contours
             sigma_scale = None
-        # FIXME this is ignored?
+        
 
         for enum in np.unique(events['enum']): # not adding pandas as dependency
             _mask = events['enum'] == enum
@@ -668,16 +674,11 @@ class FastResponseAnalysis:
                 print(f'Found {_events.size} on-time events from {self.datasets[enum]}')
             plotting_utils.plot_events(_events['dec'], _events['ra'], _events['sigma']*self._angScale,
                 ra, dec, 2*6, # this reso positional arg is not used
-                sigma_scale=reso/3.,
+                sigma_scale=sigma_scale, # contours if short window
                 constant_sigma=False, same_marker=True, energy_size=True,
                 col = _cols,
                 kw_style=plotting_utils.skymap_style[enum],
                 )
-
-        # plotting_utils.plot_events(events['dec'], events['ra'], events['sigma']*self._angScale,
-        #         ra, dec, 2*6,
-        #         sigma_scale=sigma_scale,
-        #         constant_sigma=False, same_marker=True, energy_size=True, col = cols)
 
         if contour_files is not None:
             cont_ls = ['solid', 'dashed']
@@ -903,7 +904,6 @@ class PriorFollowup(FastResponseAnalysis):
             probs = hdf_data['PROBDENSITY'][()]
             area = 4*np.pi/probs.size
             probs *= area
-            # FIXME the below should be redundant with self.format_skymap(skymap)
             skymap = hp.pixelfunc.ud_grade(
                 probs, self._nside, power=-2,
                 order_in='NESTED', order_out='RING'
@@ -936,7 +936,7 @@ class PriorFollowup(FastResponseAnalysis):
         skymap: array
             Healpix skymap, with correct nside for use in FRA
         """
-        # FIXME ud_grade vs. get_interp_val?
+        
         if hp.pixelfunc.get_nside(skymap) != self._nside:
             skymap = hp.pixelfunc.ud_grade(skymap, self._nside, power=-2)
             skymap = skymap/skymap.sum()
