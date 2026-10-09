@@ -1,6 +1,6 @@
 from os.path import join
 from .MultiFastResponseAnalysis import MultiPriorFollowup
-from .GWFollowup import GWFollowup as GFUFollowup
+from .GWFollowup import GWFollowupPlottingMixIn
 from .FastResponseAnalysis import PriorFollowup
 
 import numpy as np
@@ -14,12 +14,20 @@ logger.setLevel(logging.DEBUG)
 
 # These methods are very similar to (Multi)PriorFollowup
 # but GW analyses make some particular choices we want to reproduce here
-class MultiGWFollowup(MultiPriorFollowup):
+class MultiGWFollowup(GWFollowupPlottingMixIn, MultiPriorFollowup):
 
     # Defaults adopted from GWFollowup, different to PriorFollowup
     _pixel_scan_nsigma = 3.0
     _allow_neg = True
     _containment = None
+    # common format to find precomputed BG
+    _bg_format = '_'.join([
+    'precomputed_trials_delta_t_{delta_t:.2e}',
+    'nside_{nside}',
+    'index_{index}',
+    '{lookup}',
+    'seed_*npz',
+    ])
 
     def find_coincident_events(self):
         r"""
@@ -109,13 +117,6 @@ class OnlyDNNOnlineFollowup(PriorFollowup):
     _base_dir = "/data/user/chraab/fast_response/multisample/extended_archival_floating"
     _sens_dir = join(_base_dir, "precomputed_sensitivity")
     _bg_dir = join(_base_dir, "precomputed_trials")
-    _bg_format = '_'.join([
-    'precomputed_trials_delta_t_{delta_t:.2e}',
-    'nside_{nside}',
-    'index_{index}',
-    '{lookup}',
-    'seed_*npz',
-    ])
     _dataset = "DNNCascadesOnline_v001p01"
     _season_names = [f"IC86, 20{y:02d}" for y in range(24, 25+1)]
     _floor = np.radians(1.5) # can change this!
@@ -123,43 +124,13 @@ class OnlyDNNOnlineFollowup(PriorFollowup):
     _background_days = 60.
     _nb_days = 60.
 
-class OnlyIceManFollowup(PriorFollowup):
-    _dataset = "DNNCascadesIceMan_v001p00" 
-    # limited to one season ON PURPOSE for better comparison with DNNOnline
-    _season_names = [f"IC86, 20{y:02d}" for y in range(18, 18+1)]
-    _jitter = 3. # common default for DNN analyses
-
 
 class DNNOnlineFollowup(MultiGWFollowup):
     _base_dir = "/data/user/chraab/fast_response/multisample/extended_archival_floating"
     _sens_dir = join(_base_dir, "precomputed_sensitivity/")
     _bg_dir = join(_base_dir, "precomputed_trials/")
-    _bg_format = '_'.join([
-    'precomputed_trials_delta_t_{delta_t:.2e}',
-    'nside_{nside}',
-    'index_{index}',
-    '{lookup}',
-    'seed_*npz',
-    ])
     _followups = [OnlyDNNOnlineFollowup]
     _fix_index = False
-    _float_index = not _fix_index
-    _index = 2.0
-    _nside = 128
-
-class IceManFollowup(MultiGWFollowup):
-    _base_dir = "/data/user/chraab/fast_response/multisample/extended_archival_floating"
-    _sens_dir = join(_base_dir, "precomputed_sensitivity/")
-    _bg_dir = join(_base_dir, "precomputed_trials/")
-    _bg_format = '_'.join([
-    'precomputed_trials_delta_t_{delta_t:.2e}',
-    'nside_{nside}',
-    'index_{index}',
-    '{lookup}',
-    'seed_*npz',
-    ])
-    _followups = [OnlyIceManFollowup]
-    _fix_index = False 
     _float_index = not _fix_index
     _index = 2.0
     _nside = 128

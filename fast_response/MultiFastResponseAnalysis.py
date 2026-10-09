@@ -35,7 +35,6 @@ from skylab.ps_llh          import PointSourceLLH, MultiPointSourceLLH
 from skylab.ps_injector     import PriorInjector
 from skylab.spectral_models import PowerLaw 
 from skylab.temporal_models import BoxProfile, TemporalModel
-# import meander
 
 from . import web_utils
 from . import sensitivity_utils
@@ -47,25 +46,28 @@ from .AlertFollowup import AlertFollowup, CascadeFollowup, TrackFollowup
 
 mpl.use('agg')
 current_palette = sns.color_palette('colorblind', 10)
-logging.getLogger().setLevel(logging.ERROR)
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.ERROR)
 warnings.simplefilter("ignore", UserWarning)
 warnings.simplefilter("ignore", RuntimeWarning)
 
 class MultiFastResponseAnalysis(FastResponseAnalysis):
     """
-    Instead of sprinkling if-else statements around, could leave
-    the LLH contained within the original FastResponseAnalysis.
-    Analogous to MultiPointSourceLLH, this one then is a container
-    for one FRA per dataset, plus a MultiPointSourceLLH, and the injector.
-    Will involve some duplicated code, unless the methods are split up more,
-    or both FRA and MultiFRA get a new base class (analogous to BaseLLH). 
-    But it separates code more cleanly, and can override inherited methods
-    instead of having two implementations with an if-else statement inbetween.
-    Requires some extra arguments to FastResponseAnalysis methods.
+    This class supports multi-sample fast response analyses.
+    Each sample's LLH is contained within the original FastResponseAnalysis,
+    or one of its child classes. This class then
+    - contains the classes in self._followups,
+    - constructs the instances in self.analyses,
+    - combines their data into self.llh_exp,
+    - combines their likelihoods into a MultiPointSourceLLH.
+    This classes children then
+    - construct the injector
+    - override plotting methods where needed,
+    although some are already made to work with single- or multi-sample follow-ups.
     """
 
     # attributes that will be set for a specific followup configuration inheriting from this base class
-    _followups = None
+    _followups = []
 
     # attributes that are identical for each analysis produced by one followup class
     # will be broadcast to the constituent analyses
@@ -79,12 +81,10 @@ class MultiFastResponseAnalysis(FastResponseAnalysis):
         Same args and kwargs as FastResponseAnalysis
         
         """
-        logging.debug('MultiFastResponseAnalysis')
+        logger.debug('MultiFastResponseAnalysis.__init__')
 
         # basic config of this instance, and initialize_llh
         super().__init__(*args, **kwargs)
-
-        # TODO can we use just a bit of composition to clarify the inheritance maze?
 
         # save spectrum and time profile to help broadcast
         self.spectrum = None
@@ -116,8 +116,6 @@ class MultiFastResponseAnalysis(FastResponseAnalysis):
             print("Initializing MultiPointSourceLLH in Skylab")
         
         # kwargs for the BaseLLH instance
-        # TODO maybe this should be an attribute,
-        # so config can be changed in one place for both FRA snd MultiFRA?
         base_kwargs = dict(
             nsource=1.,                    # seed for nsignal fit
             nsource_bounds=(0., 1e3),      # bounds on fitted ns
@@ -129,14 +127,12 @@ class MultiFastResponseAnalysis(FastResponseAnalysis):
         for enum, fra in enumerate(self.analyses):
             fra.llh.do_trials_seed = 1
             multi_llh.add_sample(fra._dataset, fra.llh)
-        # TODO make sure sample_weights are still correct
-        # (as the temporal_model system wasn't used for this before)
         return multi_llh
         
     def remove_event(self, exp, dset, skipped):
         # should this ever be called from this instance?
         # need to save event in self.save_items
-        raise NotImplemented('')
+        raise NotImplementedError('remove_event not appropriate for MultiFastResponseAnalysis')
     
     # These properties are initialized for the base class
     # could do something meaningful
@@ -145,37 +141,19 @@ class MultiFastResponseAnalysis(FastResponseAnalysis):
         return self._skipped_event
     # TODO could be a property
     # that retrieves unique skipped_event from constituent analyses
+    # IF it was actually skipped - i.e. need to make to save_items...
     @skipped_event.setter
     def skipped_event(self, x):
         self._skipped_event = x
     # TODO make something meaningful of this
 
-    
-
     @property
-    def exp(self):
-        '''Dictionary or flat array like llh_exp? used in remove_event'''
-        raise NotImplemented('')
-
-    @exp.setter
-    def exp(self, x):
-        self._exp = x
-
-    @property
-    def mc(self): # and livetime, grl, sinDec_bins, energy_bins... only used in LLH
-        '''Dictionary? i.e. self.llh.mc'''
-        raise NotImplemented('')
+    def mc(self):
+        return self.llh.mc
 
     @property
     def livetime(self):
-        '''Dictionary?'''
-        raise NotImplemented('')
-
-    @property
-    def dset(self):
-        '''Dictionary? used in remove_event'''
-        raise NotImplemented('')
-
+        return self.llh.livetime
 
     @property
     def datasets(self):
@@ -189,15 +167,7 @@ class MultiFastResponseAnalysis(FastResponseAnalysis):
     @analyses.setter
     def analyses(self, x):
         self._analyses = x
-        # Feature to come for easier comparison: 
-        # re-initialize LLH from existing FRA's
-        # if isinstance(x, list):
-        #     self._analyses = x
-        # elif isinstance(x, FastResponseAnalysis):
-        #     self._analyses = [x]
-        # else:
-        #     raise TypeError(f'trying to set analyses with {type(x)}')
-
+        
     # We share an LLH seed
     @property
     def llh_seed(self):
@@ -207,7 +177,9 @@ class MultiFastResponseAnalysis(FastResponseAnalysis):
     @llh_seed.setter
     def llh_seed(self, value):
         self._llh_seed = value
-        #self.llh.set_rng_seed(value) # this won't work as seed gets value before we have llh
+        if hasattr(self, "llh"):
+            logger.warning("Propagating new RNG seed to LLHs")
+            self.llh.set_rng_seed(value)
         
 
     @property
@@ -222,7 +194,6 @@ class MultiFastResponseAnalysis(FastResponseAnalysis):
         return self._llh_exp
     
     def plot_skymap(self, **kwargs):
-        # TODO maybe a "short name" description in the actual Skylab dataset?
         labels = []
         for _ds in self.datasets:
             _base = _ds.split('_')[0] # convention: version after underscore
@@ -249,18 +220,15 @@ class MultiPriorFollowup(PriorFollowup, MultiFastResponseAnalysis):
                          '_fix_index',
                          '_index_range',
                          '_llh_seed',
-                         '_nb_days',
                          '_ncpu',
                          '_pixel_scan_nsigma',
                          '_allow_neg',
                          '_containment',
                          '_nside',
                          ]
-    # TODO let this be defined in parent classes, extended by child classes
-    # could use a property and super()?
 
     def __init__(self, *args, **kwargs):
-        logging.debug('MultiPriorFollowup.__init__')
+        logger.debug('MultiPriorFollowup.__init__')
 
         # first, construct constituent analyses with same arguments
         self.initialize_analyses(*args, **kwargs)
@@ -297,11 +265,7 @@ class MultiPriorFollowup(PriorFollowup, MultiFastResponseAnalysis):
         self.inj = inj
         self.save_items['E0'] = self.inj.E0
     
-
-    # TODO why does run_background_trials call initialize_llh to init a new LLH with scrambled data?
-    # is there no scrambling within the trials?
-    # FIXME my code breaks this: initialize_llh only constructs MultiPSLLH
-    
+    # TODO combining MC across samples?
     def make_dNdE(self):
         r"""Make an E^-2 or E^-2.5 dNdE with the central 90% 
         for the minimum and maximum declinations on the skymap
@@ -312,8 +276,8 @@ class MultiPriorFollowup(PriorFollowup, MultiFastResponseAnalysis):
         high5 = []
         fig, ax = plt.subplots(figsize = (8,5))
         fig.set_facecolor('white')
-        # iterate over dataset
         
+        # iterate over dataset
         for enum in self.llh._samples:
             llh = self.llh._samples[enum]
             dataset = self.datasets[enum].replace('_', ' ')
@@ -355,8 +319,8 @@ class MultiPriorFollowup(PriorFollowup, MultiFastResponseAnalysis):
         plt.legend(loc=4, fontsize=18)
         plt.savefig(self.analysispath + '/central_90_dNdE.png',bbox_inches='tight')
 
-        self.low5 = low5
-        self.high5 = high5
+        self.low5 = low5 # one entry per sample
+        self.high5 = high5 # one entry per sample
         self.energy_range =  tuple(zip(self.low5, self.high5))
         self.save_items['energy_range'] = self.energy_range
 
@@ -370,13 +334,12 @@ class MultiPointSourceFollowup(PointSourceFollowup, MultiFastResponseAnalysis):
                          '_fix_index',
                          '_index_range',
                          '_llh_seed',
-                         '_nb_days',
                          '_ncpu',
                          ]
 
     def __init__(self, *args, followups=None, **kwargs):
 
-        logging.debug('MultiPointSourceFollowup.__init__')
+        logger.debug('MultiPointSourceFollowup.__init__')
         if followups is not None:
             self._followups = followups
 
@@ -435,6 +398,8 @@ class MultiPointSourceFollowup(PointSourceFollowup, MultiFastResponseAnalysis):
         high5 = []
         fig, ax = plt.subplots(figsize = (8,5))
         fig.set_facecolor('white')
+
+        # iterate over dataset
         for enum in self.llh._samples:
             llh = self.llh._samples[enum]
             dataset = self.datasets[enum].replace('_', ' ')
@@ -466,7 +431,7 @@ class MultiPointSourceFollowup(PointSourceFollowup, MultiFastResponseAnalysis):
         self.save_items['energy_range'] = tuple(zip(self.low5, self.high5))
 
     def write_circular(self):
-        raise NotImplemented('This method is not implemented for the parent class, either.')
+        raise NotImplementedError('This method is not implemented for the parent class, either.')
 
 
 

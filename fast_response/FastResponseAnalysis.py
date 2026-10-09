@@ -177,6 +177,7 @@ class FastResponseAnalysis:
     def unify_exp_array(self, _exp, enum=0):
         """Turns a rec array into same fields, order and precision.
         """
+        # these are needed for the analysis:
         merged_dtype = np.dtype([('run', '<i4'), ('event', '<i4'), ('time', '<f8'), ('ra', '<f4'), ('dec', '<f4'), ('sinDec', '<f4'),  ('sigma', '<f4'), ('logE', '<f4'), ('enum', '<i4')])
         
         # Drop those not needed
@@ -186,7 +187,7 @@ class FastResponseAnalysis:
 
         # align order of fields to desired dtype
         aligned_dtype = np.dtype([(name, _exp.dtype[name]) for name in merged_dtype.names])
-        _aligned = np.zeros(_exp.shape, dtype=aligned_dtype)
+        _aligned = np.empty(_exp.shape, dtype=aligned_dtype)
         for field in aligned_dtype.names:
             _aligned[field] = _exp[field]
 
@@ -574,7 +575,7 @@ class FastResponseAnalysis:
             print("Results successfully saved")
             return self.save_items
 
-    def plot_ontime(self, with_contour=False, contour_files=None, label_events=False):
+    def plot_ontime(self, plot_zoom=True, with_contour=False, contour_files=None, label_events=False):
         r"""Plots ontime events on the full skymap and a 
         zoomed in version near the scan best-fit
 
@@ -588,11 +589,11 @@ class FastResponseAnalysis:
             adds a number label to events on skymap (default False)
 
         """
-        
-        try:
-            self.plot_skymap_zoom(with_contour=with_contour, contour_files=contour_files)
-        except Exception as e:
-            print(f'Failed to make skymap zoom plot: {e}')
+        if plot_zoom:
+            try:
+                self.plot_skymap_zoom(with_contour=with_contour, contour_files=contour_files)
+            except Exception as e:
+                print(f'Failed to make skymap zoom plot: {e}')
 
         try:
             self.plot_skymap(with_contour=with_contour, contour_files=contour_files, label_events=label_events) 
@@ -610,20 +611,13 @@ class FastResponseAnalysis:
             plots the 90% containment contour of a skymap (default False)
         contour_files: string
             text file containing skymap contours to be plotted (default None)
-        reso: float or 'auto'
+        reso: float
             resolution to zoom in, degrees (default 3.0)
 
         """
         
-        events = self.llh_exp # TODO ask if they prefer alternative:
-        # events as optional kwarg
-        # separate out a method that takes events of one sample
-        # and the rest of the plotting
-        # then this method needs to know nothing of enum
+        events = self.llh_exp # single array spanning all datasets
         events = events[(events['time'] < self.stop) & (events['time'] > self.start)]
-
-        if reso == 'auto':
-            reso = plotting_utils.auto_reso(events)
 
         # plot skymap if given:
         if self.skymap is not None:
@@ -656,9 +650,7 @@ class FastResponseAnalysis:
                     with_dash=True)
                 events = events[~msk]
             except:
-                print("Removed event not in GFU")
-                # TODO print the actual dataset name
-                # (once one implemention Multi code is merged)
+                print("Removed event not in dataset")
 
         if (self.stop - self.start) <= 21.:
             sigma_scale = 1.0
@@ -923,15 +915,6 @@ class PriorFollowup(FastResponseAnalysis):
         self.ipix_90 = self.ipixs_in_percentage(0.9)
         self.ra, self.dec, self.extension = None, None, extension
         self.save_items['skymap'] = skymap
-
-    # FIXME initialize_llh in GWFollowup mostly just waits (we do this different)
-    # BUT
-    # - does llh.set_temporal_model(box) instead of passing it to PSLLH constructor which does the same
-    # - does NOT set timescramble=True
-    # - (also not through the update_timescramble kwarg)
-    # ...so then does it even use the time scrambling?
-    # ...(should it? maybe I'm getting something wrong about the ontime)
-    # => but I guess it shouldn't matter because GWFollowup.llh is never used for trials.
 
     def __str__(self):
         int_str = super().__str__()
@@ -1229,40 +1212,6 @@ class PriorFollowup(FastResponseAnalysis):
         else:
             return ts, ns
 
-    # Moved from GWFollowup: will work also for Multi*Followups due to llh.scan using the `enum` field in custom_events.
-    def per_event_scan(self, custom_events):
-        """Runs the all-sky scan for only one (or certain) events on the sky
-
-        Parameters
-        ------------
-        custom_events: masked array
-            Ontime event(s) loaded in Skylab to use when running the all sky scan.
-            Must have the field "enum" if used with a Multi*Followup.
-        
-        Returns
-        -----------
-        ts: float
-            best-fit TS using only this event
-        p: float
-            p-value for the given event(s)
-        
-        """
-        from skylab.priors import SpatialPrior
-
-        spatial_prior = SpatialPrior(self.skymap, containment = self._containment, allow_neg=self._allow_neg)
-        val = self.llh.scan(
-            0.0,0.0, scramble = False, spatial_prior=spatial_prior,
-            time_mask = [self.duration/2., self.centertime],
-            pixel_scan=[self.nside, self._pixel_scan_nsigma],
-            custom_events=custom_events
-        )
-        if val['TS'].size == 0:
-            ts = -1.*np.inf # FIXME why is the convention different than during unblind_TS?
-        else:
-            ts = val['TS_spatial_prior_0'].max()
-        p = np.count_nonzero(self.tsd >= ts) / float(len(self.tsd))
-        return ts, p
-
     def upper_limit(self):
         """ UPPER LIMIT WITH SPATIAL PRIOR NOT YET IMPLEMENTED
         """
@@ -1321,7 +1270,7 @@ class PriorFollowup(FastResponseAnalysis):
             saved_sens = np.load(sens_npy)
             return saved_sens['dec'], saved_sens['flux'] 
         raise FileNotFoundError(f"Could find neither {sens_pickle} nor {sens_npy}")
-
+        
     def dec_skymap_range(self):
         r""" Compute minimum and maximum declinations within
         of the 90% contour of a given skymap

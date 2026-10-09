@@ -21,12 +21,12 @@ from skylab.ps_llh          import PointSourceLLH
 import fast_response
 from . import sensitivity_utils
 
-class GWFollowup(PriorFollowup):
+class GWFollowupBase(PriorFollowup):
     """
-    Class for followup of a GW. By default, fits the index in the LLH. Built on the
-    PriorFollowup class for skymap-based analyses
+    Class for followup of a GW using GFU. By default, fits the index in the LLH. Built on the
+    PriorFollowup class for skymap-based analyses.
+    This base class contains analysis code and is combined with the GWFollowupPlottingMixIn.
     """
-    # TODO child class for GFU instead of already setting defaults here
     _dataset = 'GFUOnline_v001p02'
     _fix_index = False
     _float_index = True
@@ -582,6 +582,10 @@ class GWFollowup(PriorFollowup):
         self.coincident_events = [dict(zip(events.dtype.names, x)) for x  in events]
         self.save_items['coincident_events'] = self.coincident_events
 
+
+class GWFollowupPlottingMixIn:
+    """Mix-in class with plotting functions for GWFollowup
+    that can be re-used in other GW-focused follow-ups."""
     def upper_limit(self):
         r"""
         Get a *Sensitivity Range* (not truly an UL)
@@ -660,7 +664,39 @@ class GWFollowup(PriorFollowup):
         self.coincident_events = [dict(zip(self.events_rec_array.dtype.names, x)) for x  in self.events_rec_array]
         self.save_items['coincident_events'] = self.coincident_events
 
-    
+    def per_event_scan(self, custom_events):
+        """Runs the all-sky scan for only one (or certain) events on the sky
+
+        Parameters
+        ------------
+        custom_events: masked array
+            Ontime event(s) loaded in Skylab to use when running the all sky scan.
+            Must have the field "enum" if used with a Multi*Followup.
+        
+        Returns
+        -----------
+        ts: float
+            best-fit TS using only this event
+        p: float
+            p-value for the given event(s)
+        
+        """
+        from skylab.priors import SpatialPrior
+
+        spatial_prior = SpatialPrior(self.skymap, containment = self._containment, allow_neg=self._allow_neg)
+        val = self.llh.scan(
+            0.0,0.0, scramble = False, spatial_prior=spatial_prior,
+            time_mask = [self.duration/2., self.centertime],
+            pixel_scan=[self.nside, self._pixel_scan_nsigma],
+            custom_events=custom_events
+        )
+        if val['TS'].size == 0:
+            ts = -1.*np.inf # FIXME why is the convention different than during unblind_TS?
+        else:
+            ts = val['TS_spatial_prior_0'].max()
+        p = np.count_nonzero(self.tsd >= ts) / float(len(self.tsd))
+        return ts, p
+        
     def make_dec_pdf(self):
         r""" 
         Plot PDF of source declination overlaid with IceCube's point source sensitivity
@@ -736,3 +772,11 @@ class GWFollowup(PriorFollowup):
 
         report.generate_report()
         report.make_pdf()
+
+
+class GWFollowup(GWFollowupPlottingMixIn, GWFollowupBase):
+    """
+    Class for followup of a GW using GFU. By default, fits the index in the LLH. Built on the
+    PriorFollowup class for skymap-based analyses.
+    """
+    pass
