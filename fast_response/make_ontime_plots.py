@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 
 ############################# Plotting Parameters #############################
 mpl.use('agg')
-mpl.rcParams['text.usetex'] = True
+mpl.rcParams['text.usetex'] = int(mpl.__version__.split('.')[0]) < 3
 try:
     mpl.rcParams['text.latex.unicode'] = True
 except:
