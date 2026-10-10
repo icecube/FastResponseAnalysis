@@ -203,6 +203,8 @@ class ReportGenerator(object):
             newevent = event['value']['data']
             for key,val in list(newevent['reco']['splinempe'].items()): 
                 newevent['splinempe_'+key]=val
+            if '+' in newevent['eventtime']: 
+                newevent['eventtime'] = newevent['eventtime'].split('+')[0]
             if Time(newevent['eventtime'],scale='utc',format='iso') >= Time("2018-07-10 17:52:03.34", format='iso',scale='utc'):
                 newevent['muex'] = newevent['reco']['energy']['mpe_muex']
             del newevent['reco']
@@ -229,7 +231,7 @@ class ReportGenerator(object):
                 for event in self.analysis.coincident_events:
                     event_table+=[
                         ("Run:Event",'{}:{}'.format(event['run'], event['event'])),
-                        ("Time","{}".format(
+                        ("Time (MJD)","{}".format(
                             event['time'])),
                         (r'$\alpha$, $\delta$',"{:3.2f}\degree, {:+3.2f}\degree"
                             .format(np.rad2deg(event['ra']), np.rad2deg(event['dec']))),

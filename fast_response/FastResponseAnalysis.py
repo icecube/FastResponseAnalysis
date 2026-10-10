@@ -501,7 +501,7 @@ class FastResponseAnalysis:
                 bins = np.linspace(0., 25., 30)
             
             plt.hist(self.tsd, bins= bins, 
-                    label="Background Scrambles", density=True)
+                    label="{} Background Scrambles".format(len(self.tsd)), density=True)
             if self.ts >= -500.:
                 plt.axvline(self.ts, color = 'k', label = "Observed TS")
             else: 
@@ -687,8 +687,9 @@ class FastResponseAnalysis:
                 cont = np.loadtxt(c_file, skiprows=1)
                 cont_ra = cont.T[0]
                 cont_dec = cont.T[1]
-                label = 'Millipede 50%, 90% (160427A syst.)' \
-                    if contour_counter == 0 else ''
+                cont_label = 'Millipede 50\%, 90\% (160427A syst.)' if self._llh_map else 'Skymap 50\%, 90\%'
+                label = cont_label if contour_counter == 0 else ''
+                
                 hp.projplot(np.pi/2. - cont_dec, cont_ra, linewidth=3., 
                     color='k', linestyle=cont_ls[contour_counter], coord='C', 
                     label=label)
@@ -1094,7 +1095,7 @@ class PriorFollowup(FastResponseAnalysis):
 
         
 
-    def find_coincident_events(self):
+    def find_coincident_events(self, print_events=False):
         r"""Find coincident events for a skymap
         based analysis. These are ontime events that are also in the 
         90% contour of the skymap
@@ -1107,6 +1108,18 @@ class PriorFollowup(FastResponseAnalysis):
         exp_pix   = hp.ang2pix(self.nside, exp_theta, exp_phi)
         overlap   = np.isin(exp_pix, self.ipix_90)
         events = events[overlap]
+
+        if print_events:
+            # print nearby events, as a check (if needed)
+            msk1 = (self.llh.exp[t_mask]['ra'] < (self.skymap_fit_ra+np.radians(5)))*(self.llh.exp[t_mask]['ra'] > (self.skymap_fit_ra-np.radians(5)))
+            msk2 = (self.llh.exp[t_mask]['dec'] < (self.skymap_fit_dec+np.radians(5)))*((self.llh.exp[t_mask]['dec'] > self.skymap_fit_dec-np.radians(5)))
+            msk3 = msk1*msk2
+            if np.count_nonzero(msk3) > 0:
+                print('Events within 5 deg of best-fit:')
+                print("[run, event, ra, dec, sigma, logE, time]")
+                for e in self.llh.exp[t_mask][msk3]: 
+                    print([e[k] for k in ['run', 'event', 'ra', 'dec', 'sigma', 'logE', 'time']])
+            self.nearby = self.llh.exp[t_mask][msk3]
 
         if len(events) == 0:
             coincident_events = []
@@ -1337,7 +1350,10 @@ class PriorFollowup(FastResponseAnalysis):
         plt.axvline(median_max_dec, c = sns.xkcd_rgb['dark navy blue'], alpha = 0.75, label = "Median (max dec.)", ls = '--')
         plt.xlim(1e1, 1e8)
         plt.legend(loc=4, fontsize=18)
-        plt.savefig(self.analysispath + '/central_90_dNdE.png',bbox_inches='tight')
+        try: 
+            plt.savefig(self.analysispath + '/central_90_dNdE.png',bbox_inches='tight')
+        except: 
+            print('Failed to save dNdE plot')
 
         self.energy_range = (np.min([low_5_min_dec, low_5_max_dec]),
                              np.max([high_5_min_dec, high_5_max_dec]))
@@ -1474,10 +1490,15 @@ class PointSourceFollowup(FastResponseAnalysis):
 
         return ts, ns
 
-    def find_coincident_events(self, ns_params=None):
+    def find_coincident_events(self, ns_params=None, print_events=False):
         r"""Find "coincident events" for the analysis.
-        These are ontime events that have a spatial times energy weight greater than 10
+        These are ontime events that satisfy:
+        
+        Spatial weight * energy weight [* temporal weight] > 10
 
+        (Note that for this box time window, all events in the ontime window
+        have the same temporal weight.)
+        
         Parameters
         -----------
         ns_params: dict
@@ -1507,6 +1528,20 @@ class PointSourceFollowup(FastResponseAnalysis):
                 self.coincident_events[-1]['delta_psi'] = del_psi 
                 self.coincident_events[-1]['spatial_w'] = s_w
                 self.coincident_events[-1]['energy_w'] = en_w
+
+        if print_events:
+            t_mask=(self.llh.exp['time']<=self.stop)&(self.llh.exp['time']>=self.start)
+            # print nearby events, as a check (if needed)
+            msk1 = (self.llh.exp[t_mask]['ra'] < (self.ra+np.radians(10)))*(self.llh.exp[t_mask]['ra'] > (self.ra-np.radians(10)))
+            msk2 = (self.llh.exp[t_mask]['dec'] < (self.dec+np.radians(10)))*((self.llh.exp[t_mask]['dec'] > self.dec-np.radians(10)))
+            msk3 = msk1*msk2
+            if np.count_nonzero(msk3) > 0:
+                print('Events within 10 deg of best-fit:')
+                print("[run, event, ra, dec, sigma, logE, time]")
+                for e in self.llh.exp[t_mask][msk3]: 
+                    print([e[k] for k in ['run', 'event', 'ra', 'dec', 'sigma', 'logE', 'time']])
+            self.nearby = self.llh.exp[t_mask]
+
         self.save_items['coincident_events'] = self.coincident_events
 
     def ns_scan(self, params = {'spectrum': 'dN/dE = 1.00e+00 * (E / 1.00e+03 GeV)^-2.00 [GeV^-1cm^-2s^-1]'}):
@@ -1560,7 +1595,7 @@ class PointSourceFollowup(FastResponseAnalysis):
         Returns
         --------
         upperlimit: float
-            Value of E^2 dN / dE in units of TeV / cm^2 
+            Flux upper limit in [TeV cm^2 s]^-1
         """
         if self.inj is None:
             self.initialize_injector()
@@ -1573,6 +1608,16 @@ class PointSourceFollowup(FastResponseAnalysis):
             msk = results['TS'] > self.ts
             npass = len(results['TS'][msk])
             passing.append((n, npass, n_per_sig))
+        
+        if (passing[-1][1] / passing[-1][2]) < 0.92:
+            #run a few more if the last point is close to 0.9
+            for n in np.array([7., 8.]):
+                results = self.llh.do_trials(
+                    n_per_sig, src_ra=self.ra, src_dec=self.dec,
+                    injector=self.inj, mean_signal=n, poisson=True)
+                msk = results['TS'] > self.ts
+                npass = len(results['TS'][msk])
+                passing.append((n, npass, n_per_sig))
             
         signal_fluxes, passing, number = list(zip(*passing))
         signal_fluxes = np.array(signal_fluxes)

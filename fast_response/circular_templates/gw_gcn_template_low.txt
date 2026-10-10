@@ -12,10 +12,10 @@ During this time period IceCube was collecting good quality data.
 No significant track-like events are found in spatial coincidence of
 <name> calculated from the map circulated in the <noticeID> notice.
 
-IceCube's sensitivity assuming an E^-2 spectrum (E^2 dN/dE) to neutrino
-point sources within the locations spanned by the 90% spatial containment
-of <name> ranges from <lowSens> to <highSens> GeV cm^-2 in a 1000 second
-time window.
+IceCube’s sensitivity to neutrino point sources with an E^-2 spectrum, 
+expressed as E^2 dN/dE evaluated at 1 TeV, ranges from <lowSens> to <highSens> GeV cm^-2 
+within the 90% spatial containment region of <name> in a 1000 second 
+time window. 
 
 The IceCube Neutrino Observatory is a cubic-kilometer neutrino detector
 operating at the geographic South Pole, Antarctica. The IceCube realtime

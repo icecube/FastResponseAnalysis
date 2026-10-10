@@ -34,6 +34,7 @@ class AlertFollowup(PriorFollowup):
             + 'fast_response/reference_sensitivity_curves/'
     # These directories will need to changed for each AlertFollowup LLH configuration
     # i.e. dataset combination and such
+    _llh_map = False
 
     def run_background_trials(self, ntrials = 1000):
         r"""For alert events with specific time windows,
@@ -178,7 +179,7 @@ class AlertFollowup(PriorFollowup):
         ev_is_are = 'event is' if len(analysis_1000['coincident_events']) == 1 else 'events are'
         if not high_sig:
             if len(analysis_1000['coincident_events']) == 0:
-                coinc_and_p = ''
+                coinc_and_p = 'We report a p-value of {:.2f} in this time window. '.format(analysis_1000['p'])
             elif len(analysis_1000['coincident_events']) == 1:
                 coinc_and_p = 'We find that this additional event is well described by atmospheric\n' \
                     + 'background expectations, with a p-value of {:.2f}. '.format(analysis_1000['p'])
@@ -192,12 +193,12 @@ class AlertFollowup(PriorFollowup):
             coinc_and_p = 'We accordingly derive a p-value of {:.3f}.'.format(analysis_1000['p'])
             if analysis_1000['p'] < 0.01:
                 coinc_and_p = coinc_and_p + ' Due to the coincidences identified in this search, ' \
-                    + 'we strongly encourage followup observations.'
+                    + 'we strongly encourage followup observations. '
             else:
                 pass
             if analysis_2day['p'] < 0.01:
                 long_p_and_lim = 'In this case, we report a p-value of {:.3f}.'.format(analysis_2day['p']) \
-                    + ' Due to the coincidences identified in this search, we strongly encourage followup observations.'
+                    + ' Due to the coincidences identified in this search, we strongly encourage followup observations. '
             else:
                 long_p_and_lim = 'In this case, we report a p-value of {:.2f},'.format(analysis_2day['p']) \
                     + ' consistent with no significant \nexcess of track events. '
@@ -260,7 +261,22 @@ class TrackFollowup(AlertFollowup):
     """
     Class for followup of track alert events
     By default, uses a fixed index of 2.5 in LLH.
-    By default, converts milipede LLH map to a PDF. 
+    Assumes a probability skymap for the follow-up.
+    Built on AlertFollowup and PriorFollowup base classes
+
+    """
+    _smear = False
+    _dataset = "GFUOnline_v001p02"
+    _fix_index = True
+    _float_index = not _fix_index
+    _index = 2.5
+    _llh_map = False
+
+class TrackFollowupLLH(AlertFollowup):
+    """
+    [Old] Class for followup of track alert events
+    By default, uses a fixed index of 2.5 in LLH
+    and converts milipede LLH map to a PDF. 
     Built on AlertFollowup and PriorFollowup base classes
 
     """
@@ -269,6 +285,7 @@ class TrackFollowup(AlertFollowup):
     _fix_index = True
     _float_index = not _fix_index
     _index = 2.5
+    _llh_map = True
 
     def format_skymap(self, skymap):
         """
@@ -374,3 +391,4 @@ class CascadeFollowup(AlertFollowup):
     _fix_index = True
     _float_index = not _fix_index
     _index = 2.5
+    _llh_map = False

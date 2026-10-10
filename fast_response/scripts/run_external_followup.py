@@ -80,9 +80,9 @@ if __name__ == "__main__":
                         type= lambda z:[ tuple(int(y) for y in x.split(':')) for x in z.split(',')],
                         help="Event to exclude from the analyses, eg."
                         "Example --skip-events=127853:67093193")
-    parser.add_argument('--ntrials', default=100, type=int,
+    parser.add_argument('--ntrials', default=200, type=int,
                         help="Number of background trials to perform")
-    parser.add_argument('--n_per_sig', default=100, type=int,
+    parser.add_argument('--n_per_sig', default=200, type=int,
                         help="Number of signal trials per injected ns to perform")
     parser.add_argument('--document', default=False, action='store_true')
     args = parser.parse_args()

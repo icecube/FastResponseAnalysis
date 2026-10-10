@@ -37,7 +37,7 @@ mpl.rcParams['ytick.major.size'] = 5
 ###############################################################################
 
 
-def updateFastResponseWeb(analysis, gw=False):
+def updateFastResponseWeb(analysis, gw=False, update = False):
     r"""
     Create analysis specific page, and update
     plots with information from all analyses
@@ -49,15 +49,18 @@ def updateFastResponseWeb(analysis, gw=False):
     gw : bool
         Indicate if event is a GWFollowup (uses GW-specific results page and dataframe). Default False
     """
-    updateDataFrame(analysis, gw=gw)
+    updateDataFrame(analysis, gw=gw, update=update)
     createFastResponsePage(analysis, gw=gw)
     if gw:
         updateGWTable(analysis)
     else:
         updateFastResponseTable(analysis)
+    if update: 
+        print('INFO: Update flag raised')
+        print('WARNING: Remove duplicate entry in index.html manually')
     updateFastResponsePlots(gw=gw)
 
-def updateDataFrame(analysis, gw=False, make_df=False):
+def updateDataFrame(analysis, gw=False, make_df=False, update=False):
     r"""
     Read in official Fast Response Dataframe,
     add these results, save DataFrame
@@ -108,11 +111,11 @@ def updateDataFrame(analysis, gw=False, make_df=False):
                 analysis['ns'], pd.Timestamp(Time(analysis['start'], format='mjd').iso), 
                 pd.Timedelta(analysis['stop'] - analysis['start'], unit='day'),
                 ext, None, analysis['ts'], evid, upper_lim, analysis['energy_range']]
-    if analysis['name'] in df.index:
+    if (analysis['name'] in df.index) and not update:
         num = np.count_nonzero(df.index == analysis['name'])
         analysis['name'] += '_{}'.format(num)
     df.loc[analysis['name']] = new_list
-     
+    
     if gw: 
         df.to_pickle(f'{base_path}/results_dataframe_gw.pkl')
     else:
@@ -310,7 +313,7 @@ def updateFastResponsePlots(gw=False):
     plt.gca().invert_xaxis()
     plt.grid(which = 'both', alpha = 0.2)
     plt.xlim(1.1e0,1e-3)
-    plt.ylim(3e-3, 1e0)
+    plt.ylim(1e-3, 1e0)
     plt.xlabel('p-value', fontsize = 18)
     plt.ylabel('Fraction of Analyses', fontsize = 18)
     plt.tick_params(labelsize = 18)
@@ -324,7 +327,7 @@ def updateFastResponsePlots(gw=False):
         pval_dist_path=f'/home/{username}/public_html/FastResponse/webpage/output/pvalue_distribution_liveupdate.png'
         plt.title("{} Fast Response Analyses as of {}".format(len(df), today), fontsize = 20)          
     #plt.text(7e-3, 5e-2, "IceCube\nPreliminary", fontsize = 20, color = 'r')
-    plt.ylim(3e-3, 1e0)
+    # plt.ylim(3e-3, 1e0)
     
     plt.savefig(pval_dist_path, dpi=200, bbox_inches='tight')
     #plt.savefig(f'/home/{username}/public_html/FastResponse/webpage/output/pvalue_distribution_liveupdate.png', dpi=200, bbox_inches='tight')
@@ -490,7 +493,7 @@ def createGWEventPage(analysis):
             </table>
         </table>
         '''.format(e, event['event_dt'], event['localization']['ra'], event['localization']['dec'], 
-                   event['localization']['ra_uncertainty'][0], 
+                   event['localization']['ra_dec_error'], 
                    event['event_pval_generic'], event['event_pval_bayesian'])
         e+=1
     
