@@ -21,12 +21,12 @@ import fast_response
 from fast_response.slack_posters.slack import slackbot
 from fast_response.slack_posters.logger_util import FRA_Logger
 import json
+from dotenv import load_dotenv
+load_dotenv()
 
 print("Connecting to GCN as Consumer")
-
-with open('/home/jthwaites/private/tokens/kafka_token.txt') as f:
-    client_id = f.readline().rstrip('\n')
-    client_secret = f.readline().rstrip('\n')
+client_id = os.getenv('GCN_ID')
+client_secret = os.getenv('GCN_SECRET')
 
 config = {'broker.address.family': 'v4', 
           'log_level': 0,
