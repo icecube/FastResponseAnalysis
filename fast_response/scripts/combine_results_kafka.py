@@ -208,14 +208,20 @@ def parse_notice(params, wait_for_llama=False, heartbeat=False):
         return
 
     collected_results = {}
+    ########################### ADD VERSION #################
     collected_results["$schema"]= "https://gcn.nasa.gov/schema/v[VERS]/gcn/notices/icecube/lvk_nu_search.schema.json"
     collected_results["type"]= "IceCube LVK Alert Nu Followup"
 
-    eventtime = record.find('.//ISOTime').text
+    eventtime = params['event']['time']
     event_mjd = Time(eventtime, format='isot').mjd
-    name = record.attrib['ivorn'].split('#')[1] 
-
-    if record.attrib['role'] != 'observation':
+    event_name_params = [
+            params['superevent_id'],
+            params['alert_type'].lower(),
+            params['time_created'].replace(':','').replace('-','')
+            ]
+    name = f'{}-{}-{}'.format(event_name_params[0], event_name_params[1], event_name_params[2])
+    
+    if params['role'] != 'observation':
         name=name+'_test'
 
     logger.info("{} alert found, processing GCN".format(name))
@@ -254,11 +260,12 @@ def parse_notice(params, wait_for_llama=False, heartbeat=False):
         start_time = Time(Time(eventtime, format='isot').mjd - 500./86400., format='mjd').isot
         start_date = Time(dateutil.parser.parse(start_time)).datetime
         start_str = f'{start_date.year:02d}_{start_date.month:02d}_{start_date.day:02d}'
-
-        uml_results_path = os.path.join(fra_results_location, start_str + '_' + name.replace(' ', '_') \
-                                   + '/' + start_str + '_' + name.replace(' ', '_')+'_results.pickle')
+        
+        uml_filename = name = f'{}-{}-{}'.format(event_name_params[0], event_name_params[2], event_name_params[1])
+        uml_results_path = os.path.join(fra_results_location, start_str + '_' + uml_filename \
+                                   + '/' + start_str + '_' + uml_filename+'_results.pickle')
         uml_results_finished = os.path.exists(uml_results_path)
-
+        ############## FIX filenames ##################
         if len(params['Instruments'].split(','))==1:
             llama_name = '{}.significance_opa_lvc-i3.json'.format(record.attrib['ivorn'].split('#')[1])
         else:
@@ -268,17 +275,6 @@ def parse_notice(params, wait_for_llama=False, heartbeat=False):
             llama_results_finished = os.path.exists(llama_results_path)
         else: 
             llama_results_finished = False
-        #llama_name = '{}*-significance_subthreshold_lvc-i3.json'.format(record.attrib['ivorn'].split('#')[1])
-        #llama_results_path = os.path.join(llama_results_location,llama_name)
-        #if wait_for_llama:
-        #    llama_results_glob = sorted(glob.glob(llama_results_path))
-        #    if len(llama_results_glob)>0:
-        #        llama_results_path = llama_results_glob[-1]
-        #        llama_results_finished=True
-        #    else:
-        #        llama_results_finished=False
-        #else: 
-        #    llama_results_finished = False
 
         if subthreshold and llama_results_finished:
             #no UML results in subthreshold case, only LLAMA
@@ -528,6 +524,8 @@ def parse_notice(params, wait_for_llama=False, heartbeat=False):
                                  os.path.join(save_location, f'{name}_collected_results.json')])
                 logger.info('Sent alert to ROC for p<0.01')
             except:
+                bot = slackbot('fra-shifting')
+                bot.post_short_msg('Failed to send email/SMS for p<0.01!')
                 logger.warning('Failed to send email/SMS notification.')
 
         else: 
