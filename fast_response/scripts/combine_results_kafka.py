@@ -21,10 +21,11 @@ import dateutil.parser
 from datetime import datetime
 from fast_response.slack_posters.slack import slackbot
 from fast_response.web_utils import updateGW_public
+from dotenv import load_dotenv
 
-with open('/home/jthwaites/private/tokens/kafka_token.txt') as f:
-    client_id = f.readline().rstrip('\n')
-    client_secret = f.readline().rstrip('\n')
+load_dotenv()
+client_id = os.getenv('GCN_ID')
+client_secret = os.getenv('GCN_SECRET')
 
 config = {'broker.address.family': 'v4', 
           'log_level': 0,
@@ -43,9 +44,8 @@ def SendAlert(results=None):
         if results is None:
             logger.fatal('Found no alert to send')
         
-        with open('/home/jthwaites/private/tokens/real_icecube_kafka_prod.txt') as f:
-            prod_id = f.readline().rstrip('\n')
-            prod_secret = f.readline().rstrip('\n')
+        prod_id = os.getenv('PROD_GCN_ID')
+        prod_secret = os.getenv('PROD_GCN_SECRET')
 
         producer = Producer(#config={'bootstrap.servers': 'kafka3.gcn.nasa.gov'},
                             client_id=prod_id,
@@ -70,9 +70,8 @@ def SendTestAlert(results=None):
         if results is None:
             logger.fatal('Found no alert to send')
         
-        with open('/home/jthwaites/private/tokens/test_icecube_kafka_prod.txt') as f:
-            prod_id = f.readline().rstrip('\n')
-            prod_secret = f.readline().rstrip('\n')
+        prod_id = os.getenv('PROD_GCN_ID')
+        prod_secret = os.getenv('PROD_GCN_SECRET')
 
         producer = Producer(#config={'bootstrap.servers': 'kafka3.gcn.nasa.gov'},
                             client_id=prod_id,

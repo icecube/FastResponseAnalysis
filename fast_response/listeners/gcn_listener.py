@@ -19,24 +19,23 @@ from dateutil.parser import parse
 from glob import glob
 from fast_response.slack_posters.slack import slackbot
 import pandas as pd
+from dotenv import load_dotenv
+load_dotenv()
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 logger.warning("Connecting to GCN as Consumer")
 
-with open('/home/jthwaites/private/tokens/kafka_token.txt') as f:
-    client_id = f.readline().rstrip('\n')
-    client_secret = f.readline().rstrip('\n')
+client_id = os.getenv('GCN_ID')
+client_secret = os.getenv('GCN_SECRET')
 
-domain = 'gcn.nasa.gov'
 config = {'broker.address.family': 'v4', 
           'log_level': 0}
 consumer = Consumer(client_id=client_id,
                     client_secret=client_secret,
                     domain='gcn.nasa.gov',
                     config=config,
-                    #config={'max.poll.interval.ms':1800000},
-                   )
+                    )
 
 #consumer.subscribe(['gcn.notices.icecube.gold_bronze_track_alerts'])
 # stick with voevent for now for all 3

@@ -4,6 +4,8 @@ import logging
 from gcn_kafka import Consumer
 from icecube import realtime_tools
 import json, argparse
+from dotenv import load_dotenv
+load_dotenv()
 
 parser = argparse.ArgumentParser(description='test listener for icecube kafka fra/llama results')
 parser.add_argument('--test_domain', action='store_true', default=False,
@@ -20,13 +22,11 @@ logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 if args.use_prod:
-    token = '/home/jthwaites/private/tokens/real_icecube_kafka_prod.txt'
+    client_id = os.getenv('PROD_GCN_ID')
+    client_secret = os.getenv('PROD_GCN_SECRET')
 else:
-    token = '/home/jthwaites/private/tokens/kafka_token.txt'
-
-with open(token) as f:
-    client_id = f.readline().rstrip('\n')
-    client_secret = f.readline().rstrip('\n')
+    client_id = os.getenv('GCN_ID')
+    client_secret = os.getenv('GCN_SECRET')
 
 if args.test_domain:
     domain = 'test.gcn.nasa.gov'
