@@ -2,9 +2,9 @@
    followup analyses. A lot of code has been taken from Fast Reponse
    Analysis. 
 
-   Author: Kevin Meagher, Raamis Hussain & Alex Pizzuto
+   Author: Kevin Meagher, Raamis Hussain, and Alex Pizzuto with updates from Alicia Mand
    Date:   Mar 27, 2019
-   Modified: April, 2019
+   Modified: October, 2026
 '''
 
 import numpy as np

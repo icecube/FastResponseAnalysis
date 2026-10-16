@@ -1,8 +1,9 @@
 r'''Script to initiate fast reponse
     followups.
 
-    Author: Alex Pizzuto
+    Author: Alex Pizzuto with updates from Alicia Mand
     Date: 2021
+    Modified: October, 2026
     '''
 
 from fast_response.ExternalFollowup import ExternalFollowup, ExternalSkymapFollowup
