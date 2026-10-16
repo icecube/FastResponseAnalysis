@@ -396,7 +396,7 @@ class ReportGenerator(object):
             else:
                 obsdate = d1+' -- '+d2
 
-            for name, command in [('sourcename', self.analysis.name),
+            for name, command in [('sourcename', self.analysis.name.replace('_', '\_')),
                                   ('analysisid', self.analysisid),
                                   ('reportdate', datetime.date.today().strftime("%Y-%m-%d")),
                                   ('obsdate', obsdate)]:
@@ -457,7 +457,7 @@ class ReportGenerator(object):
             
             self.write_table(
                 f,"sourcetable", [],[
-                    ("Source Name", self.analysis.name),
+                    ("Source Name", self.analysis.name.replace('_', '\_')),
                     (location_entry, location_string.replace('_', '\_')),
                     ("Trigger Time", "{} (MJD={:12.6f})".format(
                         s["trigger_iso"], s["trigger_mjd"])),
