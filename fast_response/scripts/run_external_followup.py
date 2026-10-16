@@ -87,6 +87,4 @@ if __name__ == "__main__":
     parser.add_argument('--document', default=False, action='store_true')
     args = parser.parse_args()
 
-    if '_' in args.name:
-        print('Warning: underscores in source name cause LaTeX to fail!')
     run_analysis(args)
