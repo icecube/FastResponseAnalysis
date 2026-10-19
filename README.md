@@ -165,4 +165,5 @@ Performance plots will be saved and a report with the results generated in the s
 ## Contacts
 Please send any questions or feature requests to:
 * Jessie Thwaites (thwaites@wisc.edu)
+* Alicia Mand (aemand@icecube.wisc.edu)
 * Justin Vandenbroucke (justin.vandenbroucke@wisc.edu)
