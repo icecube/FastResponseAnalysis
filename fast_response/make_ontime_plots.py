@@ -47,6 +47,7 @@ def time_axis(ax, run_table, time_window):
     endTime = time_window[1].plot_date
     bandColors = {False: "#005AB5", True:"#DC3220"}
     anyMarkedBad = False
+    anyMarkedGood = False
     for run in run_table:
         runStart = Time(run['start'], format='iso', scale='utc').plot_date
         runStop = Time(run['stop'], format='iso', scale='utc').plot_date
@@ -59,14 +60,17 @@ def time_axis(ax, run_table, time_window):
 
         if overLapStart < overLapStop: 
             plt.axvspan(overLapStart, overLapStop, color=bandColors[isBadRun], alpha=.2)
-            if isBadRun: anyMarkedBad = True
+            if isBadRun: anyMarkedBad = True 
+            else: anyMarkedGood = True
     # Only need to provide legend for bad runs if there is one
-    if anyMarkedBad: 
-        legend_elements = [Patch(facecolor="#005AB5", alpha=0.2, edgecolor="xkcd:dark blue", label="OK", lw=2), 
-                           Patch(facecolor="#DC3220", alpha=0.2, edgecolor="xkcd:scarlet", label="NotOK", lw=2)]
-        plt.legend(handles=legend_elements, loc="upper right", title="Run Status")
-    
-    # plt.axvspan(time_window[0].plot_date, time_window[1].plot_date, alpha = 0.2)
+    if anyMarkedBad and anyMarkedGood: 
+        legend_elements = [Patch(facecolor=bandColors[False], alpha=0.2, edgecolor="black", label="OK", lw=2), 
+                           Patch(facecolor=bandColors[True], alpha=0.2, edgecolor="black", label="NotOK", lw=2)]
+    elif anyMarkedGood: 
+        legend_elements = [Patch(facecolor=bandColors[False], alpha=0.2, edgecolor="black", label="OK", lw=2)]
+    else: 
+        legend_elements = [Patch(facecolor=bandColors[True], alpha=0.2, edgecolor="black", label="NotOK", lw=2)]
+    plt.legend(handles=legend_elements, loc="upper right", title="Run Status")
 
     if (Time(run_table[-1]['stop'],format='iso',scale='utc').mjd - 
         Time(run_table[0]['start'],format='iso',scale='utc').mjd) > 41.:
