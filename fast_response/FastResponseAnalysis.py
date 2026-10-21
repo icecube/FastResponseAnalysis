@@ -34,6 +34,8 @@ from . import plotting_utils
 from .reports import FastResponseReport
 
 mpl.use('agg')
+mpl.rcParams['text.usetex'] = False
+mpl.rcParams["mathtext.fontset"] = "dejavuserif"
 current_palette = sns.color_palette('colorblind', 10)
 logging.getLogger().setLevel(logging.ERROR)
 warnings.simplefilter("ignore", UserWarning)
@@ -423,9 +425,9 @@ class FastResponseAnalysis(object):
             plt.legend(loc=1)
 
             if bins[0]<0.:
-                plt.xlabel("TS (Note: lowest bin is an underflow bin)")
+                plt.xlabel("TS (Note: lowest bin is an underflow bin)", fontsize=18)
             else:
-                plt.xlabel("TS")
+                plt.xlabel("TS", fontsize=18)
             plt.ylabel("Probability Density")
             plt.yscale('log')
             plt.savefig(
@@ -603,7 +605,7 @@ class FastResponseAnalysis(object):
 
         plt.legend(loc = 2, ncol=1, mode = 'expand', fontsize = 18.5, framealpha = 0.95)
         plotting_utils.plot_color_bar(range=[0,6], cmap=lscmap, col_label=r"IceCube Event Time",
-                    offset=-50, labels = [r'-$\Delta T \Bigg/ 2$', r'+$\Delta T \Bigg/ 2$'])
+                    offset=-50, labels = [r'-$\Delta T \slash 2$', r'+$\Delta T \slash 2$'])
         plt.savefig(self.analysispath + '/' + self.analysisid + 'unblinded_skymap_zoom.png',bbox_inches='tight')
         plt.savefig(self.analysispath + '/' + self.analysisid + 'unblinded_skymap_zoom.pdf',bbox_inches='tight', dpi=300)
         plt.close()
@@ -1085,12 +1087,12 @@ class PriorFollowup(FastResponseAnalysis):
         plt.yscale('log')
         plt.xscale('log')
         plt.grid(which = 'major', alpha = 0.25)
-        plt.xlabel('Energy (GeV)', fontsize = 24)
+        plt.xlabel('Energy (GeV)', fontsize = 18)
         cdf = np.cumsum(a[0]) / np.sum(a[0])
         low_5_min_dec = np.interp(0.05, cdf, a[1][:-1])
         median_min_dec = np.interp(0.5, cdf, a[1][:-1])
         high_5_min_dec = np.interp(0.95, cdf, a[1][:-1])
-        plt.axvspan(low_5_min_dec, high_5_min_dec, color = sns.xkcd_rgb['windows blue'], alpha = 0.25, label="Central 90\%")
+        plt.axvspan(low_5_min_dec, high_5_min_dec, color = sns.xkcd_rgb['windows blue'], alpha = 0.25, label="Central 90%")
         lab = 'Median (min dec.)'
         plt.axvline(median_min_dec, c = sns.xkcd_rgb['windows blue'], alpha = 0.75, label = lab)
 
@@ -1381,13 +1383,13 @@ class PointSourceFollowup(FastResponseAnalysis):
             if fit_dict['ls'] == '-':
                 ax.axhline(0.9, color = 'm', linewidth = 0.3, linestyle = '-.')
                 ax.axvline(fit_dict['sens'], color = 'm', linewidth = 0.3, linestyle = '-.')
-                ax.text(3.5, 0.8, r'Sens. = {:.2f} events'.format(fit_dict['sens']), fontsize = 16)
-                ax.text(3.5, 0.7, r' = {:.1e}'.format(self.upperlimit * self.duration * 86400. * 1e6) + r' GeV cm$^{-2}$', fontsize = 16)
+                ax.text(3.4, 0.8, r'Sens. = {:.2f} events'.format(fit_dict['sens']), fontsize = 16)
+                ax.text(3.4, 0.7, r' = {:.1e}'.format(self.upperlimit * self.duration * 86400. * 1e6) + r' GeV cm$^{-2}$', fontsize = 16)
                 #ax.text(5, 0.5, r'Sens. = {:.2e}'.format(self.inj.mu2flux(fit_dict['sens'])) + ' GeV^-1 cm^-2 s^-1')
         ax.errorbar(signal_fluxes, passing, yerr=errs, capsize = 3, linestyle='', marker = 's', markersize = 2)
         ax.legend(loc=4, fontsize = 14)
-        ax.set_xlabel(r'$\langle n_{inj} \rangle$', fontsize = 14)
-        ax.set_ylabel(r'Fraction TS $>$ unblinded TS', fontsize = 14)
+        ax.set_xlabel(r'$\langle n_{inj} \rangle$', fontsize = 18)
+        ax.set_ylabel(r'Fraction TS $>$ unblinded TS', fontsize = 18)
         if self.save_output:
             plt.savefig(self.analysispath + '/upper_limit_distribution.png', bbox_inches='tight', dpi=200)
         print("Found upper limit of {:.2f} events".format(self.upperlimit_ninj))
@@ -1414,14 +1416,14 @@ class PointSourceFollowup(FastResponseAnalysis):
         plt.yscale('log')
         plt.xscale('log')
         plt.grid(which = 'major', alpha = 0.25)
-        plt.xlabel('Energy (GeV)', fontsize = 24)
+        plt.xlabel('Energy (GeV)', fontsize = 18)
         cdf = np.cumsum(a[0]) / np.sum(a[0])
         low_5 = np.interp(0.05, cdf, a[1][:-1])
         median = np.interp(0.5, cdf, a[1][:-1])
         high_5 = np.interp(0.95, cdf, a[1][:-1])
         self.low5 = low_5
         self.high5 = high_5
-        plt.axvspan(low_5, high_5, color = sns.xkcd_rgb['windows blue'], alpha = 0.25, label="Central 90\%")
+        plt.axvspan(low_5, high_5, color = sns.xkcd_rgb['windows blue'], alpha = 0.25, label="Central 90%")
         lab = 'Median'
         plt.axvline(median, c = sns.xkcd_rgb['windows blue'], alpha = 0.75, label = lab)
         plt.xlim(1e1, 1e8)
