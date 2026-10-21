@@ -481,28 +481,39 @@ class ReportGenerator(object):
             r1=[]
             r2=[]
             livetime = 0
-
+            goodLivetime = 0
+            runStatusColors = {"OK":"black", "NotOK": "red"}
             for run in self.run_table:
                 r1.append((
-                    run["run_number"],
-                    run["start"].split(".")[0],
-                    run["stop"].split(".")[0],
-                    run["duration"],"{:1.1f}s".format(run["livetime"])
+                    f'\\textcolor{{{runStatusColors[run["OK"]]}}}{{{run["run_number"]}}}',
+                    f'\\textcolor{{{runStatusColors[run["OK"]]}}}{{{run["start"].split(".")[0]}}}',
+                    f'\\textcolor{{{runStatusColors[run["OK"]]}}}{{{run["stop"]}}}',
+                    f'\\textcolor{{{runStatusColors[run["OK"]]}}}{{{run["duration"]}}}',
+                    f'\\textcolor{{{runStatusColors[run["OK"]]}}}{{{run["OK"]}}}',
+                    f'\\textcolor{{{runStatusColors[run["OK"]]}}}{{{"{:1.1f}s".format(run["livetime"])}}}',
                 ))
 
                 livetime += run['livetime']
+                if run["OK"] == "OK": goodLivetime += run['livetime']
             
             self.write_table(
                 f,
                 "runtimetable",
-                ["Run","Start Time","Stop Time","Duration","Livetime"],
+                ["Run","Start Time","Stop Time","Duration","OK","Livetime"],
                 r1
             )
 
             if 'status' in self.run_table[0]:
                 for run in self.run_table:
-                    r2.append((run['run_number'],run['status'],run['lightmode'],run['filter_mode'],
-                               run['run_mode'],run["OK"],run["gfu_counts"]))
+                    r2.append((
+                        f'\\textcolor{{{runStatusColors[run["OK"]]}}}{{{run["run_number"]}}}',
+                        f'\\textcolor{{{runStatusColors[run["OK"]]}}}{{{run["status"]}}}',
+                        f'\\textcolor{{{runStatusColors[run["OK"]]}}}{{{run["lightmode"]}}}',
+                        f'\\textcolor{{{runStatusColors[run["OK"]]}}}{{{run["filter_mode"]}}}',
+                        f'\\textcolor{{{runStatusColors[run["OK"]]}}}{{{run["run_mode"]}}}',
+                        f'\\textcolor{{{runStatusColors[run["OK"]]}}}{{{run["OK"]}}}',
+                        f'\\textcolor{{{runStatusColors[run["OK"]]}}}{{{run["gfu_counts"]}}}',
+                               ))
                 self.write_table(
                     f,
                     "runstatustable",
@@ -512,7 +523,8 @@ class ReportGenerator(object):
             else:
                 self.write_table(f,"runstatustable",[],[])
 
-            f.write(r"\newcommand{\livetime}{"+'{:0,.1f}'.format(livetime)+"}\n")
+            f.write(r"\newcommand{\livetime}{"+'{:0,.1f}'.format(livetime)+"}\n" + 
+                    r"\newcommand{\goodLivetime}{"+'{:0,.1f}'.format(goodLivetime)+"}\n")
 
             if self.ontime['type']=='database':
                 self.write_table(
