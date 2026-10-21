@@ -1,7 +1,7 @@
 r'''Script to initiate fast reponse
     followups.
 
-    Author: Alex Pizzuto with updates from Alicia Mand
+    Author: Alex Pizzuto and Alicia Mand
     Date: 2021
     Modified: October, 2026
     '''
