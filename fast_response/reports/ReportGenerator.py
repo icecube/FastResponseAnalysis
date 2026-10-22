@@ -2,9 +2,9 @@
    followup analyses. A lot of code has been taken from Fast Reponse
    Analysis. 
 
-   Author: Kevin Meagher, Raamis Hussain & Alex Pizzuto
+   Author: Kevin Meagher, Raamis Hussain, Alex Pizzuto, and Alicia Mand
    Date:   Mar 27, 2019
-   Modified: April, 2019
+   Modified: October, 2026
 '''
 
 import numpy as np
@@ -396,7 +396,7 @@ class ReportGenerator(object):
             else:
                 obsdate = d1+' -- '+d2
 
-            for name, command in [('sourcename', self.analysis.name),
+            for name, command in [('sourcename', self.analysis.name.replace('_', '\_')),
                                   ('analysisid', self.analysisid),
                                   ('reportdate', datetime.date.today().strftime("%Y-%m-%d")),
                                   ('obsdate', obsdate)]:
@@ -457,7 +457,7 @@ class ReportGenerator(object):
             
             self.write_table(
                 f,"sourcetable", [],[
-                    ("Source Name", self.analysis.name),
+                    ("Source Name", self.analysis.name.replace('_', '\_')),
                     (location_entry, location_string.replace('_', '\_')),
                     ("Trigger Time", "{} (MJD={:12.6f})".format(
                         s["trigger_iso"], s["trigger_mjd"])),
@@ -481,28 +481,39 @@ class ReportGenerator(object):
             r1=[]
             r2=[]
             livetime = 0
-
+            goodLivetime = 0
+            runStatusColors = {"OK":"black", "NotOK": "red"}
             for run in self.run_table:
                 r1.append((
-                    run["run_number"],
-                    run["start"].split(".")[0],
-                    run["stop"].split(".")[0],
-                    run["duration"],"{:1.1f}s".format(run["livetime"])
+                    f'\\textcolor{{{runStatusColors[run["OK"]]}}}{{{run["run_number"]}}}',
+                    f'\\textcolor{{{runStatusColors[run["OK"]]}}}{{{run["start"].split(".")[0]}}}',
+                    f'\\textcolor{{{runStatusColors[run["OK"]]}}}{{{run["stop"]}}}',
+                    f'\\textcolor{{{runStatusColors[run["OK"]]}}}{{{run["duration"]}}}',
+                    f'\\textcolor{{{runStatusColors[run["OK"]]}}}{{{run["OK"]}}}',
+                    f'\\textcolor{{{runStatusColors[run["OK"]]}}}{{{"{:1.1f}s".format(run["livetime"])}}}',
                 ))
 
                 livetime += run['livetime']
+                if run["OK"] == "OK": goodLivetime += run['livetime']
             
             self.write_table(
                 f,
                 "runtimetable",
-                ["Run","Start Time","Stop Time","Duration","Livetime"],
+                ["Run","Start Time","Stop Time","Duration","OK","Livetime"],
                 r1
             )
 
             if 'status' in self.run_table[0]:
                 for run in self.run_table:
-                    r2.append((run['run_number'],run['status'],run['lightmode'],run['filter_mode'],
-                               run['run_mode'],run["OK"],run["gfu_counts"]))
+                    r2.append((
+                        f'\\textcolor{{{runStatusColors[run["OK"]]}}}{{{run["run_number"]}}}',
+                        f'\\textcolor{{{runStatusColors[run["OK"]]}}}{{{run["status"]}}}',
+                        f'\\textcolor{{{runStatusColors[run["OK"]]}}}{{{run["lightmode"]}}}',
+                        f'\\textcolor{{{runStatusColors[run["OK"]]}}}{{{run["filter_mode"]}}}',
+                        f'\\textcolor{{{runStatusColors[run["OK"]]}}}{{{run["run_mode"]}}}',
+                        f'\\textcolor{{{runStatusColors[run["OK"]]}}}{{{run["OK"]}}}',
+                        f'\\textcolor{{{runStatusColors[run["OK"]]}}}{{{run["gfu_counts"]}}}',
+                               ))
                 self.write_table(
                     f,
                     "runstatustable",
@@ -512,7 +523,8 @@ class ReportGenerator(object):
             else:
                 self.write_table(f,"runstatustable",[],[])
 
-            f.write(r"\newcommand{\livetime}{"+'{:0,.1f}'.format(livetime)+"}\n")
+            f.write(r"\newcommand{\livetime}{"+'{:0,.1f}'.format(livetime)+"}\n" + 
+                    r"\newcommand{\goodLivetime}{"+'{:0,.1f}'.format(goodLivetime)+"}\n")
 
             if self.ontime['type']=='database':
                 self.write_table(

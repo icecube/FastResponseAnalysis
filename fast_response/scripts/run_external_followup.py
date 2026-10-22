@@ -1,8 +1,9 @@
 r'''Script to initiate fast reponse
     followups.
 
-    Author: Alex Pizzuto
+    Author: Alex Pizzuto and Alicia Mand
     Date: 2021
+    Modified: October, 2026
     '''
 
 from fast_response.ExternalFollowup import ExternalFollowup, ExternalSkymapFollowup
@@ -87,6 +88,4 @@ if __name__ == "__main__":
     parser.add_argument('--document', default=False, action='store_true')
     args = parser.parse_args()
 
-    if '_' in args.name:
-        print('Warning: underscores in source name cause LaTeX to fail!')
     run_analysis(args)
