@@ -1,17 +1,21 @@
-import numpy as np
+import os
+import pickle
+
 import healpy as hp
-from scipy import sparse
-import pickle, os
 import matplotlib as mpl
+import numpy as np
+from scipy import sparse
+
 mpl.use('agg')
+import fast_response
 import matplotlib.pyplot as plt
 import seaborn as sns
 from astropy.time import Time
 
-import fast_response
+from . import sensitivity_utils
 from .FastResponseAnalysis import PriorFollowup
 from .reports import AlertReport
-from . import sensitivity_utils
+
 
 class AlertFollowup(PriorFollowup):
     """
@@ -47,8 +51,7 @@ class AlertFollowup(PriorFollowup):
         pre_ts_array = sparse.load_npz(
             bg_trial_dir
             + 'precomputed_trials_delta_t_'
-            + '{:.2e}_trials_rate_{:.1f}_low_stats.npz'.format(
-                self.duration * 86400., closest_rate, self.duration * 86400.))
+            + f'{self.duration * 86400.:.2e}_trials_rate_{closest_rate:.1f}_low_stats.npz')
         ts_norm = np.log(np.amax(self.skymap))
         ts_prior = pre_ts_array.copy()
         ts_prior.data += 2.*(np.log(self.skymap[pre_ts_array.indices]) - ts_norm)
@@ -116,9 +119,9 @@ class AlertFollowup(PriorFollowup):
         src_dec = np.unique(src_dec)
         src_dec = np.sin(src_dec)
         ax.axvspan(src_dec.min(), src_dec.max(), alpha=0.3, color=sns.xkcd_rgb['light navy blue'],
-                label='90\% contour region')
-        plt.text(0.05, 3e1, 'Min sens.: {:.1e}'.format(self.sens_range[0]) + r' GeV cm$^{-2}$')
-        plt.text(0.05, 1.5e1, 'Max sens.: {:.1e}'.format(self.sens_range[1]) + r' GeV cm$^{-2}$')
+                label=r'90\% contour region')
+        plt.text(0.05, 3e1, f'Min sens.: {self.sens_range[0]:.1e}' + r' GeV cm$^{-2}$')
+        plt.text(0.05, 1.5e1, f'Max sens.: {self.sens_range[1]:.1e}' + r' GeV cm$^{-2}$')
         plt.grid(which='both', alpha=0.2, zorder=1)
         plt.yscale('log')
         plt.xlabel(r'$\sin \delta$', fontsize=20)
@@ -233,19 +236,19 @@ class AlertFollowup(PriorFollowup):
                     ('high_en', analysis_1000['energy_range'][1])]
 
         with open(template_path, 'r') as f:
-            for line in f.readlines():
+            for line in f:
                 for k, r in keypairs:
                     if k in line:
                         if type(r) == str:
                             form_r = r
                         elif type(r) == int:
-                            form_r = '{}'.format(r)
+                            form_r = f'{r}'
                         elif k in ['low_en', 'high_en']:
-                            form_r = '{:.0e}'.format(r)
+                            form_r = f'{r:.0e}'
                         elif 'sens' in k:
-                            form_r = '{:.1e}'.format(r)
+                            form_r = f'{r:.1e}'
                         else:
-                            form_r = '{}'.format(r)
+                            form_r = f'{r}'
                         line = line.replace('<'+k+'>', form_r)
                 new_f.append(line)
         
@@ -326,7 +329,7 @@ class TrackFollowupLLH(AlertFollowup):
         elif percentage == 0.5:
             msk = (skymap < 22.2) * (skymap > 0.)
         else:
-            raise ValueError('Must use 50\% or 90\% containment for alert events')
+            raise ValueError(r'Must use 50\% or 90\% containment for alert events')
         msk *= ~np.isnan(skymap)
         msk *= ~np.isinf(skymap)
         ipix = np.asarray(indices[msk], dtype=int)

@@ -1,5 +1,6 @@
 from .FastResponseAnalysis import PriorFollowup
 
+
 class GRBFollowup(PriorFollowup):
     _dataset = 'GFUOnline_v001_p03'
     _fix_index = True
@@ -7,7 +8,6 @@ class GRBFollowup(PriorFollowup):
 
     def run_background_trials(self, ntrials):
         bg_path = 'data/user/efried/IceCube/GRB_coincidence/allsky_scans/'
-        pass
 
     def write_grb_tables(ts_list, ns_list, pval_list, UL_list):
         # """

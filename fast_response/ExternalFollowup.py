@@ -1,5 +1,6 @@
 from .FastResponseAnalysis import PointSourceFollowup, PriorFollowup
 
+
 class ExternalFollowup(PointSourceFollowup):
     '''
     Class for external point-source or extended source followup.

@@ -1,9 +1,10 @@
-import numpy as np
 import healpy as hp
-import seaborn as sns
-import matplotlib.pyplot as plt
 import matplotlib as mpl
+import matplotlib.pyplot as plt
 import meander
+import numpy as np
+import seaborn as sns
+
 
 def plot_zoom(scan, ra, dec, title, reso=3, var="pVal", range=[0, 6],cmap=None):
     """
@@ -212,7 +213,7 @@ def contour(ra, dec, sigma, nside):
     Theta = np.zeros(bins+1, dtype=np.double)
     Phi = np.zeros(bins+1, dtype=np.double)
     # define the contour
-    for j in range(0,bins) :
+    for j in range(bins) :
         phi = j*step/180.*np.pi
         vx = np.cos(phi)*np.sin(ra)*np.sin(delta) + np.cos(ra)*(np.cos(delta)*np.sin(dec) + np.cos(dec)*np.sin(delta)*np.sin(phi))
         vy = np.cos(delta)*np.sin(dec)*np.sin(ra) + np.sin(delta)*(-np.cos(ra)*np.cos(phi) + np.cos(dec)*np.sin(ra)*np.sin(phi))
@@ -248,7 +249,7 @@ def plot_contours(proportions, samples):
     """
 
     levels = []
-    sorted_samples = list(reversed(list(sorted(samples))))
+    sorted_samples = list(reversed(sorted(samples)))
     nside = hp.pixelfunc.get_nside(samples)
     sample_points = np.array(hp.pix2ang(nside, np.arange(len(samples)))).T
     for proportion in proportions:

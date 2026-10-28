@@ -7,20 +7,22 @@
     Last Updated: Sept 2026
 '''
 
-import logging
-from gcn_kafka import Consumer
-import sys, pickle, os, subprocess, pwd
-from dateutil.parser import parse
-from dateutil.relativedelta import relativedelta
-import healpy as hp
-import numpy as np
-import argparse, time, wget
-from astropy.time import Time
-from datetime import datetime
-import fast_response
-from fast_response.slack_posters.slack import slackbot
-from fast_response.slack_posters.logger_util import FRA_Logger
+import argparse
 import json
+import logging
+import os
+import pickle
+import subprocess
+import sys
+import time
+from datetime import datetime
+
+import fast_response
+import wget
+from astropy.time import Time
+from fast_response.slack_posters.logger_util import FRA_Logger
+from fast_response.slack_posters.slack import slackbot
+from gcn_kafka import Consumer
 
 print("Connecting to GCN as Consumer")
 
@@ -130,8 +132,7 @@ def process_gcn(params, mock=False):
     FiveHundred_delay = (needed_delay - current_delay)*86400.
 
     while current_delay < needed_delay:
-        logger.info("Need to wait another {:.1f} seconds before running".format(
-            (needed_delay - current_delay)*86400.)
+        logger.info(f"Need to wait another {(needed_delay - current_delay)*86400.:.1f} seconds before running"
             )
         time.sleep((needed_delay - current_delay)*86400.)
         current_mjd = Time(datetime.utcnow(), scale='utc').mjd
@@ -167,7 +168,7 @@ def process_gcn(params, mock=False):
                                 '--skymap', new_output])
                 if os.path.exists(new_output.replace('multiorder','converted')):
                     skymap = new_output.replace('multiorder','converted')
-                    logger.info('Successfully converted map: {}'.format(skymap))
+                    logger.info(f'Successfully converted map: {skymap}')
                 else:
                     if not mock:
                         error_bot.post_short_msg(f"Failed to convert GW skymap, {error_bot.get_shifter_id()} on shift!")
@@ -184,13 +185,13 @@ def process_gcn(params, mock=False):
         logger.info('Running on scrambled data')
     command = os.path.join(analysis_path, 'run_gw_followup.py')
 
-    logger.info('Running {}'.format(command))
+    logger.info(f'Running {command}')
 
     subprocess.call([
         command, 
-        '--skymap={}'.format(skymap), 
-        '--time={}'.format(str(event_mjd)), 
-        '--name={}'.format(name)
+        f'--skymap={skymap}', 
+        f'--time={event_mjd}', 
+        f'--name={name}'
     ])
     
     analysis_start = Time(event_mjd - 500./86400., format='mjd').iso
@@ -204,7 +205,7 @@ def process_gcn(params, mock=False):
 
             wp_link = 'https://user-web.icecube.wisc.edu/~jthwaites/FastResponse/gw-webpage/output/'+\
                       '{}.html'.format(analysis_start[0:10].replace('-','_')+'_'+name)
-            slack_message = "UML GW analysis finished running for event {}: <{}|link>.".format(name, wp_link) 
+            slack_message = f"UML GW analysis finished running for event {name}: <{wp_link}|link>." 
 
             for channel in ['#fra-shifting','#gwnu-heartbeat']:
                 bot = slackbot(channel)
@@ -241,7 +242,7 @@ def process_gcn(params, mock=False):
             pickle.dump(gw_latency, file, protocol=pickle.HIGHEST_PROTOCOL)
     
     #save notice for later
-    with open(os.path.join(output, '{}.json'.format(name)), "w") as f:
+    with open(os.path.join(output, f'{name}.json'), "w") as f:
         f.write(json.dumps(params, indent=2))
     
     if params['role'] != 'observation':
@@ -249,7 +250,7 @@ def process_gcn(params, mock=False):
         subprocess.call(['mv',output, '/data/user/jthwaites/o4-mocks/'])
         output = '/data/user/jthwaites/o4-mocks/' + eventtime[0:10].replace('-','_')+'_'+name
     
-    logger.info('Output directory: {}'.format(output))
+    logger.info(f'Output directory: {output}')
 
 if __name__ == '__main__':
 
@@ -287,7 +288,7 @@ if __name__ == '__main__':
                         logger.warning(message.error())
                         continue
                     value = message.value().decode('utf-8')
-                    logger.warning('Found GCN on topic {}'.format(message.topic()))
+                    logger.warning(f'Found GCN on topic {message.topic()}')
                     notice = json.loads(value)
                     if notice['alert_type'].lower() == 'retraction':
                         # retractions do not have some required quantities, and should not be run
@@ -308,10 +309,10 @@ if __name__ == '__main__':
             test_file = os.path.join(os.environ.get('I3_SRC'),'realtime_scripts/resources/test', args.test_path)
             # if it still isn't found, exit
             if not os.path.exists(test_file):
-                logger.error('Failed to find test file at {}. Check path and try again'.format(test_file))
+                logger.error(f'Failed to find test file at {test_file}. Check path and try again')
                 sys.exit()
 
-        logger.info('Running offline on file: {}'.format(test_file))
+        logger.info(f'Running offline on file: {test_file}')
         params = json.loads(test_file)
 
         mock=args.heartbeat

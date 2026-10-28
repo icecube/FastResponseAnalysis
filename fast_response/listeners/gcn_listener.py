@@ -7,18 +7,19 @@
     Updated Date:   August 2026
 '''
 
+import argparse
 import logging
-from gcn_kafka import Consumer
-import os, subprocess, time, pwd, argparse
-import healpy as hp
-import numpy as np
+import os
+import pwd
+import subprocess
+import time
+from datetime import datetime
+from glob import glob
+
 import lxml.etree
 from astropy.time import Time
-from datetime import datetime
-from dateutil.parser import parse
-from glob import glob
 from fast_response.slack_posters.slack import slackbot
-import pandas as pd
+from gcn_kafka import Consumer
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -72,12 +73,12 @@ def process_gcn(record):
         logger.warning("INCOMING ALERT: ",datetime.utcnow())
         logger.warning("Detected cascade type alert, running cascade followup. . . ")
         alert_type='cascade'
-        event_name='IceCube-Cascade_{}{}{}'.format(eventtime[2:4],eventtime[5:7],eventtime[8:10])
+        event_name=f'IceCube-Cascade_{eventtime[2:4]}{eventtime[5:7]}{eventtime[8:10]}'
 
         skymap = params['skymap_fits']
     else:
         alert_type='track'
-        event_name='IceCube-{}{}{}'.format(eventtime[2:4],eventtime[5:7],eventtime[8:10]) 
+        event_name=f'IceCube-{eventtime[2:4]}{eventtime[5:7]}{eventtime[8:10]}' 
 
         # IceCube sends 2: a notice and a revision, only want to run once
         if int(params['Rev']) !=0:
@@ -103,8 +104,7 @@ def process_gcn(record):
     needed_delay = 1.
     current_delay = current_mjd - event_mjd
     while current_delay < needed_delay:
-        logger.info("Need to wait another {:.1f} seconds before running".format(
-            (needed_delay - current_delay)*86400.)
+        logger.info(f"Need to wait another {(needed_delay - current_delay)*86400.:.1f} seconds before running"
             )
         time.sleep((needed_delay - current_delay)*86400.)
         current_mjd = Time(datetime.utcnow(), scale='utc').mjd
@@ -139,10 +139,10 @@ def process_gcn(record):
     logger.info('\nRunning {} --skymap={} --time={} --alert_id={} --suffix={}'.format(
         command, skymap, str(event_mjd), run_id+':'+event_id, suffix))
 
-    subprocess.call([command, '--skymap={}'.format(skymap), 
-        '--time={}'.format(str(event_mjd)), 
+    subprocess.call([command, f'--skymap={skymap}', 
+        f'--time={event_mjd!s}', 
         '--alert_id={}'.format(run_id+':'+event_id),
-        '--suffix={}'.format(suffix)]
+        f'--suffix={suffix}']
         )
 
     event_name=event_name+suffix
@@ -171,8 +171,7 @@ def process_gcn(record):
         done_message = f'Done running FRA for {alert_type} alert, {event_name}.\n '+ on_shift +'on shift'
 
         if doc:
-            done_message = done_message + "\n - Results for 1000s: <{}|link>\n - Results for 2d: <{}|link>".format(
-                              wp_link_1000, wp_link_2d)
+            done_message = done_message + f"\n - Results for 1000s: <{wp_link_1000}|link>\n - Results for 2d: <{wp_link_2d}|link>"
 
         bot.post_short_msg(done_message)
     except Exception as e:
@@ -209,7 +208,7 @@ if __name__ == '__main__':
                     logger.warning(message.error())
                     continue
                 value = message.value()
-                logger.warning('Found GCN on topic {}'.format(message.topic()))
+                logger.warning(f'Found GCN on topic {message.topic()}')
                 notice = lxml.etree.fromstring(value)
                 try: 
                     process_gcn(notice)

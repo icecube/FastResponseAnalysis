@@ -1,10 +1,10 @@
-import seaborn as sns
-import numpy as np
-import pandas as pd
-from astropy.time import Time, TimeDelta
 import icecube.realtime_tools.live
 import matplotlib as mpl
+import numpy as np
+import seaborn as sns
+from astropy.time import Time
 from matplotlib.patches import Patch
+
 mpl.use('agg')
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
@@ -167,7 +167,7 @@ def make_rate_plots(time_window, run_table, query_events, dirname, season='neutr
     fig.autofmt_xdate()
     plt.locator_params(axis='x', nbins = 8)
     plt.grid(b = True, axis = 'y', alpha = 0.3)
-    plt.savefig('{}/GFU_rate_plot.png'.format(dirname))
+    plt.savefig(f'{dirname}/GFU_rate_plot.png')
 
     try:
         badness = icecube.realtime_tools.live.get_badness(run_table[0]['start'], run_table[-1]['stop'])
@@ -188,7 +188,7 @@ def make_rate_plots(time_window, run_table, query_events, dirname, season='neutr
     fig.autofmt_xdate()
     plt.locator_params(axis='x', nbins = 8)
     plt.grid(b = True, axis = 'y', alpha = 0.3)
-    plt.savefig('{}/badness_plot.png'.format(dirname))
+    plt.savefig(f'{dirname}/badness_plot.png')
     
     try:
         if (Time(run_table[-1]['stop'],format='iso',scale='utc').mjd \
@@ -232,9 +232,9 @@ def make_rate_plots(time_window, run_table, query_events, dirname, season='neutr
                     rates[rate])
             
         plt.title(name, fontsize = 18)
-        plt.ylabel('{} {}'.format(name, unit), fontsize = 16)
+        plt.ylabel(f'{name} {unit}', fontsize = 16)
         fig.autofmt_xdate()
         plt.locator_params(axis='x', nbins = 8)
         plt.grid(b = True, axis = 'y', alpha = 0.3)
-        plt.savefig('{}/{}_plot.png'.format(dirname, rate))
+        plt.savefig(f'{dirname}/{rate}_plot.png')
         

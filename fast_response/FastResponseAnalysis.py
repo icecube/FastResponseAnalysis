@@ -4,33 +4,35 @@ r''' General Fast Response Analysis Class.
     Date: 2021
     '''
 
+import logging
+import os
+import pickle
+import subprocess
+import sys
+import time
+import warnings
 from abc import abstractmethod
-import os, sys, time, subprocess
-import pickle, dateutil.parser, logging, warnings
 
+import dateutil.parser
 import h5py
-import healpy               as hp
-import numpy                as np
-import seaborn              as sns
-import matplotlib           as mpl
-import matplotlib.pyplot    as plt
-from astropy.time           import Time
-from scipy.special          import erfinv
-from matplotlib.lines       import Line2D
-
-from skylab.datasets        import Datasets
-from skylab.llh_models      import EnergyLLH
-from skylab.priors          import SpatialPrior
-from skylab.ps_injector     import PointSourceInjector
-from skylab.ps_llh          import PointSourceLLH
-from skylab.ps_injector     import PriorInjector
-from skylab.spectral_models import PowerLaw 
+import healpy as hp
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+import numpy as np
+import seaborn as sns
+from astropy.time import Time
+from matplotlib.lines import Line2D
+from scipy.special import erfinv
+from skylab.datasets import Datasets
+from skylab.llh_models import EnergyLLH
+from skylab.priors import SpatialPrior
+from skylab.ps_injector import PointSourceInjector, PriorInjector
+from skylab.ps_llh import PointSourceLLH
+from skylab.spectral_models import PowerLaw
 from skylab.temporal_models import BoxProfile, TemporalModel
-# import meander
 
-from . import web_utils
-from . import sensitivity_utils
-from . import plotting_utils
+# import meander
+from . import plotting_utils, sensitivity_utils
 from .reports import FastResponseReport
 
 mpl.use('agg')
@@ -39,7 +41,7 @@ logging.getLogger().setLevel(logging.ERROR)
 warnings.simplefilter("ignore", UserWarning)
 warnings.simplefilter("ignore", RuntimeWarning)
 
-class FastResponseAnalysis(object):
+class FastResponseAnalysis:
     """ 
     Object to do realtime followup analyses of 
     astrophysical transients with arbitrary event
@@ -87,8 +89,7 @@ class FastResponseAnalysis(object):
         self.save_output = save
 
         if os.path.isdir(self.analysispath) and self.save_output:
-            print("Directory {} already exists. Deleting it ...".format(
-                self.analysispath))
+            print(f"Directory {self.analysispath} already exists. Deleting it ...")
             subprocess.call(['rm', '-r', self.analysispath])
             subprocess.call(['mkdir', self.analysispath])
             # sys.exit()
@@ -308,7 +309,7 @@ class FastResponseAnalysis(object):
             exp = dset.remove_ev(exp, mjd_keys=mjd_keys[0])
             self.save_items['skipped_event'] = self.skipped_event
         except:
-            print("Was not able to remove event {}".format(skipped))
+            print(f"Was not able to remove event {skipped}")
         return exp
 
     @abstractmethod
@@ -353,7 +354,7 @@ class FastResponseAnalysis(object):
             sigma = self.significance(p)
             if self._verbose:
                 print(f"p: {p:.4f}")
-                print("Significance: {:.3f}sigma\n\n".format(sigma))
+                print(f"Significance: {sigma:.3f}sigma\n\n")
         self.p = p
         self.save_items['p'] = p
         return p
@@ -415,11 +416,11 @@ class FastResponseAnalysis(object):
                 bins = np.linspace(0., 25., 30)
             
             plt.hist(self.tsd, bins= bins, 
-                    label="{} Background Scrambles".format(len(self.tsd)), density=True)
+                    label=f"{len(self.tsd)} Background Scrambles", density=True)
             if self.ts >= -500.:
                 plt.axvline(self.ts, color = 'k', label = "Observed TS")
             else: 
-                plt.annotate("Unblinded TS: {:.0f}".format(self.ts), (lower+20, 1e-3))
+                plt.annotate(f"Unblinded TS: {self.ts:.0f}", (lower+20, 1e-3))
             plt.legend(loc=1)
 
             if bins[0]<0.:
@@ -477,7 +478,7 @@ class FastResponseAnalysis(object):
             dictionary of saved analysis parameters        
         """
         if alt_path is None:
-            print("Saving results to directory:\n\t{}".format(self.analysispath))
+            print(f"Saving results to directory:\n\t{self.analysispath}")
             with open(self.analysispath + '/' + self.analysisid + '_' + 'results.pickle', 'wb') as f:
                 pickle.dump(self.save_items, f, protocol=pickle.HIGHEST_PROTOCOL)
             print("Results successfully saved")
@@ -506,12 +507,12 @@ class FastResponseAnalysis(object):
         
         try:
             self.plot_skymap_zoom(with_contour=with_contour, contour_files=contour_files)
-        except Exception as e:
+        except Exception:
             print('Failed to make skymap zoom plot')
 
         try:
             self.plot_skymap(with_contour=with_contour, contour_files=contour_files, label_events=label_events) 
-        except Exception as e:
+        except Exception:
             print('Failed to make FULL skymap plot')
 
     def plot_skymap_zoom(self, with_contour=False, contour_files=None):
@@ -581,7 +582,7 @@ class FastResponseAnalysis(object):
                 cont = np.loadtxt(c_file, skiprows=1)
                 cont_ra = cont.T[0]
                 cont_dec = cont.T[1]
-                cont_label = 'Millipede 50\%, 90\% (160427A syst.)' if self._llh_map else 'Skymap 50\%, 90\%'
+                cont_label = r'Millipede 50\%, 90\% (160427A syst.)' if self._llh_map else r'Skymap 50\%, 90\%'
                 label = cont_label if contour_counter == 0 else ''
                 
                 hp.projplot(np.pi/2. - cont_dec, cont_ra, linewidth=3., 
@@ -686,7 +687,7 @@ class FastResponseAnalysis(object):
         hp.projscatter(theta,phi,c=cols,marker='x',label='GFU Event',coord='C', zorder=5)
         if label_events:
             for j in range(len(theta)):
-                hp.projtext(theta[j], phi[j]-0.11, '{}'.format(j+1), color='red', fontsize=18, zorder=6)
+                hp.projtext(theta[j], phi[j]-0.11, f'{j+1}', color='red', fontsize=18, zorder=6)
         handles.append(Line2D([0], [0], marker='x', ls='None', label='GFU Event'))
 
         if (self.stop - self.start) <= 0.5:        #Only plot contours if less than 2 days
@@ -720,7 +721,7 @@ class FastResponseAnalysis(object):
             ### plot 90% containment contour of PDF
             levels = [0.9]
             theta, phi = plotting_utils.plot_contours(levels, probs)
-            hp.projplot(theta[0], phi[0], linewidth=2., c='k', label='Skymap (90\% cont.)')
+            hp.projplot(theta[0], phi[0], linewidth=2., c='k', label=r'Skymap (90\% cont.)')
             handles.append(Line2D([0], [0], lw=2, c='k', label=r"Skymap (90\% cont.)"))
             for i in range(1, len(theta)):
                 hp.projplot(theta[i], phi[i], linewidth=2., c='k')
@@ -889,7 +890,7 @@ class PriorFollowup(FastResponseAnalysis):
         if print_events:
             # print nearby events, as a check (if needed)
             msk1 = (self.llh.exp[t_mask]['ra'] < (self.skymap_fit_ra+np.radians(5)))*(self.llh.exp[t_mask]['ra'] > (self.skymap_fit_ra-np.radians(5)))
-            msk2 = (self.llh.exp[t_mask]['dec'] < (self.skymap_fit_dec+np.radians(5)))*((self.llh.exp[t_mask]['dec'] > self.skymap_fit_dec-np.radians(5)))
+            msk2 = (self.llh.exp[t_mask]['dec'] < (self.skymap_fit_dec+np.radians(5)))*(self.llh.exp[t_mask]['dec'] > self.skymap_fit_dec-np.radians(5))
             msk3 = msk1*msk2
             if np.count_nonzero(msk3) > 0:
                 print('Events within 5 deg of best-fit:')
@@ -947,7 +948,7 @@ class PriorFollowup(FastResponseAnalysis):
         )
         self.ts_scan = val
         t2 = time.time()
-        print("finished scan, took {} s".format(t2-t1))
+        print(f"finished scan, took {t2-t1} s")
         try:
             ts = val['TS_spatial_prior_0'].max()
             max_prior = np.argmax(val['TS_spatial_prior_0'])
@@ -981,8 +982,8 @@ class PriorFollowup(FastResponseAnalysis):
             self.skymap_fit_ra = phi
             self.skymap_fit_dec = dec
             self.scanned_pixels = None
-        print("TS = {}".format(ts))
-        print("ns = {}".format(ns))
+        print(f"TS = {ts}")
+        print(f"ns = {ns}")
         self.ts, self.ns = ts, ns
         if self._float_index:
             self.gamma = gamma_fit
@@ -1002,7 +1003,6 @@ class PriorFollowup(FastResponseAnalysis):
         """ UPPER LIMIT WITH SPATIAL PRIOR NOT YET IMPLEMENTED
         """
         print("Upper limit with spatial prior not yet implemented")
-        pass
 
     def ipixs_in_percentage(self, percentage):
         """Finding ipix indices confined in a given percentage.
@@ -1025,7 +1025,7 @@ class PriorFollowup(FastResponseAnalysis):
         cumsum = np.cumsum(sort)
         index, value = min(enumerate(cumsum),key=lambda x:abs(x[1]-percentage))
 
-        index_hpx = list(range(0,len(skymap)))
+        index_hpx = list(range(len(skymap)))
         hpx_index = np.c_[skymap, index_hpx]
 
         sort_2array = sorted(hpx_index,key=lambda x: x[0],reverse=True)
@@ -1033,7 +1033,7 @@ class PriorFollowup(FastResponseAnalysis):
 
         j = 1 
         table_ipix_contour = [ ]
-        for i in range (0, len(value_contour)):
+        for i in range (len(value_contour)):
             ipix_contour = int(value_contour[i][j])
             table_ipix_contour.append(ipix_contour)
     
@@ -1090,7 +1090,7 @@ class PriorFollowup(FastResponseAnalysis):
         low_5_min_dec = np.interp(0.05, cdf, a[1][:-1])
         median_min_dec = np.interp(0.5, cdf, a[1][:-1])
         high_5_min_dec = np.interp(0.95, cdf, a[1][:-1])
-        plt.axvspan(low_5_min_dec, high_5_min_dec, color = sns.xkcd_rgb['windows blue'], alpha = 0.25, label="Central 90\%")
+        plt.axvspan(low_5_min_dec, high_5_min_dec, color = sns.xkcd_rgb['windows blue'], alpha = 0.25, label=r"Central 90\%")
         lab = 'Median (min dec.)'
         plt.axvline(median_min_dec, c = sns.xkcd_rgb['windows blue'], alpha = 0.75, label = lab)
 
@@ -1114,7 +1114,7 @@ class PriorFollowup(FastResponseAnalysis):
 
         self.energy_range = (np.min([low_5_min_dec, low_5_max_dec]),
                              np.max([high_5_min_dec, high_5_max_dec]))
-        print('90% Central Energy Range: {}, {} GeV'.format(round(self.energy_range[0]), round(self.energy_range[1])))
+        print(f'90% Central Energy Range: {round(self.energy_range[0])}, {round(self.energy_range[1])} GeV')
         self.save_items['energy_range'] = self.energy_range
 
     def ns_scan(self):
@@ -1153,10 +1153,9 @@ class PointSourceFollowup(FastResponseAnalysis):
 
     def __str__(self):
         int_str = super().__str__()
-        int_str += ' '*10 + 'RA, dec.: {:.2f}, {:+.3f}'.format(
-            self.ra*180. / np.pi, self.dec*180. / np.pi)
+        int_str += ' '*10 + f'RA, dec.: {self.ra*180. / np.pi:.2f}, {self.dec*180. / np.pi:+.3f}'
         exts = 0. if self.extension is None else self.extension
-        int_str += ' '*10 + 'Extension: {:.2f}'.format(exts * 180. / np.pi)
+        int_str += ' '*10 + f'Extension: {exts * 180. / np.pi:.2f}'
         int_str += '\n\n'
         return int_str
 
@@ -1219,8 +1218,8 @@ class PointSourceFollowup(FastResponseAnalysis):
         self.ns_params = params
         ns = ns['nsignal']
         if self._verbose:
-            print("TS = {}".format(ts))
-            print("ns = {}\n\n".format(ns))
+            print(f"TS = {ts}")
+            print(f"ns = {ns}\n\n")
         self.ts, self.ns = ts, ns
         self.save_items['ts'] = ts
         self.save_items['ns'] = ns
@@ -1259,7 +1258,7 @@ class PointSourceFollowup(FastResponseAnalysis):
             t_mask=(self.llh.exp['time']<=self.stop)&(self.llh.exp['time']>=self.start)
             # print nearby events, as a check (if needed)
             msk1 = (self.llh.exp[t_mask]['ra'] < (self.ra+np.radians(10)))*(self.llh.exp[t_mask]['ra'] > (self.ra-np.radians(10)))
-            msk2 = (self.llh.exp[t_mask]['dec'] < (self.dec+np.radians(10)))*((self.llh.exp[t_mask]['dec'] > self.dec-np.radians(10)))
+            msk2 = (self.llh.exp[t_mask]['dec'] < (self.dec+np.radians(10)))*(self.llh.exp[t_mask]['dec'] > self.dec-np.radians(10))
             msk3 = msk1*msk2
             if np.count_nonzero(msk3) > 0:
                 print('Events within 10 deg of best-fit:')
@@ -1382,7 +1381,7 @@ class PointSourceFollowup(FastResponseAnalysis):
                 ax.axhline(0.9, color = 'm', linewidth = 0.3, linestyle = '-.')
                 ax.axvline(fit_dict['sens'], color = 'm', linewidth = 0.3, linestyle = '-.')
                 ax.text(3.5, 0.8, r'Sens. = {:.2f} events'.format(fit_dict['sens']), fontsize = 16)
-                ax.text(3.5, 0.7, r' = {:.1e}'.format(self.upperlimit * self.duration * 86400. * 1e6) + r' GeV cm$^{-2}$', fontsize = 16)
+                ax.text(3.5, 0.7, rf' = {self.upperlimit * self.duration * 86400. * 1e6:.1e}' + r' GeV cm$^{-2}$', fontsize = 16)
                 #ax.text(5, 0.5, r'Sens. = {:.2e}'.format(self.inj.mu2flux(fit_dict['sens'])) + ' GeV^-1 cm^-2 s^-1')
         ax.errorbar(signal_fluxes, passing, yerr=errs, capsize = 3, linestyle='', marker = 's', markersize = 2)
         ax.legend(loc=4, fontsize = 14)
@@ -1390,7 +1389,7 @@ class PointSourceFollowup(FastResponseAnalysis):
         ax.set_ylabel(r'Fraction TS $>$ unblinded TS', fontsize = 14)
         if self.save_output:
             plt.savefig(self.analysispath + '/upper_limit_distribution.png', bbox_inches='tight', dpi=200)
-        print("Found upper limit of {:.2f} events".format(self.upperlimit_ninj))
+        print(f"Found upper limit of {self.upperlimit_ninj:.2f} events")
         self.save_items['upper_limit'] = self.upperlimit
         self.save_items['upper_limit_ninj'] = self.upperlimit_ninj
         return self.upperlimit
@@ -1421,14 +1420,14 @@ class PointSourceFollowup(FastResponseAnalysis):
         high_5 = np.interp(0.95, cdf, a[1][:-1])
         self.low5 = low_5
         self.high5 = high_5
-        plt.axvspan(low_5, high_5, color = sns.xkcd_rgb['windows blue'], alpha = 0.25, label="Central 90\%")
+        plt.axvspan(low_5, high_5, color = sns.xkcd_rgb['windows blue'], alpha = 0.25, label=r"Central 90\%")
         lab = 'Median'
         plt.axvline(median, c = sns.xkcd_rgb['windows blue'], alpha = 0.75, label = lab)
         plt.xlim(1e1, 1e8)
         plt.legend(loc=4, fontsize=18)
         plt.savefig(self.analysispath + '/central_90_dNdE.png',bbox_inches='tight')
 
-        print('90% Central Energy Range: {}, {} GeV'.format(round(low_5), round(high_5)))
+        print(f'90% Central Energy Range: {round(low_5)}, {round(high_5)} GeV')
         self.save_items['energy_range'] = (self.low5, self.high5)
 
     def write_circular(self):

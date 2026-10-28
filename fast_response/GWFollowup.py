@@ -1,25 +1,29 @@
-from multiprocessing import Value
 
-from numpy.lib.recfunctions   import append_fields
-import datetime, os
-import numpy as np
+import datetime
+import os
+
 import healpy as hp
-from astropy.time import Time
 import matplotlib as mpl
-mpl.use('agg')
-import matplotlib.pyplot as plt
-import pickle
-import glob
+import numpy as np
+from astropy.time import Time
+from numpy.lib.recfunctions import append_fields
 
+mpl.use('agg')
+import glob
+import pickle
+
+import fast_response
+import matplotlib.pyplot as plt
+from skylab.datasets import Datasets
+from skylab.llh_models import EnergyLLH
+from skylab.ps_llh import PointSourceLLH
+from skylab.spectral_models import PowerLaw
+from skylab.temporal_models import BoxProfile, TemporalModel
+
+from . import sensitivity_utils
 from .FastResponseAnalysis import PriorFollowup
 from .reports import GravitationalWaveReport
-from skylab.datasets        import Datasets
-from skylab.llh_models      import EnergyLLH
-from skylab.spectral_models import PowerLaw 
-from skylab.temporal_models import BoxProfile, TemporalModel
-from skylab.ps_llh          import PointSourceLLH
-import fast_response
-from . import sensitivity_utils
+
 
 class GWFollowup(PriorFollowup):
     """
@@ -80,12 +84,11 @@ class GWFollowup(PriorFollowup):
                 + 'precomputed_background/'
             
             files = glob.glob(bg_trial_dir + 
-                    'gw_precomputed_trials_delta_t_{:.2e}_trials_rate_{:.1f}_low_stats*.npz'.format(
-                    self.duration * 86400., closest_rate))
+                    f'gw_precomputed_trials_delta_t_{self.duration * 86400.:.2e}_trials_rate_{closest_rate:.1f}_low_stats*.npz')
 
             i=0
             for fi in files:
-                print('Loading {}/{} files for bkg trials'.format(i+1, len(files)), end='')
+                print(f'Loading {i+1}/{len(files)} files for bkg trials', end='')
                 pre_ts_array = sparse.load_npz(fi)
                 
                 #check for nside mismatch
@@ -126,7 +129,7 @@ class GWFollowup(PriorFollowup):
                 encoding='latin1'
             )
             if 512 != self.nside:
-                print('Error! Analysis uses nside of %i '.format(self.nside)+
+                print('Error! Analysis uses nside of %i '+
                       'while precomputed BG is nside 512')
 
             # Create spatial prior weighting
@@ -178,7 +181,7 @@ class GWFollowup(PriorFollowup):
         check_passed = False
         if exp_long[mask].size > 0:
             check_passed = True
-            print('Found {} events after end of time window'.format(exp_long[mask].size))
+            print(f'Found {exp_long[mask].size} events after end of time window')
         elif Time(datetime.datetime.utcnow()).mjd > (self.stop + 5000./86400.):
             raise Exception('No events found 5000 seconds after GW event.')
         
@@ -304,10 +307,11 @@ class GWFollowup(PriorFollowup):
         """
         if self.tsd is None: return
         
-        from scipy import special
-        from . import plotting_utils
         import meander
         import seaborn as sns
+        from scipy import special
+
+        from . import plotting_utils
         
         print('Calculating contour around best-fit TS')
 
@@ -392,8 +396,8 @@ class GWFollowup(PriorFollowup):
 
                 gcn = gcn_template.read()
                 low_sens, high_sens = self.sens_range
-                gcn = gcn.replace('<lowSens>', '{:1.3f}'.format(low_sens))
-                gcn = gcn.replace('<highSens>', '{:1.3f}'.format(high_sens))
+                gcn = gcn.replace('<lowSens>', f'{low_sens:1.3f}')
+                gcn = gcn.replace('<highSens>', f'{high_sens:1.3f}')
                 gcn = gcn.replace('<name>' , gw_name)
                 gcn = gcn.replace('<tstart>', start_iso)
                 gcn = gcn.replace('<tstop>', stop_iso)
@@ -439,12 +443,12 @@ class GWFollowup(PriorFollowup):
                 num = str(n_coincident_events)
             #num = events['pvalue'][events['pvalue']<=0.1].size
             gcn_file = open(self.analysispath+'/gcn_%s.txt' % gw_name,'w')
-            best_ra = '{:1.2f}'.format(np.rad2deg(self.skymap_fit_ra))
-            best_dec = '{:1.2f}'.format(np.rad2deg(self.skymap_fit_dec))
+            best_ra = f'{np.rad2deg(self.skymap_fit_ra):1.2f}'
+            best_dec = f'{np.rad2deg(self.skymap_fit_dec):1.2f}'
 
             with open(template_path,'r') as gcn_template:
 
-                for line in gcn_template.readlines():
+                for line in gcn_template:
                     line = line.replace('<N>', num)
                     line = line.replace('<name>', gw_name)
                     line = line.replace('<noticeID>', noticeID)
@@ -458,7 +462,7 @@ class GWFollowup(PriorFollowup):
                         line = line.replace('<p_gwava>', pval_str)
                         #line = line.replace('<sig_gwava>', '>3')
                     else:
-                        pval_str = '{:1.3f}'.format(pvalue)
+                        pval_str = f'{pvalue:1.3f}'
                         line = line.replace('<p_gwava>', pval_str)
                         #line = line.replace('<sig_gwava>', significance)
 
@@ -746,7 +750,7 @@ class GWFollowup(PriorFollowup):
         pdf /= np.diff(sinDec_bins)
 
         fig,ax1 = plt.subplots()
-        ax1.set_xlabel('sin($\delta$)')
+        ax1.set_xlabel(r'sin($\delta$)')
         ax1.set_ylabel('Probability density')
         ax1.set_xlim(-1,1)
         ax1.plot(bin_centers,pdf, color='C0', label='PDF')
@@ -768,14 +772,14 @@ class GWFollowup(PriorFollowup):
         if self.save_output:
             try: 
                 plt.savefig(
-                    self.analysispath + f'/decPDF.png',
+                    self.analysispath + '/decPDF.png',
                     bbox_inches='tight', dpi=200
                 )
             except:
                 print('Issue making dec PDF')
                 plt.title('Dec PDF')
                 plt.savefig(
-                    self.analysispath + f'/decPDF.png',
+                    self.analysispath + '/decPDF.png',
                     bbox_inches='tight', dpi=200
                 )
         plt.close()
