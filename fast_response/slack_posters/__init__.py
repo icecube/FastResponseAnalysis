@@ -1,2 +1,2 @@
 from .slack import slackbot
-from .logging_utils import FRA_Logger
+from .logger_util import FRA_Logger
