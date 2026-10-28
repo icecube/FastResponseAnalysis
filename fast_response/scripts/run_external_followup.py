@@ -6,13 +6,13 @@ r'''Script to initiate fast reponse
     Modified: October, 2026
     '''
 
-from fast_response.ExternalFollowup import ExternalFollowup, ExternalSkymapFollowup
 import argparse
-import subprocess
-import warnings
-import fast_response.web_utils as web_utils
 import logging as log
+import warnings
+
 import pyfiglet
+from fast_response.ExternalFollowup import ExternalFollowup, ExternalSkymapFollowup
+
 
 def run_analysis(args):
     assert ((args.skymap is None) != (args.ra is None and args.dec is None)), 'Must pass exactly one option between RA, Dec or skymap location'

@@ -6,11 +6,11 @@ high-energy neutrino alert events
 Author: Alex Pizzuto
 May 2020'''
 
-import os, argparse, glob
-from astropy.time import Time
+import argparse
+import glob
 
+from astropy.time import Time
 from fast_response.AlertFollowup import TrackFollowup, TrackFollowupLLH
-import fast_response.web_utils as web_utils
 
 parser = argparse.ArgumentParser(description='Fast Response Analysis')
 parser.add_argument('--skymap', type=str, default=None,
@@ -36,7 +36,7 @@ args = parser.parse_args()
 track_time = Time(args.time, format='mjd')
 year, month, day = track_time.iso.split('-')
 day = day[:2]
-track_name = 'IceCube-{}{}{}{}'.format(year[-2:], month, day, args.suffix)
+track_name = f'IceCube-{year[-2:]}{month}{day}{args.suffix}'
 
 all_results = {}
 for delta_t in [1000., 2.*86400.]:
@@ -45,7 +45,7 @@ for delta_t in [1000., 2.*86400.]:
     start = start_time.iso
     stop = stop_time.iso
 
-    name = track_name + ' {:.1e}_s'.format(delta_t)
+    name = track_name + f' {delta_t:.1e}_s'
     name = name.replace('_', ' ')
 
     run_id = args.alert_id[0][0]

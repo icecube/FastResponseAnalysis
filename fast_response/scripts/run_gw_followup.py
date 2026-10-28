@@ -6,11 +6,12 @@ gravitational wave events from LVC
 Author: Raamis Hussain, updated by Jessie Thwaites
 April 2022'''
 
-import argparse, subprocess
-from astropy.time import Time
-import pyfiglet
+import argparse
 
+import pyfiglet
+from astropy.time import Time
 from fast_response.GWFollowup import GWFollowup
+
 #import fast_response.web_utils as web_utils
 
 parser = argparse.ArgumentParser(description='GW Followup')

@@ -1,13 +1,14 @@
 #!/usr/bin/env python
 
-import numpy as np
 import matplotlib as mpl
+
 mpl.use('agg')
-import mhealpy as mhp
-import healpy as hp
-from astropy.table import QTable
-from astropy import units as u
 import argparse
+
+import healpy as hp
+import mhealpy as mhp
+from astropy import units as u
+from astropy.table import QTable
 
 parser = argparse.ArgumentParser(description='GW Followup')
 parser.add_argument('--skymap', type=str, default=None,

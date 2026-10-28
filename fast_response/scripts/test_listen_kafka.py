@@ -1,9 +1,10 @@
 #!/usr/bin/env python
 
+import argparse
+import json
 import logging
+
 from gcn_kafka import Consumer
-from icecube import realtime_tools
-import json, argparse
 
 parser = argparse.ArgumentParser(description='test listener for icecube kafka fra/llama results')
 parser.add_argument('--test_domain', action='store_true', default=False,
@@ -62,7 +63,7 @@ while True:
             print(message.error())
             continue
         value = message.value()
-        logger.warning('Found GCN on topic {}'.format(message.topic()))
+        logger.warning(f'Found GCN on topic {message.topic()}')
 
         try:
             if args.classic:

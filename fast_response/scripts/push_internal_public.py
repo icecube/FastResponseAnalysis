@@ -1,8 +1,12 @@
 #!/usr/bin/env python
 
+import argparse
+import glob
+import os
+import sys
+
 import pandas as pd
 from fast_response.web_utils import update_internal_public
-import argparse, glob, os, sys
 
 parser = argparse.ArgumentParser(description='Fast Response Followup')
 parser.add_argument('--alert_circ', type=int, default=None,
@@ -31,8 +35,8 @@ else:
     print('Must either give the Circular number or the Run_id/event_id for the alert event.')
     sys.exit()
 
-results_1000s = glob.glob(os.path.join(output, '*{}_1.0e+03_s/*.pickle'.format(name)))
-results_2d = glob.glob(os.path.join(output, '*{}_1.7e+05_s/*.pickle'.format(name)))
+results_1000s = glob.glob(os.path.join(output, f'*{name}_1.0e+03_s/*.pickle'))
+results_2d = glob.glob(os.path.join(output, f'*{name}_1.7e+05_s/*.pickle'))
 
 if len(results_1000s) != 1 or len(results_2d) != 1:
     print('Results pickle files not found. Check output location and re-run')

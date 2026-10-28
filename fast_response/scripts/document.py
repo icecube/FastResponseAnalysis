@@ -7,11 +7,13 @@ r'''Take already run analysis and document it
     '''
 
 import argparse
-import subprocess
+import os
 import pickle
+import pwd
+import subprocess
 from glob import glob
-import os, pwd
-import fast_response.web_utils as web_utils
+
+from fast_response import web_utils
 
 parser = argparse.ArgumentParser(description='Document for FRA')
 parser.add_argument('--path', type=str,default=None,
@@ -31,9 +33,9 @@ if username == 'realtime': username='jthwaites'
 
 if args.gw:
     subprocess.call(['cp','-r', results['analysispath'],
-        '/home/{}/public_html/FastResponse/gw-webpage/output'.format(username)])
+        f'/home/{username}/public_html/FastResponse/gw-webpage/output'])
 else: 
     subprocess.call(['cp','-r', results['analysispath'],
-        '/home/{}/public_html/FastResponse/webpage/output'.format(username)])
+        f'/home/{username}/public_html/FastResponse/webpage/output'])
 
 web_utils.updateFastResponseWeb(results, gw=args.gw, update=args.update)
