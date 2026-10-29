@@ -196,7 +196,9 @@ def parse_notice(params, wait_for_llama=False, heartbeat=False):
         return
 
     collected_results = {}
-    collected_results["$schema"]= "https://gcn.nasa.gov/schema/main/gcn/notices/icecube/lvk_nu_search.schema.json"
+    ### Placeholder: must be updated once merged!!
+    logger.warning("Schema link is a placeholder -- needs to be updated!")
+    collected_results["$schema"]= "https://gcn.nasa.gov/schema/vx.x.x/gcn/notices/icecube/lvk_nu_search.schema.json"
     collected_results["type"]= "IceCube LVK Alert Nu Followup"
 
     eventtime = params['event']['time']
