@@ -57,9 +57,9 @@ def SendAlert(results=None):
         
         logger.info('sending to {} on gcn.nasa.gov'.format(topic))
         sendme = json.dumps(results)
-        #producer.produce(topic, sendme.encode())
-        #ret = producer.flush()
-        #return ret
+        producer.produce(topic, sendme.encode())
+        ret = producer.flush()
+        return ret
 
 def SendTestAlert(results=None):
         if results is None:
@@ -91,7 +91,6 @@ def format_ontime_events_uml(events, event_mjd):
                 "containment_probability": 0.9,
                 "systematic_included": False
             },
-            #'event_pval_generic' : round(event['pvalue'],4)
         }
         if event['pvalue'] < 0.0001:
             ontime_events[unique_id]['event_pval_generic'] = float('{:.1e}'.format(event['pvalue']))
@@ -113,7 +112,6 @@ def format_ontime_events_llama(events):
                 "containment_probability": 0.9,
                 "systematic_included": False
             },
-            #'event_pval_bayesian': round(event['p_value'],4)
         }
         if event['p_value'] < 0.0001:
             ontime_events[unique_id]['event_pval_bayesian'] = float('{:.1e}'.format(event['p_value']))
@@ -478,8 +476,7 @@ def parse_notice(params, wait_for_llama=False, heartbeat=False):
             json.dump(collected_results, f, indent = 6)
 
         logger.info('sending notice')
-        #status = SendAlert(results = collected_results)
-        status=1
+        status = SendAlert(results = collected_results)
         st = 'sent' if status == 0 else 'error!'
         logger.info('status: {}'.format(status))
         logger.info('{}'.format(st))
@@ -526,8 +523,7 @@ def parse_notice(params, wait_for_llama=False, heartbeat=False):
         
         #send the notice to slack
         try:
-            #bot = slackbot('gw-mock-heartbeat')
-            bot=slackbot('test_messaging')
+            bot = slackbot('gw-mock-heartbeat')
             bot.post_file_to_slack(title='LvkNuTrackSearch {} GCN Notice'.format(name), file_name=saved_results)
         except Exception as e:
             logger.warning('Failed to post to slack.')
