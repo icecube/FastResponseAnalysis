@@ -26,8 +26,12 @@ logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 logger.warning("Connecting to GCN as Consumer")
 
+# this script MUST find the secrets, or it cannot listen.
+# check before starting
 client_id = os.getenv('GCN_ID')
 client_secret = os.getenv('GCN_SECRET')
+if client_id is None or client_secret is None:
+    raise Exception('No consumer GCN credentials found in env, quitting...')
 
 config = {'broker.address.family': 'v4', 
           'log_level': 0}

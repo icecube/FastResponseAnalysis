@@ -24,10 +24,14 @@ import json
 from dotenv import load_dotenv
 load_dotenv()
 
-print("Connecting to GCN as Consumer")
+# this script MUST find the secrets, or it cannot listen.
+# check before starting
 client_id = os.getenv('GCN_ID')
 client_secret = os.getenv('GCN_SECRET')
+if client_id is None or client_secret is None:
+    raise Exception('No consumer GCN credentials found in env, quitting...')
 
+print("Connecting to GCN as Consumer")
 config = {'broker.address.family': 'v4', 
           'log_level': 0,
           'max.poll.interval.ms': 1800000,
