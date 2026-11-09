@@ -14,11 +14,13 @@ from matplotlib.dates import DateFormatter
 from astropy.time import Time
 import pandas as pd
 import subprocess, warnings
+from dotenv import load_dotenv
+load_dotenv()
 warnings.filterwarnings('ignore', module='astropy._erfa')
 
+call_path = os.getenv('MAKE_CALL')
 def dial_up():
-        cell_tower = "/home/jthwaites/private/"
-        subprocess.call([cell_tower+"make_call.py", '--troubleshoot=True'])
+        subprocess.call([call_path, '--troubleshoot=True'])
 
 path = os.environ.get('FAST_RESPONSE_OUTPUT')
 out_put = '/data/user/jthwaites/o4-mocks/'

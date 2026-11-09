@@ -23,6 +23,7 @@ load_dotenv()
 # check before starting
 client_id = os.getenv('GCN_ID')
 client_secret = os.getenv('GCN_SECRET')
+call_path = os.getenv('MAKE_CALL')
 if client_id is None or client_secret is None:
     raise Exception('No consumer GCN credentials found in env, quitting...')
 prod_id = os.getenv('PROD_GCN_ID')
@@ -285,7 +286,7 @@ def parse_notice(params, wait_for_llama=False, heartbeat=False):
                         results_done=True
                         if params['role']=='observation' and not heartbeat:
                             try: 
-                                subprocess.call(['/home/jthwaites/private/make_call.py', 
+                                subprocess.call([call_path, 
                                                  '--troubleshoot_gcn=True', '--missing_llama=True',
                                                  f'--name={name}'])
                             except:
@@ -295,7 +296,7 @@ def parse_notice(params, wait_for_llama=False, heartbeat=False):
                         results_done=True
                         if params['role']=='observation' and not heartbeat:
                             try: 
-                                subprocess.call(['/home/jthwaites/private/make_call.py', 
+                                subprocess.call([call_path, 
                                                  '--troubleshoot_gcn=True', '--missing_uml=True',
                                                  f'--name={name}'])
                             except:
@@ -305,7 +306,7 @@ def parse_notice(params, wait_for_llama=False, heartbeat=False):
                     logger.warning('Not sending GCN.')
 
                     if params['role']=='observation' and not heartbeat:
-                        err_msg = ['/home/jthwaites/private/make_call.py', '--troubleshoot_gcn=True', 
+                        err_msg = [call_path, '--troubleshoot_gcn=True', 
                                    '--missing_llama=True',
                                    f'--name={name}']
                         if not subthreshold: err_msg.append('--missing_uml=True')
