@@ -28,6 +28,7 @@ load_dotenv()
 # check before starting
 client_id = os.getenv('GCN_ID')
 client_secret = os.getenv('GCN_SECRET')
+call_path = os.getenv('MAKE_CALL')
 if client_id is None or client_secret is None:
     raise Exception('No consumer GCN credentials found in env, quitting...')
 
@@ -105,7 +106,7 @@ def process_gcn(params, mock=False):
     
     if params['role']=='observation' and not mock:
         ## Call everyone because it's a real event!
-        call_command=['/home/aemand/.private/make_call.py', f'--name={name}']
+        call_command=[call_path, f'--name={name}']
     
         call_args = ['--justin']
         for arg in call_args:
