@@ -21,13 +21,17 @@ import fast_response
 from fast_response.slack_posters.slack import slackbot
 from fast_response.slack_posters.logger_util import FRA_Logger
 import json
+from dotenv import load_dotenv
+load_dotenv()
+
+# this script MUST find the secrets, or it cannot listen.
+# check before starting
+client_id = os.getenv('GCN_ID')
+client_secret = os.getenv('GCN_SECRET')
+if client_id is None or client_secret is None:
+    raise Exception('No consumer GCN credentials found in env, quitting...')
 
 print("Connecting to GCN as Consumer")
-
-with open('/home/jthwaites/private/tokens/kafka_token.txt') as f:
-    client_id = f.readline().rstrip('\n')
-    client_secret = f.readline().rstrip('\n')
-
 config = {'broker.address.family': 'v4', 
           'log_level': 0,
           'max.poll.interval.ms': 1800000,

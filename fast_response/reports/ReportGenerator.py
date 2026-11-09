@@ -11,6 +11,7 @@ import numpy as np
 import pandas as pd
 import os, json, datetime
 import logging as log
+from dotenv import load_dotenv
 
 use_urllib2 = True
 try:
@@ -32,7 +33,8 @@ import fast_response
 
 log.basicConfig(level=log.ERROR)
 mpl_logger = log.getLogger('matplotlib') 
-mpl_logger.setLevel(log.ERROR) 
+mpl_logger.setLevel(log.ERROR)
+load_dotenv()
  
 class ReportGenerator(object):
     r"""
@@ -128,10 +130,9 @@ class ReportGenerator(object):
             table of runs loaded, and status of the runs
         """
         
-        run_url = 'https://live.icecube.wisc.edu/run_info/'
-        with open('/home/jthwaites/private/tokens/auth.txt') as f:
-            user = f.readline().rstrip('\n')
-            pasw = f.readline().rstrip('\n')
+        run_url = 'https://live.icecube.wisc.edu/run_info/' 
+        user = os.getenv('IC_USER')
+        pasw = os.getenv('IC_PASS')
         run_query = {'user':user, 'pass':pasw,
                      'start':(Time(time_window[0],precision=0)
                               - TimeDelta(8*3600,format='sec')).iso,
