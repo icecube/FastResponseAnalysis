@@ -105,7 +105,7 @@ def process_gcn(params, mock=False):
     
     if params['role']=='observation' and not mock:
         ## Call everyone because it's a real event!
-        call_command=['/home/jthwaites/private/make_call.py', f'--name={name}']
+        call_command=['/home/aemand/.private/make_call.py', f'--name={name}']
     
         call_args = ['--justin']
         for arg in call_args:

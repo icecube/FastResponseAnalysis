@@ -17,7 +17,7 @@ import subprocess, warnings
 warnings.filterwarnings('ignore', module='astropy._erfa')
 
 def dial_up():
-        cell_tower = "/home/jthwaites/private/"
+        cell_tower = "/home/aemand/.private/"
         subprocess.call([cell_tower+"make_call.py", '--troubleshoot=True'])
 
 path = os.environ.get('FAST_RESPONSE_OUTPUT')

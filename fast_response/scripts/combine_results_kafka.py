@@ -285,7 +285,7 @@ def parse_notice(params, wait_for_llama=False, heartbeat=False):
                         results_done=True
                         if params['role']=='observation' and not heartbeat:
                             try: 
-                                subprocess.call(['/home/jthwaites/private/make_call.py', 
+                                subprocess.call(['/home/aemand/.private/make_call.py', 
                                                  '--troubleshoot_gcn=True', '--missing_llama=True',
                                                  f'--name={name}'])
                             except:
@@ -295,7 +295,7 @@ def parse_notice(params, wait_for_llama=False, heartbeat=False):
                         results_done=True
                         if params['role']=='observation' and not heartbeat:
                             try: 
-                                subprocess.call(['/home/jthwaites/private/make_call.py', 
+                                subprocess.call(['/home/aemand/.private/make_call.py', 
                                                  '--troubleshoot_gcn=True', '--missing_uml=True',
                                                  f'--name={name}'])
                             except:
@@ -305,7 +305,7 @@ def parse_notice(params, wait_for_llama=False, heartbeat=False):
                     logger.warning('Not sending GCN.')
 
                     if params['role']=='observation' and not heartbeat:
-                        err_msg = ['/home/jthwaites/private/make_call.py', '--troubleshoot_gcn=True', 
+                        err_msg = ['/home/aemand/.private/make_call.py', '--troubleshoot_gcn=True', 
                                    '--missing_llama=True',
                                    f'--name={name}']
                         if not subthreshold: err_msg.append('--missing_uml=True')
