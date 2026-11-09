@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import logging
+import os
 from gcn_kafka import Consumer
 from icecube import realtime_tools
 import json, argparse
