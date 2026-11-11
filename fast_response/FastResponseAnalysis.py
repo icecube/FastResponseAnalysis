@@ -2,20 +2,23 @@ r''' General Fast Response Analysis Class.
 
     Author: Alex Pizzuto
     Date: 2021
-    '''
+'''
 
 from abc import abstractmethod
 import os, sys, time, subprocess
 import pickle, dateutil.parser, logging, warnings
+from pathlib import Path
 
 import h5py
-import healpy               as hp
-import numpy                as np
-import seaborn              as sns
-import matplotlib           as mpl
-import matplotlib.pyplot    as plt
+import healpy                 as hp
+import numpy                  as np
+import seaborn                as sns
+import matplotlib             as mpl
+import matplotlib.pyplot      as plt
+import numpy.lib.recfunctions as rf
 from astropy.time           import Time
 from scipy.special          import erfinv
+from scipy                  import sparse
 from matplotlib.lines       import Line2D
 
 from skylab.datasets        import Datasets
@@ -32,38 +35,59 @@ from . import web_utils
 from . import sensitivity_utils
 from . import plotting_utils
 from .reports import FastResponseReport
+from .precomputed_background import glob_precomputed_trials_multi as pt
 
 mpl.use('agg')
 current_palette = sns.color_palette('colorblind', 10)
-logging.getLogger().setLevel(logging.ERROR)
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.WARNING)
 warnings.simplefilter("ignore", UserWarning)
 warnings.simplefilter("ignore", RuntimeWarning)
 
-class FastResponseAnalysis(object):
+class FastResponseAnalysis:
     """ 
     Object to do realtime followup analyses of 
     astrophysical transients with arbitrary event
     localization
     """
-    _dataset = None
+    _dataset = "GFUOnline_v001p02"
     _fix_index = True
     _float_index = not _fix_index
     _index_range = [1., 4.]
     _index = 2.0
-    _floor = np.radians(0.2)
+    _floor = np.radians(0.2) # applied to the dataset at load time
     _verbose = True
-    _angScale = 2.145966
+    _angScale = 2.145966 # converting sigma to 90% circular error
     _llh_seed = 1
-    _season_names = [f"IC86, 201{y}" for y in range(1, 10)]
-    _nb_days = 10
+    _season_names = [f"IC86, 201{y}" for y in range(1, 10)] # applies to GFU
+    _nb_days = 10 # BG window around analysis window used to estimate BG rate.
     _ncpu = 5
+    _jitter = False
+    _background_days = 6 # if not using exclusively archival data, get_data() will prepend this duration to [start, stop].
 
-    def __init__(self, name, tstart, tstop, skipped=None, seed=None,
-                 outdir=None, save=True, extension=None):
+    def __init__(self, name, tstart, tstop,
+                 skipped=None, seed=1,
+                 outdir=None, save=True,
+                 extension=None,
+                 index=None,
+                 fix_index=None,
+                 dataset=None,
+                 ):
+        logger.debug('FastResponseAnalysis.__init__')
         self.name = name
+
+         # overriding defaults in the constructor
+         # e.g. when broadcasting from a MultiFRA
+        if index is not None:
+            self._index = float(index)
+        if dataset is not None:
+            self._dataset = dataset
+        if fix_index is not None:
+            self._fix_index = fix_index
+            self._float_index = not self._fix_index
         
-        # if seed is not None:
-        #     self.llh_seed(seed)
+        self.llh_seed = seed
+        
         if outdir is None:
             outdir = os.environ.get('FAST_RESPONSE_OUTPUT')
             if outdir is None:
@@ -91,9 +115,8 @@ class FastResponseAnalysis(object):
                 self.analysispath))
             subprocess.call(['rm', '-r', self.analysispath])
             subprocess.call(['mkdir', self.analysispath])
-            # sys.exit()
         elif self.save_output:
-            subprocess.call(['mkdir', self.analysispath])
+            os.makedirs(self.analysispath, exist_ok=True) # create parent dir's if needed
 
         if 'test' in self.name.lower():
             self.scramble = True
@@ -112,12 +135,13 @@ class FastResponseAnalysis(object):
         self.extension = extension
         if self.extension is not None:
             self.extension = np.deg2rad(self.extension)
-        self.llh_seed = seed if seed is not None else 1
         self.skipped = skipped
         self.skipped_event = None
         self.exp = None
         self.llh = self.initialize_llh(skipped=skipped, scramble=self.scramble)
         self.inj = None
+        # not yet unblinded or loaded BG trials:
+        self.ts, self.tsd = None, None
 
     @property
     def dataset(self):
@@ -126,6 +150,11 @@ class FastResponseAnalysis(object):
     @dataset.setter
     def dataset(self, x):
         self._dataset = x
+
+    @property
+    def datasets(self):
+        """Returns the datasets used"""
+        return [self.dataset]
 
     @property
     def index(self):
@@ -141,7 +170,43 @@ class FastResponseAnalysis(object):
         return self._llh_seed
     @llh_seed.setter
     def llh_seed(self, x):
+        # NOTE this can be used for subsequent scrambles
+        # but will no repeat the scramble from initialize_llh
         self._llh_seed = x
+
+    def unify_exp_array(self, _exp, enum=0):
+        """Turns a rec array into same fields, order and precision.
+        """
+        # these are needed for the analysis:
+        merged_dtype = np.dtype([('run', '<i4'), ('event', '<i4'), ('time', '<f8'), ('ra', '<f4'), ('dec', '<f4'), ('sinDec', '<f4'),  ('sigma', '<f4'), ('logE', '<f4'), ('enum', '<i4')])
+        
+        # Drop those not needed
+        _exp = rf.drop_fields(_exp, [_field for _field in _exp.dtype.names if _field not in merged_dtype.names])
+        # And add enum
+        _exp = rf.append_fields(_exp, 'enum', np.full( _exp.size, enum))
+
+        # align order of fields to desired dtype
+        aligned_dtype = np.dtype([(name, _exp.dtype[name]) for name in merged_dtype.names])
+        _aligned = np.empty(_exp.shape, dtype=aligned_dtype)
+        for field in aligned_dtype.names:
+            _aligned[field] = _exp[field]
+
+        # then cast to uniform precision
+        _cast = _aligned.astype(merged_dtype)
+        return _cast
+
+
+    @property
+    def llh_exp(self):
+        """Returns a flat array of experimental data loaded into the LLH,
+        limited to fields used for plotting and amended with an enum=0."""
+        if not hasattr(self, '_llh_exp'):
+            exp = self.llh.exp
+            llh_exp = self.unify_exp_array(exp, enum=0)
+            self._llh_exp = llh_exp
+        return self._llh_exp
+    
+    
 
     def get_data(self, livestream_start=None, livestream_stop=None):
         """
@@ -158,17 +223,29 @@ class FastResponseAnalysis(object):
             print("Grabbing data")
 
         dset = Datasets[self.dataset]
-        #if self.stop < 58933.0: 
-        if self.stop < 59215:
+
+        archival_range = (dset.grl(self._season_names[0])['start'].min(),
+                          dset.grl(self._season_names[-1])['stop'].max())
+        if self.dataset.startswith('GFUOnline'):
+            archival_range = (archival_range[0], 59215) # NOTE legacy default behavior; change if extending GFU seasons.
+    
+        if self.start < archival_range[0]:
+           raise ValueError(f'Followup start MJD {self.start} earlier than first archival season {self._season_names[0]}, MJD {archival_range[0]}')
+        
+        # 1) if [start, stop] falls within the archival livetime...
+        elif self.stop < archival_range[1]:
             if self._verbose:
                 print("Old times, just grabbing archival data")
+            # 1a) include those seasons:
             exps, grls = [], []
             for season in self._season_names:
                 exp, mc, livetime = dset.season(season, floor=self._floor)
                 grl = dset.grl(season)
                 exps.append(exp)
                 grls.append(grl)
-            if self.stop > 58933.0:
+            # 1b) legacy behaviour for GFU, also add 2020 data (not overlapping with IC86, 2019)
+            # NOTE have to change when updating GFU dataset.
+            if (self.stop > 58933.0) and self.dataset.startswith('GFUOnline'):
                 # Add local 2020 if need be
                 # TODO: Need to figure out what to do for zenith_smoothed
                 exp_new = np.load(
@@ -184,13 +261,17 @@ class FastResponseAnalysis(object):
                     self._floor)
                 exps.append(exp_new)
                 grls.append(grl)
+            # concatenate the rest
             exp = np.concatenate(exps)
             grl = np.concatenate(grls)
+            
+        # 2) use the livestream method to grab fresh events
         else:
             if self._verbose:
-                print("Recent time: querying the i3live database")
+                print("Recent time: querying the database")
+            # (default) retrieve a fixed off-time window before the analysis window
             if livestream_start is None or livestream_stop is None:
-                livestream_start = self.start - 6.
+                livestream_start = self.start - self._background_days
                 livestream_stop = self.stop
             exp, mc, livetime, grl = dset.livestream(
                 livestream_start, livestream_stop,
@@ -200,9 +281,13 @@ class FastResponseAnalysis(object):
         grl.sort(order='run')
         livetime = grl['livetime'].sum()
 
-        sinDec_bins = dset.sinDec_bins("livestream")
-        energy_bins = dset.energy_bins("livestream")
-
+        # workaround while not all datasets have livestream yet
+        if 'livestream' in dset.season_names():
+            reference_season = 'livestream'
+        else:
+            reference_season = self._season_names[0]
+        sinDec_bins = dset.sinDec_bins(reference_season)
+        energy_bins = dset.energy_bins(reference_season)
         self.exp = exp
         self.mc = mc
         self.grl = grl
@@ -273,6 +358,7 @@ class FastResponseAnalysis(object):
             ncpu=self._ncpu,               # use 10 CPUs when computing trials
             scramble=scramble,             # set to False for unblinding
             timescramble=True,             # not just RA scrambling
+            jitter=self._jitter,           # depends on sample
             llh_model=llh_model,           # likelihood model
             temporal_model=box,            # use box for temporal model
             nsource_bounds=(0., 1e3),      # bounds on fitted ns
@@ -489,7 +575,7 @@ class FastResponseAnalysis(object):
             print("Results successfully saved")
             return self.save_items
 
-    def plot_ontime(self, with_contour=False, contour_files=None, label_events=False):
+    def plot_ontime(self, plot_zoom=True, with_contour=False, contour_files=None, label_events=False):
         r"""Plots ontime events on the full skymap and a 
         zoomed in version near the scan best-fit
 
@@ -503,18 +589,18 @@ class FastResponseAnalysis(object):
             adds a number label to events on skymap (default False)
 
         """
-        
-        try:
-            self.plot_skymap_zoom(with_contour=with_contour, contour_files=contour_files)
-        except Exception as e:
-            print('Failed to make skymap zoom plot')
+        if plot_zoom:
+            try:
+                self.plot_skymap_zoom(with_contour=with_contour, contour_files=contour_files)
+            except Exception as e:
+                print(f'Failed to make skymap zoom plot: {e}')
 
         try:
             self.plot_skymap(with_contour=with_contour, contour_files=contour_files, label_events=label_events) 
         except Exception as e:
             print('Failed to make FULL skymap plot')
 
-    def plot_skymap_zoom(self, with_contour=False, contour_files=None):
+    def plot_skymap_zoom(self, with_contour=False, contour_files=None, reso=3.):
         r"""Make a zoomed in portion of a skymap with
         all ontime neutrino events within a certain range
         Outputs a plot (in png and pdf formats) to the analysis path
@@ -525,9 +611,12 @@ class FastResponseAnalysis(object):
             plots the 90% containment contour of a skymap (default False)
         contour_files: string
             text file containing skymap contours to be plotted (default None)
+        reso: float
+            resolution to zoom in, degrees (default 3.0)
 
         """
-        events = self.llh.exp
+        
+        events = self.llh_exp # single array spanning all datasets
         events = events[(events['time'] < self.stop) & (events['time'] > self.start)]
 
         col_num = 5000
@@ -537,6 +626,7 @@ class FastResponseAnalysis(object):
         rel_t = np.array((events['time'] - self.start) * col_num / (self.stop - self.start), dtype = int)
         cols = np.array([seq_palette[j] for j in rel_t])
 
+        # plot skymap if given:
         if self.skymap is not None:
             skymap = self.skymap
             ra = self.skymap_fit_ra
@@ -547,11 +637,13 @@ class FastResponseAnalysis(object):
             skymap = np.zeros(hp.nside2npix(self._nside))
             ra = self.ra
             dec = self.dec
-            label_str = self.name
+            label_str = self.name.replace('_', ' ')
             cmap = mpl.colors.ListedColormap([(1.,1.,1.)] * 50)
 
-        plotting_utils.plot_zoom(skymap, ra, dec, "", range = [0,10], reso=3., cmap = cmap)
+        plotting_utils.plot_zoom(skymap, ra, dec, "", range = [0,10], reso=reso, cmap = cmap)
+        
 
+        # remove skipped event:
         if self.skipped is not None:
             try:
                 msk = events['run'] == int(self.skipped[0][0])
@@ -564,15 +656,29 @@ class FastResponseAnalysis(object):
                 events = events[~msk]
                 cols = cols[~msk]
             except:
-                print("Removed event not in GFU")
+                print("Removed event not in dataset")
 
         if (self.stop - self.start) <= 21.:
-            plotting_utils.plot_events(events['dec'], events['ra'], events['sigma']*self._angScale, ra, dec, 2*6, sigma_scale=1.0,
-                    constant_sigma=False, same_marker=True, energy_size=True, col = cols)
+            sigma_scale = 1.0
         else:
             #Long time windows means don't plot contours
-            plotting_utils.plot_events(events['dec'], events['ra'], events['sigma']*self._angScale, ra, dec, 2*6, sigma_scale=None,
-                    constant_sigma=False, same_marker=True, energy_size=True, col = cols)
+            sigma_scale = None
+        
+
+        for enum in np.unique(events['enum']): # not adding pandas as dependency
+            _mask = events['enum'] == enum
+            _events = events[_mask]
+            _style = plotting_utils.skymap_style[enum]
+            _cols = cols[_mask]
+            if self._verbose:
+                print(f'Found {_events.size} on-time events from {self.datasets[enum]}')
+            plotting_utils.plot_events(_events['dec'], _events['ra'], _events['sigma']*self._angScale,
+                ra, dec, 2*6, # this reso positional arg is not used
+                sigma_scale=sigma_scale, # contours if short window
+                constant_sigma=False, same_marker=True, energy_size=True,
+                col = _cols,
+                kw_style=plotting_utils.skymap_style[enum],
+                )
 
         if contour_files is not None:
             cont_ls = ['solid', 'dashed']
@@ -608,7 +714,10 @@ class FastResponseAnalysis(object):
         plt.savefig(self.analysispath + '/' + self.analysisid + 'unblinded_skymap_zoom.pdf',bbox_inches='tight', dpi=300)
         plt.close()
 
-    def plot_skymap(self, with_contour=False, contour_files=None, label_events=False):
+    def plot_skymap(self, with_contour=False, contour_files=None, label_events=False,
+                    labels=['GFU Event'], distinct_colorbars=False,
+                    show=False,
+                    ):
         r""" Make skymap with event localization and all
         neutrino events on the sky within the given time window
         Outputs a plot in png format to the analysis path
@@ -624,20 +733,19 @@ class FastResponseAnalysis(object):
 
         """
 
-        events = self.llh.exp
+        events = self.llh_exp
         events = events[(events['time'] < self.stop) & (events['time'] > self.start)]
-
-        col_num = 5000
-        seq_palette = sns.color_palette("icefire", col_num)
-        lscmap = mpl.colors.ListedColormap(seq_palette)
-
-        rel_t = np.array((events['time'] - self.start) * col_num / (self.stop - self.start), dtype = int)
-        cols = [seq_palette[j] for j in rel_t]
 
         # Set color map and plot skymap
         pdf_palette = sns.color_palette("Blues", 500)
         cmap = mpl.colors.ListedColormap(pdf_palette)
         cmap.set_under("w")
+
+        # Obtain color maps for event times
+        if distinct_colorbars:
+            tcmap = plotting_utils.TimeColormap(self.start, self.stop, n_maps=events['enum'].max()+1)
+        else:
+            tcmap = plotting_utils.TimeColormap(self.start, self.stop, n_maps=1)
 
         if self.skymap is None:
             skymap = np.zeros(hp.nside2npix(self._nside))
@@ -683,25 +791,42 @@ class FastResponseAnalysis(object):
 
         # plot events on sky with error contours
         handles=[]
-        hp.projscatter(theta,phi,c=cols,marker='x',label='GFU Event',coord='C', zorder=5)
+        # TODO is this implementation ok?
+        # or re-factor this method, so it can be used from MultiFRA, knowing about the samples before?
+        for enum in np.unique(events['enum']):
+            _mask = events['enum'] == enum
+            _style = plotting_utils.skymap_style[enum]
+            _label = labels[enum]
+            hp.projscatter(theta[_mask], phi[_mask],
+                           c=tcmap(events['time'][_mask], enum),
+                           marker=_style['marker'],
+                           label=_label,
+                           s=128,
+                           coord='C', zorder=5)
+            handles.append(Line2D([0], [0], marker=_style['marker'], ls='None', label=_label))
+        
         if label_events:
             for j in range(len(theta)):
                 hp.projtext(theta[j], phi[j]-0.11, '{}'.format(j+1), color='red', fontsize=18, zorder=6)
-        handles.append(Line2D([0], [0], marker='x', ls='None', label='GFU Event'))
-
+        
         if (self.stop - self.start) <= 0.5:        #Only plot contours if less than 2 days
             for i in range(events['ra'].size):
+                _enum = events['enum'][i]
+                _style = plotting_utils.skymap_style[_enum]
+                _col = tcmap(events['time'][i], _enum)[0]
                 my_contour = plotting_utils.contour(events['ra'][i], 
                                     events['dec'][i],sigma_90[i], self._nside)
                 hp.projplot(my_contour[0], my_contour[1], linewidth=2., 
-                                    color=cols[i], linestyle="solid",coord='C', zorder=5)
+                                    color=_col, linestyle=_style['linestyle'],
+                                    coord='C', zorder=5)
 
         if self.skymap is None:
+            label_str = self.name.replace('_', ' ')
             src_theta = np.pi/2. - self.dec
             src_phi = self.ra
             hp.projscatter(src_theta, src_phi, c = 'k', marker = '*',
-                                label = self.name, coord='C', s=350)
-            handles.append(Line2D([0], [0], marker='*', c='k', ls='None', label=self.name))
+                                label = label_str, coord='C', s=350)
+            handles.append(Line2D([0], [0], marker='*', c='k', ls='None', label=label_str))
 
         if contour_files is not None:
             cont_ls = ['solid', 'dashed']
@@ -720,8 +845,8 @@ class FastResponseAnalysis(object):
             ### plot 90% containment contour of PDF
             levels = [0.9]
             theta, phi = plotting_utils.plot_contours(levels, probs)
-            hp.projplot(theta[0], phi[0], linewidth=2., c='k', label='Skymap (90\% cont.)')
-            handles.append(Line2D([0], [0], lw=2, c='k', label=r"Skymap (90\% cont.)"))
+            hp.projplot(theta[0], phi[0], linewidth=2., c='k', label='Skymap (90% cont.)')
+            handles.append(Line2D([0], [0], lw=2, c='k', label=r"Skymap (90% cont.)"))
             for i in range(1, len(theta)):
                 hp.projplot(theta[i], phi[i], linewidth=2., c='k')
         
@@ -732,7 +857,8 @@ class FastResponseAnalysis(object):
         except:
             plt.title('Fast Response Skymap')
             plt.savefig(self.analysispath + '/' + self.analysisid + 'unblinded_skymap.png',bbox_inches='tight')
-        plt.close()
+        if not show:
+            plt.close()
 
     def generate_report(self):
         r"""Generates report using class attributes
@@ -752,9 +878,20 @@ class PriorFollowup(FastResponseAnalysis):
     _containment = 0.99
     _allow_neg = False
     _nside = 256
+    _bg_dir = './'
+    _bg_format = '_'.join([
+    'precomputed_trials_delta_t_{delta_t:.2e}',
+    'nside_{nside}',
+    'index_{index}',
+    '{lookup}',
+    '*', # individual analyses will need to specify here whether they glob them on the fly or have a single file
+    ])
+    _sens_dir = None
 
-    def __init__(self, name, skymap_path, tstart, tstop, skipped=None, seed=None,
+    def __init__(self, name, skymap_path, tstart, tstop, skipped=None, seed=1,
                  outdir=None, save=True, extension=None):
+
+        logger.debug('PriorFollowup.__init__')
 
         super().__init__(name, tstart, tstop, skipped=skipped, seed=seed,
                        outdir=outdir, save=save, extension=extension)
@@ -788,7 +925,7 @@ class PriorFollowup(FastResponseAnalysis):
 
     def format_skymap(self, skymap):
         r"""Method to up or downgrade nside of a skymap to 
-        the nside used in the analysis
+        the nside used in the analysis. Normalizes the sum to 1.
 
         Parameters
         -----------
@@ -800,6 +937,7 @@ class PriorFollowup(FastResponseAnalysis):
         skymap: array
             Healpix skymap, with correct nside for use in FRA
         """
+        
         if hp.pixelfunc.get_nside(skymap) != self._nside:
             skymap = hp.pixelfunc.ud_grade(skymap, self._nside, power=-2)
             skymap = skymap/skymap.sum()
@@ -845,6 +983,11 @@ class PriorFollowup(FastResponseAnalysis):
         ntrials: int
             number of trials to run (default 1000)
         """ 
+        # If they are already loaded, no need to run new ones; maybe being called from calc_pvalue
+        if self.tsd is not None:
+            if self.tsd.size >= ntrials:
+                return self.tsd[:ntrials]
+        # Else assume we're calling this method because we WANT to run new ones.
         tsd = []
         spatial_prior = SpatialPrior(self.skymap, containment = self._containment, allow_neg=self._allow_neg)
 
@@ -873,13 +1016,93 @@ class PriorFollowup(FastResponseAnalysis):
         self.tsd = tsd
         self.save_items['tsd'] = tsd
 
+    def load_background_trials(self, ntrials=None, rate=None, month=None) -> np.ndarray:
+        """Produce background trials based on precomputed all-sky scans 
+        stored in sparse matrices produced by fast_response/precomputed_background/...
+            precompute_ts.py (or its variants)
+            glob_precomputed_trials.py (or its variants)
+        Generalizing the method from GWFollowup.run_background_trials used for durations > 1 day, except
+            - relying on the precomputed scans to have been concatenated into one file already
+            - setting TS=0 in empty trials according to the new convention
+
+
+        Parameters
+        ----------
+        ntrials : int, optional
+            Number of trials to return, by default return as many as available.
+        rate : float, optional
+            rate in mHz to look up
+        month : int, optional
+            month to look up
+
+        Raises
+        ------
+        TypeError
+            if neither month nor rate are supplied
+
+        Returns
+        -------
+        tsd : np.ndarray
+            Background TS values
+        """
+        if not ((rate is None) ^ (month is None)):
+            raise TypeError("Need to supply either rate or month")
+        
+        # Assemble variables for the background file
+        filename = self._bg_format.format(
+            delta_t = self.duration * 86400.,
+            nside = self.nside,
+            index = self._index,
+            lookup = f"{rate:.2f}_mHz" if month is None else f"{month:02d}",
+        )
+        bg_files = list(map(str, Path(self._bg_dir).glob(filename)))
+        if not bg_files:
+            raise FileNotFoundError(f"Did not find precomputed bg {filename} in {self._bg_dir}")
+        glob_file = pt.get_glob_file(bg_files[0])
+        
+        # Load sparse matrix of background scans
+        if os.path.exists(glob_file):
+            pre_ts_array = pt.load_maps(glob_file)
+        else:
+            pre_ts_array = pt.concatenate_maps(bg_files, self.nside)
+            pt.save_maps(pre_ts_array, glob_file)
+        if hp.npix2nside(pre_ts_array.shape[1]) != self.nside:
+            # Should be ensured by file name but better check
+            raise ValueError(f"Loaded precomputed bg has nside != {self.nside}")
+        
+        # Combine with prior as in GWFollowup
+        ts_prior = pre_ts_array.copy()
+        ts_norm = np.log(np.amax(self.skymap))
+        # skymap was already reduced to the analysis nside upon loading
+        # TODO better way than to introduce inf's by log-ging the skymap?
+        ts_prior.data += 2.*(np.log(self.skymap[pre_ts_array.indices]) - ts_norm)
+        ts_prior.data[~np.isfinite(ts_prior.data)] = 0. # TODO discuss whether this applies. Not sure why inconsistent.
+        ts_prior.data[ts_prior.data < 0] = 0.
+        # Take the maximum per entry
+        tsd = ts_prior.max(axis=1).toarray()[:,0]
+        # Explicitly skip
+        empty = np.array([_ts.size==0 for _ts in pre_ts_array])
+        tsd[empty] = 0 # new convention: 0 for empty trial
+        self.tsd = tsd
+        if ntrials is None:
+            return tsd
+        elif ntrials < self.tsd.size:
+            return tsd[:ntrials]
+        else:
+            raise ValueError(f"Could not load {ntrials} precomputed trials, only have {self.tsd.size}")
+
+
+
+        
+
     def find_coincident_events(self, print_events=False):
         r"""Find coincident events for a skymap
         based analysis. These are ontime events that are also in the 
         90% contour of the skymap
         """
-        t_mask=(self.llh.exp['time']<=self.stop)&(self.llh.exp['time']>=self.start)
-        events = self.llh.exp[t_mask]
+        t_mask=(self.llh_exp['time']<=self.stop)&(self.llh_exp['time']>=self.start)
+        events = np.copy(self.llh_exp[t_mask])
+        # Using the new llh_exp property
         exp_theta = 0.5*np.pi - events['dec']
         exp_phi   = events['ra']
         exp_pix   = hp.ang2pix(self.nside, exp_theta, exp_phi)
@@ -913,14 +1136,14 @@ class PriorFollowup(FastResponseAnalysis):
         self.coincident_events = coincident_events
         self.save_items['coincident_events'] = coincident_events
 
-    def unblind_TS(self, custom_events=None):
+    def unblind_TS(self, scramble: bool=False):
         r""" Unblind TS, either sky scan for spatial prior,
         or just at one location for a point source
 
         Parameters
         -----------
-        custom_events: array
-            specific events for use in scan (UNUSED)
+        scramble: bool
+            Let the LLH scramble with its current RNG seed before unblinding
         
         Returns
         -----------
@@ -940,8 +1163,12 @@ class PriorFollowup(FastResponseAnalysis):
         pixels = np.arange(len(self.skymap))
         t1 = time.time()
         print("Starting scan")
+        logger.debug(f"with nside={self.nside}, nsigma={self._pixel_scan_nsigma}, containment={self._containment}")
         val = self.llh.scan(
-            0.0,0.0, scramble = False, spatial_prior=spatial_prior,
+            0.0,0.0,
+            # if scrambling, llh.scan() takes a seed from its own kwargs
+            scramble = scramble, seed=self.llh_seed,
+            spatial_prior=spatial_prior,
             time_mask = [self.duration/2., self.centertime],
             pixel_scan=[self.nside, self._pixel_scan_nsigma]
         )
@@ -968,7 +1195,7 @@ class PriorFollowup(FastResponseAnalysis):
             self.scanned_pixels = hp.ang2pix(
                 self.nside, np.pi/2. - val['dec'], val['ra']
             )
-        except Exception as e:
+        except Exception as e: # TODO be more specific, eg empty scan
             print(e)
             ts, ns = 0., 0.
             if self._float_index:
@@ -1001,8 +1228,8 @@ class PriorFollowup(FastResponseAnalysis):
     def upper_limit(self):
         """ UPPER LIMIT WITH SPATIAL PRIOR NOT YET IMPLEMENTED
         """
-        print("Upper limit with spatial prior not yet implemented")
-        pass
+        raise NotImplementedError("No upper limit in PriorFollowup, use scripts.")
+        
 
     def ipixs_in_percentage(self, percentage):
         """Finding ipix indices confined in a given percentage.
@@ -1041,6 +1268,22 @@ class PriorFollowup(FastResponseAnalysis):
           
         return np.asarray(ipix,dtype=int)
 
+    def load_ps_sensitivities(self):
+        sens_pickle = f'{self._sens_dir}/ps_sensitivities_deltaT_{self.duration*86400.:.2e}s.pkl'
+        from os.path import isfile
+        if isfile(sens_pickle):
+            with open(sens_pickle, 'rb') as f:
+                saved_sens=pickle.load(f)
+                dec_range=saved_sens['dec']
+                sens=saved_sens['sens_flux']
+            return dec_range, sens
+        
+        sens_npy = f"{self._sens_dir}/deltaT_{self.duration*86400:.2e}_index_{self.index:.1f}.npy"
+        if isfile(sens_npy):
+            saved_sens = np.load(sens_npy)
+            return saved_sens['dec'], saved_sens['flux'] 
+        raise FileNotFoundError(f"Could find neither {sens_pickle} nor {sens_npy}")
+        
     def dec_skymap_range(self):
         r""" Compute minimum and maximum declinations within
         of the 90% contour of a given skymap
@@ -1090,7 +1333,7 @@ class PriorFollowup(FastResponseAnalysis):
         low_5_min_dec = np.interp(0.05, cdf, a[1][:-1])
         median_min_dec = np.interp(0.5, cdf, a[1][:-1])
         high_5_min_dec = np.interp(0.95, cdf, a[1][:-1])
-        plt.axvspan(low_5_min_dec, high_5_min_dec, color = sns.xkcd_rgb['windows blue'], alpha = 0.25, label="Central 90\%")
+        plt.axvspan(low_5_min_dec, high_5_min_dec, color = sns.xkcd_rgb['windows blue'], alpha = 0.25, label="Central 90%")
         lab = 'Median (min dec.)'
         plt.axvline(median_min_dec, c = sns.xkcd_rgb['windows blue'], alpha = 0.75, label = lab)
 
@@ -1131,10 +1374,12 @@ class PointSourceFollowup(FastResponseAnalysis):
     Class for point-source or extended source followup
     i.e. there is a fixed location on the sky, not a healpy skymap
     """
+    logger.debug('PointSourceFollowup.__init__')
+    
     _nside = 256
     def __init__(self, name, ra, dec, tstart, tstop, extension=None,
-                 skipped=None, outdir=None, save=True, seed=None):
-        
+                 skipped=None, outdir=None, save=True, seed=1):
+        logger.debug('PointSourceFollowup.__init__')
         super().__init__(name, tstart, tstop, skipped=skipped, seed=seed,
                        outdir=outdir, save=save, extension=extension)
 
@@ -1201,7 +1446,7 @@ class PointSourceFollowup(FastResponseAnalysis):
             temporal_model=self.llh.temporal_model)
         self.inj = inj
 
-    def unblind_TS(self):
+    def unblind_TS(self, scramble: bool=False):
         r""" Unblind TS at one location for a point source
 
         Returns
@@ -1213,20 +1458,39 @@ class PointSourceFollowup(FastResponseAnalysis):
         """ 
         # Fix the case of getting best-fit gamma
         # TODO: What if gamma is floated
-        ts, ns = self.llh.fit_source(src_ra=self.ra, src_dec=self.dec)
+        ts, ns = self.llh.fit_source(src_ra=self.ra, src_dec=self.dec, scramble=scramble)
         params = ns.copy()
         params.pop('nsignal')
         self.ns_params = params
         ns = ns['nsignal']
         if self._verbose:
             print("TS = {}".format(ts))
-            print("ns = {}\n\n".format(ns))
+            print("ns = {}".format(ns))
+            for par, val in params.items():
+                if isinstance(val, float):
+                    print(f"{par} = {val:.3f}")
+                else:
+                    print(f"{par} = {val}")
+            print("\n\n")
         self.ts, self.ns = ts, ns
         self.save_items['ts'] = ts
         self.save_items['ns'] = ns
+        # need gamma for report
+        # TODO alternatively change ReportGenerator to report any ns_params
+        # (if they are not a fixed spectrum)
+        if 'gamma' in params:
+            self.gamma = params['gamma']
+        # save all parameters besides nsignal
+        # (can be other spectral models)
+        for par, val in params.items():
+            if par in self.save_items:
+                if self._verbose:
+                    print(f'Warning, not saving {par} as save_items already has such a key')
+            self.save_items.setdefault(par, val)
+
         return ts, ns
 
-    def find_coincident_events(self, print_events=False):
+    def find_coincident_events(self, ns_params=None, print_events=False):
         r"""Find "coincident events" for the analysis.
         These are ontime events that satisfy:
         
@@ -1234,12 +1498,22 @@ class PointSourceFollowup(FastResponseAnalysis):
 
         (Note that for this box time window, all events in the ontime window
         have the same temporal weight.)
+        
+        Parameters
+        -----------
+        ns_params: dict
+            Fit parameters to use for weight calculation, e.g. if fit happened in MultiPointSourceFollowup
         """
+        # TODO spatial weight means that cascades are never "coincident"
+        # (different story in PriorFollowup - then resolution plays no role)
+        # can have an overfluctuation in 30 days without a coincidence!
+        if ns_params is None:
+            ns_params = self.ns_params
         spatial_weights = self.llh.llh_model.signal(
             self.ra, self.dec, self.llh._events, 
             src_extension=self.extension)[0] / self.llh._events['B']
         energy_ratio, _ = self.llh.llh_model.weight(
-            self.llh._events, **self.ns_params)
+            self.llh._events, **ns_params)
         temporal_weights = self.llh.temporal_model.signal(self.llh._events)
         msk = spatial_weights * energy_ratio * temporal_weights > 10
         self.coincident_events = []
@@ -1368,6 +1642,8 @@ class PointSourceFollowup(FastResponseAnalysis):
         fits[best_fit_ind]['ls'] = '-'
         self.upperlimit = self.inj.mu2flux(fits[best_fit_ind]['sens'])
         self.upperlimit_ninj = fits[best_fit_ind]['sens']
+        # E^2 dN/dE at self.inj.E0
+        upperlimit_fluence = self.upperlimit * self.duration * 86400. * self.inj.E0**2
 
         fig, ax = plt.subplots()
         for fit_dict in fits:
@@ -1381,9 +1657,14 @@ class PointSourceFollowup(FastResponseAnalysis):
             if fit_dict['ls'] == '-':
                 ax.axhline(0.9, color = 'm', linewidth = 0.3, linestyle = '-.')
                 ax.axvline(fit_dict['sens'], color = 'm', linewidth = 0.3, linestyle = '-.')
-                ax.text(3.5, 0.8, r'Sens. = {:.2f} events'.format(fit_dict['sens']), fontsize = 16)
-                ax.text(3.5, 0.7, r' = {:.1e}'.format(self.upperlimit * self.duration * 86400. * 1e6) + r' GeV cm$^{-2}$', fontsize = 16)
-                #ax.text(5, 0.5, r'Sens. = {:.2e}'.format(self.inj.mu2flux(fit_dict['sens'])) + ' GeV^-1 cm^-2 s^-1')
+                limit_annotation = r'Sens. = {:.2f} events'.format(fit_dict['sens']) + '\n'
+                limit_annotation +=  r' = {:.1e}'.format(upperlimit_fluence) + r' GeV cm$^{-2}$' + '\n'
+                if self.index != 2:
+                    # E^2 F not constant in energy, state pivot energy in label
+                    limit_annotation += f'at {self.inj.E0:.0f} GeV'
+                ax.annotate(limit_annotation,
+                            (3.5, 0.8), ha = 'left', va = 'top', xycoords = 'data',
+                            fontsize = 16)
         ax.errorbar(signal_fluxes, passing, yerr=errs, capsize = 3, linestyle='', marker = 's', markersize = 2)
         ax.legend(loc=4, fontsize = 14)
         ax.set_xlabel(r'$\langle n_{inj} \rangle$', fontsize = 14)
@@ -1421,7 +1702,7 @@ class PointSourceFollowup(FastResponseAnalysis):
         high_5 = np.interp(0.95, cdf, a[1][:-1])
         self.low5 = low_5
         self.high5 = high_5
-        plt.axvspan(low_5, high_5, color = sns.xkcd_rgb['windows blue'], alpha = 0.25, label="Central 90\%")
+        plt.axvspan(low_5, high_5, color = sns.xkcd_rgb['windows blue'], alpha = 0.25, label="Central 90%")
         lab = 'Median'
         plt.axvline(median, c = sns.xkcd_rgb['windows blue'], alpha = 0.75, label = lab)
         plt.xlim(1e1, 1e8)

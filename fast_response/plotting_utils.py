@@ -4,6 +4,47 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 import meander
+from copy import copy
+
+skymap_style = [dict(linestyle='solid',   marker='x', alpha=1.0),
+                dict(linestyle='dotted',  marker='+', alpha=1.0),
+                dict(linestyle='dashed',  marker='2', alpha=1.0),
+                dict(linestyle='dashdot', marker='d', alpha=1.0),
+                ]
+
+class TimeColormap:
+    """
+    Class to colorize events in a skymap, optionally with a distinct sample per palette.
+    """
+    def __init__(self, start, stop, n_maps=3):
+        self.norm = mpl.colors.Normalize(vmin=start, vmax=stop)
+        cmaps = []
+        if n_maps == 1:
+            cmaps = [mpl.colors.ListedColormap(sns.color_palette('icefire', 512))]
+        elif n_maps<4:
+            dhue = 360/n_maps
+            hues = np.mod(136 + np.arange(0, 360, dhue), 360)
+            for i,hue in enumerate(hues):
+                cmaps.append(sns.diverging_palette(hue, (hue+dhue/1.5)%360, l=75, center="dark", as_cmap=True))
+        else:
+            raise ValueError("Generating more than 5 color maps will be hard to distinguish")
+        self.cmaps = cmaps
+        self.n_maps = n_maps
+
+    def get_cmap(self, i):
+        if self.n_maps == 1:
+            return self.cmaps[0]
+        elif i < self.n_maps:
+            return self.cmaps[i]
+        else:
+            raise ValueError("Have not configured enough color maps")
+    
+    def __call__(self, times, enum):
+        t = np.atleast_1d(times)
+        x = self.norm(t)
+        cmap = self.get_cmap(enum)
+        return cmap(x)
+
 
 def plot_zoom(scan, ra, dec, title, reso=3, var="pVal", range=[0, 6],cmap=None):
     """
@@ -105,8 +146,9 @@ def plot_labels(src_dec, src_ra, reso):
     plt.text(np.radians(0), np.radians(-2.05*reso), r"right ascension", 
                 ha='center', va='center', fontsize=fontsize)
 
+# FIXME reso here is not used
 def plot_events(dec, ra, sigmas, src_ra, src_dec, reso, sigma_scale=5., col = 'k', constant_sigma=False,
-                    same_marker=False, energy_size=False, with_mark=True, with_dash=False,
+                    same_marker=False, energy_size=False, with_mark=True, with_dash=False, kw_style={},
                     label=''):
     """
     Adds events to a healpy zoom plot. Events are expected to be from self.llh.exp
@@ -133,10 +175,12 @@ def plot_events(dec, ra, sigmas, src_ra, src_dec, reso, sigma_scale=5., col = 'k
     constant_sigma: bool
         Ignores sigma parameter and plots all markers with a size of 20.
     with_mark: bool
-        Uses an x marker instead of o
+        Include marker at event location in addition to error circle
     with_dash: bool
         Plot the angular error as a dashed contour.
         Usually used to indicated a removed event (e.g. alert event that triggered the analysis)
+    kw_style: dict
+        dictionary of style to use: marker and line style. Overridden by with_dash.
     same_marker, energy_size: bool
         Currently unused options.
     """
@@ -144,29 +188,45 @@ def plot_events(dec, ra, sigmas, src_ra, src_dec, reso, sigma_scale=5., col = 'k
     tmp = np.cos(src_ra - ra) * np.cos(src_dec) * cos_ev + np.sin(src_dec) * np.sin(dec)
     dist = np.arccos(tmp)
 
+    # with_dash overrides the given line style
+    kw_style = copy(kw_style) # because a dict is mutable
+    if with_dash:
+        kw_style['linestyle'] = ':'
+    # else, set default style
+    else:
+        kw_style.setdefault('linestyle', 'solid')
+    kw_style.setdefault('marker', 'x')
+    marker = kw_style.pop('marker') # have to pop it out as it's used in a different place
+
+
     if sigma_scale is not None:
         sigma = np.degrees(sigmas)/sigma_scale
         sizes = 5200*sigma**2
         if constant_sigma:
             sizes = 20*np.ones_like(sizes)
-        if with_dash:
-            hp.projscatter(np.pi/2-dec, ra, marker='o', linewidth=2, 
-                edgecolor=col, linestyle=':', facecolor="None", s=sizes, 
-                alpha=1.0)
-        else:
-            hp.projscatter(np.pi/2-dec, ra, marker='o', linewidth=2, 
-                edgecolor=col, facecolor="None", s=sizes, alpha=1.0)
+        
+        hp.projscatter(np.pi/2-dec, ra, marker='o', linewidth=2,
+            edgecolor=col, facecolor="None", s=sizes, 
+            **kw_style,
+            )
     if with_mark:
-        hp.projscatter(np.pi/2-dec, ra, marker='x', linewidth=2, 
+        hp.projscatter(np.pi/2-dec, ra, marker=marker, linewidth=2, 
             edgecolor=col, facecolor=col, s=60, alpha=1.0)
+
+
+    
 
 def load_plotting_settings():
     """
     Load settings to be used as default plot settings.
     Includes Times New Roman font and size 12 font
     """
+    # undo eventual matplotlibrc in user config
+    mpl.rcdefaults()
+
     mpl.use('agg')
-    mpl.rcParams['text.usetex'] = True
+    old_mpl = int(mpl.__version__.split(".")[0]) < 3
+    mpl.rcParams['text.usetex'] = old_mpl # no longer needed
     try:
         mpl.rcParams['text.latex.unicode'] = True
     except:
@@ -181,6 +241,9 @@ def load_plotting_settings():
     mpl.rcParams['ytick.labelsize'] = 16
     mpl.rcParams['xtick.major.size'] = 5
     mpl.rcParams['ytick.major.size'] = 5
+
+    # increase figure resolution from default
+    mpl.rcParams['savefig.dpi'] = 200
 
 def contour(ra, dec, sigma, nside):
     r""" Function for plotting contours on skymaps
@@ -313,3 +376,53 @@ def make_public_zoom_skymap(skymap, events, ra, dec, with_contour=True, name='te
 
     plt.savefig(f'./{name}_skymap_zoom_public.png', bbox_inches='tight', dpi=300)
     plt.close()
+
+def get_energy_band(mc, index, dec, half_width=5., coverage=0.9):
+        """Get the weighted true energy distribution and 90% band
+        for a given declination, coupled out from make_dNdE to be used
+        by multiple plotting methods"""
+        
+        dec_mask_1 = mc['dec'] > dec - np.deg2rad(half_width)
+        dec_mask_2 = mc['dec'] < dec + np.deg2rad(half_width)
+        dec_mask = dec_mask_1 & dec_mask_2
+        
+        delta_gamma = -1. * index + 1. # TODO I don't understand why we add a power of E then divide it out again
+
+        a = np.histogram(mc['trueE'][dec_mask], bins = np.logspace(1., 8., 50), 
+                weights = mc['ow'][dec_mask] * np.power(mc['trueE'][dec_mask], delta_gamma) / mc['trueE'][dec_mask], 
+        )
+        
+        cdf = np.cumsum(a[0]) / np.sum(a[0])
+        low = np.interp((1 - coverage)/2, cdf, a[1][:-1])
+        median = np.interp(0.5, cdf, a[1][:-1])
+        high = np.interp((1 + coverage)/2, cdf, a[1][:-1])
+        return {'histogram':a, 'low': low, 'median': median, 'high': high}
+
+
+def plot_energy_band(histogram=None, low=None, median=None, high=None, quantile=0.9,
+                     color=sns.xkcd_rgb['windows blue'],
+                     linestyle="solid",
+                     label_prefix=""):   
+    if histogram:
+        plt.stairs(histogram[0], histogram[1], fill=False,
+                linewidth = 2., color = color, label = label_prefix)
+            
+    plt.yscale('log')
+    plt.xscale('log')
+    plt.grid(which = 'major', alpha = 0.25)
+    plt.xlabel('Energy (GeV)', fontsize = 24)
+
+    if low is not None and high is not None:
+        plt.axvspan(low, high, color=color, alpha = 0.25,
+                    label=" ".join((label_prefix, f"Central {quantile:.0%}")),
+                    linestyle = linestyle,
+                    linewidth = 2.,
+                    )
+    if median:
+        plt.axvline(median, c=color, alpha=0.75,
+                    linestyle = linestyle,
+                    linewidth = 2.,
+                    label=" ".join((label_prefix, "Median")),
+        )
+    plt.xlim(1e1, 1e8)
+    

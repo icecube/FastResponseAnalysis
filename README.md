@@ -9,12 +9,13 @@ The current implementation houses the code for responding to
 * Gravitational Wave events
 
 ## Dependencies
-To install all dependencies external from IceCube software, we recommend creating a virtual environment, and pip installing the required packages, which are given in the file `requirements.txt`. This can be set up using (current FRA uses Python 3.7.5):
+To install all dependencies external from IceCube software, we recommend creating a virtual environment, and pip installing the required packages, which are given in the file `requirements.txt`. This can be set up using (current FRA uses Python 3.7.5 or 3.12.5):
+
+* Activate CVMFS toolchain (py3-v4 -- py3-v4.4.2)
 
 ```console
-python3 -m venv fra_env
+python3 -m venv --system-site-packages fra_env
 source fra_env/bin/activate
-pip install -r /path/to/fast-response/requirements.txt
 ```
 
 This will create a virtual environment named `fra_env`, and the `source fra_env/bin/activate` line will activate the environment.
@@ -24,6 +25,7 @@ You should then install `fast_response` into this environment by navigating into
 ```console
 pip install -e .
 ```
+which will install it with its dependencies, but not override packages from CVMFS (e.g. NumPy).
 
 The docs are built using [Sphinx](https://www.sphinx-doc.org/en/master/). If you want to build your own set of docs, you should also `pip install sphinx` to the environment, and the docs can be built following the instructions [in the Sphinx docs here](https://www.sphinx-doc.org/en/master/usage/quickstart.html#running-the-build).
 
