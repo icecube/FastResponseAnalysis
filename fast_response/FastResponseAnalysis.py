@@ -1076,7 +1076,7 @@ class PriorFollowup(FastResponseAnalysis):
         self.tsd = tsd
         self.save_items["tsd"] = tsd
 
-    def find_coincident_events(self, custom_events=None):
+    def find_coincident_events(self, custom_events=None,print_events=False):
         r"""Find coincident events for a skymap
         based analysis. These are ontime events that are also in the
         90% contour of the skymap
