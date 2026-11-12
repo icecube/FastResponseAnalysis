@@ -299,7 +299,7 @@ def plot_events(
         )
 
 
-def plot_events2(dec, ra, sigmas, col="k",density=.01):
+def plot_events2(dec, ra, sigmas, col="k",density=1):
     """
     Fixed version of plot_events. Does the same thing as plot_events, but guaranteed to plot correctly after it was observed
     plot_events may not always give the correct results.

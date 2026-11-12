@@ -1799,7 +1799,7 @@ class PriorFollowup(FastResponseAnalysis):
                 )
             )
             # threshold_prob_for_plots=[k for k in threshold_prob_for_plots if k>0]
-            counterJump = max(int(len(threshold_prob_for_plots) / 30), 5)
+            counterJump = min(max(int(len(threshold_prob_for_plots) / 30), 5),50)
 
             psToPlot = []
             for i in range(0, len(threshold_prob_for_plots), counterJump):
