@@ -163,9 +163,9 @@ class GWFollowup(PriorFollowup):
 
         t1 = Time(datetime.datetime.utcnow()).mjd
         if ((t1-self.stop)*86400.)>5000.:
-            #if it's been long enough, only load 1000s
-            print('Loading 2000s of data after the time window')
-            t1 = self.stop + 2000./86400. 
+            #if it's been long enough, only load 5000s
+            print('Loading 5000s of data after the time window')
+            t1 = self.stop + 5000./86400. 
         exp_long, livetime_long, grl_long = self.dset.livestream(
             self.start,
             t1,
@@ -179,6 +179,9 @@ class GWFollowup(PriorFollowup):
         if exp_long[mask].size > 0:
             check_passed = True
             print('Found {} events after end of time window'.format(exp_long[mask].size))
+        elif Time(datetime.datetime.utcnow()).mjd > (self.stop + 5000./86400.):
+            raise Exception('No events found 5000 seconds after GW event.')
+        
         return check_passed
 
     def initialize_llh(self, skipped=None, scramble=False):
@@ -209,10 +212,14 @@ class GWFollowup(PriorFollowup):
             dset = Datasets[self.dataset]
             self.dset = dset
             check_passed = False
-            print('Checking for events after time window')
+            if self.stop < 59215: 
+                print('Old times: Skipping check for events after time window')
+                check_passed = True
+            else:
+                print('Checking for events after time window')
+
             while not check_passed:
                 check_passed = self.check_events_after()
-
             self.get_data()
 
         if self._verbose:
@@ -398,8 +405,7 @@ class GWFollowup(PriorFollowup):
 
         else:
             #significance = '{:1.2f}'.format(self.significance(pvalue))
-
-            info = ' <dt>\t <ra>\t\t <dec>\t\t <angErr>\t\t\t <p_gwava>\t\t\t <p_llama>\n'
+            info = '|<dt>   |  <ra>  |  <dec>  |      <angErr>           |         <p_gwava>         |       <p_llama>        |\n'
             table = ''
             n_coincident_events=0
             for event in events:

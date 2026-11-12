@@ -2,57 +2,57 @@
 
 import logging
 from datetime import datetime
-import socket
-import requests
-import healpy as hp
 import matplotlib as mpl
 mpl.use('agg')
 import matplotlib.pyplot as plt
-import io, time, os, glob, subprocess
-import urllib.request, urllib.error, urllib.parse
+import io, time, os, glob, subprocess, sys
 import argparse
 import json, pickle
-from gcn_kafka import Consumer
-#from icecube import realtime_tools
+from gcn_kafka import Consumer, Producer
 import numpy as np
-import lxml.etree
 from astropy.time import Time
 import dateutil.parser
 from datetime import datetime
+from fast_response.slack_posters.slack import slackbot
 from fast_response.web_utils import updateGW_public
+from dotenv import load_dotenv
 
-with open('/home/jthwaites/private/tokens/kafka_token.txt') as f:
-    client_id = f.readline().rstrip('\n')
-    client_secret = f.readline().rstrip('\n')
+load_dotenv()
 
+# this script MUST find the secrets, or it cannot send.
+# check before starting
+client_id = os.getenv('GCN_ID')
+client_secret = os.getenv('GCN_SECRET')
+call_path = os.getenv('MAKE_CALL')
+if client_id is None or client_secret is None:
+    raise Exception('No consumer GCN credentials found in env, quitting...')
+prod_id = os.getenv('PROD_GCN_ID')
+prod_secret = os.getenv('PROD_GCN_SECRET')
+if prod_id is None or prod_secret is None:
+    raise Exception('No producer GCN credentials found in env, quitting...')
+
+config = {'broker.address.family': 'v4', 
+          'log_level': 0,
+          'max.poll.interval.ms': 1800000,
+         }
 consumer = Consumer(client_id=client_id,
                     client_secret=client_secret,
-                    config={'max.poll.interval.ms':1800000})
+                    config=config)
 
 # Subscribe to topics to receive alerts
-consumer.subscribe(['gcn.classic.voevent.LVC_PRELIMINARY',
-                    'gcn.classic.voevent.LVC_INITIAL',
-                    'gcn.classic.voevent.LVC_UPDATE'])
-#consumer.subscribe(['igwn.gwalert'])
+consumer.subscribe(['igwn.gwalert'])
 
 def SendAlert(results=None):
-        from gcn_kafka import Producer
-
         if results is None:
             logger.fatal('Found no alert to send')
         
-        with open('/home/jthwaites/private/tokens/real_icecube_kafka_prod.txt') as f:
-            prod_id = f.readline().rstrip('\n')
-            prod_secret = f.readline().rstrip('\n')
-
-        producer = Producer(#config={'bootstrap.servers': 'kafka3.gcn.nasa.gov'},
-                            client_id=prod_id,
+        producer = Producer(client_id=prod_id,
                             client_secret=prod_secret,
                             domain='gcn.nasa.gov')
         
         if 'MS' in results['ref_ID']:
-            return
-            topic = 'gcn.notices.icecube.test.lvk_nu_track_search'
+            logger.warning('Found MDC alert, not sending results to prod topic!')
+            return 1
         else:
             topic = 'gcn.notices.icecube.lvk_nu_track_search'
         
@@ -63,17 +63,10 @@ def SendAlert(results=None):
         return ret
 
 def SendTestAlert(results=None):
-        from gcn_kafka import Producer
-
         if results is None:
             logger.fatal('Found no alert to send')
         
-        with open('/home/jthwaites/private/tokens/test_icecube_kafka_prod.txt') as f:
-            prod_id = f.readline().rstrip('\n')
-            prod_secret = f.readline().rstrip('\n')
-
-        producer = Producer(#config={'bootstrap.servers': 'kafka3.gcn.nasa.gov'},
-                            client_id=prod_id,
+        producer = Producer(client_id=prod_id,
                             client_secret=prod_secret,
                             domain='test.gcn.nasa.gov')
         
@@ -88,7 +81,9 @@ def SendTestAlert(results=None):
 def format_ontime_events_uml(events, event_mjd):
     ontime_events={}
     for event in events:
-        ontime_events[event['event']]={
+        unique_id = '{}_{}'.format(int(event['run']), int(event['event']))
+        ontime_events[unique_id]={
+            'id':[unique_id],
             'event_dt' : round((event['time']-event_mjd)*86400., 2),
             'localization':{
                 'ra' : round(np.rad2deg(event['ra']), 2),
@@ -97,18 +92,19 @@ def format_ontime_events_uml(events, event_mjd):
                 "containment_probability": 0.9,
                 "systematic_included": False
             },
-            #'event_pval_generic' : round(event['pvalue'],4)
         }
         if event['pvalue'] < 0.0001:
-            ontime_events[event['event']]['event_pval_generic'] = float('{:.1e}'.format(event['pvalue']))
+            ontime_events[unique_id]['event_pval_generic'] = float('{:.1e}'.format(event['pvalue']))
         else:
-            ontime_events[event['event']]['event_pval_generic'] = round(event['pvalue'],4)
+            ontime_events[unique_id]['event_pval_generic'] = round(event['pvalue'],4)
     return ontime_events
 
 def format_ontime_events_llama(events):
     ontime_events={}
     for event in events:
-        ontime_events[event['i3event']] = {
+        unique_id = '{}_{}'.format(int(event['i3run']), int(event['i3event']))
+        ontime_events[unique_id] = {
+            'id':[unique_id],
             'event_dt' : round(event['dt'],2),
             'localization':{
                 'ra' : round(event['ra'], 2),
@@ -117,12 +113,11 @@ def format_ontime_events_llama(events):
                 "containment_probability": 0.9,
                 "systematic_included": False
             },
-            #'event_pval_bayesian': round(event['p_value'],4)
         }
         if event['p_value'] < 0.0001:
-            ontime_events[event['i3event']]['event_pval_bayesian'] = float('{:.1e}'.format(event['p_value']))
+            ontime_events[unique_id]['event_pval_bayesian'] = float('{:.1e}'.format(event['p_value']))
         else:
-            ontime_events[event['i3event']]['event_pval_bayesian'] = round(event['p_value'],4)
+            ontime_events[unique_id]['event_pval_bayesian'] = round(event['p_value'],4)
     return ontime_events
 
 def combine_events(uml_ontime, llama_ontime):
@@ -156,37 +151,43 @@ def combine_events(uml_ontime, llama_ontime):
 
     return coinc_events
 
-def parse_notice(record, wait_for_llama=False, heartbeat=False):
+def parse_notice(params, wait_for_llama=False, heartbeat=False):
     logger = logging.getLogger()
+    fra_bot = slackbot('fra-shifting')
 
-    if record.attrib['role']!='observation':
+    params['role'] = 'observation' if 'MS' in params['superevent_id'] else 'test'
+    # Make sure that event parameters are included! else, post an error
+    if  params['event'] is None:
+        logger.warning('No event params found in notice!')
+        fra_bot.post_short_msg('Combine_results_kafka: error finding event params in notice for {}!'.format(params['superevent_id']))
+        return
+
+    if 'search' in params['event']: # one more check to identify mocks or testing
+        if params['event']['search'] == 'MDC':
+            params['role'] = 'test'
+
+    if params['role']!='observation':
         fra_results_location = '/data/user/jthwaites/o4-mocks/'
         if not heartbeat:
-            logger.warning('found test event - not in mock mode. returning')
+            logger.info('found test event - not in mock mode. returning')
             return
         else:
-            logger.warning('found test event')
+            logger.info('found test event')
     else:
         logger.warning('ALERT FOUND')
         fra_results_location = os.environ.get('FAST_RESPONSE_OUTPUT')
     
-    ### GENERAL PARAMETERS ###
-    #read event information
-    params = {elem.attrib['name']:
-              elem.attrib['value']
-              for elem in record.iterfind('.//Param')}
-
-    # ignore subthreshold, only run on significant events
+    # check if the event is Significant
     subthreshold=False
-    if 'Significant' in params.keys():
-        if int(params['Significant'])==0: 
-            subthreshold=True
-            logger.warning('low-significance alert found. ')
-    if params['Group'] == 'Burst' or params["Pipeline"] =='CWB':
+    if not params['event']['significant']:
+        logger.warning('low-significance alert found.')
+        subthreshold=True
+
+    if params['event']['group'] == 'Burst' or params['event']["pipeline"] =='CWB' or params['event']["pipeline"]=='aframe':
         wait_for_llama = False
         m = 'Significant' if not subthreshold else 'Subthreshold'
         logger.warning('{} burst or CWB alert found. '.format(m))
-    if len(params['Instruments'].split(','))==1:
+    if len(params['event']['instruments'])==1:
         #wait_for_llama = False
         logger.warning('One detector event found. ')
 
@@ -196,31 +197,38 @@ def parse_notice(record, wait_for_llama=False, heartbeat=False):
         return
 
     collected_results = {}
-    collected_results["$schema"]= "https://gcn.nasa.gov/schema/v4.0.0/gcn/notices/icecube/lvk_nu_track_search.schema.json"
-    collected_results["type"]= "IceCube LVK Alert Nu Track Search"
+    collected_results["$schema"]= "https://gcn.nasa.gov/schema/v7.3.0/gcn/notices/icecube/lvk_nu_search.schema.json"
+    collected_results["type"]= "IceCube LVK Alert Nu Followup"
 
-    eventtime = record.find('.//ISOTime').text
+    eventtime = params['event']['time']
     event_mjd = Time(eventtime, format='isot').mjd
-    name = record.attrib['ivorn'].split('#')[1] 
-
-    if record.attrib['role'] != 'observation':
+    event_name_params = [
+            params['superevent_id'],
+            params['alert_type'].lower(),
+            params['time_created'].replace(':','').replace('-','')
+            ]
+    name = '{}-{}-{}'.format(event_name_params[0], event_name_params[1], event_name_params[2])
+    
+    if params['role'] != 'observation':
         name=name+'_test'
 
     logger.info("{} alert found, processing GCN".format(name))
-    collected_results['ref_ID'] = name.split('-')[0]
-    collected_results['reference']= {"gcn.notices.LVK.alert": name}
-    
+    collected_results['ref_ID'] = event_name_params[0]
+    collected_results['reference'] = {
+            "gcn.notices.LVK.alert": name,
+            "skymap_filename": params['event']['skymap_filename'],
+            }
+    collected_results['datasample'] = "HE Tracks"
+
     ### WAIT ###
     # wait until the 500s has elapsed for data
     current_mjd = Time(datetime.utcnow(), scale='utc').mjd
-    needed_delay = 500./84600. 
-    #needed_delay = 720./86400. #12 mins while lvk_dropbox is offline
+    needed_delay = 500./84600.
     current_delay = current_mjd - event_mjd
 
     while current_delay < needed_delay:
         logger.info("Wait {:.1f} seconds for data".format(
-            (needed_delay - current_delay)*86400.)
-            )
+            (needed_delay - current_delay)*86400.))
         time.sleep((needed_delay - current_delay)*86400.)
         current_mjd = Time(datetime.utcnow(), scale='utc').mjd
         current_delay = current_mjd - event_mjd
@@ -230,38 +238,30 @@ def parse_notice(record, wait_for_llama=False, heartbeat=False):
     start_check_mjd = Time(datetime.utcnow(), scale='utc').mjd
     max_delay = max_wait/60./24. #mins to days
 
-    logger.info("Looking for results (max {:.0f} mins)".format(
-            max_wait)
-            )
+    logger.info("Looking for results (max {:.0f} mins)".format(max_wait))
     
     while results_done == False:
-        start_date = Time(dateutil.parser.parse(eventtime)).datetime
+        start_time = Time(Time(eventtime, format='isot').mjd - 500./86400., format='mjd').isot
+        start_date = Time(dateutil.parser.parse(start_time)).datetime
         start_str = f'{start_date.year:02d}_{start_date.month:02d}_{start_date.day:02d}'
-
-        uml_results_path = os.path.join(fra_results_location, start_str + '_' + name.replace(' ', '_') \
-                                   + '/' + start_str + '_' + name.replace(' ', '_')+'_results.pickle')
+        
+        results_filename = '{}-{}-{}'.format(event_name_params[0], event_name_params[2], event_name_params[1])
+        results_filename_uml = results_filename
+        if params['role'] != 'observation':
+            results_filename_uml=results_filename_uml+'_test'
+        uml_results_path = os.path.join(fra_results_location, start_str + '_' + results_filename_uml \
+                                   + '/' + start_str + '_' + results_filename_uml+'_results.pickle')
         uml_results_finished = os.path.exists(uml_results_path)
-
-        if len(params['Instruments'].split(','))==1:
-            llama_name = '{}.significance_opa_lvc-i3.json'.format(record.attrib['ivorn'].split('#')[1])
+        
+        if len(params['event']['instruments'])==1:
+            llama_name = '{}.significance_opa_lvc-i3.json'.format(results_filename)
         else:
-            llama_name = '{}.significance_subthreshold_lvc-i3.json'.format(record.attrib['ivorn'].split('#')[1])
+            llama_name = '{}.significance_subthreshold_lvc-i3.json'.format(results_filename)
         llama_results_path = os.path.join(llama_results_location,llama_name)
         if wait_for_llama:
             llama_results_finished = os.path.exists(llama_results_path)
         else: 
             llama_results_finished = False
-        #llama_name = '{}*-significance_subthreshold_lvc-i3.json'.format(record.attrib['ivorn'].split('#')[1])
-        #llama_results_path = os.path.join(llama_results_location,llama_name)
-        #if wait_for_llama:
-        #    llama_results_glob = sorted(glob.glob(llama_results_path))
-        #    if len(llama_results_glob)>0:
-        #        llama_results_path = llama_results_glob[-1]
-        #        llama_results_finished=True
-        #    else:
-        #        llama_results_finished=False
-        #else: 
-        #    llama_results_finished = False
 
         if subthreshold and llama_results_finished:
             #no UML results in subthreshold case, only LLAMA
@@ -284,28 +284,31 @@ def parse_notice(record, wait_for_llama=False, heartbeat=False):
                     if uml_results_finished:
                         logger.warning('LLAMA results not finished in {:.0f} mins. Sending UML only'.format(max_wait))
                         results_done=True
-                        if record.attrib['role']=='observation' and not heartbeat:
+                        if params['role']=='observation' and not heartbeat:
                             try: 
-                                subprocess.call(['/home/jthwaites/private/make_call.py', 
-                                                 '--troubleshoot_gcn=True', '--missing_llama=True'])
+                                subprocess.call([call_path, 
+                                                 '--troubleshoot_gcn=True', '--missing_llama=True',
+                                                 f'--name={name}'])
                             except:
                                 logger.warning('Failed to send alert to shifters: Issue finding LLAMA results. ')
                     if llama_results_finished:
                         logger.warning('UML results not finished in {:.0f} mins. Sending LLAMA only'.format(max_wait))
                         results_done=True
-                        if record.attrib['role']=='observation' and not heartbeat:
+                        if params['role']=='observation' and not heartbeat:
                             try: 
-                                subprocess.call(['/home/jthwaites/private/make_call.py', 
-                                                 '--troubleshoot_gcn=True', '--missing_uml=True'])
+                                subprocess.call([call_path, 
+                                                 '--troubleshoot_gcn=True', '--missing_uml=True',
+                                                 f'--name={name}'])
                             except:
                                 logger.warning('Failed to send alert to shifters: Issue finding UML results. ')
                 else:
                     logger.warning('Both analyses not finished after {:.0f} min wait.'.format(max_wait))
                     logger.warning('Not sending GCN.')
 
-                    if record.attrib['role']=='observation' and not heartbeat:
-                        err_msg = ['/home/jthwaites/private/make_call.py', '--troubleshoot_gcn=True', 
-                                   '--missing_llama=True']
+                    if params['role']=='observation' and not heartbeat:
+                        err_msg = [call_path, '--troubleshoot_gcn=True', 
+                                   '--missing_llama=True',
+                                   f'--name={name}']
                         if not subthreshold: err_msg.append('--missing_uml=True')
                         
                         try: 
@@ -331,7 +334,7 @@ def parse_notice(record, wait_for_llama=False, heartbeat=False):
         with open(llama_results_path, 'r') as f:
             llama_results = json.load(f)
         try:
-            if (record.attrib['role'] == 'observation') and (llama_results['inputs']['neutrino_info'][0]['type']=='blinded'):
+            if (params['role'] == 'observation') and (llama_results['inputs']['neutrino_info'][0]['type']=='blinded'):
                 logger.warning('LLAMA results blinded for real event! Skipping LLAMA')
                 llama_results_finished = False
                 if subthreshold: 
@@ -468,8 +471,9 @@ def parse_notice(record, wait_for_llama=False, heartbeat=False):
             print(e)
         
     ### SAVE RESULTS ###
-    if record.attrib['role']=='observation' and not heartbeat:
-        with open(os.path.join(save_location, f'{name}_collected_results.json'),'w') as f:
+    if params['role']=='observation' and not heartbeat:
+        saved_results = os.path.join(save_location, f'{name}_collected_results.json')
+        with open(saved_results,'w') as f:
             json.dump(collected_results, f, indent = 6)
 
         logger.info('sending notice')
@@ -479,27 +483,18 @@ def parse_notice(record, wait_for_llama=False, heartbeat=False):
         logger.info('{}'.format(st))
 
         if status ==0:
-            with open('/home/jthwaites/private/tokens/gw_token.txt') as f:
-                my_key = f.readline()
-            
+            ## post notice to slack
             if not subthreshold:
-                channels = ['#gwnu-heartbeat', '#alerts']#, '#gwnu']
+                channels = ['#gwnu-heartbeat', '#alerts']
             else:
                 channels = ['#gwnu-heartbeat']
             for channel in channels:
-                with open(os.path.join(save_location, f'{name}_collected_results.json'),'r') as fi:
-                    response = requests.post('https://slack.com/api/files.upload',
-                                        timeout=60,
-                                        params={'token': my_key},
-                                        data={'filename':'gcn.json',
-                                            'title': f'GCN Notice for {name}',
-                                            'channels': channel},
-                                        files={'file': fi}
-                                        )
-                if response.ok is True:
-                    logger.info("GCN posted OK to {}".format(channel))
-                else:
-                    logger.info("Error posting skymap to {}!".format(channel))
+                try: 
+                    bot = slackbot(channel)
+                    bot.post_file_to_slack(title='LvkNuTrackSearch {} GCN Notice'.format(name), file_name=saved_results)
+                except Exception as e:
+                    logger.warning('Failed to post to slack.')
+                    logger.info(e)
         
             collected_results['subthreshold'] = subthreshold
             try:
@@ -516,57 +511,30 @@ def parse_notice(record, wait_for_llama=False, heartbeat=False):
                                  os.path.join(save_location, f'{name}_collected_results.json')])
                 logger.info('Sent alert to ROC for p<0.01')
             except:
+                bot = slackbot('fra-shifting')
+                bot.post_short_msg('Failed to send email/SMS for p<0.01!')
                 logger.warning('Failed to send email/SMS notification.')
-
-            # try:
-            #     if params['Group'] == 'Burst': 
-            #         merger_type = 'Burst'
-            #     else:
-            #         k = ['BNS','NSBH','BBH']
-            #         probs = {j: float(params[j]) for j in k}
-            #         merger_type = max(zip(probs.values(), probs.keys()))[1]
-            # except:
-            #     logger.info('Could not determine type of event')
-            #     merger_type = None
-
-            # try:
-            #     subprocess.call(['/home/jthwaites/private/make_call.py', f'--type={merger_type}', '--call_anyway'])
-            # except Exception as e:
-            #     logger.warning('Call for p<0.01 failed.')
 
         else: 
             logger.info('p>0.01: no email/sms sent')
     else:
-        with open(os.path.join(save_location, f'mocks/{name}_collected_results.json'),'w') as f:
+        saved_results = os.path.join(save_location, f'mocks/{name}_collected_results.json')
+        with open(saved_results,'w') as f:
             json.dump(collected_results, f, indent = 6)
-        #logger.info('sending test notice')
-        #status = SendTestAlert(results = collected_results)
-        #logger.info('status: {}'.format(status))
-
-        #send the notice to slack (#gw-mock-heartbeat)
-        with open('/home/jthwaites/private/tokens/gw_token.txt') as f:
-            my_key = f.readline()
-                
-        channel = '#gw-mock-heartbeat'
-        with open(os.path.join(save_location, f'mocks/{name}_collected_results.json'),'r') as fi:
-            response = requests.post('https://slack.com/api/files.upload',
-                                    timeout=60,
-                                    params={'token': my_key},
-                                    data={'filename':'gcn.json',
-                                          'title': f'GCN Notice for {name}',
-                                          'channels': channel},
-                                    files={'file': fi}
-                                    )
-        if response.ok is True:
-            logger.info("GCN posted OK to {}".format(channel))
-        else:
-            logger.info("Error posting skymap to {}!".format(channel))
+        
+        #send the notice to slack
+        try:
+            bot = slackbot('gw-mock-heartbeat')
+            bot.post_file_to_slack(title='LvkNuTrackSearch {} GCN Notice'.format(name), file_name=saved_results)
+        except Exception as e:
+            logger.warning('Failed to post to slack.')
+            logger.warning(e)
 
 parser = argparse.ArgumentParser(description='Combine GW-Nu results')
 parser.add_argument('--run_live', action='store_true', default=False,
                     help='Run on live GCNs')
-parser.add_argument('--test_path', type=str, default=None,
-                    help='path to test xml file')
+parser.add_argument('--path', type=str, default=None,
+                    help='path to notice file (json)')
 parser.add_argument('--max_wait', type=float, default=35.,
                     help='Maximum minutes to wait for LLAMA/UML results before timeout (default=60)')
 parser.add_argument('--wait_for_llama', action='store_true', default=False,
@@ -581,45 +549,42 @@ logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 logger.warning("combine_results starting, connecting to GCN")
 
-#fra_results_location = os.environ.get('FAST_RESPONSE_OUTPUT')#'/data/user/jthwaites/o4-mocks/'
 llama_results_location = '/home/followup/lvk_dropbox/'
-#llama_results_location = '/home/azhang/public_html/llama/json/'
-#save_location = '/home/followup/lvk_followup_output/' #where to save final json
 save_location = args.save_dir
-
 max_wait = args.max_wait
-#wait_for_llama = args.wait_for_llama
 
 if args.run_live:
     logger.info('running on live GCNs')
     while True:
         for message in consumer.consume(timeout=1):
-            value = message.value()
-            if '<' not in value.decode('utf-8')[0]:
-                #sometimes, we'll get error messages - these make the code fail. skip them
-                logger.warning(value.decode('utf-8'))
+            if message.error():
+                logger.warning(message.error())
                 continue
-            notice = lxml.etree.fromstring(value.decode('utf-8').encode('ascii'))
-            parse_notice(notice, wait_for_llama=args.wait_for_llama, heartbeat = args.heartbeat)
+            value = message.value().decode('utf-8')
+            logger.warning('Found GCN on topic {}'.format(message.topic()))
+            notice = json.loads(value)
+            if notice['alert_type'].lower() == 'retraction':
+                # retractions are not run
+                continue
+            process_gcn(notice, wair_for_llama=args.wait_for_llama, heartbeat=args.heartbeat)
             logger.info('Done.')
 
 else:
-    if args.test_path is None:
-        paths=glob.glob('/home/jthwaites/FastResponse/*/*xml')
-        path = paths[1]
-        #path = '/home/jthwaites/FastResponse/S230522n-preliminary.json,1'
-    else: 
-        path = args.test_path
+    if args.path is None:
+        raise Exception('Must give a path if not running live!')
     
-    logger.info('running on {}'.format(path))
+    logger.info(f'Running on {args.path}')
     
-    with open(path, 'r') as f:
-        payload = f.read()
     try:
-        record = lxml.etree.fromstring(payload)
+        with open(args.path, 'r') as f:
+            notice = json.load(f)
     except Exception as e:
-        print(e)
-        exit()
-    
-    parse_notice(record, wait_for_llama=args.wait_for_llama, heartbeat=args.heartbeat)
-logger.info("done")
+        print(f"Error loading json! {e}")
+        sys.exit()
+
+    if notice['alert_type'].lower() == 'retraction':
+        raise ValueError("Retractions have no results to combine!")
+ 
+    parse_notice(notice, wait_for_llama=args.wait_for_llama, heartbeat=args.heartbeat)
+
+logger.info("Done.")

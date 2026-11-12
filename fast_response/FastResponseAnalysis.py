@@ -86,9 +86,9 @@ class FastResponseAnalysis(object):
         extension=None,
     ):
         self.name = name
-
-        if seed is not None:
-            self.llh_seed(seed)
+        
+        # if seed is not None:
+        #     self.llh_seed(seed)
         if outdir is None:
             outdir = os.environ.get("FAST_RESPONSE_OUTPUT")
             if outdir is None:
@@ -451,16 +451,17 @@ class FastResponseAnalysis(object):
 
                 bins = np.concatenate([neg_bins[:-1], pos_bins])
             else:
-                if (np.min(self.tsd) < 0.0) or (str(np.min(self.tsd)) == "-inf"):
-                    self.tsd[self.tsd < 0.0] = 0.0
-                    self.tsd[np.isinf(self.tsd)] = 0.0
-                bins = np.linspace(0.0, 25.0, 30)
-
-            plt.hist(self.tsd, bins=bins, label="Background Scrambles", density=True)
-            if self.ts >= -500.0:
-                plt.axvline(self.ts, color="k", label="Observed TS")
-            else:
-                plt.annotate("Unblinded TS: {:.0f}".format(self.ts), (lower + 20, 1e-3))
+                if (np.min(self.tsd) < 0.0) or (str(np.min(self.tsd))== '-inf'):
+                    self.tsd[self.tsd < 0.] = 0.
+                    self.tsd[np.isinf(self.tsd)]= 0.
+                bins = np.linspace(0., 25., 30)
+            
+            plt.hist(self.tsd, bins= bins, 
+                    label="{} Background Scrambles".format(len(self.tsd)), density=True)
+            if self.ts >= -500.:
+                plt.axvline(self.ts, color = 'k', label = "Observed TS")
+            else: 
+                plt.annotate("Unblinded TS: {:.0f}".format(self.ts), (lower+20, 1e-3))
             plt.legend(loc=1)
 
             if bins[0] < 0.0:
@@ -686,20 +687,12 @@ class FastResponseAnalysis(object):
                 cont = np.loadtxt(c_file, skiprows=1)
                 cont_ra = cont.T[0]
                 cont_dec = cont.T[1]
-                label = (
-                    "Millipede 50\%, 90\% (160427A syst.)"
-                    if contour_counter == 0
-                    else ""
-                )
-                hp.projplot(
-                    np.pi / 2.0 - cont_dec,
-                    cont_ra,
-                    linewidth=3.0,
-                    color="k",
-                    linestyle=cont_ls[contour_counter],
-                    coord="C",
-                    label=label,
-                )
+                cont_label = 'Millipede 50\%, 90\% (160427A syst.)' if self._llh_map else 'Skymap 50\%, 90\%'
+                label = cont_label if contour_counter == 0 else ''
+                
+                hp.projplot(np.pi/2. - cont_dec, cont_ra, linewidth=3., 
+                    color='k', linestyle=cont_ls[contour_counter], coord='C', 
+                    label=label)
                 contour_counter += 1
 
         if with_contour:
@@ -1097,6 +1090,18 @@ class PriorFollowup(FastResponseAnalysis):
         exp_pix = hp.ang2pix(self.nside, exp_theta, exp_phi)
         overlap = np.isin(exp_pix, self.ipix_90)
         events = events[overlap]
+
+        if print_events:
+            # print nearby events, as a check (if needed)
+            msk1 = (self.llh.exp[t_mask]['ra'] < (self.skymap_fit_ra+np.radians(5)))*(self.llh.exp[t_mask]['ra'] > (self.skymap_fit_ra-np.radians(5)))
+            msk2 = (self.llh.exp[t_mask]['dec'] < (self.skymap_fit_dec+np.radians(5)))*((self.llh.exp[t_mask]['dec'] > self.skymap_fit_dec-np.radians(5)))
+            msk3 = msk1*msk2
+            if np.count_nonzero(msk3) > 0:
+                print('Events within 5 deg of best-fit:')
+                print("[run, event, ra, dec, sigma, logE, time]")
+                for e in self.llh.exp[t_mask][msk3]: 
+                    print([e[k] for k in ['run', 'event', 'ra', 'dec', 'sigma', 'logE', 'time']])
+            self.nearby = self.llh.exp[t_mask][msk3]
 
         if len(events) == 0:
             coincident_events = []
@@ -1983,7 +1988,10 @@ class PriorFollowup(FastResponseAnalysis):
         )
         plt.xlim(1e1, 1e8)
         plt.legend(loc=4, fontsize=18)
-        plt.savefig(self.analysispath + "/central_90_dNdE.png", bbox_inches="tight")
+        try: 
+            plt.savefig(self.analysispath + '/central_90_dNdE.png',bbox_inches='tight')
+        except: 
+            print('Failed to save dNdE plot')
 
         self.energy_range = (
             np.min([low_5_min_dec, low_5_max_dec]),
@@ -2157,13 +2165,25 @@ class PointSourceFollowup(FastResponseAnalysis):
                 self.coincident_events.append({})
                 for key in ["run", "event", "ra", "dec", "sigma", "logE", "time"]:
                     self.coincident_events[-1][key] = ev[key]
-                del_psi = sensitivity_utils.deltaPsi(
-                    [ev["dec"]], [ev["ra"]], [self.dec], [self.ra]
-                )[0]
-                self.coincident_events[-1]["delta_psi"] = del_psi
-                self.coincident_events[-1]["spatial_w"] = s_w
-                self.coincident_events[-1]["energy_w"] = en_w
-        self.save_items["coincident_events"] = self.coincident_events
+                del_psi = sensitivity_utils.deltaPsi([ev['dec']], [ev['ra']], [self.dec], [self.ra])[0]
+                self.coincident_events[-1]['delta_psi'] = del_psi 
+                self.coincident_events[-1]['spatial_w'] = s_w
+                self.coincident_events[-1]['energy_w'] = en_w
+
+        if print_events:
+            t_mask=(self.llh.exp['time']<=self.stop)&(self.llh.exp['time']>=self.start)
+            # print nearby events, as a check (if needed)
+            msk1 = (self.llh.exp[t_mask]['ra'] < (self.ra+np.radians(10)))*(self.llh.exp[t_mask]['ra'] > (self.ra-np.radians(10)))
+            msk2 = (self.llh.exp[t_mask]['dec'] < (self.dec+np.radians(10)))*((self.llh.exp[t_mask]['dec'] > self.dec-np.radians(10)))
+            msk3 = msk1*msk2
+            if np.count_nonzero(msk3) > 0:
+                print('Events within 10 deg of best-fit:')
+                print("[run, event, ra, dec, sigma, logE, time]")
+                for e in self.llh.exp[t_mask][msk3]: 
+                    print([e[k] for k in ['run', 'event', 'ra', 'dec', 'sigma', 'logE', 'time']])
+            self.nearby = self.llh.exp[t_mask]
+
+        self.save_items['coincident_events'] = self.coincident_events
 
     def ns_scan(
         self,
@@ -2231,17 +2251,22 @@ class PointSourceFollowup(FastResponseAnalysis):
         passing = []
         for n in ninj:
             results = self.llh.do_trials(
-                n_per_sig,
-                src_ra=self.ra,
-                src_dec=self.dec,
-                injector=self.inj,
-                mean_signal=n,
-                poisson=True,
-            )
-            msk = results["TS"] > self.ts
-            npass = len(results["TS"][msk])
+                n_per_sig, src_ra=self.ra, src_dec=self.dec,
+                injector=self.inj, mean_signal=n, poisson=True)
+            msk = results['TS'] > self.ts
+            npass = len(results['TS'][msk])
             passing.append((n, npass, n_per_sig))
-
+        
+        if (passing[-1][1] / passing[-1][2]) < 0.92:
+            #run a few more if the last point is close to 0.9
+            for n in np.array([7., 8.]):
+                results = self.llh.do_trials(
+                    n_per_sig, src_ra=self.ra, src_dec=self.dec,
+                    injector=self.inj, mean_signal=n, poisson=True)
+                msk = results['TS'] > self.ts
+                npass = len(results['TS'][msk])
+                passing.append((n, npass, n_per_sig))
+            
         signal_fluxes, passing, number = list(zip(*passing))
         signal_fluxes = np.array(signal_fluxes)
         passing = np.array(passing, dtype=float)

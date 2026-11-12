@@ -4,6 +4,7 @@ import pandas as pd
 from astropy.time import Time, TimeDelta
 import icecube.realtime_tools.live
 import matplotlib as mpl
+from matplotlib.patches import Patch
 mpl.use('agg')
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
@@ -42,11 +43,34 @@ def time_axis(ax, run_table, time_window):
     time_window: tuple astropy Time object
         (start, stop) of the time window, in mjd
     """
+    startTime = time_window[0].plot_date
+    endTime = time_window[1].plot_date
+    bandColors = {False: "#005AB5", True:"#DC3220"}
+    anyMarkedBad = False
+    anyMarkedGood = False
     for run in run_table:
-        plt.axvline(Time(run['start'],format='iso',scale='utc').plot_date, ls = '--', lw = 0.75, c = 'grey')
-        plt.axvline(Time(run['stop'],format='iso',scale='utc').plot_date, ls = '--', lw = 0.75, c = 'grey')
+        runStart = Time(run['start'], format='iso', scale='utc').plot_date
+        runStop = Time(run['stop'], format='iso', scale='utc').plot_date
+        isBadRun = (run['OK'] == 'NotOK')
+        plt.axvline(runStart, ls = '--', lw = 0.75, c = 'grey')
+        plt.axvline(runStop, ls = '--', lw = 0.75, c = 'grey')
         
-    plt.axvspan(time_window[0].plot_date, time_window[1].plot_date, alpha = 0.2)
+        overLapStart = max(runStart, startTime)
+        overLapStop = min(runStop, endTime)
+
+        if overLapStart < overLapStop: 
+            plt.axvspan(overLapStart, overLapStop, color=bandColors[isBadRun], alpha=.2)
+            if isBadRun: anyMarkedBad = True 
+            else: anyMarkedGood = True
+    # Only need to provide legend for bad runs if there is one
+    if anyMarkedBad and anyMarkedGood: 
+        legend_elements = [Patch(facecolor=bandColors[False], alpha=0.2, edgecolor="black", label="OK", lw=2), 
+                           Patch(facecolor=bandColors[True], alpha=0.2, edgecolor="black", label="NotOK", lw=2)]
+    elif anyMarkedGood: 
+        legend_elements = [Patch(facecolor=bandColors[False], alpha=0.2, edgecolor="black", label="OK", lw=2)]
+    else: 
+        legend_elements = [Patch(facecolor=bandColors[True], alpha=0.2, edgecolor="black", label="NotOK", lw=2)]
+    plt.legend(handles=legend_elements, loc="upper right", title="Run Status")
 
     if (Time(run_table[-1]['stop'],format='iso',scale='utc').mjd - 
         Time(run_table[0]['start'],format='iso',scale='utc').mjd) > 41.:
@@ -165,14 +189,23 @@ def make_rate_plots(time_window, run_table, query_events, dirname, season='neutr
     plt.locator_params(axis='x', nbins = 8)
     plt.grid(b = True, axis = 'y', alpha = 0.3)
     plt.savefig('{}/badness_plot.png'.format(dirname))
-     
+    
     try:
-        rates = icecube.realtime_tools.live.get_rates(run_table[0]['start'], run_table[-1]['stop'])
+        if (Time(run_table[-1]['stop'],format='iso',scale='utc').mjd \
+            - Time(run_table[0]['start'],format='iso',scale='utc').mjd) > 45.:
+            #load as two sections, otherwise this may time out
+            midpt = Time(Time(run_table[0]['start'],format='iso',scale='utc').mjd + 35., 
+                         format='mjd').iso #first 35 days
+            rates1 = icecube.realtime_tools.live.get_rates(run_table[0]['start'], midpt)
+            rates2 = icecube.realtime_tools.live.get_rates(midpt, run_table[-1]['stop'])
+            rates = np.concatenate([rates1, rates2])
+        else:
+            rates = icecube.realtime_tools.live.get_rates(run_table[0]['start'], run_table[-1]['stop'])
     except Exception as e:
         #rates=np.load('/data/user/jthwaites/FastResponseAnalysis/output/2022_2mo_followup_rates.npy')
         print(e)
         print("Failed to load rates. In case of timeout: save rate information and reload manually")
-        print("Check lines 115-119 of make_ontime_plots.py")
+        print("Check lines 169-179 of make_ontime_plots.py")
         return
         
     ########## MAKE RATES PLOTS ##########
