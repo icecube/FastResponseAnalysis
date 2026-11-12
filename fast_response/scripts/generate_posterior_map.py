@@ -1,8 +1,14 @@
+#Ideally, the other scripts would load the analysis in a way we could call but for now
+#just copy and paste of run_X_followup with posterior 
+
+
 #!/usr/bin/env python
 
-r'''
-Author: Sam Hori
-July 2024'''
+r'''Script to run followup in response to 
+gravitational wave events from LVC
+
+Author: Raamis Hussain, updated by Jessie Thwaites
+April 2022'''
 
 import argparse, subprocess
 from astropy.time import Time
@@ -20,8 +26,6 @@ parser.add_argument('--name', type=str,
                     default="name of GW event being followed up")
 parser.add_argument('--tw', default = 1000, type=int, #2 week: 1218240
                     help = 'Time window for the analysis, in sec (default = 1000)')
-parser.add_argument('--n_inj', default = 0, type=int,
-                    help = 'Number to inject')
 parser.add_argument('--allow_neg_ts', type=bool, default=False,
                     help='bool to allow negative TS values in gw analysis.')
 args = parser.parse_args()
@@ -50,25 +54,15 @@ name = args.name
 name = name.replace('_', ' ')
 
 f = GWFollowup(name, args.skymap, start, stop)
-t_mask=(f.llh.exp['time']<=f.stop)&(f.llh.exp['time']>=f.start)
-
-print("__________________________________",f.start,f.stop)
-print(len(f.llh.exp),f.llh.exp.dtype.names,
-        len(f.llh.exp[t_mask]))
-print(f.llh.exp['time'])
-
 f._allow_neg = args.allow_neg_ts
 f.save_items['merger_time'] = Time(gw_time, format='mjd').iso
 f.save_items['skymap_link'] = args.skymap
-f.initialize_injector()
-injected_events=f.inject_events(args.n_inj)
-f.unblind_TS(custom_events=injected_events)
-f.make_prior_map(plotting_location=f.analysispath + '/',format=True)
 
+f.unblind_TS()
 if args.tw>1000:
-    f.plot_ontime(label_events = False,custom_events=injected_events)
+    f.plot_ontime(label_events = False)
 else:
-    f.plot_ontime(custom_events=injected_events)
+    f.plot_ontime()
 
 f.calc_pvalue()
 f.make_dNdE()
@@ -77,17 +71,17 @@ f.plot_tsd(allow_neg=f._allow_neg)
 #    f.get_best_fit_contour()
 
 f.upper_limit()
-f.find_coincident_events(custom_events=injected_events)
+f.find_coincident_events()
 f.per_event_pvalue()
-
 results = f.save_results()
-nsToTest=[.25,.5,.75,1,1.25,1.5,1.75,2,2.25,2.50,2.75,3,3.25,3.5,3.75,4]
-f.make_posterior_map(fluxToTest=nsToTest, 
-                     prior_func=lambda ns,gamma,ra,dec: 1, 
-                     plotting_location=f.analysispath + '/',
-                     custom_events=injected_events)
-f.generate_report()
+
+#Added Posterior Stuff
+f.make_posterior_map(fluxToTest=[.25,.5,.75,1,1.25,1.5,1.75,2,2.25,2.50,2.75,3,3.25,3.5,3.75,4]
+                     plotting_location=f.analysispath + '/',)
 f.generate_posterior_report()
+
+
+f.generate_report()
 
 f.write_circular() 
 

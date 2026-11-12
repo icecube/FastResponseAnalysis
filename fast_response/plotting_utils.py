@@ -111,12 +111,13 @@ def plot_labels(src_dec, src_ra, reso,nPix=200,label_scale=1):
                 ha='center', va='center', rotation=90, fontsize=fontsize)
     plt.text(np.radians(0), np.radians(-2.05*reso*label_scale), r"right ascension", 
                 ha='center', va='center', fontsize=fontsize)
-def compute_ang_err(ra,dec,sigma):
+def compute_ang_err(ra,dec,sigma,density=1):
+        #Density lets you reduce the number of points in the contour
         dec = np.pi/2 - dec
         sigma = np.rad2deg(sigma)
         delta, step, bins = 0, 0, 0
         delta= sigma/180.0*np.pi
-        step = 1./np.sin(delta)/20.
+        step = 1./np.sin(delta)/20./density
         bins = int(360./step)
         Theta = np.zeros(bins+1, dtype=np.double)
         Phi = np.zeros(bins+1, dtype=np.double)
@@ -132,27 +133,6 @@ def compute_ang_err(ra,dec,sigma):
         Phi[bins] = Phi[0]
 
         return Theta, Phi
-def plot_events2(dec,ra,sigmas, col = 'k'):
-    """
-        Fixed version of plot_events
-        Adds events to a healpy zoom plot. 
-
-        Parameters
-        -----------
-        dec: float array
-            Array of declination values for each event
-        ra: float array
-            Array of Right Ascension values for each event
-        sigmas: float array
-            Angular error (circularized) to be plotted. Usually a 90% CL angular error
-   
-    """
-    #plot based on explicitly determined contours rather than using the s parameter. 
-    for i in range(len(ra)):
-        ev_contour = compute_ang_err(ra[i],dec[i],sigmas[i])
-        hp.projplot(ev_contour[0], ev_contour[1], linewidth=1.75, color=col[0],
-                    linestyle="solid",coord='C')
-        
         
 
 def plot_events(dec, ra, sigmas, src_ra, src_dec, reso, sigma_scale=5., col = 'k', constant_sigma=False,
@@ -209,7 +189,29 @@ def plot_events(dec, ra, sigmas, src_ra, src_dec, reso, sigma_scale=5., col = 'k
     if with_mark:
         hp.projscatter(np.pi/2-dec, ra, marker='x', linewidth=2, 
             edgecolor=col, facecolor=col, s=60, alpha=1.0)
+def plot_events2(dec,ra,sigmas, col = 'k'):
+    """
+        Fixed version of plot_events. Does the same thing as plot_events, but guaranteed to plot correctly after it was observed
+        plot_events may not always give the correct results. 
+        Adds events to a healpy zoom plot. 
 
+        Parameters
+        -----------
+        dec: float array
+            Array of declination values for each event
+        ra: float array
+            Array of Right Ascension values for each event
+        sigmas: float array
+            Angular error (circularized) to be plotted. Usually a 90% CL angular error
+   
+    """
+    #plot based on explicitly determined contours rather than using the s parameter. 
+    hp.projscatter(np.pi/2-dec, ra, marker='x', linewidth=2, 
+            edgecolor=col, facecolor=col, s=60, alpha=1.0)
+    for i in range(len(ra)):
+        ev_contour = compute_ang_err(ra[i],dec[i],sigmas[i],1)
+        hp.projplot(ev_contour[0], ev_contour[1], linewidth=1.75, color=col[0],
+                    linestyle="solid",coord='C')
 def load_plotting_settings():
     """
     Load settings to be used as default plot settings.

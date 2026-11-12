@@ -18,6 +18,7 @@ import matplotlib.pyplot    as plt
 import copy
 from astropy.time           import Time
 import astropy.io.fits      as fits
+from multiprocessing.dummy import Pool
 
 from scipy.special          import erfinv, logsumexp
 import scipy.stats          as spstats
@@ -32,13 +33,17 @@ from skylab.ps_injector     import PriorInjector
 from skylab.spectral_models import PowerLaw 
 from skylab.temporal_models import BoxProfile, TemporalModel
 # import meander
-
 from . import web_utils
 from . import sensitivity_utils
 from . import plotting_utils
 from .reports import FastResponseReport, FastResponsePosteriorReport
 
+mpl.rcParams['text.usetex'] = False
 mpl.use('agg')
+import re
+from matplotlib import mathtext
+_orig_parse = mathtext.MathTextParser.parse
+mathtext.MathTextParser.parse = lambda self, s, *a, **k: _orig_parse(self, re.sub(r'\\[Bb]ig{1,2}[lrm]?(?![a-zA-Z])', '', s), *a, **k)
 current_palette = sns.color_palette('colorblind', 10)
 logging.getLogger().setLevel(logging.ERROR)
 warnings.simplefilter("ignore", UserWarning)
@@ -512,7 +517,7 @@ class FastResponseAnalysis(object):
         try:
             self.plot_skymap_zoom(with_contour=with_contour, contour_files=contour_files,custom_events=custom_events)
         except Exception as e:
-            print('Failed to make skymap zoom plot')
+            print('Failed to make skymap zoom plot',e)
 
         try:
             self.plot_skymap(with_contour=with_contour, contour_files=contour_files, label_events=label_events,custom_events=custom_events) 
@@ -535,7 +540,7 @@ class FastResponseAnalysis(object):
         events = self.llh.exp
         events = events[(events['time'] < self.stop) & (events['time'] > self.start)]
         if(custom_events is not None):
-            events=np.concatenate([events,custom_events])
+            events=np.concatenate([events,np.atleast_1d(custom_events).astype(self.llh.exp.dtype)])
         col_num = 5000
         seq_palette = sns.color_palette("icefire", col_num)
         lscmap = mpl.colors.ListedColormap(seq_palette)
@@ -778,6 +783,7 @@ class PriorFollowup(FastResponseAnalysis):
         try:
             skymap, skymap_header = hp.read_map(skymap_path, h=True, verbose=False)
             self.skymap_header = skymap_header
+            
         except (TypeError, OSError):
             hdf_data = h5py.File(skymap_path, 'r')
             probs = hdf_data['PROBDENSITY'][()]
@@ -1138,7 +1144,7 @@ class PriorFollowup(FastResponseAnalysis):
         # Apply Bayes rule, marginalize over nuisance parameters to get P(RA, DEC | X)
 
 
-
+        print("Starting Posterior Calc")
         t1 = time.time()    
         val=None
         skymap = self.skymap
@@ -1148,7 +1154,8 @@ class PriorFollowup(FastResponseAnalysis):
             containment = self._containment,allow_neg=True)
         
         nside=self.nside
-        decs_list = hp.pix2ang(nside, np.arange(hp.nside2npix(nside)))
+        theta, phi = hp.pix2ang(nside, np.arange(hp.nside2npix(nside)))
+        decs_list = np.pi/2 - theta
 
         test_flux=1e-17
         if(useFlux):
@@ -1158,19 +1165,29 @@ class PriorFollowup(FastResponseAnalysis):
             #work in uniform ns
             mean_flux_arr=fluxToTest
             nsPerFluxArr=[1]*12*pow(nside,2) 
-        for fluxT in mean_flux_arr:
-            temp_val = self.llh.scan(0.0,0.0, scramble = False,spatial_prior=spatial_prior,
-                    time_mask = [self.duration/2., self.centertime],
-                    pixel_scan=[nside, self._pixel_scan_nsigma],
-                    fixed=['nsignal'],
-                    nsignal=np.array([fluxT*conversion for conversion in nsPerFluxArr],dtype=float), 
-                    inject=custom_events
-                    )
-            
-            if val is None:
-                val=temp_val
-            else:
-                val=np.hstack((val,temp_val))
+
+        def _run_scan_posterior(fluxT):
+            #Helper function to parallelize scans 
+            return self.llh.scan(
+                0.0, 0.0,
+                scramble=False,
+                spatial_prior=spatial_prior,
+                time_mask=[self.duration/2., self.centertime],
+                pixel_scan=[nside, self._pixel_scan_nsigma],
+                fixed=['nsignal'],
+                nsignal=np.array(
+                    [fluxT * conversion for conversion in nsPerFluxArr],
+                    dtype=float
+                ),
+                inject=custom_events
+            )
+        print("Running posterior scans")
+       
+        n_threads = 10
+        with Pool(n_threads) as pool:
+            vals = pool.map(_run_scan_posterior, mean_flux_arr)
+        val = np.concatenate(vals)
+        print("     Done running posterior scans. Starting integration")
         ras=val["ra"]
         decs=val["dec"]
         nss=val["nsignal"]
@@ -1184,38 +1201,79 @@ class PriorFollowup(FastResponseAnalysis):
         ramax,decmax=ras[idx_max],decs[idx_max]
 
         logProbs=TS_spatial_prior_0/2 
-        finalProbs={}
 
         #for each pixel we have lists [ns_1,ns_2,...ns_i], [logP_1,logP_2,...,logP_3]
         #we want to integrate over ns
 
-        pixel_list_full=list(zip(ras,decs))
-        for pix in set(pixel_list_full):
-            idxes=np.where((ras==pix[0])&(decs==pix[1]))[0]
-            sort_idx=np.argsort(nss[idxes])
-            idxes=idxes[sort_idx]
-            nss_temp=nss[idxes]
-            probs_temp=logProbs[idxes] #leave in log form
-            
-            ns_diff=np.diff(nss_temp)
-            
-            finalProbs[pix]=-np.inf
-            if(len(idxes)!=len(fluxToTest)):
+        pix_ids = hp.ang2pix(
+            nside,
+            np.degrees(ras),
+            np.degrees(decs),
+            lonlat=True
+        )
+
+        order = np.lexsort((nss, pix_ids))
+
+        pix_s = pix_ids[order]
+        ras_s = ras[order]
+        decs_s = decs[order]
+        nss_s = nss[order]
+        logProbs_s = logProbs[order]
+        
+        split_idx = np.where(np.diff(pix_s) != 0)[0] + 1
+        
+        #One group per pixel
+        pix_groups = np.split(pix_s, split_idx)
+        ras_groups = np.split(ras_s, split_idx)
+        decs_groups = np.split(decs_s, split_idx)
+        nss_groups = np.split(nss_s, split_idx)
+        log_groups = np.split(logProbs_s, split_idx)
+
+        finalProbs = {}
+        for pix_arr,ra_arr, dec_arr, ns_arr, prob_arr in zip(
+            pix_groups,
+            ras_groups,
+            decs_groups,
+            nss_groups,
+            log_groups):
+
+            if len(ns_arr) != len(fluxToTest):
                 raise Exception("Not all fluxes have probabilities")
-            for i in range(1,len(nss_temp)):
-                #add prior*likelihood*dFlux at each value
-                ns_val=(nss_temp[i]+nss_temp[i-1])/2 #
-                deltaNs=nss_temp[i]-nss_temp[i-1] 
-                prior=prior_func(ns_val,self.index,pix[0],pix[1])
-                finalProbs[pix]=logsumexp([finalProbs[pix],logsumexp([probs_temp[i],probs_temp[i-1]])+np.log(prior)+np.log(deltaNs/2)])
             
+            #Current pixel: for each group, ra and dec should be constant through
+            pix = pix_arr[0]
+            ra = ra_arr[0]
+            dec = dec_arr[0]
+
+            if np.any(pix_arr != pix):
+                print("Pixel grouping broken")
+            if(len(ns_arr)!=len(fluxToTest)):
+                print("Wrong number of ns for ",ra,dec,ns_arr)
+
+            ns_mid = 0.5 * (ns_arr[1:] + ns_arr[:-1])
+            delta_ns = np.diff(ns_arr)
+
+            priors = np.array([
+                prior_func(ns, self.index, ra, dec)
+                for ns in ns_mid
+            ])
+
+            segments = (
+                np.logaddexp(prob_arr[1:], prob_arr[:-1])
+                + np.log(priors)
+                + np.log(delta_ns / 2.)
+                 )
+
+            finalProbs[pix] = logsumexp(segments)
+
         #Normalize
         totalLog=logsumexp(list(finalProbs.values())) 
         finalProbs={k:v-totalLog for k,v in finalProbs.items()}
         #Write to healpy
         outputProbHPMap=np.zeros(12*nside**2)
-        ras_graph,decs_graph=zip(*list(finalProbs.keys()))
-        outputProbHPMap[hp.ang2pix(nside=nside,theta=np.array(ras_graph)*180/np.pi, phi=np.array(decs_graph)*180/np.pi,lonlat=True)]=np.exp(np.array(list(finalProbs.values())))
+                
+        for pix, v in finalProbs.items():
+            outputProbHPMap[pix] = np.exp(v)
         outputProbHPMap=outputProbHPMap/np.sum(outputProbHPMap)
         t2 = time.time()
         print("Finished posterior calc, took {} s".format(t2-t1))
@@ -1227,8 +1285,6 @@ class PriorFollowup(FastResponseAnalysis):
         #Add Plotting
         if (plotting_location is not None):
             print("Plotting Posterior Results")
-            fig, ax=plt.subplots(1,1,figsize=(10,10))
-            ras_graph,decs_graph=zip(*list(finalProbs.keys()))
             fig, ax=plt.subplots(1,1,figsize=(10,10))
             plt.sca(ax)
             reso=.1
@@ -1290,18 +1346,14 @@ class PriorFollowup(FastResponseAnalysis):
             hp.projplot(theta[0], phi[0], linewidth=2., c='lawngreen')
             for i in range(1, len(theta)):
                 hp.projplot(theta[i], phi[i], linewidth=2., c='lawngreen', label=None)            
-            events = self.llh.exp
+            if(custom_events is not None and len(custom_events)!=0):
+                events = np.concatenate((self.llh.exp, custom_events))
+            else:
+                events=self.llh.exp
             events = events[(events['time'] < self.stop) & (events['time'] > self.start)]
-
             plotting_utils.plot_events2(events['dec'], events['ra'], events['sigma']*self._angScale, 
-                                        ramax,decmax, 2*6, sigma_scale=1.0,
-                    constant_sigma=False, same_marker=True, energy_size=True, col = ["red"]*len(events["dec"]),
-            resolution=reso
-            )
-            #TODO: remove--only for testing the cascade event
-            plotting_utils.plot_events2([np.radians(-36.61)],[np.radians(243.28)], [np.radians(.3)], 
-                                        ramax,decmax, 2*6, sigma_scale=1.0,
-                    constant_sigma=False, same_marker=True, energy_size=True, col = ["white"]) #plot the cascade--Temporary
+                                        col = ["red"]*len(events["dec"]),
+                                )
             plt.savefig(plotting_location+"PosteriorMapZoomedWithEvents.png")
             plt.close()
 
@@ -1353,17 +1405,16 @@ class PriorFollowup(FastResponseAnalysis):
             for i in range(1, len(theta)):
                 hp.projplot(theta[i], phi[i], linewidth=2., c='lawngreen', label=None)        
 
-            events = self.llh.exp
+            if(custom_events is not None and len(custom_events)!=0):
+                events = np.concatenate((self.llh.exp, custom_events))
+            else:
+                events=self.llh.exp
             events = events[(events['time'] < self.stop) & (events['time'] > self.start)]
 
             plotting_utils.plot_events2(events['dec'], events['ra'], events['sigma']*self._angScale, 
-                                        ramax,decmax, 2*6, sigma_scale=1.0,
-                    constant_sigma=False, same_marker=True, energy_size=True, col = ["red"]*len(events["dec"]),
-            resolution=reso
+                                 col = ["red"]*len(events["dec"]),
             )
-            plotting_utils.plot_events2([np.radians(-36.61)],[np.radians(243.28)], [np.radians(.3)], 
-                                        ramax,decmax, 2*6, sigma_scale=1.0,
-                    constant_sigma=False, same_marker=True, energy_size=True, col = ["white"]) #plot the cascade
+   
             plt.savefig(plotting_location+"PosteriorMapZoomed1DegWithEvents.png")
             plt.close()
 
@@ -1392,6 +1443,7 @@ class PriorFollowup(FastResponseAnalysis):
             plt.close()
 
             #plot ns vs probability for some specific points, could use a cleaner method of choosing points
+            fig, ax=plt.subplots(1,1,figsize=(10,10))
             threshold_prob_for_plots=list(sorted([k for k, v in Counter(list(finalProbs.values())).items() if v == 1],reverse=True))
             #threshold_prob_for_plots=[k for k in threshold_prob_for_plots if k>0]
             counterJump=max(int(len(threshold_prob_for_plots)/30),5)
@@ -1409,13 +1461,14 @@ class PriorFollowup(FastResponseAnalysis):
                 norm = mpl.colors.Normalize(min(threshold_prob_for_plots),max(threshold_prob_for_plots)), 
                 cmap = plt.get_cmap('viridis'))
                     
-            for (ra,dec) in filtered_probs:
-                #print(ra,dec)
-                total_val=finalProbs[(ra,dec)]
+            for pix in filtered_probs:
+                total_val=finalProbs[pix]
+                theta, phi = hp.pix2ang(nside, pix)
+
+                dec = np.pi/2 - theta
+                ra = phi
                 temp_val=val[(val["ra"]==ra)&(val["dec"]==dec)]
                 nss_temp=temp_val["nsignal"]
-                
-                #gammas_temp=temp_val["gamma"]
                 TS_temp=temp_val["TS_spatial_prior_0"]/2
 
                 totalLog=logsumexp(TS_temp) 
@@ -1429,13 +1482,13 @@ class PriorFollowup(FastResponseAnalysis):
             plt.savefig(plotting_location+"nsProfilePlot.png")
             plt.close()
             
-        print("saving fits")
+        print("saving fits file")
         #return the version with zeros rather than nan
         t3 = time.time()
-        print("finished posterior saving, took {} s".format(t3-t1))
 
         self.PosteriorSkymap=outputProbHPMap
         self._make_posterior_fits()
+        print("finished posterior saving, took {} s".format(t3-t1))
 
     def upper_limit(self):
         """ UPPER LIMIT WITH SPATIAL PRIOR NOT YET IMPLEMENTED
