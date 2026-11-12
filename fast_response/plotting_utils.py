@@ -5,7 +5,8 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 import meander
 
-def plot_zoom(scan, ra, dec, title, reso=3, var="pVal", range=[0, 6],cmap=None):
+
+def plot_zoom(scan, ra, dec, title, reso=3, var="pVal", range=[0, 6], cmap=None):
     """
     Make a zoomed-in skymap around a particular point (RA, decl) on the sky
 
@@ -27,21 +28,37 @@ def plot_zoom(scan, ra, dec, title, reso=3, var="pVal", range=[0, 6],cmap=None):
     if cmap is None:
         pdf_palette = sns.color_palette("Blues", 500)
         cmap = mpl.colors.ListedColormap(pdf_palette)
-    hp.gnomview(scan, rot=(np.degrees(ra), np.degrees(dec), 0),
-                    cmap=cmap,
-                    cbar=False,
-                    max=max(scan),
-                    reso=reso,
-                    title=title,
-                    notext=True,
-                    #unit=r""
-                    )
+    hp.gnomview(
+        scan,
+        rot=(np.degrees(ra), np.degrees(dec), 0),
+        cmap=cmap,
+        cbar=False,
+        max=max(scan),
+        reso=reso,
+        title=title,
+        notext=True,
+        # unit=r""
+    )
 
-    plt.plot(4.95/3.*reso*np.radians([-1, 1, 1, -1, -1]), 4.95/3.*reso*np.radians([1, 1, -1, -1, 1]), color="k", ls="-", lw=3)
+    plt.plot(
+        4.95 / 3.0 * reso * np.radians([-1, 1, 1, -1, -1]),
+        4.95 / 3.0 * reso * np.radians([1, 1, -1, -1, 1]),
+        color="k",
+        ls="-",
+        lw=3,
+    )
     hp.graticule(verbose=False)
     plot_labels(dec, ra, reso)
 
-def plot_color_bar(labels=[0.,2.,4.,6.], col_label=r"IceCube Event Time", range=[0,6], cmap=None, offset=-35,loc=[0.95, 0.2, 0.03, 0.6]):
+
+def plot_color_bar(
+    labels=[0.0, 2.0, 4.0, 6.0],
+    col_label=r"IceCube Event Time",
+    range=[0, 6],
+    cmap=None,
+    offset=-35,
+    loc=[0.95, 0.2, 0.03, 0.6],
+):
     """
     Adds a color bar to an existing healpy map
 
@@ -61,16 +78,20 @@ def plot_color_bar(labels=[0.,2.,4.,6.], col_label=r"IceCube Event Time", range=
     fig = plt.gcf()
     ax = fig.add_axes(loc)
     labels = labels
-    cb = mpl.colorbar.ColorbarBase(ax, cmap="Blues" if cmap is None else cmap,
-                        #norm=mpl.colors.Normalize(vmin=range[0], vmax=range[1]), 
-                        orientation="vertical")
+    cb = mpl.colorbar.ColorbarBase(
+        ax,
+        cmap="Blues" if cmap is None else cmap,
+        # norm=mpl.colors.Normalize(vmin=range[0], vmax=range[1]),
+        orientation="vertical",
+    )
 
     cb.set_label(col_label, labelpad=offset, fontsize=18)
-    cb.set_ticks([0., 1.])
+    cb.set_ticks([0.0, 1.0])
     cb.set_ticklabels(labels)
     cb.update_ticks()
 
-def plot_labels(src_dec, src_ra, reso,nPix=200,label_scale=1):
+
+def plot_labels(src_dec, src_ra, reso, nPix=200, label_scale=1):
     """
     Add labels to healpy zoom
 
@@ -88,56 +109,119 @@ def plot_labels(src_dec, src_ra, reso,nPix=200,label_scale=1):
         Determines size of the labels
     """
     fontsize = 20
-    reso=reso*nPix/200
-    plt.text(-1*np.radians(1.75*reso),np.radians(0), r"%.1f$^{\circ}$"%(np.degrees(src_dec)),
-             horizontalalignment='right',
-             verticalalignment='center', fontsize=fontsize)
-    plt.text(-1*np.radians(1.75*reso),np.radians(reso), r"%.1f$^{\circ}$"%(reso+np.degrees(src_dec)),
-             horizontalalignment='right',
-             verticalalignment='center', fontsize=fontsize)
-    plt.text(-1*np.radians(1.75*reso),np.radians(-reso), r"%.1f$^{\circ}$"%(-reso+np.degrees(src_dec)),
-             horizontalalignment='right',
-             verticalalignment='center', fontsize=fontsize)
-    plt.text(np.radians(0),np.radians(-1.75*reso), r"%.1f$^{\circ}$"%(np.degrees(src_ra)),
-             horizontalalignment='center',
-             verticalalignment='top', fontsize=fontsize)
-    plt.text(np.radians(reso),np.radians(-1.75*reso), r"%.1f$^{\circ}$"%(-reso+np.degrees(src_ra)),
-             horizontalalignment='center',
-             verticalalignment='top', fontsize=fontsize)
-    plt.text(np.radians(-reso),np.radians(-1.75*reso), r"%.1f$^{\circ}$"%(reso+np.degrees(src_ra)),
-             horizontalalignment='center',
-             verticalalignment='top', fontsize=fontsize)
-    plt.text(-1*np.radians(2.35*reso*label_scale), np.radians(0), r"declination", 
-                ha='center', va='center', rotation=90, fontsize=fontsize)
-    plt.text(np.radians(0), np.radians(-2.05*reso*label_scale), r"right ascension", 
-                ha='center', va='center', fontsize=fontsize)
-def compute_ang_err(ra,dec,sigma,density=1):
-        #Density lets you reduce the number of points in the contour
-        dec = np.pi/2 - dec
-        sigma = np.rad2deg(sigma)
-        delta, step, bins = 0, 0, 0
-        delta= sigma/180.0*np.pi
-        step = 1./np.sin(delta)/20./density
-        bins = int(360./step)
-        Theta = np.zeros(bins+1, dtype=np.double)
-        Phi = np.zeros(bins+1, dtype=np.double)
-        # define the contour
-        for j in range(0,bins):
-                phi = j*step/180.*np.pi
-                vx = np.cos(phi)*np.sin(ra)*np.sin(delta) + np.cos(ra)*(np.cos(delta)*np.sin(dec) + np.cos(dec)*np.sin(delta)*np.sin(phi))
-                vy = np.cos(delta)*np.sin(dec)*np.sin(ra) + np.sin(delta)*(-np.cos(ra)*np.cos(phi) + np.cos(dec)*np.sin(ra)*np.sin(phi))
-                vz = np.cos(dec)*np.cos(delta) - np.sin(dec)*np.sin(delta)*np.sin(phi)
-                Theta[j], Phi[j] = hp.vec2ang(np.array([vx, vy, vz]))
+    reso = reso * nPix / 200
+    plt.text(
+        -1 * np.radians(1.75 * reso),
+        np.radians(0),
+        r"%.1f$^{\circ}$" % (np.degrees(src_dec)),
+        horizontalalignment="right",
+        verticalalignment="center",
+        fontsize=fontsize,
+    )
+    plt.text(
+        -1 * np.radians(1.75 * reso),
+        np.radians(reso),
+        r"%.1f$^{\circ}$" % (reso + np.degrees(src_dec)),
+        horizontalalignment="right",
+        verticalalignment="center",
+        fontsize=fontsize,
+    )
+    plt.text(
+        -1 * np.radians(1.75 * reso),
+        np.radians(-reso),
+        r"%.1f$^{\circ}$" % (-reso + np.degrees(src_dec)),
+        horizontalalignment="right",
+        verticalalignment="center",
+        fontsize=fontsize,
+    )
+    plt.text(
+        np.radians(0),
+        np.radians(-1.75 * reso),
+        r"%.1f$^{\circ}$" % (np.degrees(src_ra)),
+        horizontalalignment="center",
+        verticalalignment="top",
+        fontsize=fontsize,
+    )
+    plt.text(
+        np.radians(reso),
+        np.radians(-1.75 * reso),
+        r"%.1f$^{\circ}$" % (-reso + np.degrees(src_ra)),
+        horizontalalignment="center",
+        verticalalignment="top",
+        fontsize=fontsize,
+    )
+    plt.text(
+        np.radians(-reso),
+        np.radians(-1.75 * reso),
+        r"%.1f$^{\circ}$" % (reso + np.degrees(src_ra)),
+        horizontalalignment="center",
+        verticalalignment="top",
+        fontsize=fontsize,
+    )
+    plt.text(
+        -1 * np.radians(2.35 * reso * label_scale),
+        np.radians(0),
+        r"declination",
+        ha="center",
+        va="center",
+        rotation=90,
+        fontsize=fontsize,
+    )
+    plt.text(
+        np.radians(0),
+        np.radians(-2.05 * reso * label_scale),
+        r"right ascension",
+        ha="center",
+        va="center",
+        fontsize=fontsize,
+    )
 
-        Theta[bins] = Theta[0]
-        Phi[bins] = Phi[0]
 
-        return Theta, Phi
-        
+def compute_ang_err(ra, dec, sigma, density=1):
+    # Density lets you reduce the number of points in the contour
+    dec = np.pi / 2 - dec
+    sigma = np.rad2deg(sigma)
+    delta, step, bins = 0, 0, 0
+    delta = sigma / 180.0 * np.pi
+    step = 1.0 / np.sin(delta) / 20.0 / density
+    bins = int(360.0 / step)
+    Theta = np.zeros(bins + 1, dtype=np.double)
+    Phi = np.zeros(bins + 1, dtype=np.double)
+    # define the contour
+    for j in range(0, bins):
+        phi = j * step / 180.0 * np.pi
+        vx = np.cos(phi) * np.sin(ra) * np.sin(delta) + np.cos(ra) * (
+            np.cos(delta) * np.sin(dec) + np.cos(dec) * np.sin(delta) * np.sin(phi)
+        )
+        vy = np.cos(delta) * np.sin(dec) * np.sin(ra) + np.sin(delta) * (
+            -np.cos(ra) * np.cos(phi) + np.cos(dec) * np.sin(ra) * np.sin(phi)
+        )
+        vz = np.cos(dec) * np.cos(delta) - np.sin(dec) * np.sin(delta) * np.sin(phi)
+        Theta[j], Phi[j] = hp.vec2ang(np.array([vx, vy, vz]))
 
-def plot_events(dec, ra, sigmas, src_ra, src_dec, reso, sigma_scale=5., col = 'k', constant_sigma=False,
-                    same_marker=False, energy_size=False, with_mark=True, with_dash=False,
-                    label='',resolution=0.025):
+    Theta[bins] = Theta[0]
+    Phi[bins] = Phi[0]
+
+    return Theta, Phi
+
+
+def plot_events(
+    dec,
+    ra,
+    sigmas,
+    src_ra,
+    src_dec,
+    reso,
+    sigma_scale=5.0,
+    col="k",
+    constant_sigma=False,
+    same_marker=False,
+    energy_size=False,
+    with_mark=True,
+    with_dash=False,
+    label="",
+    resolution=0.025,
+):
     """
     Adds events to a healpy zoom plot. Events are expected to be from self.llh.exp
 
@@ -175,72 +259,115 @@ def plot_events(dec, ra, sigmas, src_ra, src_dec, reso, sigma_scale=5., col = 'k
     dist = np.arccos(tmp)
 
     if sigma_scale is not None:
-        sigma = np.degrees(sigmas)/sigma_scale
-        sizes = 5200*np.power(resolution/.025,.5)*sigma**2
+        sigma = np.degrees(sigmas) / sigma_scale
+        sizes = 5200 * np.power(resolution / 0.025, 0.5) * sigma**2
         if constant_sigma:
-            sizes = 20*np.ones_like(sizes)
+            sizes = 20 * np.ones_like(sizes)
         if with_dash:
-            hp.projscatter(np.pi/2-dec, ra, marker='o', linewidth=2, 
-                edgecolor=col, linestyle=':', facecolor="None", s=sizes, 
-                alpha=1.0)
+            hp.projscatter(
+                np.pi / 2 - dec,
+                ra,
+                marker="o",
+                linewidth=2,
+                edgecolor=col,
+                linestyle=":",
+                facecolor="None",
+                s=sizes,
+                alpha=1.0,
+            )
         else:
-            hp.projscatter(np.pi/2-dec, ra, marker='o', linewidth=2, 
-                edgecolor=col, facecolor="None", s=sizes, alpha=1.0)
+            hp.projscatter(
+                np.pi / 2 - dec,
+                ra,
+                marker="o",
+                linewidth=2,
+                edgecolor=col,
+                facecolor="None",
+                s=sizes,
+                alpha=1.0,
+            )
     if with_mark:
-        hp.projscatter(np.pi/2-dec, ra, marker='x', linewidth=2, 
-            edgecolor=col, facecolor=col, s=60, alpha=1.0)
-def plot_events2(dec,ra,sigmas, col = 'k'):
-    """
-        Fixed version of plot_events. Does the same thing as plot_events, but guaranteed to plot correctly after it was observed
-        plot_events may not always give the correct results. 
-        Adds events to a healpy zoom plot. 
+        hp.projscatter(
+            np.pi / 2 - dec,
+            ra,
+            marker="x",
+            linewidth=2,
+            edgecolor=col,
+            facecolor=col,
+            s=60,
+            alpha=1.0,
+        )
 
-        Parameters
-        -----------
-        dec: float array
-            Array of declination values for each event
-        ra: float array
-            Array of Right Ascension values for each event
-        sigmas: float array
-            Angular error (circularized) to be plotted. Usually a 90% CL angular error
-   
+
+def plot_events2(dec, ra, sigmas, col="k"):
     """
-    #plot based on explicitly determined contours rather than using the s parameter. 
-    hp.projscatter(np.pi/2-dec, ra, marker='x', linewidth=2, 
-            edgecolor=col, facecolor=col, s=60, alpha=1.0)
+    Fixed version of plot_events. Does the same thing as plot_events, but guaranteed to plot correctly after it was observed
+    plot_events may not always give the correct results.
+    Adds events to a healpy zoom plot.
+
+    Parameters
+    -----------
+    dec: float array
+        Array of declination values for each event
+    ra: float array
+        Array of Right Ascension values for each event
+    sigmas: float array
+        Angular error (circularized) to be plotted. Usually a 90% CL angular error
+
+    """
+    # plot based on explicitly determined contours rather than using the s parameter.
+    hp.projscatter(
+        np.pi / 2 - dec,
+        ra,
+        marker="x",
+        linewidth=2,
+        edgecolor=col,
+        facecolor=col,
+        s=60,
+        alpha=1.0,
+    )
     for i in range(len(ra)):
-        ev_contour = compute_ang_err(ra[i],dec[i],sigmas[i],1)
-        hp.projplot(ev_contour[0], ev_contour[1], linewidth=1.75, color=col[0],
-                    linestyle="solid",coord='C')
+        ev_contour = compute_ang_err(ra[i], dec[i], sigmas[i], 1)
+        hp.projplot(
+            ev_contour[0],
+            ev_contour[1],
+            linewidth=1.75,
+            color=col[0],
+            linestyle="solid",
+            coord="C",
+        )
+
+
 def load_plotting_settings():
     """
     Load settings to be used as default plot settings.
     Includes Times New Roman font and size 12 font
     """
-    mpl.use('agg')
-    mpl.rcParams['text.usetex'] = True
+    mpl.use("agg")
+    mpl.rcParams["text.usetex"] = True
     try:
-        mpl.rcParams['text.latex.unicode'] = True
+        mpl.rcParams["text.latex.unicode"] = True
     except:
         # new mpl doesn't like this rcParam
         pass
-    mpl.rcParams['mathtext.rm'] = 'Times New Roman'
-    mpl.rcParams['mathtext.it'] = 'Times New Roman:italic'
-    mpl.rcParams['mathtext.bf'] = 'Times New Roman:bold'
+    mpl.rcParams["mathtext.rm"] = "Times New Roman"
+    mpl.rcParams["mathtext.it"] = "Times New Roman:italic"
+    mpl.rcParams["mathtext.bf"] = "Times New Roman:bold"
 
-    mpl.rc('font', family='serif', size=12)
-    mpl.rcParams['xtick.labelsize'] = 16
-    mpl.rcParams['ytick.labelsize'] = 16
-    mpl.rcParams['xtick.major.size'] = 5
-    mpl.rcParams['ytick.major.size'] = 5
+    mpl.rc("font", family="serif", size=12)
+    mpl.rcParams["xtick.labelsize"] = 16
+    mpl.rcParams["ytick.labelsize"] = 16
+    mpl.rcParams["xtick.major.size"] = 5
+    mpl.rcParams["ytick.major.size"] = 5
+
 
 def contour(ra, dec, sigma, nside):
-    r""" Function for plotting contours on skymaps
+    r"""Function for plotting contours on skymaps
 
     Parameters
     -----------
     ra: ndarray
-        Array of ra for events 
+        Array of ra for events
     dec: ndarray
         Array of dec for events
     sigma: ndarray
@@ -253,22 +380,26 @@ def contour(ra, dec, sigma, nside):
     Theta: array
         array of theta values of contour
     Phi: array
-        array of phi values of contour 
+        array of phi values of contour
     """
-    dec = np.pi/2 - dec
+    dec = np.pi / 2 - dec
     sigma = np.rad2deg(sigma)
     delta, step, bins = 0, 0, 0
-    delta= sigma/180.0*np.pi
-    step = 1./np.sin(delta)/20.
-    bins = int(360./step)
-    Theta = np.zeros(bins+1, dtype=np.double)
-    Phi = np.zeros(bins+1, dtype=np.double)
+    delta = sigma / 180.0 * np.pi
+    step = 1.0 / np.sin(delta) / 20.0
+    bins = int(360.0 / step)
+    Theta = np.zeros(bins + 1, dtype=np.double)
+    Phi = np.zeros(bins + 1, dtype=np.double)
     # define the contour
-    for j in range(0,bins) :
-        phi = j*step/180.*np.pi
-        vx = np.cos(phi)*np.sin(ra)*np.sin(delta) + np.cos(ra)*(np.cos(delta)*np.sin(dec) + np.cos(dec)*np.sin(delta)*np.sin(phi))
-        vy = np.cos(delta)*np.sin(dec)*np.sin(ra) + np.sin(delta)*(-np.cos(ra)*np.cos(phi) + np.cos(dec)*np.sin(ra)*np.sin(phi))
-        vz = np.cos(dec)*np.cos(delta) - np.sin(dec)*np.sin(delta)*np.sin(phi)
+    for j in range(0, bins):
+        phi = j * step / 180.0 * np.pi
+        vx = np.cos(phi) * np.sin(ra) * np.sin(delta) + np.cos(ra) * (
+            np.cos(delta) * np.sin(dec) + np.cos(dec) * np.sin(delta) * np.sin(phi)
+        )
+        vy = np.cos(delta) * np.sin(dec) * np.sin(ra) + np.sin(delta) * (
+            -np.cos(ra) * np.cos(phi) + np.cos(dec) * np.sin(ra) * np.sin(phi)
+        )
+        vz = np.cos(dec) * np.cos(delta) - np.sin(dec) * np.sin(delta) * np.sin(phi)
         idx = hp.vec2pix(nside, vx, vy, vz)
         DEC, RA = hp.pix2ang(nside, idx)
         Theta[j] = DEC
@@ -278,8 +409,9 @@ def contour(ra, dec, sigma, nside):
 
     return Theta, Phi
 
+
 def plot_contours(proportions, samples):
-    r""" Plot containment contour around desired level.
+    r"""Plot containment contour around desired level.
     E.g 90% containment of a PDF on a healpix map
 
     Parameters
@@ -290,7 +422,7 @@ def plot_contours(proportions, samples):
     samples: array
         array of values read in from healpix map
         E.g samples = hp.read_map(file)
-        
+
     Returns
     --------
     theta_list: list
@@ -305,22 +437,26 @@ def plot_contours(proportions, samples):
     sample_points = np.array(hp.pix2ang(nside, np.arange(len(samples)))).T
     for proportion in proportions:
         level_index = (np.cumsum(sorted_samples) > proportion).tolist().index(True)
-        level = (sorted_samples[level_index] +
-                (sorted_samples[level_index+1] if level_index+1<len(samples) else 0))/2.0
+        level = (
+            sorted_samples[level_index]
+            + (sorted_samples[level_index + 1] if level_index + 1 < len(samples) else 0)
+        ) / 2.0
         levels.append(level)
     contours_by_level = meander.spherical_contours(sample_points, samples, levels)
 
-    theta_list = []; phi_list=[]
+    theta_list = []
+    phi_list = []
     for contours in contours_by_level:
         for contour in contours:
             theta, phi = contour.T
-            phi[phi<0] += 2.0*np.pi
+            phi[phi < 0] += 2.0 * np.pi
             theta_list.append(theta)
             phi_list.append(phi)
 
     return theta_list, phi_list
 
-def make_public_zoom_skymap(skymap, events, ra, dec, with_contour=True, name='test'):
+
+def make_public_zoom_skymap(skymap, events, ra, dec, with_contour=True, name="test"):
     """
     Make a zoomed skymap for public webpage (currently unused, under development)
 
@@ -343,25 +479,41 @@ def make_public_zoom_skymap(skymap, events, ra, dec, with_contour=True, name='te
     pdf_palette = sns.color_palette("Blues", 500)
     cmap = mpl.colors.ListedColormap(pdf_palette)
 
-    plot_zoom(skymap, ra, dec, "", range = [0,10], reso=3., cmap = cmap)
+    plot_zoom(skymap, ra, dec, "", range=[0, 10], reso=3.0, cmap=cmap)
 
-    plot_events(events['dec'], events['ra'], events['sigma'], ra, dec, 2*6, sigma_scale=1.0,
-                constant_sigma=False, same_marker=True, energy_size=True, col = 'black')
-    
+    plot_events(
+        events["dec"],
+        events["ra"],
+        events["sigma"],
+        ra,
+        dec,
+        2 * 6,
+        sigma_scale=1.0,
+        constant_sigma=False,
+        same_marker=True,
+        energy_size=True,
+        col="black",
+    )
+
     if with_contour:
         probs = hp.pixelfunc.ud_grade(skymap, 64)
-        probs = probs/np.sum(probs)
+        probs = probs / np.sum(probs)
         ### plot 90% containment contour of PDF
         levels = [0.9]
         theta, phi = plot_contours(levels, probs)
-        hp.projplot(theta[0], phi[0], linewidth=2., c='k')
+        hp.projplot(theta[0], phi[0], linewidth=2.0, c="k")
         for i in range(1, len(theta)):
-            hp.projplot(theta[i], phi[i], linewidth=2., c='k', label=None)
+            hp.projplot(theta[i], phi[i], linewidth=2.0, c="k", label=None)
 
-    #plt.scatter(0,0, marker='*', c = 'k', s = 130, label = label_str) 
-    #plt.legend(loc = 2, ncol=1, mode = 'expand', fontsize = 18.5, framealpha = 0.95)
-       
-    plot_color_bar(range=[0,6], cmap=cmap, col_label='GW Map Probability', offset = -10,
-                labels=[f'{min(skymap):.1e}',f'{max(skymap):.1e}'])
-    plt.savefig(f'./{name}_skymap_zoom_public.png', bbox_inches='tight', dpi=300)
+    # plt.scatter(0,0, marker='*', c = 'k', s = 130, label = label_str)
+    # plt.legend(loc = 2, ncol=1, mode = 'expand', fontsize = 18.5, framealpha = 0.95)
+
+    plot_color_bar(
+        range=[0, 6],
+        cmap=cmap,
+        col_label="GW Map Probability",
+        offset=-10,
+        labels=[f"{min(skymap):.1e}", f"{max(skymap):.1e}"],
+    )
+    plt.savefig(f"./{name}_skymap_zoom_public.png", bbox_inches="tight", dpi=300)
     plt.close()
