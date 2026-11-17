@@ -50,7 +50,7 @@ else: #2 week followup
 start = start_time.iso
 stop = stop_time.iso
 
-name = args.name
+name = args.name+"test" #ensure that this gets scrambled
 name = name.replace('_', ' ')
 
 f = GWFollowup(name, args.skymap, start, stop)

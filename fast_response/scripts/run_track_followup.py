@@ -31,6 +31,8 @@ parser.add_argument('--print_nearby', action='store_true', default=False,
                     help='Option to print events within 5 degrees of best-fit to the screen (default False)')
 parser.add_argument('--deltallh_skymap', action='store_true', default=False,
                     help='Option MUST be raised if using deltaLLH map (default: False, assumes probability map)')
+parser.add_argument('--do_posterior_analysis', type=bool, default=False,
+                    help='Whether to do the posterior map calculation')
 args = parser.parse_args()
 
 track_time = Time(args.time, format='mjd')
@@ -83,3 +85,7 @@ all_results[1000.]['gcn_num'] = args.alert_circ
 # Write circular to the output directory of the 2 day analysis
 f.write_circular(all_results)
 
+if(args.do_posterior_analysis):
+    f.make_posterior_map(fluxToTest=[.25,.5,.75,1,1.25,1.5,1.75,2,2.25,2.50,2.75,3,3.25,3.5,3.75,4]
+                        plotting_location=f.analysispath + '/',)
+    f.generate_posterior_report()

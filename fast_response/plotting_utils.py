@@ -178,7 +178,21 @@ def plot_labels(src_dec, src_ra, reso, nPix=200, label_scale=1):
 
 
 def compute_ang_err(ra, dec, sigma, density=1):
-    # Density lets you reduce the number of points in the contour
+    """
+    Compute a list of points which are at "sigma" distance from (ra, dec) center.
+    Density controls the density of points which are returned
+    ra: float
+        Right ascension of the center
+    dec: float
+        Declination of the center
+    sigma: float
+        The size of the uncertainty circle you want to draw
+    density: float
+        The density of points around the circle to return.
+
+    returns Theta, Phi: float array, float array
+        Coordinates of points around the uncertainty circle
+    """
     dec = np.pi / 2 - dec
     sigma = np.rad2deg(sigma)
     delta, step, bins = 0, 0, 0
@@ -313,6 +327,8 @@ def plot_events2(dec, ra, sigmas, col="k",density=1):
         Array of Right Ascension values for each event
     sigmas: float array
         Angular error (circularized) to be plotted. Usually a 90% CL angular error
+    density: float
+        Determine number of points along uncertainty curve get plotted.
 
     """
     # plot based on explicitly determined contours rather than using the s parameter.
