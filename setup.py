@@ -37,11 +37,12 @@ setuptools.setup(
         #'zmq==0.0.0',
         #'py27hash==1.0.2',
         #'pygcn==1.1.2'
-        'pyfiglet',
+        'pyfiglet', # for ASCII art
         #'pyzmq',
         'pygcn',
         #'py27hash',
         'python-dateutil',
         'meander',
+        'wget', # for skymap downloads
     ]
 )
