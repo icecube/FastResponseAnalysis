@@ -10,13 +10,9 @@ Date: 2026
 import argparse
 from astropy.time import Time, TimeDelta
 import pyfiglet
-import datetime
 
 from fast_response.MultiGWFollowup import DNNOnlineFollowup
-import logging
-import os
-import pandas as pd
-import numpy as np
+
 
 
 parser = argparse.ArgumentParser(description='GW Followup')
@@ -33,7 +29,8 @@ parser.add_argument('--allow_neg_ts', type=bool, default=False,
 parser.add_argument("--seed", type=int, default=1,
                     help="RNG seed in case of a scrambled test unblinding")
 
-def run_followup(args):
+def build_followup(args):
+    """Construct the followup object from the CLI args."""
     #GW message header
     message = '*'*80
     message += '\n' + str(pyfiglet.figlet_format("DNNC GW Followup")) + '\n'
@@ -56,7 +53,10 @@ def run_followup(args):
     f._allow_neg = args.allow_neg_ts
     f.save_items['merger_time'] = Time(gw_time, format='mjd').iso
     f.save_items['skymap_link'] = args.skymap
+    return f
 
+def run_followup(f: DNNOnlineFollowup):
+    """Run the followup steps and save results."""
     f.unblind_TS()
     f.plot_ontime(plot_zoom=False, label_events=True, with_contour=True) # as GWFollowup
     # load precomputed BG
@@ -85,4 +85,6 @@ def run_followup(args):
 
 if __name__ == "__main__":
     args = parser.parse_args()
-    run_followup(args)
+    f = build_followup(args)
+    run_followup(f)
+    
