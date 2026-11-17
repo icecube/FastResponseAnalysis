@@ -32,7 +32,6 @@ parser.add_argument('--allow_neg_ts', type=bool, default=False,
                     help='bool to allow negative TS values in gw analysis.')
 parser.add_argument("--seed", type=int, default=1,
                     help="RNG seed in case of a scrambled test unblinding")
-args = parser.parse_args()
 
 def run_followup(args):
     #GW message header
@@ -59,7 +58,7 @@ def run_followup(args):
     f.save_items['skymap_link'] = args.skymap
 
     f.unblind_TS()
-    f.plot_ontime(plot_zoom=False)
+    f.plot_ontime(plot_zoom=False, label_events=True, with_contour=True) # as GWFollowup
     # load precomputed BG
     llh = f.llh._samples[0] # have 1 sample
     # use the estimate provided by the temporal model
@@ -81,8 +80,8 @@ def run_followup(args):
     
     # save output
     f.save_results()
-    #f.generate_report()
-    #f.write_circular()
+    #f.generate_report() # not yet working
+    #f.write_circular() # not yet working
 
 if __name__ == "__main__":
     args = parser.parse_args()
