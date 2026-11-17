@@ -28,8 +28,7 @@ parser.add_argument('--alert_id', default=None,
 parser.add_argument('--suffix', type=str, default='A',
                     help="letter to differentiate multiple alerts on the same day (default = A)."
                     "Event name given by IceCube-yymmdd + suffix.")
-parser.add_argument('--do_posterior_analysis', type=bool, default=False,
-                    help='Whether to do the posterior map calculation')
+
 args = parser.parse_args()
 
 cascade_time = Time(args.time, format='mjd')
@@ -81,7 +80,3 @@ else:
 
 # Write circular to the output directory of the 2 day analysis
 f.write_circular(all_results)
-if(args.do_posterior_analysis):
-    f.make_posterior_map(fluxToTest=[.25,.5,.75,1,1.25,1.5,1.75,2,2.25,2.50,2.75,3,3.25,3.5,3.75,4]
-                        plotting_location=f.analysispath + '/',)
-    f.generate_posterior_report()

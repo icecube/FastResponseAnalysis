@@ -24,8 +24,6 @@ parser.add_argument('--tw', default = 1000, type=int, #2 week: 1218240
                     help = 'Time window for the analysis, in sec (default = 1000)')
 parser.add_argument('--allow_neg_ts', type=bool, default=False,
                     help='bool to allow negative TS values in gw analysis.')
-parser.add_argument('--do_posterior_analysis', type=bool, default=False,
-                    help='Whether to do the posterior map calculation')
 args = parser.parse_args()
 
 #GW message header
@@ -75,7 +73,3 @@ results = f.save_results()
 f.generate_report()
 
 f.write_circular() 
-if(args.do_posterior_analysis):
-    f.make_posterior_map(fluxToTest=[.25,.5,.75,1,1.25,1.5,1.75,2,2.25,2.50,2.75,3,3.25,3.5,3.75,4]
-                        plotting_location=f.analysispath + '/',)
-    f.generate_posterior_report()
