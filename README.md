@@ -164,7 +164,7 @@ Performance plots will be saved and a report with the results generated in the s
 
 
 ## Tutorial: Posterior Skymaps
-For tracks, cascades and GW the script each has a X_posterior.py script. These should have the same arguments as the primary script and can be called with the same arguments
+For tracks, cascades and GW the script each has a X_posterior.py script. These should have the same arguments as the primary script and can be called with the same arguments.
 
 ## Contacts
 Please send any questions or feature requests to:
