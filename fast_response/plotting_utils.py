@@ -6,11 +6,23 @@ import matplotlib as mpl
 import meander
 from copy import copy
 
+# Globals
+
+# Event skymaps can use a prepared property cycle to distinguish datasets
 skymap_style = [dict(linestyle='solid',   marker='x', alpha=1.0),
                 dict(linestyle='dotted',  marker='+', alpha=1.0),
                 dict(linestyle='dashed',  marker='2', alpha=1.0),
                 dict(linestyle='dashdot', marker='d', alpha=1.0),
                 ]
+
+# this may be used with different MPL versions,
+# with >=3 requiring some different settings
+OLD_MPL = int(mpl.__version__.split(".")[0]) < 3
+# e.g. new matplotlib can render formulas without TeX just fine
+USETEX = OLD_MPL
+
+
+# Helper classes and functions
 
 class TimeColormap:
     """
@@ -225,8 +237,7 @@ def load_plotting_settings():
     mpl.rcdefaults()
 
     mpl.use('agg')
-    old_mpl = int(mpl.__version__.split(".")[0]) < 3
-    mpl.rcParams['text.usetex'] = old_mpl # no longer needed
+    mpl.rcParams['text.usetex'] = USETEX
     try:
         mpl.rcParams['text.latex.unicode'] = True
     except:
