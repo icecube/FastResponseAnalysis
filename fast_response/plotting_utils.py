@@ -54,10 +54,11 @@ def plot_zoom(scan, ra, dec, title, reso=3, var="pVal", range=[0, 6], cmap=None)
 def plot_color_bar(
     labels=[0.0, 2.0, 4.0, 6.0],
     col_label=r"IceCube Event Time",
-    range=[0, 6],
+    range=None,
     cmap=None,
     offset=-35,
     loc=[0.95, 0.2, 0.03, 0.6],
+    ticks=[0,1],
 ):
     """
     Adds a color bar to an existing healpy map
@@ -74,6 +75,8 @@ def plot_color_bar(
         offset value for colorbar's label. default is -35
     loc: float list of length 4
         location for the colorbar axis in form [x,y,width,height]
+    ticks: float iterable
+        list of points to be used. 
     """
     fig = plt.gcf()
     ax = fig.add_axes(loc)
@@ -81,12 +84,12 @@ def plot_color_bar(
     cb = mpl.colorbar.ColorbarBase(
         ax,
         cmap="Blues" if cmap is None else cmap,
-        # norm=mpl.colors.Normalize(vmin=range[0], vmax=range[1]),
+        norm=mpl.colors.Normalize(vmin=range[0], vmax=range[1]) if range is not None else None,
         orientation="vertical",
     )
 
     cb.set_label(col_label, labelpad=offset, fontsize=18)
-    cb.set_ticks([0.0, 1.0])
+    cb.set_ticks(ticks)
     cb.set_ticklabels(labels)
     cb.update_ticks()
 

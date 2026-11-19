@@ -30,47 +30,50 @@
 
 \pagebreak
 \section{Results}
-
 {
-  \centering
-  {\Large Prior Zoomed}
-  
-  A zoom-in plot around the maximum intensity point of the skymap
+  \plotpage{Prior Zoomed}
+  {A zoomed-in plot around the maximum intensity point of the skymap. Its colored by total posterior with neutrinos shown in red and in green, a 90\% credible region is shown.}
+  {\includegraphics[width=0.9\textwidth]{\PriorSkymap}}
 
-  \includegraphics[width=0.9\textwidth]{\PriorSkymap}
-  \clearpage
   
 }
 \section{Posterior Maps}
 
 {
   \centering
-  The full posterior skymap plot
-  {\Large Posterior Skymap}
-  \includegraphics[width=0.9\textwidth]{\PosteriorSkymap}
-  \clearpage
+  \vspace{0.5cm}
+  \plotpage{Posterior Skymap}
+  {The full-sky posterior skymap plot colored by probability}
+  {\includegraphics[width=0.9\textwidth]{\PosteriorSkymap}}
 
-  Zoom-in of the posterior skymap plot
-  {\Large Zoomed Posterior Skymap}
-  \includegraphics[width=0.9\textwidth]{\PosteriorSkymapZoom}
-  \clearpage
-  POsterior skymap plot zoomed in with overlaid neutrinos 
-  {\Large Posterior Skymap W/ Neutrinos Overlaid}
-  \includegraphics[width=0.9\textwidth]{\PosteriorSkymapZoomWNeutrinos}
-  \clearpage
+  \plotpage{Zoomed Posterior Skymap}
+  {Zoom-in of the posterior skymap plot}
+
+  {\includegraphics[width=0.9\textwidth]{\PosteriorSkymapZoom}}
   
-}
+  \plotpage{Posterior Skymap With Neutrinos Overlaid}
+  {Posterior skymap plot zoomed in with overlaid neutrinos in red.}
+
+  {\includegraphics[width=0.9\textwidth]{\PosteriorSkymapZoomWNeutrinos}
+  
+}}
 \pagebreak
 
 {
   \centering
-  Here we choose some pixels and plot their likelihood profile as a function of $n_s$, colored by the
-  total probability of each pixel in the posterior 
-  This chooses pixels from a range of probability regions by construction (since nearby points we all have very similar 
-  $n_s$ profiles), but could skip over interesting pixels. 
-  {\Large $N_s$ Profile Plot}
-  \includegraphics[width=0.9\textwidth]{\NsProfilePlot}
-  \clearpage
+    \vspace{0.5cm}
+
+
+  \plotpage{$N_s$ Profile Plot}
+
+
+ { Here we choose some pixels and plot their posterior profile over ns as a function of $n_s$, colored by the
+  total probability of each pixel in the posterior. Which pixels are shown is chosen by ordering in probability and
+  choosing from different regions of probability in order to sample both pixels in the brightest region and 
+  dimmer regions. }
+
+  {\includegraphics[width=0.9\textwidth]{\NsProfilePlot}}
+
   
 }
   

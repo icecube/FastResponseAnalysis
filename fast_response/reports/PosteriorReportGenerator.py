@@ -114,7 +114,7 @@ class PosteriorReportGenerator(ReportGenerator):
                                          ('PosteriorSkymap', "PosteriorMap.png"),
                                          ('PosteriorSkymapZoom',"PosteriorMapZoomed.png"),
                                          ('NsProfilePlot',"nsProfilePlot.png"),
-                                         ("PosteriorSkymapZoomWNeutrinos","PosteriorMapZoomedWithEvents.png")
+                                         ("PosteriorSkymapZoomWNeutrinos","PosteriorMapZoomedLog.png")
                                          ]:
                 if os.path.isfile(self.dirname + '/' + plot_path):
                     f.write(

@@ -306,17 +306,17 @@ class FastResponseAnalysis(object):
             src_extension = None
 
         llh = PointSourceLLH(
-            self.exp,  # array with data events
-            self.mc,  # array with Monte Carlo events
-            self.livetime,  # total livetime of the data events
-            ncpu=self._ncpu,  # use 10 CPUs when computing trials
-            scramble=scramble,  # set to False for unblinding
-            timescramble=True,  # not just RA scrambling
-            llh_model=llh_model,  # likelihood model
-            temporal_model=box,  # use box for temporal model
+            self.exp,                   # array with data events
+            self.mc,                    # array with Monte Carlo events
+            self.livetime,              # total livetime of the data events
+            ncpu=self._ncpu,            # use 10 CPUs when computing trials
+            scramble=scramble,          # set to False for unblinding
+            timescramble=True,          # not just RA scrambling
+            llh_model=llh_model,        # likelihood model
+            temporal_model=box,         # use box for temporal model
             nsource_bounds=(0.0, 1e3),  # bounds on fitted ns
-            src_extension=src_extension,  # Model symmetric extended source
-            nsource=1.0,  # seed for nsignal fit
+            src_extension=src_extension,# Model symmetric extended source
+            nsource=1.0,                # seed for nsignal fit
             seed=self.llh_seed,
         )
 
@@ -1597,6 +1597,8 @@ class PriorFollowup(FastResponseAnalysis):
                     "{0:.2e}".format(np.nanmax(outputProbHPMapPlotting)),
                 ],
                 loc=[0.86, 0.2, 0.03, 0.6],
+                ticks=[0,np.nanmax(outputProbHPMapPlotting) / 2,np.nanmax(outputProbHPMapPlotting)]
+
             )
             theta, phi = plotting_utils.plot_contours([0.9], outputProbHPMap)
             hp.projplot(theta[0], phi[0], linewidth=2.0, c="lawngreen")
@@ -1641,6 +1643,7 @@ class PriorFollowup(FastResponseAnalysis):
                     "{0:.2e}".format(np.nanmax(outputProbHPMapPlotting)),
                 ],
                 loc=[0.86, 0.2, 0.03, 0.6],
+                ticks=[0,np.nanmax(outputProbHPMapPlotting) / 2,np.nanmax(outputProbHPMapPlotting)]
             )
             theta, phi = plotting_utils.plot_contours([0.9], outputProbHPMap)
             hp.projplot(theta[0], phi[0], linewidth=2.0, c="lawngreen")
@@ -1687,21 +1690,35 @@ class PriorFollowup(FastResponseAnalysis):
             for obj in text_objs:
                 obj.set_fontsize(30)
             plotting_utils.plot_color_bar(
-                range=[0, np.nanmax(np.log10(outputProbHPMapPlotting))],
+                range=[np.log10(outputProbHPMapPlotting[np.isfinite(outputProbHPMapPlotting) & (outputProbHPMapPlotting != 0)].min()), np.nanmax(np.log10(outputProbHPMapPlotting))],
                 cmap="viridis",
                 col_label=r"Posterior PDF",
                 offset=-40,
                 labels=[
-                    0,
-                    "{0:.1e}".format(np.nanmax(np.log10(outputProbHPMapPlotting)) / 2),
+                    "{0:.1e}".format(np.nanmax(np.log10(outputProbHPMapPlotting)) / 100),
+                    "{0:.1e}".format(np.nanmax(np.log10(outputProbHPMapPlotting)) / 10),
                     "{0:.2e}".format(np.nanmax(np.log10(outputProbHPMapPlotting))),
                 ],
                 loc=[0.86, 0.2, 0.03, 0.6],
+                ticks=[np.log10(np.nanmax(outputProbHPMapPlotting) / 100) ,np.log10(np.nanmax(outputProbHPMapPlotting) / 10) ,np.log10(np.nanmax(outputProbHPMapPlotting))]
             )
             theta, phi = plotting_utils.plot_contours([0.9], outputProbHPMap)
             hp.projplot(theta[0], phi[0], linewidth=2.0, c="lawngreen")
             for i in range(1, len(theta)):
                 hp.projplot(theta[i], phi[i], linewidth=2.0, c="lawngreen", label=None)
+            if custom_events is not None and len(custom_events) != 0:
+                events = np.concatenate((self.llh.exp, custom_events))
+            else:
+                events = self.llh.exp
+            events = events[
+                (events["time"] < self.stop) & (events["time"] > self.start)
+            ]
+            plotting_utils.plot_events2(
+                events["dec"],
+                events["ra"],
+                events["sigma"] * self._angScale,
+                col=["red"] * len(events["dec"]),
+            )
             plt.savefig(plotting_location + "PosteriorMapZoomedLog.png")
             plt.close()
 
@@ -1739,6 +1756,7 @@ class PriorFollowup(FastResponseAnalysis):
                 "{0:.1e}".format(np.nanmax(outputProbHPMapPlotting) / 2),
                 "{0:.2e}".format(np.nanmax(outputProbHPMapPlotting)),
             ]
+            
             plotting_utils.plot_color_bar(
                 range=[0, np.nanmax(outputProbHPMapPlotting)],
                 cmap="viridis",
@@ -1746,6 +1764,7 @@ class PriorFollowup(FastResponseAnalysis):
                 offset=-40,
                 labels=labels,
                 loc=[0.86, 0.2, 0.03, 0.6],
+                ticks=[0,np.nanmax(outputProbHPMapPlotting) / 2,np.nanmax(outputProbHPMapPlotting)]
             )
 
             theta, phi = plotting_utils.plot_contours([0.9], outputProbHPMap)
@@ -1807,6 +1826,7 @@ class PriorFollowup(FastResponseAnalysis):
                     "{0:.2e}".format(np.nanmax(outputProbHPMapPlotting)),
                 ],
                 loc=[0.86, 0.2, 0.03, 0.6],
+                ticks=[0,np.nanmax(outputProbHPMapPlotting) / 2,np.nanmax(outputProbHPMapPlotting) ]
             )
             theta, phi = plotting_utils.plot_contours([0.9], outputProbHPMap)
 
