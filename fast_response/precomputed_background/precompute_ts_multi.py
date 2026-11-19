@@ -8,7 +8,7 @@ number of true and fitted events around best fit location
 import numpy as np
 import healpy as hp
 import os, sys, argparse
-from astropy.time import Time
+from astropy.time import Time, TimeDelta
 from numpy.lib.recfunctions import append_fields
 from scipy import sparse
 from glob import glob
@@ -18,11 +18,11 @@ from fast_response.MultiExternalFollowup import MultiFollowup, GFUFollowup, Grec
 
 parser = argparse.ArgumentParser(description='Precompute MultiAlertFollowup BG trials')
 parser.add_argument('--deltaT', type=float, default=1000.,
-                    help='Time Window in seconds')
+                    help='Time Window [seconds]')
 parser.add_argument('--ntrials', type=int, default = 1000,
                         help='Trials')
-parser.add_argument('--time', type=float, required=False, default=61221.0,
-                    help="GW time [MJD]")
+parser.add_argument('--time', type=str, required=False, default="2026-06-30 00:00:00",
+                    help="GW time [ISO]")
 parser.add_argument("--bkg", default=None, type=float, nargs='+',
                         help="Expected background rates in mHz (default: use sample estimates")
 parser.add_argument('--seed', default=np.random.randint(2**32), type=int, 
@@ -58,11 +58,12 @@ def main(args):
 
 
     # use the signal window to select events, as in a real analysis
-    duration = args.deltaT / 86400. # sec => JD
-    start_mjd = args.time - duration/2
-    stop_mjd = start_mjd + duration
-    start_iso = Time(start_mjd, format='mjd').iso
-    stop_iso = Time(stop_mjd, format='mjd').iso
+    time = Time(args.time, format="iso")
+    delta_t = TimeDelta(args.deltaT, format="sec")
+    start_time = time - delta_t / 2
+    stop_time = time + delta_t / 2
+    start_iso, stop_iso = start_time.iso, stop_time.iso
+    start_mjd, stop_mjd = start_time.mjd, stop_time.mjd
     
 
     #skymap required for initialization, but not used here
@@ -101,7 +102,7 @@ def main(args):
     maps = sparse.lil_matrix(shape, dtype=float)
     for jj, seed in enumerate(seeds):
         val = f.llh.scan(0.0, 0.0, scramble=True, seed = seed,
-                time_mask = [duration / 2., (start_mjd + stop_mjd) / 2.],
+                time_mask = [(stop_mjd - start_mjd) / 2., (start_mjd + stop_mjd) / 2.],
                 pixel_scan = [args.nside, 3.0], inject = None)
         if val['TS'] is not None: 
             pixels = hp.ang2pix(args.nside, np.pi/2. - val['dec'], val['ra'])

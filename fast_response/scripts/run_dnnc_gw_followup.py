@@ -18,10 +18,11 @@ from fast_response.MultiGWFollowup import DNNOnlineFollowup
 parser = argparse.ArgumentParser(description='GW Followup')
 parser.add_argument('--skymap', type=str, default=None,
                     help='path to skymap (can be a web link for GraceDB (LVK) or a path')
-parser.add_argument('--time', type=float, default=None,
-                    help='Time of the GW (mjd)')
-parser.add_argument('--name', type=str,
-                    default="name of GW event being followed up")
+parser.add_argument('--time', type=str, required=True,
+                    help='Time of the GW (ISO)')
+parser.add_argument('--name', type=str, required=True,
+                    default="name of GW event being followed up",
+                    help="name of GW event being followed up")
 parser.add_argument('--tw', default = 1000, type=int, choices={1000},
                     help = 'Time window for the analysis, in sec (default = 1000)')
 parser.add_argument('--allow_neg_ts', type=bool, default=False,
@@ -38,7 +39,7 @@ def build_followup(args):
     print(message)
 
     # determine symmetric time window
-    gw_time = Time(args.time, format='mjd')
+    gw_time = Time(args.time, format='iso')
     delta_t = TimeDelta(args.tw, format="sec")
     start_time = gw_time - delta_t / 2
     stop_time = gw_time + delta_t / 2
