@@ -19,7 +19,7 @@ parser = argparse.ArgumentParser(description='GW Followup')
 parser.add_argument('--skymap', type=str, default=None,
                     help='path to skymap (can be a web link for GraceDB (LVK) or a path')
 parser.add_argument('--time', type=str, required=True,
-                    help='Time of the GW (ISO)')
+                    help='Time of the GW (ISO-T)')
 parser.add_argument('--name', type=str, required=True,
                     default="name of GW event being followed up",
                     help="name of GW event being followed up")
@@ -39,7 +39,7 @@ def build_followup(args: argparse.Namespace):
     print(message)
 
     # determine symmetric time window
-    gw_time = Time(args.time, format='iso')
+    gw_time = Time(args.time, format='isot')
     delta_t = TimeDelta(args.tw, format="sec")
     start_time = gw_time - delta_t / 2
     stop_time = gw_time + delta_t / 2

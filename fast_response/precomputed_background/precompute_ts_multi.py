@@ -21,8 +21,8 @@ parser.add_argument('--deltaT', type=float, default=1000.,
                     help='Time Window [seconds]')
 parser.add_argument('--ntrials', type=int, default = 1000,
                         help='Trials')
-parser.add_argument('--time', type=str, required=False, default="2026-06-30 00:00:00",
-                    help="GW time [ISO]")
+parser.add_argument('--time', type=str, required=False, default="2026-06-30T00:00:00",
+                    help="GW time [ISO-T]")
 parser.add_argument("--bkg", default=None, type=float, nargs='+',
                         help="Expected background rates in mHz (default: use sample estimates")
 parser.add_argument('--seed', default=np.random.randint(2**32), type=int, 
@@ -58,7 +58,7 @@ def main(args):
 
 
     # use the signal window to select events, as in a real analysis
-    time = Time(args.time, format="iso")
+    time = Time(args.time, format="isot")
     delta_t = TimeDelta(args.deltaT, format="sec")
     start_time = time - delta_t / 2
     stop_time = time + delta_t / 2
