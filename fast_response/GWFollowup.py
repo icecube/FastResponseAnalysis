@@ -696,7 +696,11 @@ class GWFollowupPlottingMixIn:
             custom_events=custom_events
         )
         if val['TS'].size == 0:
-            ts = -1.*np.inf # FIXME why is the convention different than during unblind_TS?
+            if self._allow_neg:
+                ts = -1.*np.inf
+            else:
+                ts = 0.
+            
         else:
             ts = val['TS_spatial_prior_0'].max()
         p = np.count_nonzero(self.tsd >= ts) / float(len(self.tsd))
