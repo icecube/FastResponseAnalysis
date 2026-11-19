@@ -203,8 +203,6 @@ class ReportGenerator(object):
             newevent = event['value']['data']
             for key,val in list(newevent['reco']['splinempe'].items()): 
                 newevent['splinempe_'+key]=val
-            if '+' in newevent['eventtime']: 
-                newevent['eventtime'] = newevent['eventtime'].split('+')[0]
             if Time(newevent['eventtime'],scale='utc',format='iso') >= Time("2018-07-10 17:52:03.34", format='iso',scale='utc'):
                 newevent['muex'] = newevent['reco']['energy']['mpe_muex']
             del newevent['reco']
@@ -231,7 +229,7 @@ class ReportGenerator(object):
                 for event in self.analysis.coincident_events:
                     event_table+=[
                         ("Run:Event",'{}:{}'.format(event['run'], event['event'])),
-                        ("Time (MJD)","{}".format(
+                        ("Time","{}".format(
                             event['time'])),
                         (r'$\alpha$, $\delta$',"{:3.2f}\degree, {:+3.2f}\degree"
                             .format(np.rad2deg(event['ra']), np.rad2deg(event['dec']))),
@@ -357,9 +355,6 @@ class ReportGenerator(object):
             precision=0).iso
         self.ontime['time_query']=now.strftime('%Y-%m-%d %H:%M:%S')
 
-
-        # TODO add column per realtime data stream, right now it's only GFU. 
-        # TODO for a start, add feature to realtime_tools to get times of online Greco filter (no reconstruction yet)
         self.query_events=icecube.realtime_tools.live.get_events(
             self.ontime['stream'],
             self.ontime['time_start'],
@@ -380,6 +375,7 @@ class ReportGenerator(object):
 
         s = self.source
 
+        dataset = Datasets[self.analysis._dataset]
         # Make rate plots and put them in analysis directory
         make_rate_plots(
             self.time_window,
@@ -470,24 +466,15 @@ class ReportGenerator(object):
                     ("Time Window",r"{:1.1f}s".format(s["realtime"])),
                 ]
             )
-            
-            # retrieve metadata of used dataset(s) for the table
-            datasets = [Datasets[_ds] for _ds in self.analysis.datasets]
 
-            # 
-            skylabtable = [
+            self.write_table(f,"skylabtable",[],[
                 ("Skylab Version", skylab.__version__),
                 ("IceTray Path", str(icetray.__path__).replace('_', '\_')),
                 ("Created by", expanduser('~')[6:]),
-            ]
-            for dataset in datasets:
-                skylabtable.extend([
                 ("Dataset Used", str(dataset.subdir).replace('_',' ')),
                 ("Dataset details", str(dataset.name)[:80]),
-                ("", str(dataset.name)[80:]),
-                ])
-                
-            self.write_table(f,"skylabtable",[],skylabtable)
+                ("", str(dataset.name)[80:])
+            ])
 
             r1=[]
             r2=[]
@@ -540,29 +527,17 @@ class ReportGenerator(object):
             
             if self.analysis._float_index:
                 if self.analysis.ts > 0.:
-                    if self.source_type == 'skymap':
-                        self.write_table(
-                            f,
-                            "results",
-                            [],
-                            [("$n_s$", "{:1.3f}".format(self.analysis.ns)),
-                            ("$TS$", "{:1.3f}".format(self.analysis.ts)),
-                            ("$\gamma$", f"{self.analysis.gamma:.2f}"),
-                            ("$p-value$", "{:1.4f}".format(self.analysis.p)),
-                            ("best-fit RA", "{:3.2f}\degree".format(np.rad2deg(self.analysis.skymap_fit_ra))),
-                            ("best-fit dec", "{:3.2f}\degree".format(np.rad2deg(self.analysis.skymap_fit_dec)))]
-                        )
-                    elif self.source_type == 'PS':
-                        self.write_table(
-                            f,
-                            "results",
-                            [],
-                            [("$n_s$", "{:1.3f}".format(self.analysis.ns)),
-                            ("$TS$", "{:1.3f}".format(self.analysis.ts)),
-                            ("$\gamma$", f"{self.analysis.gamma:.2f}"),
-                            ("$p-value$", "{:1.4f}".format(self.analysis.p)),
-                            ]
-                        )
+                    self.write_table(
+                        f,
+                        "results",
+                        [],
+                        [("$n_s$", "{:1.3f}".format(self.analysis.ns)),
+                        ("$TS$", "{:1.3f}".format(self.analysis.ts)),
+                        ("$\gamma$", f"{self.analysis.gamma:.2f}"),
+                        ("$p-value$", "{:1.4f}".format(self.analysis.p)),
+                        ("best-fit RA", "{:3.2f}\degree".format(np.rad2deg(self.analysis.skymap_fit_ra))),
+                        ("best-fit dec", "{:3.2f}\degree".format(np.rad2deg(self.analysis.skymap_fit_dec)))]
+                    )
                 else: 
                     self.write_table(
                         f,
