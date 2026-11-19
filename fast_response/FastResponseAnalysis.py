@@ -7,6 +7,7 @@ Date: 2021
 from abc import abstractmethod
 import os, sys, time, subprocess
 import pickle, dateutil.parser, logging, warnings
+from collections import Counter
 
 import h5py
 import healpy as hp
@@ -14,10 +15,15 @@ import numpy as np
 import seaborn as sns
 import matplotlib as mpl
 import matplotlib.pyplot as plt
+import copy
 from astropy.time import Time
-from scipy.special import erfinv
-from matplotlib.lines import Line2D
+import astropy.io.fits as fits
+from multiprocessing.dummy import Pool
 
+from scipy.special import erfinv, logsumexp
+import scipy.stats as spstats
+from matplotlib.lines import Line2D
+from matplotlib.text import Text
 from skylab.datasets import Datasets
 from skylab.llh_models import EnergyLLH
 from skylab.priors import SpatialPrior
@@ -26,14 +32,22 @@ from skylab.ps_llh import PointSourceLLH
 from skylab.ps_injector import PriorInjector
 from skylab.spectral_models import PowerLaw
 from skylab.temporal_models import BoxProfile, TemporalModel
-# import meander
 
+# import meander
 from . import web_utils
 from . import sensitivity_utils
 from . import plotting_utils
-from .reports import FastResponseReport
+from .reports import FastResponseReport, FastResponsePosteriorReport
 
+mpl.rcParams["text.usetex"] = False
 mpl.use("agg")
+import re
+from matplotlib import mathtext
+
+_orig_parse = mathtext.MathTextParser.parse
+mathtext.MathTextParser.parse = lambda self, s, *a, **k: _orig_parse(
+    self, re.sub(r"\\[Bb]ig{1,2}[lrm]?(?![a-zA-Z])", "", s), *a, **k
+)
 current_palette = sns.color_palette("colorblind", 10)
 logging.getLogger().setLevel(logging.ERROR)
 warnings.simplefilter("ignore", UserWarning)
@@ -292,17 +306,17 @@ class FastResponseAnalysis(object):
             src_extension = None
 
         llh = PointSourceLLH(
-            self.exp,  # array with data events
-            self.mc,  # array with Monte Carlo events
-            self.livetime,  # total livetime of the data events
-            ncpu=self._ncpu,  # use 10 CPUs when computing trials
-            scramble=scramble,  # set to False for unblinding
-            timescramble=True,  # not just RA scrambling
-            llh_model=llh_model,  # likelihood model
-            temporal_model=box,  # use box for temporal model
+            self.exp,                   # array with data events
+            self.mc,                    # array with Monte Carlo events
+            self.livetime,              # total livetime of the data events
+            ncpu=self._ncpu,            # use 10 CPUs when computing trials
+            scramble=scramble,          # set to False for unblinding
+            timescramble=True,          # not just RA scrambling
+            llh_model=llh_model,        # likelihood model
+            temporal_model=box,         # use box for temporal model
             nsource_bounds=(0.0, 1e3),  # bounds on fitted ns
-            src_extension=src_extension,  # Model symmetric extended source
-            nsource=1.0,  # seed for nsignal fit
+            src_extension=src_extension,# Model symmetric extended source
+            nsource=1.0,                # seed for nsignal fit
             seed=self.llh_seed,
         )
 
@@ -387,7 +401,7 @@ class FastResponseAnalysis(object):
         return p
 
     @abstractmethod
-    def find_coincident_events(self):
+    def find_coincident_events(self, custom_events=None):
         pass
 
     @abstractmethod
@@ -529,7 +543,13 @@ class FastResponseAnalysis(object):
             print("Results successfully saved")
             return self.save_items
 
-    def plot_ontime(self, with_contour=False, contour_files=None, label_events=False):
+    def plot_ontime(
+        self,
+        with_contour=False,
+        contour_files=None,
+        label_events=False,
+        custom_events=None,
+    ):
         r"""Plots ontime events on the full skymap and a
         zoomed in version near the scan best-fit
 
@@ -546,21 +566,26 @@ class FastResponseAnalysis(object):
 
         try:
             self.plot_skymap_zoom(
-                with_contour=with_contour, contour_files=contour_files
+                with_contour=with_contour,
+                contour_files=contour_files,
+                custom_events=custom_events,
             )
         except Exception as e:
-            print("Failed to make skymap zoom plot")
+            print("Failed to make skymap zoom plot", e)
 
         try:
             self.plot_skymap(
                 with_contour=with_contour,
                 contour_files=contour_files,
                 label_events=label_events,
+                custom_events=custom_events,
             )
         except Exception as e:
             print("Failed to make FULL skymap plot")
 
-    def plot_skymap_zoom(self, with_contour=False, contour_files=None):
+    def plot_skymap_zoom(
+        self, with_contour=False, contour_files=None, custom_events=None
+    ):
         r"""Make a zoomed in portion of a skymap with
         all ontime neutrino events within a certain range
         Outputs a plot (in png and pdf formats) to the analysis path
@@ -575,7 +600,10 @@ class FastResponseAnalysis(object):
         """
         events = self.llh.exp
         events = events[(events["time"] < self.stop) & (events["time"] > self.start)]
-
+        if custom_events is not None:
+            events = np.concatenate(
+                [events, np.atleast_1d(custom_events).astype(self.llh.exp.dtype)]
+            )
         col_num = 5000
         seq_palette = sns.color_palette("icefire", col_num)
         lscmap = mpl.colors.ListedColormap(seq_palette)
@@ -712,7 +740,13 @@ class FastResponseAnalysis(object):
         )
         plt.close()
 
-    def plot_skymap(self, with_contour=False, contour_files=None, label_events=False):
+    def plot_skymap(
+        self,
+        with_contour=False,
+        contour_files=None,
+        label_events=False,
+        custom_events=None,
+    ):
         r"""Make skymap with event localization and all
         neutrino events on the sky within the given time window
         Outputs a plot in png format to the analysis path
@@ -730,6 +764,8 @@ class FastResponseAnalysis(object):
 
         events = self.llh.exp
         events = events[(events["time"] < self.stop) & (events["time"] > self.start)]
+        if custom_events is not None:
+            events = np.concatenate([events, custom_events])
 
         col_num = 5000
         seq_palette = sns.color_palette("icefire", col_num)
@@ -888,6 +924,15 @@ class FastResponseAnalysis(object):
         report.generate_report()
         report.make_pdf()
 
+    def generate_posterior_report(self):
+        r"""Generates report using class attributes
+        and the ReportGenerator Class
+        Makes full report and outputs as pdf
+        """
+        report = FastResponsePosteriorReport(self)
+        report.generate_posterior_report()
+        report.make_pdf()
+
 
 class PriorFollowup(FastResponseAnalysis):
     """
@@ -927,6 +972,7 @@ class PriorFollowup(FastResponseAnalysis):
         try:
             skymap, skymap_header = hp.read_map(skymap_path, h=True, verbose=False)
             self.skymap_header = skymap_header
+
         except (TypeError, OSError):
             hdf_data = h5py.File(skymap_path, "r")
             probs = hdf_data["PROBDENSITY"][()]
@@ -1044,7 +1090,7 @@ class PriorFollowup(FastResponseAnalysis):
         self.tsd = tsd
         self.save_items["tsd"] = tsd
 
-    def find_coincident_events(self, print_events=False):
+    def find_coincident_events(self, custom_events=None,print_events=False):
         r"""Find coincident events for a skymap
         based analysis. These are ontime events that are also in the
         90% contour of the skymap
@@ -1092,6 +1138,14 @@ class PriorFollowup(FastResponseAnalysis):
             coincident_events = []
         else:
             coincident_events = []
+            if custom_events is not None:
+                for ev in custom_events:
+                    self.coincident_events.append({})
+                    self.coincident_events[-1]["delta_psi"] = -1
+                    self.coincident_events[-1]["spatial_w"] = -1
+                    self.coincident_events[-1]["energy_w"] = -1
+                    for key in ["run", "event", "ra", "dec", "sigma", "logE", "time"]:
+                        self.coincident_events[-1][key] = ev[key]
             for ev in events:
                 coincident_events.append({})
                 for key in ["run", "event", "ra", "dec", "sigma", "logE", "time"]:
@@ -1137,6 +1191,7 @@ class PriorFollowup(FastResponseAnalysis):
             spatial_prior=spatial_prior,
             time_mask=[self.duration / 2.0, self.centertime],
             pixel_scan=[self.nside, self._pixel_scan_nsigma],
+            inject=custom_events,
         )
         self.ts_scan = val
         t2 = time.time()
@@ -1190,6 +1245,656 @@ class PriorFollowup(FastResponseAnalysis):
             return ts, ns, gamma_fit
         else:
             return ts, ns
+
+    def inject_events(self, ninj=0):
+        ni, sample, src_ra, src_dec = self.inj.sample(
+            ninj, poisson=False, return_position=True
+        )
+        return sample
+
+    def make_prior_map(self, plotting_location=None, format=True):
+        r"""
+        Generates a zoomed in skymap plot around the best fit location from the maximum likelihood analysis
+
+        Parameters
+        ----------------
+        plotting_location: string
+            location to output plots
+        format: boolean
+            whether to format the skymap
+        """
+        # Format the skymap if told to format (usually formatted at construction so shouldn't change anything)
+        if format:
+            skymap = self.format_skymap(self.skymap)
+        else:
+            skymap = self.skymap
+
+        # Plot the prior skymap
+        fig, ax = plt.subplots(1, 1, figsize=(10, 10))
+        plt.sca(ax)
+        reso = 0.1
+        sizeZoomInDegs = 10
+        nPixZoom = sizeZoomInDegs / reso * 60
+        hp.visufunc.gnomview(
+            map=np.log10(skymap),
+            hold=True,
+            title="Prior Skymap",
+            rot=(np.degrees(self.skymap_fit_ra), np.degrees(self.skymap_fit_dec), 0),
+            xsize=nPixZoom,
+            ysize=nPixZoom,
+            reso=reso,
+            bgcolor="white",
+            badcolor="white",
+            margins=(0.02, 0.02, 0.05, 0),
+            notext=True,
+            cbar=False,
+        )
+
+        hp.graticule(verbose=True)
+        plotting_utils.plot_labels(
+            self.skymap_fit_dec,
+            self.skymap_fit_ra,
+            reso,
+            nPix=nPixZoom,
+            label_scale=0.97,
+        )
+
+        ax = plt.gca()
+        text_objs = ax.findobj(lambda artist: isinstance(artist, Text))
+        for obj in text_objs:
+            obj.set_fontsize(30)
+        plotting_utils.plot_color_bar(
+            range=[0, np.nanmax(self.skymap)],
+            cmap="viridis",
+            col_label=r"Skymap Prior PDF",
+            offset=-50,
+            labels=[
+                0,
+                "{0:.1e}".format(np.nanmax(self.skymap) / 2),
+                "{0:.2e}".format(np.nanmax(self.skymap)),
+            ],
+            loc=[0.86, 0.2, 0.03, 0.6],
+        )
+
+        theta, phi = plotting_utils.plot_contours([0.9], self.skymap)
+        hp.projplot(theta[0], phi[0], linewidth=2.0, c="k")
+        for i in range(1, len(theta)):
+            hp.projplot(theta[i], phi[i], linewidth=2.0, c="k", label=None)
+
+        name = "PriorSkymap"
+        if not format:
+            name += "Unformatted"
+        plt.savefig(plotting_location + name + ".png")
+
+    def _make_posterior_fits(self):
+        r"""
+        Save the posterior skymap as a fits
+        Internal function for make_posterior_skymap
+        """
+
+        extra_header = [
+            ("index", self.index),
+            # ('energy_range', ),
+            # ('ns_range', ),
+            ("Sender", "IceCube Collaboration"),
+            ("TRIGGER_EVENT", self.name),
+            ("startmjd", self.start),
+            ("stopmjd", self.stop),
+        ]
+        # startmjd, stopmjd,
+        hp.write_map(
+            self.analysispath + "/" + "posterior_info.fits",
+            m=self.PosteriorSkymap,
+            extra_header=extra_header,
+            partial=True,
+        )
+
+    def fluxToAverageNs(self, flux):
+        """
+        Wrapper to derive the conversion from flux to average ns for a skymap
+        """
+        if self.inj == None:
+            self.initialize_injector()
+        return self.inj.flux2mu(flux)
+
+    def fluxToNs_decDependent(self, flux, dec):
+        r"""
+        Compute the conversion between a flux at declination dec to ns
+
+        flux: float
+        dec: float
+        """
+        mean_signal = self.fluxToAverageNs(flux)
+        acceptance_weights = self.inj.relative_signal_acceptance(np.sin(dec))
+        num = [
+            np.array(
+                np.around(w * mean_signal / float(self.prior.nprior)), dtype=np.int
+            ).tolist()
+            for w in acceptance_weights
+        ]
+        num_sum = np.sum(num, dtype=int)
+        return num_sum
+
+    def make_posterior_map(
+        self,
+        fluxToTest=[1, 2, 3, 4, 5],
+        prior_func=lambda ns, gamma, ra, dec: 1,
+        plotting_location=None,
+        custom_events=None,
+        useFlux=False,
+    ):
+        r"""
+        Creates a posterior map for a prior skymap analysis
+
+        Parameters
+        ----------------
+        fluxToTest: list of floats
+        prior_func:function
+            A function that defines the prior on the physical hypothesis f(ns, gamma, ra, dec)
+            As currently implemented,the llh will have a gamma that constant set by the self.index
+            Prior flat in ns and spatially by default.
+        plotting_location: string
+            Location to pleace the plor the
+        custom events: array
+            Custom event to injecte
+        useFlux: boolean
+            determines whether fluxToTest is treated as ns or flux
+            If true, determine the ns by multiplying by a declination/index dependent flux to ns factor
+        ----------------
+        """
+        # Posterior Approach
+        # We want a function P(RA, DEC | X) where X is the neutrino data
+        # Compute the entire likelihood space P(X | RA, DEC, ns, gamma)
+        # Apply Bayes rule, marginalize over nuisance parameters to get P(RA, DEC | X)
+
+        print("Starting Posterior Calc")
+        t1 = time.time()
+        val = None
+        skymap = self.skymap
+
+        spatial_prior = SpatialPrior(
+            skymap, containment=self._containment, allow_neg=True
+        )
+
+        nside = self.nside
+        theta, phi = hp.pix2ang(nside, np.arange(hp.nside2npix(nside)))
+        decs_list = np.pi / 2 - theta
+
+        test_flux = 1e-17
+        if useFlux:
+            mean_flux_arr = fluxToTest
+            nsPerFluxArr = [
+                self.fluxToNs_decDependent(test_flux, d) / test_flux for d in decs_list
+            ]
+        else:
+            # work in uniform ns
+            mean_flux_arr = fluxToTest
+            nsPerFluxArr = [1] * 12 * pow(nside, 2)
+
+        def _run_scan_posterior(fluxT):
+            # Helper function to parallelize scans
+            return self.llh.scan(
+                0.0,
+                0.0,
+                scramble=False,
+                spatial_prior=spatial_prior,
+                time_mask=[self.duration / 2.0, self.centertime],
+                pixel_scan=[nside, self._pixel_scan_nsigma],
+                fixed=["nsignal"],
+                nsignal=np.array(
+                    [fluxT * conversion for conversion in nsPerFluxArr], dtype=float
+                ),
+                inject=custom_events,
+            )
+
+        print("Running posterior scans")
+
+        n_threads = 10
+        with Pool(n_threads) as pool:
+            vals = pool.map(_run_scan_posterior, mean_flux_arr)
+        val = np.concatenate(vals)
+        print("     Done running posterior scans. Starting integration")
+        ras = val["ra"]
+        decs = val["dec"]
+        nss = val["nsignal"]
+
+        # Placeholder: not required in fixed index analyses, but future improvements could expand this
+        if "gamma" in val.dtype.names:
+            gammas = val["gamma"]
+
+        TS_spatial_prior_0 = val["TS_spatial_prior_0"]
+        idx_max = np.argmax(TS_spatial_prior_0)
+        ramax, decmax = ras[idx_max], decs[idx_max]
+
+        logProbs = TS_spatial_prior_0 / 2
+
+        # for each pixel we have lists [ns_1,ns_2,...ns_i], [logP_1,logP_2,...,logP_3]
+        # we want to integrate over ns
+
+        pix_ids = hp.ang2pix(nside, np.degrees(ras), np.degrees(decs), lonlat=True)
+
+        order = np.lexsort((nss, pix_ids))
+
+        pix_s = pix_ids[order]
+        ras_s = ras[order]
+        decs_s = decs[order]
+        nss_s = nss[order]
+        logProbs_s = logProbs[order]
+
+        split_idx = np.where(np.diff(pix_s) != 0)[0] + 1
+
+        # One group per pixel
+        pix_groups = np.split(pix_s, split_idx)
+        ras_groups = np.split(ras_s, split_idx)
+        decs_groups = np.split(decs_s, split_idx)
+        nss_groups = np.split(nss_s, split_idx)
+        log_groups = np.split(logProbs_s, split_idx)
+
+        finalProbs = {}
+        for pix_arr, ra_arr, dec_arr, ns_arr, prob_arr in zip(
+            pix_groups, ras_groups, decs_groups, nss_groups, log_groups
+        ):
+            if len(ns_arr) != len(fluxToTest):
+                raise Exception("Not all fluxes have probabilities")
+
+            # Current pixel: for each group, ra and dec should be constant through
+            pix = pix_arr[0]
+            ra = ra_arr[0]
+            dec = dec_arr[0]
+
+            if np.any(pix_arr != pix):
+                print("Pixel grouping broken")
+            if len(ns_arr) != len(fluxToTest):
+                print("Wrong number of ns for ", ra, dec, ns_arr)
+
+            ns_mid = 0.5 * (ns_arr[1:] + ns_arr[:-1])
+            delta_ns = np.diff(ns_arr)
+
+            priors = np.array([prior_func(ns, self.index, ra, dec) for ns in ns_mid])
+
+            segments = (
+                np.logaddexp(prob_arr[1:], prob_arr[:-1])
+                + np.log(priors)
+                + np.log(delta_ns / 2.0)
+            )
+
+            finalProbs[pix] = logsumexp(segments)
+
+        # Normalize
+        totalLog = logsumexp(list(finalProbs.values()))
+        finalProbs = {k: v - totalLog for k, v in finalProbs.items()}
+        # Write to healpy
+        outputProbHPMap = np.zeros(12 * nside**2)
+
+        for pix, v in finalProbs.items():
+            outputProbHPMap[pix] = np.exp(v)
+        outputProbHPMap = outputProbHPMap / np.sum(outputProbHPMap)
+        t2 = time.time()
+        print("Finished posterior calc, took {} s".format(t2 - t1))
+
+        # set 0s to nan for plotting
+        outputProbHPMapPlotting = copy.deepcopy(outputProbHPMap)
+        outputProbHPMapPlotting[outputProbHPMapPlotting == 0] = np.nan
+
+        # Add Plotting
+        if plotting_location is not None:
+            print("Plotting Posterior Results")
+            fig, ax = plt.subplots(1, 1, figsize=(10, 10))
+            plt.sca(ax)
+            reso = 0.1
+            sizeZoomInDegs = 10
+            nPixZoom = sizeZoomInDegs / reso * 60
+
+            hp.visufunc.mollview(
+                map=outputProbHPMapPlotting,
+                hold=True,
+                title="Posterior Skymap",
+                bgcolor="white",
+                badcolor="white",
+                rot=(180, 0, 0),
+            )
+            hp.graticule(verbose=True)
+            ax = plt.gca()
+            text_objs = ax.findobj(lambda artist: isinstance(artist, Text))
+            for obj in text_objs:
+                obj.set_fontsize(30)
+            plt.savefig(plotting_location + "PosteriorMap.png")
+            plt.close()
+
+            # plot zoomed
+            fig, ax = plt.subplots(1, 1, figsize=(10, 10))
+            plt.sca(ax)
+            hp.visufunc.gnomview(
+                map=outputProbHPMapPlotting,
+                hold=True,
+                title="Posterior Skymap",
+                rot=(ramax * 180 / np.pi, decmax * 180 / np.pi, 0),
+                xsize=nPixZoom,
+                ysize=nPixZoom,
+                reso=reso,
+                bgcolor="white",
+                badcolor="grey",
+                margins=(0.02, 0.02, 0.05, 0),
+                notext=True,
+                cbar=False,
+            )
+            hp.graticule(verbose=True)
+            plotting_utils.plot_labels(
+                decmax, ramax, reso, nPix=nPixZoom, label_scale=0.97
+            )
+            ax = plt.gca()
+            text_objs = ax.findobj(lambda artist: isinstance(artist, Text))
+            for obj in text_objs:
+                obj.set_fontsize(30)
+            plotting_utils.plot_color_bar(
+                range=[0, np.nanmax(outputProbHPMapPlotting)],
+                cmap="viridis",
+                col_label=r"Posterior PDF",
+                offset=-40,
+                labels=[
+                    0,
+                    "{0:.1e}".format(np.nanmax(outputProbHPMapPlotting) / 2),
+                    "{0:.2e}".format(np.nanmax(outputProbHPMapPlotting)),
+                ],
+                loc=[0.86, 0.2, 0.03, 0.6],
+                ticks=[0,np.nanmax(outputProbHPMapPlotting) / 2,np.nanmax(outputProbHPMapPlotting)]
+
+            )
+            theta, phi = plotting_utils.plot_contours([0.9], outputProbHPMap)
+            hp.projplot(theta[0], phi[0], linewidth=2.0, c="lawngreen")
+            for i in range(1, len(theta)):
+                hp.projplot(theta[i], phi[i], linewidth=2.0, c="lawngreen", label=None)
+            plt.savefig(plotting_location + "PosteriorMapZoomed.png")
+            plt.close()
+
+            # plot zoomed with events
+            fig, ax = plt.subplots(1, 1, figsize=(10, 10))
+            plt.sca(ax)
+            hp.visufunc.gnomview(
+                map=outputProbHPMapPlotting,
+                hold=True,
+                title="Posterior Skymap",
+                rot=(ramax * 180 / np.pi, decmax * 180 / np.pi, 0),
+                xsize=nPixZoom,
+                ysize=nPixZoom,
+                reso=reso,
+                bgcolor="white",
+                badcolor="grey",
+                margins=(0.02, 0.02, 0.05, 0),
+                notext=True,
+                cbar=False,
+            )
+            hp.graticule(verbose=True)
+            plotting_utils.plot_labels(
+                decmax, ramax, reso, nPix=nPixZoom, label_scale=0.97
+            )
+            ax = plt.gca()
+            text_objs = ax.findobj(lambda artist: isinstance(artist, Text))
+            for obj in text_objs:
+                obj.set_fontsize(30)
+            plotting_utils.plot_color_bar(
+                range=[0, np.nanmax(outputProbHPMapPlotting)],
+                cmap="viridis",
+                col_label=r"Posterior PDF",
+                offset=-40,
+                labels=[
+                    0,
+                    "{0:.1e}".format(np.nanmax(outputProbHPMapPlotting) / 2),
+                    "{0:.2e}".format(np.nanmax(outputProbHPMapPlotting)),
+                ],
+                loc=[0.86, 0.2, 0.03, 0.6],
+                ticks=[0,np.nanmax(outputProbHPMapPlotting) / 2,np.nanmax(outputProbHPMapPlotting)]
+            )
+            theta, phi = plotting_utils.plot_contours([0.9], outputProbHPMap)
+            hp.projplot(theta[0], phi[0], linewidth=2.0, c="lawngreen")
+            for i in range(1, len(theta)):
+                hp.projplot(theta[i], phi[i], linewidth=2.0, c="lawngreen", label=None)
+            if custom_events is not None and len(custom_events) != 0:
+                events = np.concatenate((self.llh.exp, custom_events))
+            else:
+                events = self.llh.exp
+            events = events[
+                (events["time"] < self.stop) & (events["time"] > self.start)
+            ]
+            plotting_utils.plot_events2(
+                events["dec"],
+                events["ra"],
+                events["sigma"] * self._angScale,
+                col=["red"] * len(events["dec"]),
+            )
+            plt.savefig(plotting_location + "PosteriorMapZoomedWithEvents.png")
+            plt.close()
+
+            fig, ax = plt.subplots(1, 1, figsize=(10, 10))
+            plt.sca(ax)
+            hp.visufunc.gnomview(
+                map=np.log10(outputProbHPMapPlotting),
+                hold=True,
+                title="Posterior Skymap (Log p)",
+                rot=(ramax * 180 / np.pi, decmax * 180 / np.pi, 0),
+                xsize=nPixZoom,
+                ysize=nPixZoom,
+                reso=reso,
+                bgcolor="white",
+                badcolor="grey",
+                margins=(0.02, 0.02, 0.05, 0),
+                notext=True,
+                cbar=False,
+            )
+            hp.graticule(verbose=True)
+            plotting_utils.plot_labels(
+                decmax, ramax, reso, nPix=nPixZoom, label_scale=0.97
+            )
+            ax = plt.gca()
+            text_objs = ax.findobj(lambda artist: isinstance(artist, Text))
+            for obj in text_objs:
+                obj.set_fontsize(30)
+            plotting_utils.plot_color_bar(
+                range=[np.log10(outputProbHPMapPlotting[np.isfinite(outputProbHPMapPlotting) & (outputProbHPMapPlotting != 0)].min()), np.nanmax(np.log10(outputProbHPMapPlotting))],
+                cmap="viridis",
+                col_label=r"Posterior PDF",
+                offset=-40,
+                labels=[
+                    "{0:.1e}".format(np.nanmax(np.log10(outputProbHPMapPlotting)) / 100),
+                    "{0:.1e}".format(np.nanmax(np.log10(outputProbHPMapPlotting)) / 10),
+                    "{0:.2e}".format(np.nanmax(np.log10(outputProbHPMapPlotting))),
+                ],
+                loc=[0.86, 0.2, 0.03, 0.6],
+                ticks=[np.log10(np.nanmax(outputProbHPMapPlotting) / 100) ,np.log10(np.nanmax(outputProbHPMapPlotting) / 10) ,np.log10(np.nanmax(outputProbHPMapPlotting))]
+            )
+            theta, phi = plotting_utils.plot_contours([0.9], outputProbHPMap)
+            hp.projplot(theta[0], phi[0], linewidth=2.0, c="lawngreen")
+            for i in range(1, len(theta)):
+                hp.projplot(theta[i], phi[i], linewidth=2.0, c="lawngreen", label=None)
+            if custom_events is not None and len(custom_events) != 0:
+                events = np.concatenate((self.llh.exp, custom_events))
+            else:
+                events = self.llh.exp
+            events = events[
+                (events["time"] < self.stop) & (events["time"] > self.start)
+            ]
+            plotting_utils.plot_events2(
+                events["dec"],
+                events["ra"],
+                events["sigma"] * self._angScale,
+                col=["red"] * len(events["dec"]),
+            )
+            plt.savefig(plotting_location + "PosteriorMapZoomedLog.png")
+            plt.close()
+
+            # Zoom in much further
+            reso = 0.1
+            sizeZoomInDegs = 2
+            nPixZoom = sizeZoomInDegs / reso * 60
+
+            fig, ax = plt.subplots(1, 1, figsize=(10, 10))
+            plt.sca(ax)
+            hp.visufunc.gnomview(
+                map=outputProbHPMapPlotting,
+                hold=True,
+                title="Posterior Skymap",
+                rot=(ramax * 180 / np.pi, decmax * 180 / np.pi, 0),
+                xsize=nPixZoom,
+                ysize=nPixZoom,
+                reso=reso,
+                bgcolor="white",
+                badcolor="grey",
+                margins=(0.02, 0.02, 0.05, 0),
+                notext=True,
+                cbar=False,
+            )
+            hp.graticule(verbose=True)
+            plotting_utils.plot_labels(
+                decmax, ramax, reso, nPix=nPixZoom, label_scale=0.97
+            )
+            ax = plt.gca()
+            text_objs = ax.findobj(lambda artist: isinstance(artist, Text))
+            for obj in text_objs:
+                obj.set_fontsize(30)
+            labels = [
+                0,
+                "{0:.1e}".format(np.nanmax(outputProbHPMapPlotting) / 2),
+                "{0:.2e}".format(np.nanmax(outputProbHPMapPlotting)),
+            ]
+            
+            plotting_utils.plot_color_bar(
+                range=[0, np.nanmax(outputProbHPMapPlotting)],
+                cmap="viridis",
+                col_label=r"Posterior PDF",
+                offset=-40,
+                labels=labels,
+                loc=[0.86, 0.2, 0.03, 0.6],
+                ticks=[0,np.nanmax(outputProbHPMapPlotting) / 2,np.nanmax(outputProbHPMapPlotting)]
+            )
+
+            theta, phi = plotting_utils.plot_contours([0.9], outputProbHPMap)
+            hp.projplot(theta[0], phi[0], linewidth=2.0, c="lawngreen")
+            for i in range(1, len(theta)):
+                hp.projplot(theta[i], phi[i], linewidth=2.0, c="lawngreen", label=None)
+
+            if custom_events is not None and len(custom_events) != 0:
+                events = np.concatenate((self.llh.exp, custom_events))
+            else:
+                events = self.llh.exp
+            events = events[
+                (events["time"] < self.stop) & (events["time"] > self.start)
+            ]
+
+            plotting_utils.plot_events2(
+                events["dec"],
+                events["ra"],
+                events["sigma"] * self._angScale,
+                col=["red"] * len(events["dec"]),
+            )
+
+            plt.savefig(plotting_location + "PosteriorMapZoomed1DegWithEvents.png")
+            plt.close()
+
+            # plot zoomed
+            fig, ax = plt.subplots(1, 1, figsize=(10, 10))
+            plt.sca(ax)
+            hp.visufunc.gnomview(
+                map=outputProbHPMapPlotting,
+                hold=True,
+                title="Posterior Skymap",
+                rot=(ramax * 180 / np.pi, decmax * 180 / np.pi, 0),
+                xsize=nPixZoom,
+                ysize=nPixZoom,
+                reso=reso,
+                bgcolor="white",
+                badcolor="grey",
+                margins=(0.02, 0.02, 0.05, 0),
+                notext=True,
+                cbar=False,
+            )
+            hp.graticule(verbose=True)
+            plotting_utils.plot_labels(
+                decmax, ramax, reso, nPix=nPixZoom, label_scale=0.97
+            )
+            ax = plt.gca()
+            text_objs = ax.findobj(lambda artist: isinstance(artist, Text))
+            for obj in text_objs:
+                obj.set_fontsize(30)
+            plotting_utils.plot_color_bar(
+                range=[0, np.nanmax(outputProbHPMapPlotting)],
+                cmap="viridis",
+                col_label=r"Posterior PDF",
+                offset=-40,
+                labels=[
+                    0,
+                    "{0:.1e}".format(np.nanmax(outputProbHPMapPlotting) / 2),
+                    "{0:.2e}".format(np.nanmax(outputProbHPMapPlotting)),
+                ],
+                loc=[0.86, 0.2, 0.03, 0.6],
+                ticks=[0,np.nanmax(outputProbHPMapPlotting) / 2,np.nanmax(outputProbHPMapPlotting) ]
+            )
+            theta, phi = plotting_utils.plot_contours([0.9], outputProbHPMap)
+
+            hp.projplot(theta[0], phi[0], linewidth=2.0, c="lawngreen")
+            for i in range(1, len(theta)):
+                hp.projplot(theta[i], phi[i], linewidth=2.0, c="lawngreen", label=None)
+
+            plt.savefig(plotting_location + "PosteriorMapZoomed1Deg.png")
+            plt.close()
+
+            # plot ns vs probability for some specific points, could use a cleaner method of choosing points
+            fig, ax = plt.subplots(1, 1, figsize=(10, 10))
+            threshold_prob_for_plots = list(
+                sorted(
+                    [
+                        k
+                        for k, v in Counter(list(finalProbs.values())).items()
+                        if v == 1
+                    ],
+                    reverse=True,
+                )
+            )
+            # threshold_prob_for_plots=[k for k in threshold_prob_for_plots if k>0]
+            counterJump = min(max(int(len(threshold_prob_for_plots) / 30), 5),50)
+
+            psToPlot = []
+            for i in range(0, len(threshold_prob_for_plots), counterJump):
+                p = threshold_prob_for_plots[i]
+                psToPlot.append(p)
+                if i > len(threshold_prob_for_plots):
+                    break
+            filtered_probs = {k: v for (k, v) in finalProbs.items() if v in psToPlot}
+
+            cmap = mpl.cm.ScalarMappable(
+                norm=mpl.colors.Normalize(
+                    min(threshold_prob_for_plots), max(threshold_prob_for_plots)
+                ),
+                cmap=plt.get_cmap("viridis"),
+            )
+
+            for pix in filtered_probs:
+                total_val = finalProbs[pix]
+                theta, phi = hp.pix2ang(nside, pix)
+
+                dec = np.pi / 2 - theta
+                ra = phi
+                temp_val = val[(val["ra"] == ra) & (val["dec"] == dec)]
+                nss_temp = temp_val["nsignal"]
+                TS_temp = temp_val["TS_spatial_prior_0"] / 2
+
+                totalLog = logsumexp(TS_temp)
+                p_temp = np.exp(TS_temp - totalLog)
+                plt.plot(nss_temp, p_temp, color=cmap.to_rgba(total_val))
+            cmap.set_array([])
+            cbar = plt.colorbar(cmap)
+            cbar.set_label("Pixel Probability", fontsize=30)
+            plt.xlabel("ns", fontsize=30)
+            plt.ylabel("probability", fontsize=30)
+            plt.savefig(plotting_location + "nsProfilePlot.png")
+            plt.close()
+
+        print("saving fits file")
+        # return the version with zeros rather than nan
+        t3 = time.time()
+
+        self.PosteriorSkymap = outputProbHPMap
+        self._make_posterior_fits()
+        print("finished posterior saving, took {} s".format(t3 - t1))
 
     def upper_limit(self):
         """UPPER LIMIT WITH SPATIAL PRIOR NOT YET IMPLEMENTED"""
@@ -1476,7 +2181,7 @@ class PointSourceFollowup(FastResponseAnalysis):
         self.save_items["ns"] = ns
         return ts, ns
 
-    def find_coincident_events(self, print_events=False):
+    def find_coincident_events(self, custom_events=None):
         r"""Find "coincident events" for the analysis.
         These are ontime events that satisfy:
 
@@ -1495,6 +2200,14 @@ class PointSourceFollowup(FastResponseAnalysis):
         temporal_weights = self.llh.temporal_model.signal(self.llh._events)
         msk = spatial_weights * energy_ratio * temporal_weights > 10
         self.coincident_events = []
+        if custom_events != None:
+            for ev in custom_events:
+                self.coincident_events.append({})
+                self.coincident_events[-1]["delta_psi"] = -1
+                self.coincident_events[-1]["spatial_w"] = -1
+                self.coincident_events[-1]["energy_w"] = -1
+                for key in ["run", "event", "ra", "dec", "sigma", "logE", "time"]:
+                    self.coincident_events[-1][key] = ev[key]
         if len(spatial_weights[msk]) > 0:
             self.coincident_events = []
             for ev, s_w, en_w in zip(

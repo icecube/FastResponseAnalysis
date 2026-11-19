@@ -162,6 +162,10 @@ Grabbing data
 
 Performance plots will be saved and a report with the results generated in the same way as the above analyses. The output directory is specified in the same way as above, with the `FAST_RESPONSE_OUTPUT` environment variable.
 
+
+## Tutorial: Posterior Skymaps
+For tracks, cascades and GW the script each has a X_posterior.py script. These should have the same arguments as the primary script and can be called with the same arguments.
+
 ## Contacts
 Please send any questions or feature requests to:
 * Jessie Thwaites (jthwaites@icecube.wisc.edu)
