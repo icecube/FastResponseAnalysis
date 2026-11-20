@@ -79,16 +79,11 @@ class MultiGWFollowup(GWFollowupPlottingMixIn, MultiPriorFollowup):
         """
         Calculate per-event p-values. There are a few cases here: 
 
-        - overall p < 0.1: 
+        - overall p < 1: 
             Redoes the all-sky scan, using per_event_scan, with only that single event.
             This is the same as asking the question: 
             If that single event is the only one on the sky, with this given skymap,
             what TS/p-value would we get for that event?
-
-        - 1.0 > overall p > 0.1:
-            Calculates the p-value at the reconstructed event direction. 
-            Takes the TS at that location, and calculates the p-value at that location. 
-            Does not re-run the scan, to save time in realtime
 
         - p=1.0:
             Does not get p-values for the events (all are set to None)
