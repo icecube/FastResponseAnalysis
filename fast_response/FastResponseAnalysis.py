@@ -64,6 +64,11 @@ class FastResponseAnalysis:
     _ncpu = 5
     _jitter = False
     _background_days = 6. # if not using exclusively archival data, get_data() will prepend this duration to [start, stop].
+    # Magic numbers that survive for legacy reasons:
+    _gfu_archival_end = 59215.0 # MJD from which to livestream GFU events
+    _gfu_skylab_end   = 58933.0 # MJD from which to augment GFU with 2020 files from /data/user
+    # => change these if extending GFU seasons used
+
 
     def __init__(self, name, tstart, tstop,
                  skipped=None, seed=1,
@@ -255,8 +260,9 @@ class FastResponseAnalysis:
 
         archival_range = (dset.grl(self._season_names[0])['start'].min(),
                           dset.grl(self._season_names[-1])['stop'].max())
+
         if self.dataset.startswith('GFUOnline'):
-            archival_range = (archival_range[0], 59215) # NOTE legacy default behavior; change if extending GFU seasons.
+            archival_range = (archival_range[0], self._gfu_archival_end)
     
         if self.start < archival_range[0]:
            raise ValueError(f'Followup start MJD {self.start} earlier than first archival season {self._season_names[0]}, MJD {archival_range[0]}')
@@ -274,7 +280,7 @@ class FastResponseAnalysis:
                 grls.append(grl)
             # 1b) legacy behaviour for GFU, also add 2020 data (not overlapping with IC86, 2019)
             # NOTE have to change when updating GFU dataset.
-            if (self.stop > 58933.0) and self.dataset.startswith('GFUOnline'):
+            if (self.stop > self._gfu_skylab_end) and self.dataset.startswith('GFUOnline'):
                 # Add local 2020 if need be
                 # TODO: Need to figure out what to do for zenith_smoothed
                 exp_new = np.load(
