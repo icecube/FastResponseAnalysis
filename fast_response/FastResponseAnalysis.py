@@ -50,7 +50,7 @@ class FastResponseAnalysis:
     astrophysical transients with arbitrary event
     localization
     """
-    _dataset = "GFUOnline_v001p02"
+    _dataset = None
     _fix_index = True
     _float_index = not _fix_index
     _index_range = [1., 4.]
@@ -172,7 +172,7 @@ class FastResponseAnalysis:
 
     @property
     def dataset(self):
-        """Returns the dataset used"""
+        """The dataset used"""
         return self._dataset
     @dataset.setter
     def dataset(self, x):
@@ -198,7 +198,7 @@ class FastResponseAnalysis:
     @llh_seed.setter
     def llh_seed(self, x):
         # NOTE this can be used for subsequent scrambles
-        # but will no repeat the scramble from initialize_llh
+        # but setting this will not repeat the scramble from initialize_llh
         self._llh_seed = x
 
     def unify_exp_array(self, _exp, enum=0):
@@ -249,6 +249,8 @@ class FastResponseAnalysis:
         if self._verbose:
             print("Grabbing data")
 
+        if self.dataset is None:
+            raise ValueError("This followup does not have a dataset specified")
         dset = Datasets[self.dataset]
 
         archival_range = (dset.grl(self._season_names[0])['start'].min(),
