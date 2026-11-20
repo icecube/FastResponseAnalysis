@@ -25,8 +25,6 @@ parser.add_argument('--name', type=str, required=True,
                     help="name of GW event being followed up")
 parser.add_argument('--tw', default = 1000, type=int, choices={1000},
                     help = 'Time window for the analysis, in sec (default = 1000)')
-parser.add_argument('--allow_neg_ts', action="store_true",
-                    help='Allow negative TS values in gw analysis.')
 parser.add_argument("--seed", type=int, default=0,
                     help="RNG seed to allow reproducilble scrambled test unblinding")
 
@@ -51,8 +49,7 @@ def build_followup(args: argparse.Namespace):
     name = name.replace('_', ' ')
 
     f = DNNOnlineFollowup(name, args.skymap, start, stop, seed=args.seed)
-    f._allow_neg = args.allow_neg_ts
-    f.save_items['merger_time'] = Time(gw_time, format='mjd').iso
+    f.save_items['merger_time'] = gw_time.iso
     f.save_items['skymap_link'] = args.skymap
     return f
 
