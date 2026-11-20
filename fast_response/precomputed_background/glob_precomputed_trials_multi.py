@@ -7,6 +7,9 @@ in the assumptions on the file name pattern, so it can be used
 with different conventions, the only requirement that they contain
 some seed index in the form `seed_*`.
 Running as a script, it will save the combined maps again as a sparse matrix.
+
+Author: Christoph Raab
+Date: 2026
 """
 
 import logging

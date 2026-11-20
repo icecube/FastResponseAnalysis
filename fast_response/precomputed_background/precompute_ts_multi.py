@@ -2,8 +2,11 @@
 
 r"""
 Run trials for background only, all-sky scans. Record TS and 
-number of true and fitted events around best fit location
+number of true and fitted events around best fit location.
+Datasets and their combinations can be specified.
 
+Author: Christoph Raab
+Date: 2026
 """
 import numpy as np
 import healpy as hp

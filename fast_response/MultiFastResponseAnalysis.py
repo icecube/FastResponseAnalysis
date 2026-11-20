@@ -1,12 +1,12 @@
-r''' General Fast Response Analysis Class.
+r''' Multisample Fast Response Analysis Class.
 
-    Author: Alex Pizzuto
-    Date: 2021
+    Author: Christoph Raab
+    Date: 2024
 
-    One of two variants to include mutiple datasets.
     Adding a new class that holds multiple FastResponseAnalysis as a container,
     adds the appropriate LLH, injector, and adapted methods.
-
+    Since FastResponseAnalysis has methods that are (made) dataset-agnostic,
+    it can inherit these as well.
     '''
 
 from abc import abstractmethod
@@ -53,17 +53,17 @@ warnings.simplefilter("ignore", RuntimeWarning)
 
 class MultiFastResponseAnalysis(FastResponseAnalysis):
     """
-    This class supports multi-sample fast response analyses.
+    This base class supports multi-sample fast response analyses.
     Each sample's LLH is contained within the original FastResponseAnalysis,
     or one of its child classes. This class then
     - contains the classes in self._followups,
     - constructs the instances in self.analyses,
     - combines their data into self.llh_exp,
     - combines their likelihoods into a MultiPointSourceLLH.
-    This classes children then
+    This classes children (MultiPriorFollowup, MultiPointSourceFollowup) then
     - construct the injector
     - override plotting methods where needed,
-    although some are already made to work with single- or multi-sample follow-ups.
+    (while some are already made to work with single- or multi-sample follow-ups).
     """
 
     # attributes that will be set for a specific followup configuration inheriting from this base class
@@ -75,11 +75,41 @@ class MultiFastResponseAnalysis(FastResponseAnalysis):
 
     # inherits some default config attributes
     def __init__(self,  *args, **kwargs):
-        """The arguments dataset and index override the defaults 
-        that may have been set by child classes.
+        """Called from the children
+        - PriorFollowup.__init__
+        - PointSourceFolloup.__init__
 
-        Same args and kwargs as FastResponseAnalysis
-        
+        Same args and kwargs as FastResponseAnalysis, and sets the same attributes,
+        only self.llh will be a MultiPointSourceLLH from MultiFastResponseAnalysis.initialize_llh.
+
+        Parameters
+        ----------
+        name : str
+            name of the source
+        tstart : float
+            start of the follow-up window, [MJD]
+        tstop : float
+            stop of the follow-up window [MJD]
+        skipped : list, optional
+            Skipped events, by default None
+        seed : int, optional
+            LLH RNG seed, by default 1
+        outdir : str, optional
+            Output base directory, by default will use ${FAST_RESPONSE_OUTPUT} or CWD
+        save : bool, optional
+            Save analysis results, by default True
+        extension : float, optional
+            Point source extension, by default None
+        index : float, optional
+            Spectral index to override class attribute self._index of the child class
+        fix_index : bool, optional
+            Keep spectrum fixed, to override self._fix_index of the child class
+        dataset : str, optional
+            Dataset descriptor attribute, to override self._dataset of the child class
+
+        To help broadcast the hypothesis to the constituents it also sets
+        self.spectrum (if fixed power law spectrum)
+        self.time_profile (common box profile)
         """
         logger.debug('MultiFastResponseAnalysis.__init__')
 
@@ -89,10 +119,18 @@ class MultiFastResponseAnalysis(FastResponseAnalysis):
         # save spectrum and time profile to help broadcast
         self.spectrum = None
         if self._fix_index:
-            self.spectrum = PowerLaw(A=1, gamma=self.index, E0=1000.)
+            self.spectrum = PowerLaw(
+                A=1, # normalization factor for dN/dE (flux) at E0 [GeV^-1cm^-2s^-1]
+                gamma=self.index, # spectral index
+                E0=1000., # pivot energy [GeV]
+                )
         self.time_profile = BoxProfile(self.start, self.stop)
 
     def initialize_analyses(self, *args, **kwargs):
+        """Constructs the constituent followups, turning
+        self._followups (classes) => self.analyses (instances)
+        with matching settings broadcast via *args and **kwargs.
+        """
         # initialize individual dataset LLH
         # needs to be here as they will have the same constructor signature
         self.analyses = []
@@ -112,6 +150,9 @@ class MultiFastResponseAnalysis(FastResponseAnalysis):
             self.analyses.append(_analysis)
 
     def initialize_llh(self, skipped=None, scramble=False):
+        """Once self.analyses are constructed, this constructs
+        self.llh = the MultiPointSourceLLH combining their LLH's.
+        """
         if self._verbose:
             print("Initializing MultiPointSourceLLH in Skylab")
         
@@ -136,20 +177,22 @@ class MultiFastResponseAnalysis(FastResponseAnalysis):
     
     @property
     def mc(self):
+        """Dictionary {dataset enum : dataset mc array}"""
         return self.llh.mc
 
     @property
     def livetime(self):
+        """Dictionary {dataset enum : dataset livetime}"""
         return self.llh.livetime
 
     @property
     def datasets(self):
-        """Returns the datasets used"""
+        """List [used dataset names]"""
         return [_a._dataset for _a in self.analyses]
     
     @property
     def analyses(self):
-        '''Returns the constituent followup instances'''
+        '''List [followup instances]'''
         return self._analyses
     @analyses.setter
     def analyses(self, x):
@@ -158,6 +201,7 @@ class MultiFastResponseAnalysis(FastResponseAnalysis):
     # We share an LLH seed
     @property
     def llh_seed(self):
+        """RNG seed, MultiPSLLH propagates it to the PSLLHs"""
         return self._llh_seed
 
     # when setting a new one, broadcast it
@@ -171,7 +215,7 @@ class MultiFastResponseAnalysis(FastResponseAnalysis):
 
     @property
     def llh_exp(self):
-        """Returns a flat array of experimental data loaded across the used dataset(s) loaded into the LLH,
+        """Flat array of experimental data loaded across the used dataset(s) loaded into the LLH,
         limited to fields used for plotting and amended with a field for the dataset."""
         if not hasattr(self, '_llh_exp'):
             exp = {enum:_llh.exp for enum, _llh in self.llh._samples.items()}
@@ -181,6 +225,18 @@ class MultiFastResponseAnalysis(FastResponseAnalysis):
         return self._llh_exp
     
     def plot_skymap(self, **kwargs):
+        """Plot skymap of all dataset events with short dataset legend.
+
+        **kwargs as in FastResponseAnalysis.plot_skymap, except labels
+        with_contour: bool
+            plots the 90% containment contour of a skymap (default False)
+        contour_files: string
+            text file containing skymap contours to be plotted (default None)
+        label_events: bool
+            adds a number label to events on skymap (default False)
+        distinct_colorbars : bool
+            Use distinct color bars for each dataset's time axis (default False)
+        """
         labels = []
         for _ds in self.datasets:
             _base = _ds.split('_')[0] # convention: version after underscore
@@ -191,6 +247,7 @@ class MultiFastResponseAnalysis(FastResponseAnalysis):
 
     @property
     def dataset_string(self):
+        """String listing used datasets for the __repr__"""
         string = ''
         string += 'Datasets:\n'
         string += '\n'.join(self.datasets)
@@ -198,7 +255,13 @@ class MultiFastResponseAnalysis(FastResponseAnalysis):
         return string
 
 class MultiPriorFollowup(PriorFollowup, MultiFastResponseAnalysis):
-
+    """"
+    Base class for multi-dataset followups using a spatial prior.
+    It broadcasts properties to constituent PriorFollowup's configured as
+    a list of classes in the _followup class attribute, then
+    combines their likelihoods into a MultiPointSourceLLH which can
+    still use the same skylab.base_llh.BaseLLH.scan() method.
+    """
     # attributes that are identical for each analysis produced by one followup class
     # will be broadcast to the constituent analyses
     static_attributes = ['_verbose',
@@ -215,8 +278,17 @@ class MultiPriorFollowup(PriorFollowup, MultiFastResponseAnalysis):
                          ]
 
     def __init__(self, *args, **kwargs):
-        logger.debug('MultiPriorFollowup.__init__')
+        """Construct the MultiPointSourceFollowup,
+        1) the constituent followups self.analyses,
+        2) its own likelihood self.llh
+        3) its precomputed data directories self._bg_dir, self._sens_dir
 
+        Parameters
+        ----------
+        *args, **kwargs
+            Passed to self.initialize_analyses and MultiFastResponseAnalsis.__init__
+        """
+        logger.debug('MultiPriorFollowup.__init__')
         # first, construct constituent analyses with same arguments
         self.initialize_analyses(*args, **kwargs)
 
@@ -234,14 +306,27 @@ class MultiPriorFollowup(PriorFollowup, MultiFastResponseAnalysis):
         return string
     
     def initialize_injector(self, e_range=(0., np.inf)):
-        print("Initializing Prior Injector")
+        """Construct the spatial prior based on the skymap and then
+        the multi-dataset PriorInjector, using the dictionaries
+        {dataset enum: PointSourceLLH attribute} dictionaries
+        already present as MultiPointSourceLLH attributes exp, mc and livetime,
+        plus a similar one constructed here for the temporal model.
+        Assumes power law with self.index and pivot energy 1 TeV.
+
+        Parameters
+        ----------
+        e_range : tuple, optional
+            True energy range to inject [GeV], by default (0., np.inf)
+            Used for differential sensitivities.
+        """
+        logger.debug("Initializing Prior Injector")
         spatial_prior = SpatialPrior(self.skymap, containment = self._containment, allow_neg=self._allow_neg)
         self.spatial_prior = spatial_prior
         inj = PriorInjector(
             spatial_prior, 
             gamma=self.index, 
             e_range = e_range, 
-            E0=1000., 
+            E0=1000., # pivot [GeV]
             seed = self.llh_seed)
         temporal_model = {enum:_llh.temporal_model for enum,_llh in self.llh._samples.items()}
         inj.fill(
@@ -311,7 +396,13 @@ class MultiPriorFollowup(PriorFollowup, MultiFastResponseAnalysis):
         self.save_items['energy_range'] = self.energy_range
 
 class MultiPointSourceFollowup(PointSourceFollowup, MultiFastResponseAnalysis):
-    
+    """"
+    Base class for multi-dataset followups of a point source.
+    It broadcasts properties to constituent PointSourceFollowup's configured
+    as a list of classes in the _followup class attribute, then
+    combines their likelihoods into a MultiPointSourceLLH which can
+    still use the same skylab.base_llh.BaseLLH.fit_source() method.
+    """
     # attributes that are identical for each analysis produced by one followup class
     # will be broadcast to the constituent analyses
     static_attributes = ['_verbose',
@@ -324,7 +415,18 @@ class MultiPointSourceFollowup(PointSourceFollowup, MultiFastResponseAnalysis):
                          ]
 
     def __init__(self, *args, followups=None, **kwargs):
+        """Construct the MultiPointSourceFollowup,
+        1) the constituent followups
+        2) its own likelihood.
 
+        Parameters
+        ----------
+        followups : list, optional
+            Override self._followups
+
+        *args, **kwargs
+            Passed to self.initialize_analyses and MultiFastResponseAnalsis.__init__
+        """
         logger.debug('MultiPointSourceFollowup.__init__')
         if followups is not None:
             self._followups = followups
@@ -341,9 +443,22 @@ class MultiPointSourceFollowup(PointSourceFollowup, MultiFastResponseAnalysis):
         return string
 
     def initialize_injector(self, e_range=(0., np.inf)):
+        """Construct the point source injector, which SkyLab makes
+        rather transparent since it will use the dictionaries
+        {dataset enum: PointSourceLLH attribute} dictionaries
+        already present as MultiPointSourceLLH attributes exp, mc and livetime.
+        A similar one is constructed here for the temporal model.
+        Assumes a power law with self.index and pivot energy 1 TeV.
+
+        Parameters
+        ----------
+        e_range : tuple, optional
+            True energy range to inject [GeV], by default (0., np.inf)
+            Used for differential sensitivities.
+        """
         inj = PointSourceInjector(
             gamma = self.index, 
-            E0 = 1000., 
+            E0 = 1000., # pivot [GeV]
             e_range=e_range)
         temporal_model = {enum:_llh.temporal_model for enum,_llh in self.llh._samples.items()}
         inj.fill(
@@ -417,4 +532,5 @@ class MultiPointSourceFollowup(PointSourceFollowup, MultiFastResponseAnalysis):
         self.save_items['energy_range'] = tuple(zip(self.low5, self.high5))
 
     def write_circular(self):
+        """Write a circular, which needs to be implemented for specific approved analyses in child classes."""
         raise NotImplementedError('This method is not implemented for the parent class, either.')

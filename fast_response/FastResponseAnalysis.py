@@ -73,6 +73,33 @@ class FastResponseAnalysis:
                  fix_index=None,
                  dataset=None,
                  ):
+        """Constructor of the FastResponseAnalysis base class.
+
+        Parameters
+        ----------
+        name : str
+            name of the source
+        tstart : float
+            start of the follow-up window, [MJD]
+        tstop : float
+            stop of the follow-up window [MJD]
+        skipped : list, optional
+            Skipped events, by default None
+        seed : int, optional
+            LLH RNG seed, by default 1
+        outdir : str, optional
+            Output base directory, by default will use ${FAST_RESPONSE_OUTPUT} or CWD
+        save : bool, optional
+            Save analysis results, by default True
+        extension : float, optional
+            Point source extension, by default None
+        index : float, optional
+            Spectral index to override class attribute self._index
+        fix_index : bool, optional
+            Keep spectrum fixed, to override self._fix_index
+        dataset : str, optional
+            Dataset descriptor attribute, to override self._dataset
+        """
         logger.debug('FastResponseAnalysis.__init__')
         self.name = name
 
@@ -729,7 +756,10 @@ class FastResponseAnalysis:
             text file containing skymap contours to be plotted (default None)
         label_events: bool
             adds a number label to events on skymap (default False)
-
+        labels : list[str]
+            Per-dataset legend label, (default ["GFU Event"])
+        distinct_colorbars : bool
+            Use distinct color bars for each dataset's time axis (default False)
         """
 
         events = self.llh_exp
@@ -875,13 +905,18 @@ class PriorFollowup(FastResponseAnalysis):
     _containment = 0.99
     _allow_neg = False
     _nside = 256
+    # The follow-up can load pre-computed BG trials
+    # (all-sky scans that are combined with the skymap)
+    # A specific follow-up defines their place:
     _bg_dir = './'
+    # and file name based on a format string:
     _bg_format = '_'.join([
-    'precomputed_trials_delta_t_{delta_t:.2e}',
-    'nside_{nside}',
-    'index_{index}',
-    '{lookup}',
-    '*', # individual analyses will need to specify here whether they glob them on the fly or have a single file
+    'precomputed_trials_'    # common base
+    'delta_t_{delta_t:.2e}', # duration of follow-up
+    'nside_{nside}', # nside of the BG scan
+    'index_{index}', # spectral index (seed for fit, or fixed value)
+    '{lookup}',      # lookup to match seasonality, specifying "{month:02d}" or "{rate:.2f}_mHz"
+    '*',             # individual analyses will need to specify here whether they glob them on the fly or have a single file
     ])
     _sens_dir = None
 
@@ -1448,9 +1483,7 @@ class PointSourceFollowup(FastResponseAnalysis):
             unblinded test statistic
         ns: float
             best fit ns
-        """ 
-        # Fix the case of getting best-fit gamma
-        # TODO: What if gamma is floated
+        """
         ts, ns = self.llh.fit_source(src_ra=self.ra, src_dec=self.dec, scramble=scramble)
         params = ns.copy()
         params.pop('nsignal')
