@@ -397,10 +397,8 @@ def get_energy_band(mc, index, dec, half_width=5., coverage=0.9):
         dec_mask_2 = mc['dec'] < dec + np.deg2rad(half_width)
         dec_mask = dec_mask_1 & dec_mask_2
         
-        delta_gamma = -1. * index + 1. # TODO I don't understand why we add a power of E then divide it out again
-
         a = np.histogram(mc['trueE'][dec_mask], bins = np.logspace(1., 8., 50), 
-                weights = mc['ow'][dec_mask] * np.power(mc['trueE'][dec_mask], delta_gamma) / mc['trueE'][dec_mask], 
+                weights = mc['ow'][dec_mask] * np.power(mc['trueE'][dec_mask], -1. * index)
         )
         
         cdf = np.cumsum(a[0]) / np.sum(a[0])
