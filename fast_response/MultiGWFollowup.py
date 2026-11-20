@@ -17,16 +17,18 @@ logger.setLevel(logging.DEBUG)
 class MultiGWFollowup(GWFollowupPlottingMixIn, MultiPriorFollowup):
 
     # Defaults adopted from GWFollowup, different to PriorFollowup
-    _pixel_scan_nsigma = 3.0
-    _allow_neg = True
+    _pixel_scan_nsigma = 3.0 # how to scan
     _containment = None
+    # Current convention for test statistics:
+    _allow_neg = False # passed to SpatialPrior
     # common format to find precomputed BG
     _bg_format = '_'.join([
-    'precomputed_trials_delta_t_{delta_t:.2e}',
-    'nside_{nside}',
-    'index_{index}',
-    '{lookup}',
-    'seed_*npz',
+    'precomputed_trials',    # common base
+    'delta_t_{delta_t:.2e}', # duration of follow-up
+    'nside_{nside}', # nside of the BG scan
+    'index_{index}', # spectral index (seed for fit, or fixed value)
+    '{lookup}',      # lookup to match seasonality, specifying "{month:02d}" or "{rate:.2f}_mHz"
+    'seed_*npz',     # => find files to concatenate ("glob") if no combined file exists
     ])
 
     def find_coincident_events(self):

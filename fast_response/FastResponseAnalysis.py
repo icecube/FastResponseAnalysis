@@ -911,7 +911,7 @@ class PriorFollowup(FastResponseAnalysis):
     _bg_dir = './'
     # and file name based on a format string:
     _bg_format = '_'.join([
-    'precomputed_trials_'    # common base
+    'precomputed_trials',    # common base
     'delta_t_{delta_t:.2e}', # duration of follow-up
     'nside_{nside}', # nside of the BG scan
     'index_{index}', # spectral index (seed for fit, or fixed value)
