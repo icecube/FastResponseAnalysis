@@ -716,7 +716,6 @@ class FastResponseAnalysis:
 
     def plot_skymap(self, with_contour=False, contour_files=None, label_events=False,
                     labels=['GFU Event'], distinct_colorbars=False,
-                    show=False,
                     ):
         r""" Make skymap with event localization and all
         neutrino events on the sky within the given time window
@@ -857,8 +856,6 @@ class FastResponseAnalysis:
         except:
             plt.title('Fast Response Skymap')
             plt.savefig(self.analysispath + '/' + self.analysisid + 'unblinded_skymap.png',bbox_inches='tight')
-        if not show:
-            plt.close()
 
     def generate_report(self):
         r"""Generates report using class attributes
