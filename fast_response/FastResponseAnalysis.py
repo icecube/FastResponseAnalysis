@@ -695,7 +695,7 @@ class FastResponseAnalysis:
                 events = events[~msk]
                 cols = cols[~msk]
             except:
-                print("Removed event not in dataset")
+                print(f"Removed event not in on-time data from {self.datasets}")
 
         if (self.stop - self.start) <= 21.:
             sigma_scale = 1.0
