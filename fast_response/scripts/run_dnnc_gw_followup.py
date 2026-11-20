@@ -60,19 +60,22 @@ def run_followup(f: DNNOnlineFollowup):
     """Run the followup steps and save results."""
     f.unblind_TS()
     f.plot_ontime(plot_zoom=False, label_events=True, with_contour=True) # as GWFollowup
-    # load precomputed BG
-    llh = f.llh._samples[0] # have 1 sample
-    # use the estimate provided by the temporal model
-    # from the background window(s): (temporal model has estimated it from +/- 60 days)
-    rate = round(1000 * llh.nbackground / (llh.on_livetime * 86400), 2)
-    f.load_background_trials(rate=rate)
+    # load precomputed BG according to the strategy for this analysis
+    # (rather than specifying a general strategy in the follow-up class)
+    # but only need that if TS != 0, p != 1
+    if f.ts > 0:  
+        llh = f.llh._samples[0] # have 1 sample
+        # use the estimate provided by the temporal model
+        # from the background window(s): (temporal model has estimated it from +/- 60 days)
+        rate = round(1000 * llh.nbackground / (llh.on_livetime * 86400), 2)
+        f.load_background_trials(rate=rate)
 
     # use the above to calculate p-value
     f.calc_pvalue()
     
     # make plots for internal report
     f.make_dNdE()
-    f.plot_tsd(allow_neg=f._allow_neg)
+    f.plot_tsd(allow_neg=f._allow_neg) # no plot if TS == 0
 
     # calculations for GCN notice
     f.upper_limit()
