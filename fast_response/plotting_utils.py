@@ -423,7 +423,7 @@ def plot_energy_band(histogram=None, low=None, median=None, high=None, quantile=
 
     if low is not None and high is not None:
         plt.axvspan(low, high, color=color, alpha = 0.25,
-                    label=" ".join((label_prefix, f"Central {quantile:.0%}")),
+                    label=" ".join((label_prefix, rf"Central {100*quantile:.0f}\%")),
                     linestyle = linestyle,
                     linewidth = 2.,
                     )

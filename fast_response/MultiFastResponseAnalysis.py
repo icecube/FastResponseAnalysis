@@ -225,7 +225,7 @@ class MultiFastResponseAnalysis(FastResponseAnalysis):
         return self._llh_exp
     
     def plot_skymap(self, **kwargs):
-        """Plot skymap of all dataset events with short dataset legend.
+        r"""Plot skymap of all dataset events with short dataset legend.
 
         **kwargs as in FastResponseAnalysis.plot_skymap, except labels
         with_contour: bool
