@@ -39,8 +39,8 @@ class MultiGWFollowup(GWFollowupPlottingMixIn, MultiPriorFollowup):
 
         This works with a MultiPointSourceLLH.
         """
-        if self.ts_scan is None:
-            raise ValueError("Need to unblind TS before finding events")
+        if self.ts is None:
+            raise ValueError("Need to scan & unblind TS before finding events")
         exp_theta = 0.5*np.pi - self.llh_exp['dec']
         exp_phi   = self.llh_exp['ra']
         exp_pix   = hp.ang2pix(self.nside, exp_theta, exp_phi)
