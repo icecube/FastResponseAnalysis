@@ -12,9 +12,7 @@ import numpy as np
 import healpy as hp
 import os, sys, argparse
 from astropy.time import Time, TimeDelta
-from numpy.lib.recfunctions import append_fields
 from scipy import sparse
-from glob import glob
 
 # PS LLH without prior works for these BG scans
 from fast_response.MultiExternalFollowup import MultiFollowup, GFUFollowup, GrecoFollowup, DNNFollowup, DNNOnlineFollowup, DNNIceManFollowup
@@ -32,6 +30,8 @@ parser.add_argument('--seed', default=np.random.randint(2**32), type=int,
                         help='Unique seed for running on the cluster')
 parser.add_argument('--nside', default=256, type=int, 
                         help='Skymap nside to scan')
+parser.add_argument('--pixel_scan_nsigma', default=3.0, type=float,
+                        help="Number of sigma to scan around each event")
 parser.add_argument('--outdir',type=str, default=os.environ.get('FAST_RESPONSE_OUTPUT', './'),
                         help='Output directory to save npz (default = FAST_RESPONSE_OUTPUT env variable or cwd)')
 parser.add_argument('--dataset', default="DNN", type=str,
@@ -106,7 +106,7 @@ def main(args):
     for jj, seed in enumerate(seeds):
         val = f.llh.scan(0.0, 0.0, scramble=True, seed = seed,
                 time_mask = [(stop_mjd - start_mjd) / 2., (start_mjd + stop_mjd) / 2.],
-                pixel_scan = [args.nside, 3.0], inject = None)
+                pixel_scan = [args.nside, args.pixel_scan_nsigma], inject = None)
         if val['TS'] is not None: 
             pixels = hp.ang2pix(args.nside, np.pi/2. - val['dec'], val['ra'])
             maps[jj, pixels] = val['TS']
