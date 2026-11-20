@@ -285,13 +285,16 @@ class GWFollowupBase(PriorFollowup):
             self.exp = np.concatenate([self.exp,exp_on])
             self.livetime = self.grl['livetime'].sum()
 
+        # now that streamed events cover the time window,
+        # we can set the temporal model for the LLH,
+        # calculating the BG rate and setting the time scrambler
         box = TemporalModel(
             grl=self.grl,
             poisson_llh=True,
             days=self._nb_days,
             signal=BoxProfile(self.start, self.stop))
 
-        llh.set_temporal_model(box) # FIXME without update_timescramble?
+        llh.set_temporal_model(box, update_timescramble=True)
 
         return llh
     
