@@ -27,7 +27,7 @@ parser.add_argument('--ntrials', type=int, default = 1000,
 parser.add_argument('--time', type=str, required=False, default="2026-06-30T00:00:00",
                     help="GW time [ISO-T]")
 parser.add_argument("--bkg", default=None, type=float, nargs='+',
-                        help="Expected background rates in mHz (default: use sample estimates")
+                        help="Space-separated list of expected background rate per dataset in mHz (default: use sample estimates")
 parser.add_argument('--seed', default=np.random.randint(2**32), type=int, 
                         help='Unique seed for running on the cluster')
 parser.add_argument('--nside', default=256, type=int, 
