@@ -1088,10 +1088,6 @@ class PriorFollowup(FastResponseAnalysis):
         else:
             raise ValueError(f"Could not load {ntrials} precomputed trials, only have {self.tsd.size}")
 
-
-
-        
-
     def find_coincident_events(self, print_events=False):
         r"""Find coincident events for a skymap
         based analysis. These are ontime events that are also in the 

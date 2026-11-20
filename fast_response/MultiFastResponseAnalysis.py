@@ -418,10 +418,3 @@ class MultiPointSourceFollowup(PointSourceFollowup, MultiFastResponseAnalysis):
 
     def write_circular(self):
         raise NotImplementedError('This method is not implemented for the parent class, either.')
-
-
-
-
-    
-
-    
