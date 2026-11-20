@@ -705,10 +705,10 @@ class FastResponseAnalysis:
         
 
         for enum in np.unique(events['enum']): # not adding pandas as dependency
-            _mask = events['enum'] == enum
-            _events = events[_mask]
+            mask = events['enum'] == enum
+            _events = events[mask]
             _style = plotting_utils.skymap_style[enum]
-            _cols = cols[_mask]
+            _cols = cols[mask]
             if self._verbose:
                 print(f'Found {_events.size} on-time events from {self.datasets[enum]}')
             plotting_utils.plot_events(_events['dec'], _events['ra'], _events['sigma']*self._angScale,
@@ -835,11 +835,11 @@ class FastResponseAnalysis:
         # TODO is this implementation ok?
         # or re-factor this method, so it can be used from MultiFRA, knowing about the samples before?
         for enum in np.unique(events['enum']):
-            _mask = events['enum'] == enum
+            mask = events['enum'] == enum
             _style = plotting_utils.skymap_style[enum]
             _label = labels[enum]
-            hp.projscatter(theta[_mask], phi[_mask],
-                           c=tcmap(events['time'][_mask], enum),
+            hp.projscatter(theta[mask], phi[mask],
+                           c=tcmap(events['time'][mask], enum),
                            marker=_style['marker'],
                            label=_label,
                            s=128,
