@@ -1176,14 +1176,9 @@ class PriorFollowup(FastResponseAnalysis):
         self.coincident_events = coincident_events
         self.save_items['coincident_events'] = coincident_events
 
-    def unblind_TS(self, scramble: bool=False):
+    def unblind_TS(self):
         r""" Unblind TS, either sky scan for spatial prior,
         or just at one location for a point source
-
-        Parameters
-        -----------
-        scramble: bool
-            Let the LLH scramble with its current RNG seed before unblinding
         
         Returns
         -----------
@@ -1205,10 +1200,7 @@ class PriorFollowup(FastResponseAnalysis):
         print("Starting scan")
         logger.debug(f"with nside={self.nside}, nsigma={self._pixel_scan_nsigma}, containment={self._containment}")
         val = self.llh.scan(
-            0.0,0.0,
-            # if scrambling, llh.scan() takes a seed from its own kwargs
-            scramble = scramble, seed=self.llh_seed,
-            spatial_prior=spatial_prior,
+            0.0,0.0, scramble=False, spatial_prior=spatial_prior,
             time_mask = [self.duration/2., self.centertime],
             pixel_scan=[self.nside, self._pixel_scan_nsigma]
         )
@@ -1235,8 +1227,8 @@ class PriorFollowup(FastResponseAnalysis):
             self.scanned_pixels = hp.ang2pix(
                 self.nside, np.pi/2. - val['dec'], val['ra']
             )
-        except Exception as e: # TODO be more specific, eg empty scan
-            print(e)
+        except Exception as e: # TODO be more specific, eg empty scan => argmax fails
+            print("Exception:", e, "\nSetting TS=0 and best fit from skymap.")
             ts, ns = 0., 0.
             if self._float_index:
                 gamma_fit = 2.0
@@ -1486,7 +1478,7 @@ class PointSourceFollowup(FastResponseAnalysis):
             temporal_model=self.llh.temporal_model)
         self.inj = inj
 
-    def unblind_TS(self, scramble: bool=False):
+    def unblind_TS(self):
         r""" Unblind TS at one location for a point source
 
         Returns
@@ -1496,7 +1488,7 @@ class PointSourceFollowup(FastResponseAnalysis):
         ns: float
             best fit ns
         """
-        ts, ns = self.llh.fit_source(src_ra=self.ra, src_dec=self.dec, scramble=scramble)
+        ts, ns = self.llh.fit_source(src_ra=self.ra, src_dec=self.dec)
         params = ns.copy()
         params.pop('nsignal')
         self.ns_params = params
