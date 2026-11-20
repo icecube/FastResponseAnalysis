@@ -28,7 +28,7 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 parser = argparse.ArgumentParser(description='Glob precomputed trials')
-parser.add_argument('--dir',type=str, default='./',
+parser.add_argument('--dir',type=str, default=os.getcwd(),
                     help='directory for where trials are, will save globbed npz inside same')
 parser.add_argument('--nside',type=int, default=256,
                     help='nside used when running trials (default 256)')
