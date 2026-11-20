@@ -2,6 +2,7 @@ from .FastResponseAnalysis import PriorFollowup
 
 class GRBFollowup(PriorFollowup):
     _dataset = 'GFUOnline_v001_p03'
+    _season_names = [f"IC86, 201{y}" for y in range(1, 10)]
     _fix_index = True
     _index = 2.0
 

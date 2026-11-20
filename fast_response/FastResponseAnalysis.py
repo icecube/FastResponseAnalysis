@@ -59,7 +59,7 @@ class FastResponseAnalysis:
     _verbose = True
     _angScale = 2.145966 # converting sigma to 90% circular error
     _llh_seed = 1
-    _season_names = [f"IC86, 201{y}" for y in range(1, 10)] # applies to GFU
+    _season_names = None
     _nb_days = 10. # BG window around analysis window used to estimate BG rate.
     _ncpu = 5
     _jitter = False
@@ -254,8 +254,12 @@ class FastResponseAnalysis:
         if self._verbose:
             print("Grabbing data")
 
+        # Attributes set by the ultimate followup classes, make sure they were:
         if self.dataset is None:
-            raise ValueError("This followup does not have a dataset specified")
+            raise ValueError("This followup does not have a self.dataset specified")
+        if not self._season_names: # None or empty list would be False-y
+            raise ValueError("This followup does specify any archival self._season_names, PDFs would have too little statistics")
+        
         dset = Datasets[self.dataset]
 
         archival_range = (dset.grl(self._season_names[0])['start'].min(),

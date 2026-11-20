@@ -22,6 +22,7 @@ class AlertFollowup(PriorFollowup):
     """
     _smear = False
     _dataset = "GFUOnline_v001p02"
+    _season_names = [f"IC86, 201{y}" for y in range(1, 10)]
     _fix_index = True
     _float_index = not _fix_index
     _index = 2.5
@@ -267,6 +268,7 @@ class TrackFollowup(AlertFollowup):
     """
     _smear = False
     _dataset = "GFUOnline_v001p02"
+    _season_names = [f"IC86, 201{y}" for y in range(1, 10)]
     _fix_index = True
     _float_index = not _fix_index
     _index = 2.5
@@ -282,6 +284,7 @@ class TrackFollowupLLH(AlertFollowup):
     """
     _smear = True
     _dataset = "GFUOnline_v001p02"
+    _season_names = [f"IC86, 201{y}" for y in range(1, 10)]
     _fix_index = True
     _float_index = not _fix_index
     _index = 2.5
@@ -388,6 +391,7 @@ class CascadeFollowup(AlertFollowup):
     """
     _smear = False
     _dataset = "GFUOnline_v001p02"
+    _season_names = [f"IC86, 201{y}" for y in range(1, 10)]
     _fix_index = True
     _float_index = not _fix_index
     _index = 2.5

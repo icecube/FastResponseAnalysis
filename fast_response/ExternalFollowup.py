@@ -8,6 +8,7 @@ class ExternalFollowup(PointSourceFollowup):
 
     '''
     _dataset = "GFUOnline_v001p02"
+    _season_names = [f"IC86, 201{y}" for y in range(1, 10)]
     _fix_index = True
     _float_index = not _fix_index
     _index = 2.0
@@ -22,6 +23,7 @@ class ExternalSkymapFollowup(PriorFollowup):
     The point source followup is strongly preferred for this reason.
     '''
     _dataset = "GFUOnline_v001p02"
+    _season_names = [f"IC86, 201{y}" for y in range(1, 10)]
     _fix_index = True
     _float_index = not _fix_index
     _index = 2.0
