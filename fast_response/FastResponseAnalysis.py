@@ -60,10 +60,10 @@ class FastResponseAnalysis:
     _angScale = 2.145966 # converting sigma to 90% circular error
     _llh_seed = 1
     _season_names = [f"IC86, 201{y}" for y in range(1, 10)] # applies to GFU
-    _nb_days = 10 # BG window around analysis window used to estimate BG rate.
+    _nb_days = 10. # BG window around analysis window used to estimate BG rate.
     _ncpu = 5
     _jitter = False
-    _background_days = 6 # if not using exclusively archival data, get_data() will prepend this duration to [start, stop].
+    _background_days = 6. # if not using exclusively archival data, get_data() will prepend this duration to [start, stop].
 
     def __init__(self, name, tstart, tstop,
                  skipped=None, seed=1,
