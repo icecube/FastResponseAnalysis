@@ -22,9 +22,19 @@ class AlertFollowup(PriorFollowup):
     """
     _smear = False
     _dataset = "GFUOnline_v001p02"
+    _season_names = [f"IC86, 201{y}" for y in range(1, 10)]
     _fix_index = True
     _float_index = not _fix_index
     _index = 2.5
+    _bg_trial_dir = os.path.join(
+        '/data/ana/analyses/NuSources/',
+        '2021_v2_alert_stacking_FRA/fast_response/',
+        'alert_precomputed_trials/'
+    )
+    _sens_dir = '/data/ana/analyses/NuSources/2021_v2_alert_stacking_FRA/' \
+            + 'fast_response/reference_sensitivity_curves/'
+    # These directories will need to changed for each AlertFollowup LLH configuration
+    # i.e. dataset combination and such
     _llh_map = False
 
     def run_background_trials(self, ntrials = 1000):
@@ -37,15 +47,11 @@ class AlertFollowup(PriorFollowup):
             test-statistic distribution with weighting 
             from alert event spatial prior
         """
+        
         current_rate = self.llh.nbackground / (self.duration * 86400.) * 1000.
         closest_rate = sensitivity_utils.find_nearest(np.linspace(6.2, 7.2, 6), current_rate)
-
-        bg_trial_dir = '/data/ana/analyses/NuSources/' \
-            + '2021_v2_alert_stacking_FRA/fast_response/' \
-            + 'alert_precomputed_trials/'
-        
         pre_ts_array = sparse.load_npz(
-            bg_trial_dir
+            self._bg_trial_dir
             + 'precomputed_trials_delta_t_'
             + '{:.2e}_trials_rate_{:.1f}_low_stats.npz'.format(
                 self.duration * 86400., closest_rate, self.duration * 86400.))
@@ -81,10 +87,9 @@ class AlertFollowup(PriorFollowup):
             highest sensitivity within the 90% contour of the skymap
         """
 
-        sens_dir = '/data/ana/analyses/NuSources/2021_v2_alert_stacking_FRA/' \
-            + 'fast_response/reference_sensitivity_curves/'
+        filename = os.path.join(self._sens_dir, f'ideal_ps_sensitivity_deltaT_{self.duration:.2e}_50CL.pkl')
 
-        with open(f'{sens_dir}ideal_ps_sensitivity_deltaT_{self.duration:.2e}_50CL.pkl', 'rb') as f:
+        with open(filename, 'rb') as f:
             ideal = pickle.load(f, encoding='bytes')
         delta_t = self.duration * 86400.
         src_theta, src_phi = hp.pix2ang(self.nside, self.ipix_90)
@@ -102,10 +107,9 @@ class AlertFollowup(PriorFollowup):
         """
         fig, ax = plt.subplots()
 
-        sens_dir = '/data/ana/analyses/NuSources/2021_v2_alert_stacking_FRA/' \
-            + 'fast_response/reference_sensitivity_curves/'
+        filename = os.path.join(self._sens_dir, f'ideal_ps_sensitivity_deltaT_{self.duration:.2e}_50CL.pkl')
 
-        with open(f'{sens_dir}ideal_ps_sensitivity_deltaT_{self.duration:.2e}_50CL.pkl', 'rb') as f:
+        with open(filename, 'rb') as f:
             ideal = pickle.load(f, encoding='bytes')
         delta_t = self.duration * 86400.
         plt.plot(ideal[b'sinDec'], np.array(ideal[b'sensitivity'])*delta_t*1e6, lw=3, ls='-', 
@@ -116,7 +120,7 @@ class AlertFollowup(PriorFollowup):
         src_dec = np.unique(src_dec)
         src_dec = np.sin(src_dec)
         ax.axvspan(src_dec.min(), src_dec.max(), alpha=0.3, color=sns.xkcd_rgb['light navy blue'],
-                label='90\% contour region')
+                label=r'90\% contour region')
         plt.text(0.05, 3e1, 'Min sens.: {:.1e}'.format(self.sens_range[0]) + r' GeV cm$^{-2}$')
         plt.text(0.05, 1.5e1, 'Max sens.: {:.1e}'.format(self.sens_range[1]) + r' GeV cm$^{-2}$')
         plt.grid(which='both', alpha=0.2, zorder=1)
@@ -264,6 +268,7 @@ class TrackFollowup(AlertFollowup):
     """
     _smear = False
     _dataset = "GFUOnline_v001p02"
+    _season_names = [f"IC86, 201{y}" for y in range(1, 10)]
     _fix_index = True
     _float_index = not _fix_index
     _index = 2.5
@@ -279,6 +284,7 @@ class TrackFollowupLLH(AlertFollowup):
     """
     _smear = True
     _dataset = "GFUOnline_v001p02"
+    _season_names = [f"IC86, 201{y}" for y in range(1, 10)]
     _fix_index = True
     _float_index = not _fix_index
     _index = 2.5
@@ -303,7 +309,7 @@ class TrackFollowupLLH(AlertFollowup):
         return skymap
 
     def ipixs_in_percentage(self, percentage):
-        """
+        r"""
         Finding ipix indices confined in a given percentage.
         
         Parameters
@@ -326,7 +332,7 @@ class TrackFollowupLLH(AlertFollowup):
         elif percentage == 0.5:
             msk = (skymap < 22.2) * (skymap > 0.)
         else:
-            raise ValueError('Must use 50\% or 90\% containment for alert events')
+            raise ValueError(r'Must use 50% or 90% containment for alert events')
         msk *= ~np.isnan(skymap)
         msk *= ~np.isinf(skymap)
         ipix = np.asarray(indices[msk], dtype=int)
@@ -385,6 +391,7 @@ class CascadeFollowup(AlertFollowup):
     """
     _smear = False
     _dataset = "GFUOnline_v001p02"
+    _season_names = [f"IC86, 201{y}" for y in range(1, 10)]
     _fix_index = True
     _float_index = not _fix_index
     _index = 2.5
