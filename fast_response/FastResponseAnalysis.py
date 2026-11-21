@@ -1534,9 +1534,6 @@ class PointSourceFollowup(FastResponseAnalysis):
         ns_params: dict
             Fit parameters to use for weight calculation, e.g. if fit happened in MultiPointSourceFollowup
         """
-        # TODO spatial weight means that cascades are never "coincident"
-        # (different story in PriorFollowup - then resolution plays no role)
-        # can have an overfluctuation in 30 days without a coincidence!
         if ns_params is None:
             ns_params = self.ns_params
         spatial_weights = self.llh.llh_model.signal(
