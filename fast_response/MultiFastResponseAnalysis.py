@@ -251,8 +251,31 @@ class MultiFastResponseAnalysis(FastResponseAnalysis):
         string = ''
         string += 'Datasets:\n'
         string += '\n'.join(self.datasets)
-        string += '\n\n'
+        string += '\n'
         return string
+
+    def check_overlap(self):
+        """Check overlap between datasets, log an error if there is any.
+        """
+        # Iterate through all unique pairs of datasets
+        for enum0 in self.llh.exp:
+            for enum1 in self.llh.exp:
+                if enum0 >= enum1:
+                    continue
+                # Extract the columns that uniquely identify events
+                idx0 = self.llh.exp[enum0][["run", "event", "subevent"]]
+                idx1 = self.llh.exp[enum1][["run", "event", "subevent"]]
+                # can assume_unique for speed-up because that was already ensured in get_data
+                idx_both = np.intersect1d(idx0, idx1, assume_unique=True)
+                n_overlap = idx_both.size
+                frac_overlap = n_overlap / (idx0.size + idx1.size - n_overlap)
+                # (this intersect1d will still work if the indices are different dtypes e.g. <i4 vs <u4)
+                if n_overlap > 0:
+                    # enum counts up from 0 in the order that datasets are added to MultiPSLLH
+                    # => this is also the index in self.datasets
+                    logger.error(f"Overlap {self.datasets[enum0]} ^ {self.datasets[enum1]}: "
+                                     f"{n_overlap} events, {frac_overlap:.2%}")
+
 
 class MultiPriorFollowup(PriorFollowup, MultiFastResponseAnalysis):
     """"
@@ -294,6 +317,8 @@ class MultiPriorFollowup(PriorFollowup, MultiFastResponseAnalysis):
 
         # then prepare LLH and store prior-specific attributes
         super().__init__(*args, **kwargs)
+        # then use self.llh.exp to check for overlap
+        self.check_overlap()
         # precomputed sensitivity and trial can have a generic path
         # but actually specified by the configured datasets
         self._bg_dir = os.path.join(self._bg_dir, "+".join(self.datasets))
@@ -436,6 +461,8 @@ class MultiPointSourceFollowup(PointSourceFollowup, MultiFastResponseAnalysis):
 
         # then construct LLH
         super().__init__(*args, **kwargs)
+        # then use self.llh.exp to check for overlap
+        self.check_overlap()
 
     def __str__(self):
         string = super().__str__().rstrip()
@@ -477,9 +504,6 @@ class MultiPointSourceFollowup(PointSourceFollowup, MultiFastResponseAnalysis):
         ['run', 'event', 'ra', 'dec', 'sigma', 'logE', 'time']
         added Delta Psi, spatial weight, energy weight, sample enum.
         '''
-        # NOTE ideally samples should not overlap and this is prevented by configuring the dataset
-        # if not, duplicates will appear appear here twice
-        # (which is a warning that the combined LLH is iffy)
 
         for enum, _ana in enumerate(self.analyses):
             _ana.find_coincident_events(ns_params = self.ns_params)

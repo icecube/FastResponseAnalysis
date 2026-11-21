@@ -334,6 +334,24 @@ class FastResponseAnalysis:
         self.dset = dset
         self.sinDec_bins = sinDec_bins
         self.energy_bins = energy_bins
+        # before proceeding with this data, we must check events are unique
+        self.check_unique()
+
+    def check_unique(self):
+        """Check self.exp for duplicate events, log an error and remove them.
+        """
+        if self.exp is None:
+            return
+        # these 3 fields should be present in every dataset and
+        # uniquely identify an experimental event (MC can be different)
+        idx = self.exp[["run", "event", "subevent"]]
+        # and then they can be counted
+        unique, unique_index, counts = np.unique(idx, return_counts=True, return_index=True)
+        duplicate_events = unique[counts > 1]
+        # this is an error because the LLH will be wrong:
+        if duplicate_events.size > 0:
+            logger.error(f"Loaded events contains {duplicate_events.size} duplicates, removing")
+            self.exp = self.exp[unique_index]
         
     def initialize_llh(self, skipped=None, scramble=False):
         """
