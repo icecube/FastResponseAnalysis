@@ -15,8 +15,8 @@ class GrecoFollowup(PointSourceFollowup):
     but using the GrecoOnline dataset and respective settings,
     currently only archival data and used for sensitivity studies.
     """
-    _dataset = 'GrecoOnline_v002pFactor'
-    _season_names = [f"IC86, 20{y:02d}" for y in range(12, 22+1)]
+    _dataset = 'GrecoOnline_v002p09'
+    _season_names = [f"IC86, 20{y:02d}" for y in range(12, 19 + 1)]
     _floor = np.radians(0.2) # can change this!
 
 class DNNFollowup(PointSourceFollowup):
