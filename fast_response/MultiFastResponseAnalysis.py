@@ -168,11 +168,20 @@ class MultiFastResponseAnalysis(FastResponseAnalysis):
         for enum, fra in enumerate(self.analyses):
             fra.llh.do_trials_seed = 1
             multi_llh.add_sample(fra._dataset, fra.llh)
+
+        # If any analysis skipped an event (passed to the constructor):
+        # => its attribute changed from None to numpy element if found in dataset, then removed
+        self.skipped_event = None # already set in constructor
+        for a in self.analyses:
+            # iteratively OR it => get the first one that's not not None
+            self.skipped_event = self.skipped_event or a.skipped_event
+        if self.skipped_event:
+            self.save_items["skipped_event"] = self.skipped_event
         return multi_llh
         
     def remove_event(self, exp, dset, skipped):
         # should this ever be called from this instance?
-        # need to save event in self.save_items
+        # normally not outside of constructor => initialize_llh chain
         raise NotImplementedError('remove_event not appropriate for MultiFastResponseAnalysis')
     
     @property

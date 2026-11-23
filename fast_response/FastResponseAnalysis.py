@@ -450,7 +450,7 @@ class FastResponseAnalysis:
             self.skipped_event = exp[exp['time'] == mjd_keys[0]][0]
             exp = dset.remove_ev(exp, mjd_keys=mjd_keys[0])
             self.save_items['skipped_event'] = self.skipped_event
-        except:
+        except: # e.g. IndexError above
             print("Was not able to remove event {}".format(skipped))
         return exp
 
