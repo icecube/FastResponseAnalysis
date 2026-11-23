@@ -1247,6 +1247,9 @@ class PriorFollowup(FastResponseAnalysis):
             return ts, ns
 
     def inject_events(self, ninj=0):
+        """
+        Returns a sample of ninj (no poisson fluctuations) events from the injector
+        """
         ni, sample, src_ra, src_dec = self.inj.sample(
             ninj, poisson=False, return_position=True
         )
@@ -1893,7 +1896,7 @@ class PriorFollowup(FastResponseAnalysis):
         t3 = time.time()
 
         self.PosteriorSkymap = outputProbHPMap
-        self._make_posterior_fits()
+        #self._make_posterior_fits()
         print("finished posterior saving, took {} s".format(t3 - t1))
 
     def upper_limit(self):
