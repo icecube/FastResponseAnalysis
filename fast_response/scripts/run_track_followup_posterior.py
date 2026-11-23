@@ -3,8 +3,8 @@
 r'''Script to run track followup in response to 
 high-energy neutrino alert events
 
-Author: Alex Pizzuto
-May 2020'''
+Author: Sam Hori
+November 2026'''
 
 import os, argparse, glob
 from astropy.time import Time
@@ -48,7 +48,7 @@ stop_time = track_time + (delta_t / 86400. / 2.)
 start = start_time.iso
 stop = stop_time.iso
 
-name = track_name + "posterior"+' {:.1e}_s'.format(delta_t)
+name = track_name + " posterior"+' {:.1e}_s'.format(delta_t)
 name = name.replace('_', ' ')
 
 run_id = args.alert_id[0][0]

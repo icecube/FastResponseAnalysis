@@ -49,7 +49,7 @@ stop = stop_time.iso
 name = args.name
 name = name.replace('_', ' ')
 
-f = GWFollowup(name+"_posterior", args.skymap, start, stop)
+f = GWFollowup(name+" posterior", args.skymap, start, stop)
 f.make_posterior_map(fluxToTest=[.25,.5,.75,1,1.25,1.5,1.75,2,2.25,2.5,2.75,3,3.25,3.5,3.75,4], 
                     plotting_location=f.analysispath + '/',
                     )

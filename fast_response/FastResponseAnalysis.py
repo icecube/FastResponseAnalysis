@@ -1896,7 +1896,7 @@ class PriorFollowup(FastResponseAnalysis):
         t3 = time.time()
 
         self.PosteriorSkymap = outputProbHPMap
-        #self._make_posterior_fits()
+        self._make_posterior_fits()
         print("finished posterior saving, took {} s".format(t3 - t1))
 
     def upper_limit(self):
