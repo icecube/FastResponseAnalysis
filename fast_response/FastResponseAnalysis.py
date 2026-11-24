@@ -800,11 +800,9 @@ class FastResponseAnalysis:
         cmap.set_under("w")
 
         # Obtain color maps for event times
-        if distinct_colorbars:
-            tcmap = plotting_utils.TimeColormap(self.start, self.stop, n_maps=events['enum'].max()+1)
-        else:
-            tcmap = plotting_utils.TimeColormap(self.start, self.stop, n_maps=1)
-
+        n_dataset = np.unique(events["enum"]).size
+        tcmap = plotting_utils.TimeColormap(self.start, self.stop, n_maps=(n_dataset if distinct_colorbars else 1))
+    
         if self.skymap is None:
             skymap = np.zeros(hp.nside2npix(self._nside))
             max_val = 1.
@@ -816,7 +814,7 @@ class FastResponseAnalysis:
         moll_cbar = True if self.skymap is not None else None
         
         try:
-            hp.mollview(skymap, coord='C', cmap=cmap, rot=180, cbar=moll_cbar) #cbar=None) #
+            hp.mollview(skymap, coord='C', cmap=cmap, rot=180, cbar=moll_cbar, title="") #cbar=None) #
         except Exception as e:
             if min_val<1.0e-16:
                 #for some reason, sometimes have an underflow issue here
