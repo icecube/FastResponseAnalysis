@@ -9,9 +9,11 @@ mpl.use('agg')
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 
+from fast_response import plotting_utils
+
 ############################# Plotting Parameters #############################
 mpl.use('agg')
-mpl.rcParams['text.usetex'] = True
+mpl.rcParams['text.usetex'] = plotting_utils.USETEX
 try:
     mpl.rcParams['text.latex.unicode'] = True
 except:

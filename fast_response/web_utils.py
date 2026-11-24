@@ -12,6 +12,7 @@ mpl.use('agg')
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 import fast_response
+from fast_response import plotting_utils
 import dateutil.parser
 from astropy.time import Time
 
@@ -19,7 +20,7 @@ username = pwd.getpwuid(os.getuid())[0]
 if username == 'realtime': username='jthwaites'
 
 ############################# Plotting Parameters #############################
-mpl.rcParams['text.usetex'] = True
+mpl.rcParams['text.usetex'] = plotting_utils.USETEX
 try:
     mpl.rcParams['text.latex.unicode'] = True
 except:
