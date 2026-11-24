@@ -48,7 +48,7 @@ if 'https://roc.icecube.wisc.edu' in args.skymap:
     args.skymap=saved_skymaps_path+skymap_filename
 
 all_results = {}
-delta_t=2*86400#1000
+delta_t=1000
 start_time = cascade_time - (delta_t / 86400. / 2.)
 stop_time = cascade_time + (delta_t / 86400. / 2.)
 start = start_time.iso
