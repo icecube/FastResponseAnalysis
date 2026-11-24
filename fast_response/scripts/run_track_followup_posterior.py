@@ -17,6 +17,8 @@ parser.add_argument('--skymap', type=str, default=None,
                     help='path to skymap')
 parser.add_argument('--time', type=float, default=None,
                     help='Time of the alert event (mjd)')
+parser.add_argument('--deltaT', type=float, default=1000,
+                    help='Time of the analysis (s)')
 parser.add_argument('--alert_circ', default=0, type=int,
                     help="GCN Circular NUMBER for updated circular (not Bacodine/Notice)")
 parser.add_argument('--alert_id', default=None,
@@ -42,7 +44,7 @@ track_name = 'IceCube-{}{}{}{}'.format(year[-2:], month, day, args.suffix)
 
 all_results = {}
 
-delta_t=1000.:
+delta_t=args.deltaT
 start_time = track_time - (delta_t / 86400. / 2.)
 stop_time = track_time + (delta_t / 86400. / 2.)
 start = start_time.iso
