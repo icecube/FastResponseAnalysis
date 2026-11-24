@@ -84,9 +84,9 @@ class FastResponseAnalysis:
         name : str
             name of the source
         tstart : float
-            start of the follow-up window, [MJD]
+            start of the follow-up window, [ISO]
         tstop : float
-            stop of the follow-up window [MJD]
+            stop of the follow-up window [ISO]
         skipped : list, optional
             Skipped events, by default None
         seed : int, optional
@@ -117,7 +117,7 @@ class FastResponseAnalysis:
             self._fix_index = fix_index
             self._float_index = not self._fix_index
         
-        self.llh_seed = seed
+        self.llh_seed = seed or self._llh_seed
         
         if outdir is None:
             outdir = os.environ.get('FAST_RESPONSE_OUTPUT')
