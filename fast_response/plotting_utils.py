@@ -27,36 +27,85 @@ USETEX = OLD_MPL
 class TimeColormap:
     """
     Class to colorize events in a skymap, optionally with a distinct sample per palette.
+
+    Methods
+    -------
+
+    __call__(times, enum): return colors for dataset enum
+
+    add_colorbars(fig, ax): add color bars to MPL figure and axes.
     """
-    def __init__(self, start, stop, n_maps=3):
-        self.norm = mpl.colors.Normalize(vmin=start, vmax=stop)
-        cmaps = []
+    def __init__(self, start, stop, n_maps=2):
+        """Construct TimeColormap
+
+        Parameters
+        ----------
+        start : float
+            Time window start time
+        stop : float
+            Time window stop time
+        n_maps : int, optional
+            Number of distinct colormaps, by default 2
+
+        Raises
+        ------
+        ValueError
+            If 4 or more datasets, the hues will get hard to distinguish
+        """
+        if (stop - start) > 1:
+            self.unit = 1
+            self.unit_name = "JD"
+            self.t0 = start
+        else:
+            self.unit = 1./86400
+            self.unit_name = "sec"
+            self.t0 = (start + stop)/2
+
+        self.norm = mpl.colors.Normalize(vmin=(start - self.t0)/self.unit, vmax=(stop - self.t0)/self.unit)
+        
         if n_maps == 1:
-            cmaps = [mpl.colors.ListedColormap(sns.color_palette('icefire', 512))]
+            cmaps = [sns.mpl_palette("viridis", as_cmap=True)]
         elif n_maps<4:
-            dhue = 360/n_maps
-            hues = np.mod(136 + np.arange(0, 360, dhue), 360)
+            cmaps = []
+            dhue = 1./n_maps
+            hues = np.linspace(0, 3, n_maps+1)[:-1]
             for i,hue in enumerate(hues):
-                cmaps.append(sns.diverging_palette(hue, (hue+dhue/1.5)%360, l=75, center="dark", as_cmap=True))
+                cmaps.append(sns.cubehelix_palette(n_colors=128, start=hue, rot=dhue/1.25, reverse=True, as_cmap=True))
         else:
             raise ValueError("Generating more than 5 color maps will be hard to distinguish")
         self.cmaps = cmaps
         self.n_maps = n_maps
 
-    def get_cmap(self, i):
+    def _get_cmap(self, i):
         if self.n_maps == 1:
             return self.cmaps[0]
         elif i < self.n_maps:
             return self.cmaps[i]
         else:
             raise ValueError("Have not configured enough color maps")
+
+    def _add_colorbar(self, i, fig, ax, **kwargs):
+        colorizer = mpl.colorizer.Colorizer(norm=self.norm, cmap=self._get_cmap(i))
+        cax = ax.inset_axes([1.05 + 0.05 * i, 0.0, 0.025, 1.0])  # Positioning the colorbar
+        fig.colorbar(mpl.colorizer.ColorizingArtist(colorizer),
+                    cax=cax, orientation='vertical',
+                    shrink=0.5, fraction=0.1,
+                    **kwargs,
+                    )
+
+    def add_colorbars(self, fig, ax):
+        """Add all used colorbars to the figure/axes."""
+        for i in range(self.n_maps - 1):
+            self._add_colorbar(i, fig, ax, ticks=[], label=None)
+        self._add_colorbar(self.n_maps - 1, fig, ax, ticks=None, label=f'Δt [{self.unit_name}]')
+                              
     
     def __call__(self, times, enum):
+        """Map times from dataset `enum` onto their colors."""
         t = np.atleast_1d(times)
-        x = self.norm(t)
-        cmap = self.get_cmap(enum)
+        x = self.norm((t - self.t0)/self.unit)
+        cmap = self._get_cmap(enum)
         return cmap(x)
-
 
 def plot_zoom(scan, ra, dec, title, reso=3, var="pVal", range=[0, 6],cmap=None):
     """

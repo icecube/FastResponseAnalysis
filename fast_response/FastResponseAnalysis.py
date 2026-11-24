@@ -851,17 +851,18 @@ class FastResponseAnalysis:
         handles=[]
         # TODO is this implementation ok?
         # or re-factor this method, so it can be used from MultiFRA, knowing about the samples before?
-        for enum in np.unique(events['enum']):
+        for i_enum, enum in enumerate(np.sort(np.unique(events['enum']))):
             mask = events['enum'] == enum
-            _style = plotting_utils.skymap_style[enum]
-            _label = labels[enum]
+            _style = plotting_utils.skymap_style[i_enum]
+            _label = labels[i_enum]
             hp.projscatter(theta[mask], phi[mask],
-                           c=tcmap(events['time'][mask], enum),
-                           marker=_style['marker'],
-                           label=_label,
-                           s=128,
-                           coord='C', zorder=5)
+                            c=tcmap(events['time'][mask], i_enum),
+                            marker=_style['marker'],
+                            label=_label,
+                            s=128,
+                            coord='C', zorder=5)
             handles.append(Line2D([0], [0], marker=_style['marker'], ls='None', label=_label))
+        tcmap.add_colorbars(plt.gcf(), plt.gca())
         
         if label_events:
             for j in range(len(theta)):
@@ -877,7 +878,7 @@ class FastResponseAnalysis:
                 hp.projplot(my_contour[0], my_contour[1], linewidth=2., 
                                     color=_col, linestyle=_style['linestyle'],
                                     coord='C', zorder=5)
-
+    
         if self.skymap is None:
             label_str = self.name.replace('_', ' ')
             src_theta = np.pi/2. - self.dec
@@ -908,8 +909,10 @@ class FastResponseAnalysis:
             for i in range(1, len(theta)):
                 hp.projplot(theta[i], phi[i], linewidth=2., c='k')
         
-        plt.title(self.name.replace('_', ' '))
-        plt.legend(loc=1, handles=handles)
+        
+        leg = plt.legend(loc=(0, 1.05), handles=handles, ncols=1 + len(labels), title=self.name.replace('_', ' '))
+        leg._legend_box.align = "left" # plt.legend(alignment="left") only since MPL 3.6
+
         try: 
             plt.savefig(self.analysispath + '/' + self.analysisid + 'unblinded_skymap.png',bbox_inches='tight')
         except:
