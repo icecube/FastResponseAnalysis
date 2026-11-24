@@ -31,8 +31,6 @@ parser.add_argument('--print_nearby', action='store_true', default=False,
                     help='Option to print events within 5 degrees of best-fit to the screen (default False)')
 parser.add_argument('--deltallh_skymap', action='store_true', default=False,
                     help='Option MUST be raised if using deltaLLH map (default: False, assumes probability map)')
-parser.add_argument('--do_posterior_analysis', type=bool, default=False,
-                    help='Whether to do the posterior map calculation')
 args = parser.parse_args()
 
 track_time = Time(args.time, format='mjd')

@@ -639,13 +639,6 @@ class FastResponseAnalysis(object):
                     self.skipped_event["dec"],
                     self.skipped_event["ra"],
                     self.skipped_event["sigma"] * self._angScale,
-                    ra,
-                    dec,
-                    2 * 6,
-                    sigma_scale=1.0,
-                    constant_sigma=False,
-                    same_marker=True,
-                    energy_size=True,
                     col="grey",
                     with_dash=True,
                 )
@@ -659,13 +652,6 @@ class FastResponseAnalysis(object):
                 events["dec"],
                 events["ra"],
                 events["sigma"] * self._angScale,
-                ra,
-                dec,
-                2 * 6,
-                sigma_scale=1.0,
-                constant_sigma=False,
-                same_marker=True,
-                energy_size=True,
                 col=cols,
             )
         else:
@@ -674,13 +660,6 @@ class FastResponseAnalysis(object):
                 events["dec"],
                 events["ra"],
                 events["sigma"] * self._angScale,
-                ra,
-                dec,
-                2 * 6,
-                sigma_scale=None,
-                constant_sigma=False,
-                same_marker=True,
-                energy_size=True,
                 col=cols,
             )
 
@@ -847,8 +826,8 @@ class FastResponseAnalysis(object):
 
         if (self.stop - self.start) <= 0.5:  # Only plot contours if less than 2 days
             for i in range(events["ra"].size):
-                my_contour = plotting_utils.contour(
-                    events["ra"][i], events["dec"][i], sigma_90[i], self._nside
+                my_contour = plotting_utils.compute_ang_err(
+                    events["ra"][i], events["dec"][i], sigma_90[i]
                 )
                 hp.projplot(
                     my_contour[0],
@@ -1310,7 +1289,7 @@ class PriorFollowup(FastResponseAnalysis):
             range=[0, np.nanmax(self.skymap)],
             cmap="viridis",
             col_label=r"Skymap Prior PDF",
-            offset=-50,
+            offset=-10,
             labels=[
                 0,
                 "{0:.1e}".format(np.nanmax(self.skymap) / 2),
@@ -1466,6 +1445,10 @@ class PriorFollowup(FastResponseAnalysis):
             gammas = val["gamma"]
 
         TS_spatial_prior_0 = val["TS_spatial_prior_0"]
+        if(len(TS_spatial_prior_0)==0):
+            print("No Neutrinos To Scan")
+            return 
+
         idx_max = np.argmax(TS_spatial_prior_0)
         ramax, decmax = ras[idx_max], decs[idx_max]
 
@@ -1593,7 +1576,7 @@ class PriorFollowup(FastResponseAnalysis):
                 range=[0, np.nanmax(outputProbHPMapPlotting)],
                 cmap="viridis",
                 col_label=r"Posterior PDF",
-                offset=-40,
+                offset=0,
                 labels=[
                     0,
                     "{0:.1e}".format(np.nanmax(outputProbHPMapPlotting) / 2),
@@ -1639,7 +1622,7 @@ class PriorFollowup(FastResponseAnalysis):
                 range=[0, np.nanmax(outputProbHPMapPlotting)],
                 cmap="viridis",
                 col_label=r"Posterior PDF",
-                offset=-40,
+                offset=0,
                 labels=[
                     0,
                     "{0:.1e}".format(np.nanmax(outputProbHPMapPlotting) / 2),
@@ -1659,7 +1642,7 @@ class PriorFollowup(FastResponseAnalysis):
             events = events[
                 (events["time"] < self.stop) & (events["time"] > self.start)
             ]
-            plotting_utils.plot_events2(
+            plotting_utils.plot_events(
                 events["dec"],
                 events["ra"],
                 events["sigma"] * self._angScale,
@@ -1696,7 +1679,7 @@ class PriorFollowup(FastResponseAnalysis):
                 range=[np.log10(outputProbHPMapPlotting[np.isfinite(outputProbHPMapPlotting) & (outputProbHPMapPlotting != 0)].min()), np.nanmax(np.log10(outputProbHPMapPlotting))],
                 cmap="viridis",
                 col_label=r"Posterior PDF",
-                offset=-40,
+                offset=0,
                 labels=[
                     "{0:.1e}".format(np.nanmax(np.log10(outputProbHPMapPlotting)) / 100),
                     "{0:.1e}".format(np.nanmax(np.log10(outputProbHPMapPlotting)) / 10),
@@ -1716,7 +1699,7 @@ class PriorFollowup(FastResponseAnalysis):
             events = events[
                 (events["time"] < self.stop) & (events["time"] > self.start)
             ]
-            plotting_utils.plot_events2(
+            plotting_utils.plot_events(
                 events["dec"],
                 events["ra"],
                 events["sigma"] * self._angScale,
@@ -1764,7 +1747,7 @@ class PriorFollowup(FastResponseAnalysis):
                 range=[0, np.nanmax(outputProbHPMapPlotting)],
                 cmap="viridis",
                 col_label=r"Posterior PDF",
-                offset=-40,
+                offset=0,
                 labels=labels,
                 loc=[0.86, 0.2, 0.03, 0.6],
                 ticks=[0,np.nanmax(outputProbHPMapPlotting) / 2,np.nanmax(outputProbHPMapPlotting)]
@@ -1783,7 +1766,7 @@ class PriorFollowup(FastResponseAnalysis):
                 (events["time"] < self.stop) & (events["time"] > self.start)
             ]
 
-            plotting_utils.plot_events2(
+            plotting_utils.plot_events(
                 events["dec"],
                 events["ra"],
                 events["sigma"] * self._angScale,
@@ -1822,7 +1805,7 @@ class PriorFollowup(FastResponseAnalysis):
                 range=[0, np.nanmax(outputProbHPMapPlotting)],
                 cmap="viridis",
                 col_label=r"Posterior PDF",
-                offset=-40,
+                offset=0,
                 labels=[
                     0,
                     "{0:.1e}".format(np.nanmax(outputProbHPMapPlotting) / 2),

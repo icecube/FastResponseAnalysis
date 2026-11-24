@@ -222,101 +222,8 @@ def compute_ang_err(ra, dec, sigma, density=1):
     return Theta, Phi
 
 
-def plot_events(
-    dec,
-    ra,
-    sigmas,
-    src_ra,
-    src_dec,
-    reso,
-    sigma_scale=5.0,
-    col="k",
-    constant_sigma=False,
-    same_marker=False,
-    energy_size=False,
-    with_mark=True,
-    with_dash=False,
-    label="",
-    resolution=0.025,
-):
-    """
-    Adds events to a healpy zoom plot. Events are expected to be from self.llh.exp
 
-    Parameters
-    -----------
-    dec: float array
-        Array of declination values for each event
-    ra: float array
-        Array of Right Ascension values for each event
-    sigmas: float array
-        Angular error (circularized) to be plotted. Usually a 90% CL angular error
-    src_ra: float
-        Right Ascension value at the center of the plot (best-fit RA or source RA)
-    src_dec: float
-        Declination value at the center of the plot (best-fit dec or source dec)
-    reso: float
-        Resolution (arcmins)
-    sigma_scale: float or None
-        Value to rescale the sigma parameter (default 5.0).
-        If None: no angular undertainty is plotted (sometimes used for very long time windows)
-    col: str or str array
-        color to use for each event plotted (default k=black)
-    constant_sigma: bool
-        Ignores sigma parameter and plots all markers with a size of 20.
-    with_mark: bool
-        Uses an x marker instead of o
-    with_dash: bool
-        Plot the angular error as a dashed contour.
-        Usually used to indicated a removed event (e.g. alert event that triggered the analysis)
-    same_marker, energy_size: bool
-        Currently unused options.
-    """
-    cos_ev = np.cos(dec)
-    tmp = np.cos(src_ra - ra) * np.cos(src_dec) * cos_ev + np.sin(src_dec) * np.sin(dec)
-    dist = np.arccos(tmp)
-
-    if sigma_scale is not None:
-        sigma = np.degrees(sigmas) / sigma_scale
-        sizes = 5200 * np.power(resolution / 0.025, 0.5) * sigma**2
-        if constant_sigma:
-            sizes = 20 * np.ones_like(sizes)
-        if with_dash:
-            hp.projscatter(
-                np.pi / 2 - dec,
-                ra,
-                marker="o",
-                linewidth=2,
-                edgecolor=col,
-                linestyle=":",
-                facecolor="None",
-                s=sizes,
-                alpha=1.0,
-            )
-        else:
-            hp.projscatter(
-                np.pi / 2 - dec,
-                ra,
-                marker="o",
-                linewidth=2,
-                edgecolor=col,
-                facecolor="None",
-                s=sizes,
-                alpha=1.0,
-            )
-    if with_mark:
-        hp.projscatter(
-            np.pi / 2 - dec,
-            ra,
-            marker="x",
-            linewidth=2,
-            edgecolor=col,
-            facecolor=col,
-            s=60,
-            alpha=1.0,
-        )
-
-
-def plot_events2(dec, ra, sigmas, col="k",density=1):
+def plot_events(dec, ra, sigmas, col="k",density=1, with_dash=False,with_mark=True):
     """
     Fixed version of plot_events. Does the same thing as plot_events, but guaranteed to plot correctly after it was observed
     plot_events may not always give the correct results.
@@ -332,13 +239,15 @@ def plot_events2(dec, ra, sigmas, col="k",density=1):
         Angular error (circularized) to be plotted. Usually a 90% CL angular error
     density: float
         Determine number of points along uncertainty curve get plotted.
-
+    with_dash: bool
+        Plot the angular error as a dashed contour.
+        Usually used to indicated a removed event (e.g. alert event that triggered the analysis)
     """
     # plot based on explicitly determined contours rather than using the s parameter.
     hp.projscatter(
         np.pi / 2 - dec,
         ra,
-        marker="x",
+        marker="x" if with_mark else "o",
         linewidth=2,
         edgecolor=col,
         facecolor=col,
@@ -351,9 +260,9 @@ def plot_events2(dec, ra, sigmas, col="k",density=1):
             ev_contour[0],
             ev_contour[1],
             linewidth=1.75,
-            color=col[0],
-            linestyle="solid",
+            color=col[i] if len(col)!=1 else col,
             coord="C",
+            linestyle=":" if with_dash else "solid",
         )
 
 
@@ -378,56 +287,6 @@ def load_plotting_settings():
     mpl.rcParams["ytick.labelsize"] = 16
     mpl.rcParams["xtick.major.size"] = 5
     mpl.rcParams["ytick.major.size"] = 5
-
-
-def contour(ra, dec, sigma, nside):
-    r"""Function for plotting contours on skymaps
-
-    Parameters
-    -----------
-    ra: ndarray
-        Array of ra for events
-    dec: ndarray
-        Array of dec for events
-    sigma: ndarray
-        Array of sigma to make contours around events
-    nside:
-        nside of healpy map
-
-    Returns
-    --------
-    Theta: array
-        array of theta values of contour
-    Phi: array
-        array of phi values of contour
-    """
-    dec = np.pi / 2 - dec
-    sigma = np.rad2deg(sigma)
-    delta, step, bins = 0, 0, 0
-    delta = sigma / 180.0 * np.pi
-    step = 1.0 / np.sin(delta) / 20.0
-    bins = int(360.0 / step)
-    Theta = np.zeros(bins + 1, dtype=np.double)
-    Phi = np.zeros(bins + 1, dtype=np.double)
-    # define the contour
-    for j in range(0, bins):
-        phi = j * step / 180.0 * np.pi
-        vx = np.cos(phi) * np.sin(ra) * np.sin(delta) + np.cos(ra) * (
-            np.cos(delta) * np.sin(dec) + np.cos(dec) * np.sin(delta) * np.sin(phi)
-        )
-        vy = np.cos(delta) * np.sin(dec) * np.sin(ra) + np.sin(delta) * (
-            -np.cos(ra) * np.cos(phi) + np.cos(dec) * np.sin(ra) * np.sin(phi)
-        )
-        vz = np.cos(dec) * np.cos(delta) - np.sin(dec) * np.sin(delta) * np.sin(phi)
-        idx = hp.vec2pix(nside, vx, vy, vz)
-        DEC, RA = hp.pix2ang(nside, idx)
-        Theta[j] = DEC
-        Phi[j] = RA
-    Theta[bins] = Theta[0]
-    Phi[bins] = Phi[0]
-
-    return Theta, Phi
-
 
 def plot_contours(proportions, samples):
     r"""Plot containment contour around desired level.
@@ -504,13 +363,6 @@ def make_public_zoom_skymap(skymap, events, ra, dec, with_contour=True, name="te
         events["dec"],
         events["ra"],
         events["sigma"],
-        ra,
-        dec,
-        2 * 6,
-        sigma_scale=1.0,
-        constant_sigma=False,
-        same_marker=True,
-        energy_size=True,
         col="black",
     )
 
