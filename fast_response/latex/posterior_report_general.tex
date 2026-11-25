@@ -1,0 +1,88 @@
+\documentclass[titlepage]{article}
+\usepackage{tikz}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{grffile}
+\usepackage{longtable}
+\usepackage[margin=1.0in]{geometry}
+
+\setlength{\parindent}{0cm} 
+\include{r_posterior}
+
+\newcommand{\degree}{$^{\circ}$}
+
+\newcommand{\plotpage}[3]{%
+  \newpage
+  \begin{center}
+    {\Large\bfseries #1\par}
+    \vspace{0.5cm}
+    #3\par
+    \vspace{0.5cm}
+    \parbox{0.9\textwidth}{\centering #2}
+  \end{center}
+}
+\begin{document}
+
+\begin{titlepage}
+  \centering
+  \vspace{4cm}
+  {\huge\bfseries IceCube Fast-Response \\ Posterior Supplemental Report\par}
+  \vspace{1cm}
+  {\LARGE For Internal Use Only\par}
+  \vfill
+  {\Large Source Name: \\ \itshape\sourcename\par}
+  \vspace{0.5cm}
+  {\Large Observation Date(s):\\ \obsdate \par}
+  \vfill
+  \vspace{1cm} 
+  {\Large Report Generated On:\\ \reportdate \par}
+\end{titlepage}
+
+
+\section{Prior Skymap}
+{
+  \plotpage{Prior Zoomed}
+  {A zoomed-in plot around the maximum intensity point of the skymap. It is colored by total posterior with neutrinos shown in red and in green, a 90\% credible region is shown.}
+  {\includegraphics[width=0.9\textwidth]{\PriorSkymap}}
+
+  
+}
+\section{Posterior Maps}
+
+{
+  \centering
+  \vspace{0.5cm}
+  \plotpage{Posterior Skymap}
+  {The full-sky posterior skymap plot colored by probability}
+  {\includegraphics[width=0.9\textwidth]{\PosteriorSkymap}}
+
+  \plotpage{Zoomed Posterior Skymap}
+  {Zoom-in of the posterior skymap plot}
+  {\includegraphics[width=0.9\textwidth]{\PosteriorSkymapZoom}}
+  
+  \plotpage{Posterior Skymap With Neutrinos Overlaid}
+  {Posterior skymap plot zoomed in with overlaid neutrinos in red.}
+  {\includegraphics[width=0.9\textwidth]{\PosteriorSkymapZoomWNeutrinos}}
+}
+\section{Profile Plots}
+{
+  \centering
+    \vspace{0.5cm}
+
+
+  \plotpage{$N_s$ Profile Plot}
+ { Here we choose some pixels and plot their posterior profile over ns as a function of $n_s$, colored by the
+  total probability of each pixel in the posterior. Which pixels are shown is chosen by ordering in probability and
+  choosing from different regions of probability in order to sample both pixels in the brightest region and 
+  dimmer regions. }
+  {\includegraphics[width=0.9\textwidth]{\NsProfilePlot}}
+
+  
+}
+  
+
+
+
+\vfill
+
+\end{document}

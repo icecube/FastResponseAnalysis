@@ -32,11 +32,11 @@ def plot_zoom(scan, ra, dec, title, reso=3, var="pVal", range=[0, 6], cmap=None)
         scan,
         rot=(np.degrees(ra), np.degrees(dec), 0),
         cmap=cmap,
+        cbar=False,
         max=max(scan),
         reso=reso,
         title=title,
         notext=True,
-        cbar=False,
         # unit=r""
     )
 
@@ -54,9 +54,11 @@ def plot_zoom(scan, ra, dec, title, reso=3, var="pVal", range=[0, 6], cmap=None)
 def plot_color_bar(
     labels=[0.0, 2.0, 4.0, 6.0],
     col_label=r"IceCube Event Time",
-    range=[0, 6],
+    range=None,
     cmap=None,
     offset=-35,
+    loc=[0.95, 0.2, 0.03, 0.6],
+    ticks=[0,1],
 ):
     """
     Adds a color bar to an existing healpy map
@@ -71,24 +73,28 @@ def plot_color_bar(
         colormap to use. if not set default is "Blues"
     offset: int
         offset value for colorbar's label. default is -35
+    loc: float list of length 4
+        location for the colorbar axis in form [x,y,width,height]
+    ticks: float iterable
+        list of points to be used. 
     """
     fig = plt.gcf()
-    ax = fig.add_axes([0.95, 0.2, 0.03, 0.6])
+    ax = fig.add_axes(loc)
     labels = labels
     cb = mpl.colorbar.ColorbarBase(
         ax,
         cmap="Blues" if cmap is None else cmap,
-        # norm=mpl.colors.Normalize(vmin=range[0], vmax=range[1]),
+        norm=mpl.colors.Normalize(vmin=range[0], vmax=range[1]) if range is not None else None,
         orientation="vertical",
     )
 
     cb.set_label(col_label, labelpad=offset, fontsize=18)
-    cb.set_ticks([0.0, 1.0])
+    cb.set_ticks(ticks)
     cb.set_ticklabels(labels)
     cb.update_ticks()
 
 
-def plot_labels(src_dec, src_ra, reso):
+def plot_labels(src_dec, src_ra, reso, nPix=200, label_scale=1):
     """
     Add labels to healpy zoom
 
@@ -100,8 +106,13 @@ def plot_labels(src_dec, src_ra, reso):
         Right Ascension value at the center of the plot (best-fit RA or source RA)
     reso: float
         Resolution (arcmins)
+    nPix: int
+        number of pixels. Determines size of plot
+    label_scale: float
+        Determines size of the labels
     """
     fontsize = 20
+    reso = reso * nPix / 200
     plt.text(
         -1 * np.radians(1.75 * reso),
         np.radians(0),
@@ -151,7 +162,7 @@ def plot_labels(src_dec, src_ra, reso):
         fontsize=fontsize,
     )
     plt.text(
-        -1 * np.radians(2.35 * reso),
+        -1 * np.radians(2.35 * reso * label_scale),
         np.radians(0),
         r"declination",
         ha="center",
@@ -161,7 +172,7 @@ def plot_labels(src_dec, src_ra, reso):
     )
     plt.text(
         np.radians(0),
-        np.radians(-2.05 * reso),
+        np.radians(-2.05 * reso * label_scale),
         r"right ascension",
         ha="center",
         va="center",
@@ -169,24 +180,54 @@ def plot_labels(src_dec, src_ra, reso):
     )
 
 
-def plot_events(
-    dec,
-    ra,
-    sigmas,
-    src_ra,
-    src_dec,
-    reso,
-    sigma_scale=5.0,
-    col="k",
-    constant_sigma=False,
-    same_marker=False,
-    energy_size=False,
-    with_mark=True,
-    with_dash=False,
-    label="",
-):
+def compute_ang_err(ra, dec, sigma, density=1):
     """
-    Adds events to a healpy zoom plot. Events are expected to be from self.llh.exp
+    Compute a list of points which are at "sigma" distance from (ra, dec) center.
+    Density controls the density of points which are returned
+    ra: float
+        Right ascension of the center
+    dec: float
+        Declination of the center
+    sigma: float
+        The size of the uncertainty circle you want to draw
+    density: float
+        The density of points around the circle to return.
+
+    returns Theta, Phi: float array, float array
+        Coordinates of points around the uncertainty circle
+    """
+    dec = np.pi / 2 - dec
+    sigma = np.rad2deg(sigma)
+    delta, step, bins = 0, 0, 0
+    delta = sigma / 180.0 * np.pi
+    step = 1.0 / np.sin(delta) / 20.0 / density
+    bins = int(360.0 / step)
+    Theta = np.zeros(bins + 1, dtype=np.double)
+    Phi = np.zeros(bins + 1, dtype=np.double)
+    # define the contour
+    for j in range(0, bins):
+        phi = j * step / 180.0 * np.pi
+        vx = np.cos(phi) * np.sin(ra) * np.sin(delta) + np.cos(ra) * (
+            np.cos(delta) * np.sin(dec) + np.cos(dec) * np.sin(delta) * np.sin(phi)
+        )
+        vy = np.cos(delta) * np.sin(dec) * np.sin(ra) + np.sin(delta) * (
+            -np.cos(ra) * np.cos(phi) + np.cos(dec) * np.sin(ra) * np.sin(phi)
+        )
+        vz = np.cos(dec) * np.cos(delta) - np.sin(dec) * np.sin(delta) * np.sin(phi)
+        Theta[j], Phi[j] = hp.vec2ang(np.array([vx, vy, vz]))
+
+    Theta[bins] = Theta[0]
+    Phi[bins] = Phi[0]
+
+    return Theta, Phi
+
+
+
+def plot_events(dec, ra, sigmas, col="k",density=1, with_dash=False,with_mark=True):
+    """
+    Fixed version of plot_events. Does the same thing as plot_events, but guaranteed to plot correctly after it was observed
+    plot_events may not always give the correct results.
+    Adds events to a healpy zoom plot.
 
     Parameters
     -----------
@@ -196,69 +237,32 @@ def plot_events(
         Array of Right Ascension values for each event
     sigmas: float array
         Angular error (circularized) to be plotted. Usually a 90% CL angular error
-    src_ra: float
-        Right Ascension value at the center of the plot (best-fit RA or source RA)
-    src_dec: float
-        Declination value at the center of the plot (best-fit dec or source dec)
-    reso: float
-        Resolution (arcmins)
-    sigma_scale: float or None
-        Value to rescale the sigma parameter (default 5.0).
-        If None: no angular undertainty is plotted (sometimes used for very long time windows)
-    col: str or str array
-        color to use for each event plotted (default k=black)
-    constant_sigma: bool
-        Ignores sigma parameter and plots all markers with a size of 20.
-    with_mark: bool
-        Uses an x marker instead of o
+    density: float
+        Determine number of points along uncertainty curve get plotted.
     with_dash: bool
         Plot the angular error as a dashed contour.
         Usually used to indicated a removed event (e.g. alert event that triggered the analysis)
-    same_marker, energy_size: bool
-        Currently unused options.
     """
-    cos_ev = np.cos(dec)
-    tmp = np.cos(src_ra - ra) * np.cos(src_dec) * cos_ev + np.sin(src_dec) * np.sin(dec)
-    dist = np.arccos(tmp)
-
-    if sigma_scale is not None:
-        sigma = np.degrees(sigmas) / sigma_scale
-        sizes = 5200 * sigma**2
-        if constant_sigma:
-            sizes = 20 * np.ones_like(sizes)
-        if with_dash:
-            hp.projscatter(
-                np.pi / 2 - dec,
-                ra,
-                marker="o",
-                linewidth=2,
-                edgecolor=col,
-                linestyle=":",
-                facecolor="None",
-                s=sizes,
-                alpha=1.0,
-            )
-        else:
-            hp.projscatter(
-                np.pi / 2 - dec,
-                ra,
-                marker="o",
-                linewidth=2,
-                edgecolor=col,
-                facecolor="None",
-                s=sizes,
-                alpha=1.0,
-            )
-    if with_mark:
-        hp.projscatter(
-            np.pi / 2 - dec,
-            ra,
-            marker="x",
-            linewidth=2,
-            edgecolor=col,
-            facecolor=col,
-            s=60,
-            alpha=1.0,
+    # plot based on explicitly determined contours rather than using the s parameter.
+    hp.projscatter(
+        np.pi / 2 - dec,
+        ra,
+        marker="x" if with_mark else "o",
+        linewidth=2,
+        edgecolor=col,
+        facecolor=col,
+        s=60,
+        alpha=1.0,
+    )
+    for i in range(len(ra)):
+        ev_contour = compute_ang_err(ra[i], dec[i], sigmas[i], density=density)
+        hp.projplot(
+            ev_contour[0],
+            ev_contour[1],
+            linewidth=1.75,
+            color=col[i] if len(col)!=1 else col,
+            coord="C",
+            linestyle=":" if with_dash else "solid",
         )
 
 
@@ -283,56 +287,6 @@ def load_plotting_settings():
     mpl.rcParams["ytick.labelsize"] = 16
     mpl.rcParams["xtick.major.size"] = 5
     mpl.rcParams["ytick.major.size"] = 5
-
-
-def contour(ra, dec, sigma, nside):
-    r"""Function for plotting contours on skymaps
-
-    Parameters
-    -----------
-    ra: ndarray
-        Array of ra for events
-    dec: ndarray
-        Array of dec for events
-    sigma: ndarray
-        Array of sigma to make contours around events
-    nside:
-        nside of healpy map
-
-    Returns
-    --------
-    Theta: array
-        array of theta values of contour
-    Phi: array
-        array of phi values of contour
-    """
-    dec = np.pi / 2 - dec
-    sigma = np.rad2deg(sigma)
-    delta, step, bins = 0, 0, 0
-    delta = sigma / 180.0 * np.pi
-    step = 1.0 / np.sin(delta) / 20.0
-    bins = int(360.0 / step)
-    Theta = np.zeros(bins + 1, dtype=np.double)
-    Phi = np.zeros(bins + 1, dtype=np.double)
-    # define the contour
-    for j in range(0, bins):
-        phi = j * step / 180.0 * np.pi
-        vx = np.cos(phi) * np.sin(ra) * np.sin(delta) + np.cos(ra) * (
-            np.cos(delta) * np.sin(dec) + np.cos(dec) * np.sin(delta) * np.sin(phi)
-        )
-        vy = np.cos(delta) * np.sin(dec) * np.sin(ra) + np.sin(delta) * (
-            -np.cos(ra) * np.cos(phi) + np.cos(dec) * np.sin(ra) * np.sin(phi)
-        )
-        vz = np.cos(dec) * np.cos(delta) - np.sin(dec) * np.sin(delta) * np.sin(phi)
-        idx = hp.vec2pix(nside, vx, vy, vz)
-        DEC, RA = hp.pix2ang(nside, idx)
-        Theta[j] = DEC
-        Phi[j] = RA
-    Theta[bins] = Theta[0]
-    Phi[bins] = Phi[0]
-
-    return Theta, Phi
-
 
 def plot_contours(proportions, samples):
     r"""Plot containment contour around desired level.
@@ -409,13 +363,6 @@ def make_public_zoom_skymap(skymap, events, ra, dec, with_contour=True, name="te
         events["dec"],
         events["ra"],
         events["sigma"],
-        ra,
-        dec,
-        2 * 6,
-        sigma_scale=1.0,
-        constant_sigma=False,
-        same_marker=True,
-        energy_size=True,
         col="black",
     )
 
@@ -431,6 +378,7 @@ def make_public_zoom_skymap(skymap, events, ra, dec, with_contour=True, name="te
 
     # plt.scatter(0,0, marker='*', c = 'k', s = 130, label = label_str)
     # plt.legend(loc = 2, ncol=1, mode = 'expand', fontsize = 18.5, framealpha = 0.95)
+
     plot_color_bar(
         range=[0, 6],
         cmap=cmap,
@@ -438,6 +386,5 @@ def make_public_zoom_skymap(skymap, events, ra, dec, with_contour=True, name="te
         offset=-10,
         labels=[f"{min(skymap):.1e}", f"{max(skymap):.1e}"],
     )
-
     plt.savefig(f"./{name}_skymap_zoom_public.png", bbox_inches="tight", dpi=300)
     plt.close()

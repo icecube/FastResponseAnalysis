@@ -73,4 +73,3 @@ results = f.save_results()
 f.generate_report()
 
 f.write_circular() 
-

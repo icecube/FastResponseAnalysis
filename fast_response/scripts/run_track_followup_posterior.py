@@ -1,0 +1,81 @@
+#!/usr/bin/env python
+
+r'''Script to run track followup in response to 
+high-energy neutrino alert events
+
+Author: Sam Hori
+November 2026'''
+
+import os, argparse, glob
+from astropy.time import Time
+
+from fast_response.AlertFollowup import TrackFollowup, TrackFollowupLLH
+import fast_response.web_utils as web_utils
+
+parser = argparse.ArgumentParser(description='Fast Response Analysis')
+parser.add_argument('--skymap', type=str, default=None,
+                    help='path to skymap')
+parser.add_argument('--time', type=float, default=None,
+                    help='Time of the alert event (mjd)')
+parser.add_argument('--deltaT', type=float, default=1000,
+                    help='Time of the analysis (s)')
+parser.add_argument('--alert_circ', default=0, type=int,
+                    help="GCN Circular NUMBER for updated circular (not Bacodine/Notice)")
+parser.add_argument('--alert_id', default=None,
+                    type= lambda z:[ tuple(int(y) for y in x.split(':')) for x in z.split(',')],
+                    help="list of events to exclude from this analysis. "
+                    "such as HESE events that contributed to the trigger."
+                    "Example --alert_id  127853:67093193,128290:6888376")
+parser.add_argument('--suffix', type=str, default='A',
+                    help="letter to differentiate multiple alerts on the same day (default = A)."
+                    "Event name given by IceCube-yymmdd + suffix.")
+parser.add_argument('--print_nearby', action='store_true', default=False,
+                    help='Option to print events within 5 degrees of best-fit to the screen (default False)')
+parser.add_argument('--deltallh_skymap', action='store_true', default=False,
+                    help='Option MUST be raised if using deltaLLH map (default: False, assumes probability map)')
+parser.add_argument('--do_posterior_analysis', type=bool, default=False,
+                    help='Whether to do the posterior map calculation')
+args = parser.parse_args()
+
+track_time = Time(args.time, format='mjd')
+year, month, day = track_time.iso.split('-')
+day = day[:2]
+track_name = 'IceCube-{}{}{}{}'.format(year[-2:], month, day, args.suffix)
+
+all_results = {}
+
+delta_t=args.deltaT
+start_time = track_time - (delta_t / 86400. / 2.)
+stop_time = track_time + (delta_t / 86400. / 2.)
+start = start_time.iso
+stop = stop_time.iso
+
+name = track_name + " posterior"+' {:.1e}_s'.format(delta_t)
+name = name.replace('_', ' ')
+
+run_id = args.alert_id[0][0]
+ev_id = args.alert_id[0][1]
+
+# look for contour files
+base_skymap_path = '/home/followup/output_plots/'
+contour_fs = []
+for containment in ['50', '90']:
+    contour_fs = contour_fs + glob.glob(base_skymap_path +
+                    f'run{run_id:08d}.evt{ev_id:012d}.*.contour_{containment}.txt')
+if len(contour_fs) == 0:
+    contour_fs = None
+
+if args.deltallh_skymap:
+    print('Initializing Track follow up with deltaLLH map')
+    f = TrackFollowupLLH(name, args.skymap, start, stop, skipped=args.alert_id)
+else:
+    print('Initializing Track follow up with probability skymap')
+    f = TrackFollowup(name, args.skymap, start, stop, skipped=args.alert_id)
+
+f.make_posterior_map(fluxToTest=[.25,.5,.75,1,1.25,1.5,1.75,2,2.25,2.5,2.75,3,3.25,3.5,3.75,4], 
+                    plotting_location=f.analysispath + '/',
+                    )
+f.make_prior_map(plotting_location=f.analysispath + '/',format=True,central_point=f.posterior_max_pos)
+
+f.generate_posterior_report()
+

@@ -28,6 +28,7 @@ parser.add_argument('--alert_id', default=None,
 parser.add_argument('--suffix', type=str, default='A',
                     help="letter to differentiate multiple alerts on the same day (default = A)."
                     "Event name given by IceCube-yymmdd + suffix.")
+
 args = parser.parse_args()
 
 cascade_time = Time(args.time, format='mjd')
