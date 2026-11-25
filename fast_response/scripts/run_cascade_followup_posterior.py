@@ -18,6 +18,8 @@ parser.add_argument('--skymap', type=str, default=None,
                     help='path to skymap')
 parser.add_argument('--time', type=float, default=None,
                     help='Time of the alert event (mjd)')
+parser.add_argument('--deltaT', type=float, default=1000,
+                    help='Time of the analysis (s)')
 parser.add_argument('--gcn_notice_num', default=0, type=int,
                     help="Number of GCN circular. If not set, links to automated notice")
 parser.add_argument('--alert_id', default=None,
@@ -48,7 +50,7 @@ if 'https://roc.icecube.wisc.edu' in args.skymap:
     args.skymap=saved_skymaps_path+skymap_filename
 
 all_results = {}
-delta_t=1000
+delta_t=args.deltaT
 start_time = cascade_time - (delta_t / 86400. / 2.)
 stop_time = cascade_time + (delta_t / 86400. / 2.)
 start = start_time.iso
@@ -64,4 +66,5 @@ f = CascadeFollowup(name+" posterior", args.skymap, start, stop, skipped=args.al
 f.make_posterior_map(fluxToTest=[.25,.5,.75,1,1.25,1.5,1.75,2,2.25,2.5,2.75,3,3.25,3.5,3.75,4], 
                 plotting_location=f.analysispath + '/',
                 )
+f.make_prior_map(plotting_location=f.analysispath + '/',format=True,central_point=f.posterior_max_pos)
 f.generate_posterior_report()

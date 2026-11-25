@@ -71,8 +71,11 @@ if args.deltallh_skymap:
 else:
     print('Initializing Track follow up with probability skymap')
     f = TrackFollowup(name, args.skymap, start, stop, skipped=args.alert_id)
+
 f.make_posterior_map(fluxToTest=[.25,.5,.75,1,1.25,1.5,1.75,2,2.25,2.5,2.75,3,3.25,3.5,3.75,4], 
                     plotting_location=f.analysispath + '/',
                     )
+f.make_prior_map(plotting_location=f.analysispath + '/',format=True,central_point=f.posterior_max_pos)
+
 f.generate_posterior_report()
 

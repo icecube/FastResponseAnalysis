@@ -10,6 +10,17 @@
 \include{r_posterior}
 
 \newcommand{\degree}{$^{\circ}$}
+
+\newcommand{\plotpage}[3]{%
+  \newpage
+  \begin{center}
+    {\Large\bfseries #1\par}
+    \vspace{0.5cm}
+    #3\par
+    \vspace{0.5cm}
+    \parbox{0.9\textwidth}{\centering #2}
+  \end{center}
+}
 \begin{document}
 
 \begin{titlepage}
@@ -28,8 +39,7 @@
 \end{titlepage}
 
 
-\pagebreak
-\section{Results}
+\section{Prior Skymap}
 {
   \plotpage{Prior Zoomed}
   {A zoomed-in plot around the maximum intensity point of the skymap. It is colored by total posterior with neutrinos shown in red and in green, a 90\% credible region is shown.}
@@ -54,21 +64,17 @@
   {Posterior skymap plot zoomed in with overlaid neutrinos in red.}
   {\includegraphics[width=0.9\textwidth]{\PosteriorSkymapZoomWNeutrinos}}
 }
-\pagebreak
-
+\section{Profile Plots}
 {
   \centering
     \vspace{0.5cm}
 
 
   \plotpage{$N_s$ Profile Plot}
-
-
  { Here we choose some pixels and plot their posterior profile over ns as a function of $n_s$, colored by the
   total probability of each pixel in the posterior. Which pixels are shown is chosen by ordering in probability and
   choosing from different regions of probability in order to sample both pixels in the brightest region and 
   dimmer regions. }
-
   {\includegraphics[width=0.9\textwidth]{\NsProfilePlot}}
 
   

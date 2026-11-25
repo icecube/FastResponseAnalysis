@@ -1234,12 +1234,14 @@ class PriorFollowup(FastResponseAnalysis):
         )
         return sample
 
-    def make_prior_map(self, plotting_location=None, format=True):
+    def make_prior_map(self,central_point=None,plotting_location=None, format=True):
         r"""
         Generates a zoomed in skymap plot around the best fit location from the maximum likelihood analysis
 
         Parameters
         ----------------
+        central_point: (float, float):
+            position of where to center the plot in radians
         plotting_location: string
             location to output plots
         format: boolean
@@ -1250,7 +1252,10 @@ class PriorFollowup(FastResponseAnalysis):
             skymap = self.format_skymap(self.skymap)
         else:
             skymap = self.skymap
-
+        if(central_point is None):
+            central_point=(np.degrees(self.skymap_fit_ra), np.degrees(self.skymap_fit_dec))
+        else:
+            central_point=(np.degrees(central_point[0]),np.degrees(central_point[1]))
         # Plot the prior skymap
         fig, ax = plt.subplots(1, 1, figsize=(10, 10))
         plt.sca(ax)
@@ -1261,7 +1266,7 @@ class PriorFollowup(FastResponseAnalysis):
             map=np.log10(skymap),
             hold=True,
             title="Prior Skymap",
-            rot=(np.degrees(self.skymap_fit_ra), np.degrees(self.skymap_fit_dec), 0),
+            rot=(central_point[0],central_point[1], 0),
             xsize=nPixZoom,
             ysize=nPixZoom,
             reso=reso,
@@ -1274,8 +1279,8 @@ class PriorFollowup(FastResponseAnalysis):
 
         hp.graticule(verbose=True)
         plotting_utils.plot_labels(
-            self.skymap_fit_dec,
-            self.skymap_fit_ra,
+            central_point[1],
+            central_point[0],
             reso,
             nPix=nPixZoom,
             label_scale=0.97,
@@ -1451,7 +1456,7 @@ class PriorFollowup(FastResponseAnalysis):
 
         idx_max = np.argmax(TS_spatial_prior_0)
         ramax, decmax = ras[idx_max], decs[idx_max]
-
+        self.posterior_max_pos=(ramax,decmax)
         logProbs = TS_spatial_prior_0 / 2
 
         # for each pixel we have lists [ns_1,ns_2,...ns_i], [logP_1,logP_2,...,logP_3]
