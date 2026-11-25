@@ -1279,8 +1279,8 @@ class PriorFollowup(FastResponseAnalysis):
 
         hp.graticule(verbose=True)
         plotting_utils.plot_labels(
-            central_point[1],
-            central_point[0],
+            np.radians(central_point[1]),
+            np.radians(central_point[0]),
             reso,
             nPix=nPixZoom,
             label_scale=0.97,
