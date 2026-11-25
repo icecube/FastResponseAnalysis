@@ -168,7 +168,7 @@ For tracks, cascades and GW the script each has a X_posterior.py script. These s
 
 python run_gw_followup_posterior.py --name="S191216ap Update" --time=58833.89836 --skymap="https://gracedb.ligo.org/api/superevents/S191216ap/files/LALInference.fits.gz,0"
 
-This will print "Starting Posterior Calc" when entering the posterior function, followed by some tracking messages ("Running posterior scans"," Done running posterior scans. Starting integration"). When the calculation is done it will print "Finished posterior calc, took X s" before starting with the plotting and fits file production. When that is finished a final message will indicate the completion and the time to generate the map
+This will print "Starting Posterior Calc" when entering the posterior function, followed by some tracking messages ("Running posterior scans"," Done running posterior scans. Starting integration"). When the calculation is done it will print "Finished posterior calc, took X s" before starting with the plotting and fits file production. When that is finished a final message will indicate the completion and the time to generate the map. During plotting several messages with intervals will print. These are a biproduct of the plotting and indicate information about the size of the printed region
 
 In the output folder an image of the prior skymap, several images of the posterior skymap (plotted all-sky and zoomed, with a log10 colormap option and with/without neutrinos plotted on top of the skymaps), and a plot showing the profiles of several pixels in ns space will be made as well as the fits file for distribution. 
 
